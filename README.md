@@ -1,4 +1,4 @@
-# farcaster-core
+# Farcaster Core
 Farcaster Core Libraries and Utilities implementing in Rust:
 
  - [ ] Farcaster versions and feature description

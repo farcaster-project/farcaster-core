@@ -6,7 +6,7 @@ use bitcoin::hash_types::PubkeyHash;
 use std::convert::TryFrom;
 
 use crate::roles::{Alice, Bob};
-use crate::session::Session;
+//use crate::session::Session;
 
 pub trait ProtocolMessage {}
 

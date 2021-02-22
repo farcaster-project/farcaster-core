@@ -5,6 +5,7 @@ pub mod messages;
 pub mod negotiation;
 pub mod roles;
 pub mod session;
+pub mod instructions;
 
 #[cfg(test)]
 mod tests {

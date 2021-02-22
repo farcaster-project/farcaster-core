@@ -1,5 +1,7 @@
 //! Protocol roles
 
+use crate::blockchains::Blockchain;
+
 pub enum NegotiationRole {
     Maker,
     Taker,
@@ -29,5 +31,5 @@ pub enum BlockchainRole {
     Accordant,
 }
 
-pub trait Arbitrating {}
-pub trait Accordant {}
+pub trait Arbitrating: Blockchain {}
+pub trait Accordant: Blockchain {}

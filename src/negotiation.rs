@@ -1,14 +1,14 @@
 //! Negotiation Phase utilities
 
-use crate::blockchain::Blockchain;
+use crate::blockchains::Blockchain;
 use crate::roles::{Accordant, Arbitrating};
 
 use crate::roles::SwapRole;
 
 pub struct Offer<Ar, Ac>
 where
-    Ar: Arbitrating + Blockchain,
-    Ac: Accordant + Blockchain,
+    Ar: Arbitrating,
+    Ac: Accordant,
 {
     pub arbitrating: Ar,
     pub accordant: Ac,
@@ -20,8 +20,8 @@ where
 
 pub struct PublicOffer<Ar, Ac>
 where
-    Ar: Arbitrating + Blockchain,
-    Ac: Accordant + Blockchain,
+    Ar: Arbitrating,
+    Ac: Accordant,
 {
     pub offer: Offer<Ar, Ac>,
     pub maker_role: SwapRole,

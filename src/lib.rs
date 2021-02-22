@@ -1,6 +1,6 @@
 //! Farcaster Core library
 
-pub mod blockchain;
+pub mod blockchains;
 pub mod messages;
 pub mod negotiation;
 pub mod roles;

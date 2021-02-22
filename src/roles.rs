@@ -31,5 +31,13 @@ pub enum BlockchainRole {
     Accordant,
 }
 
-pub trait Arbitrating: Blockchain {}
+pub trait Arbitrating: Blockchain {
+    /// Defines the address format for the arbitrating blockchain
+    type Address;
+    /// Defines the transaction format for the arbitrating blockchain
+    type Transaction;
+    /// Defines the signature format for the arbitrating blockchain
+    type Signature;
+}
+
 pub trait Accordant: Blockchain {}

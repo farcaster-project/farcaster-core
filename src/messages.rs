@@ -9,8 +9,6 @@ use crate::roles::{Alice, Bob};
 
 pub trait ProtocolMessage {}
 
-// TODO derive protocol message from daemon session
-
 pub struct CommitAliceSessionParams<Ar, Ac, C>
 where
     Ar: Arbitrating + Crypto<C>,

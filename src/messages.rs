@@ -1,19 +1,21 @@
 //! Protocol messages exchanged between swap daemons
-use crate::roles::{Accordant, Arbitrating};
 
 use bitcoin::hash_types::PubkeyHash;
 use monero::cryptonote::hash::Hash;
 
+use crate::crypto::{Crypto, CryptoEngine};
+use crate::roles::{Accordant, Arbitrating};
 use crate::roles::{Alice, Bob};
 
 pub trait ProtocolMessage {}
 
 // TODO derive protocol message from daemon session
 
-pub struct CommitAliceSessionParams<Ar, Ac>
+pub struct CommitAliceSessionParams<Ar, Ac, C>
 where
-    Ar: Arbitrating,
+    Ar: Arbitrating + Crypto<C>,
     Ac: Accordant,
+    C: CryptoEngine,
 {
     pub buy: Ar::Commitment,
     pub cancel: Ar::Commitment,
@@ -24,10 +26,11 @@ where
     pub view: Ac::Commitment,
 }
 
-pub struct CommitBobSessionParams<Ar, Ac>
+pub struct CommitBobSessionParams<Ar, Ac, C>
 where
-    Ar: Arbitrating,
+    Ar: Arbitrating + Crypto<C>,
     Ac: Accordant,
+    C: CryptoEngine,
 {
     pub buy: Ar::Commitment,
     pub cancel: Ar::Commitment,
@@ -37,10 +40,11 @@ where
     pub view: Ac::Commitment,
 }
 
-pub struct RevealAliceSessionParams<Ar, Ac>
+pub struct RevealAliceSessionParams<Ar, Ac, C>
 where
-    Ar: Arbitrating,
+    Ar: Arbitrating + Crypto<C>,
     Ac: Accordant,
+    C: CryptoEngine,
 {
     pub buy: Ar::PublicKey,
     pub cancel: Ar::PublicKey,
@@ -53,10 +57,11 @@ where
     pub proof: Option<String>,
 }
 
-pub struct RevealBobSessionParams<Ar, Ac>
+pub struct RevealBobSessionParams<Ar, Ac, C>
 where
-    Ar: Arbitrating,
+    Ar: Arbitrating + Crypto<C>,
     Ac: Accordant,
+    C: CryptoEngine,
 {
     pub buy: Ar::PublicKey,
     pub cancel: Ar::PublicKey,
@@ -68,9 +73,10 @@ where
     pub proof: Option<String>,
 }
 
-pub struct CoreArbitratingSetup<Ar>
+pub struct CoreArbitratingSetup<Ar, C>
 where
-    Ar: Arbitrating,
+    Ar: Arbitrating + Crypto<C>,
+    C: CryptoEngine,
 {
     pub lock: Ar::Transaction,
     pub cancel: Ar::Transaction,
@@ -78,17 +84,19 @@ where
     pub cancel_sig: Ar::Signature,
 }
 
-pub struct RefundProcedureSignatures<Ar>
+pub struct RefundProcedureSignatures<Ar, C>
 where
-    Ar: Arbitrating,
+    Ar: Arbitrating + Crypto<C>,
+    C: CryptoEngine,
 {
     pub cancel_sig: Ar::Signature,
     pub refund_adaptor_sig: Ar::Signature,
 }
 
-pub struct BuyProcedureSignature<Ar>
+pub struct BuyProcedureSignature<Ar, C>
 where
-    Ar: Arbitrating,
+    Ar: Arbitrating + Crypto<C>,
+    C: CryptoEngine,
 {
     pub buy: Ar::Transaction,
     pub buy_adaptor_sig: Ar::Signature,

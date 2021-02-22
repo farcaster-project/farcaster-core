@@ -120,7 +120,6 @@ impl SessionParameters for Bob {
     type Parameters = BobSessionParameters;
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{Alice, AlicePreSessionParameters, AliceSessionParameters, PreSession};

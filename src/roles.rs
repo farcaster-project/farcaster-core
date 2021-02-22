@@ -1,6 +1,7 @@
 //! Protocol roles
 
 use crate::blockchains::Blockchain;
+use crate::crypto::{Crypto, CryptoEngine};
 
 pub enum NegotiationRole {
     Maker,
@@ -36,8 +37,13 @@ pub trait Arbitrating: Blockchain {
     type Address;
     /// Defines the transaction format for the arbitrating blockchain
     type Transaction;
-    /// Defines the signature format for the arbitrating blockchain
-    type Signature;
 }
 
-pub trait Accordant: Blockchain {}
+pub trait Accordant: Blockchain {
+    /// Private key type for the blockchain
+    type PrivateKey;
+    /// Public key type for the blockchain
+    type PublicKey;
+    /// Commitment type for the blockchain
+    type Commitment;
+}

@@ -2,8 +2,8 @@
 //! It is possible to create a daemon pre-session and session from a client one through messages
 //! exchanged between client and daemon called instructions.
 
+use monero::util::key::{PrivateKey, PublicKey as MPublicKey};
 use secp256k1::key::PublicKey;
-use monero::util::key::{PublicKey as MPublicKey, PrivateKey};
 
 pub struct AliceSessionParameters {
     pub destination_address: String,

@@ -1,3 +1,5 @@
+//! Cryptographic primitives
+
 pub trait CryptoEngine {}
 
 pub struct ECDSAScripts {}

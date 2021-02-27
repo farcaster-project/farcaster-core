@@ -3,14 +3,17 @@
 use inet2_addr::InetSocketAddrExt;
 
 use crate::blockchains::{Fee, FeeStrategy};
-use crate::roles::{Accordant, Arbitrating, SwapRole};
+use crate::roles::{Accordant, Arbitrating, Network, SwapRole};
 
-pub struct Offer<Ar, Ac, S>
+pub struct Offer<Ar, Ac, S, N>
 where
     Ar: Arbitrating + Fee<S>,
     Ac: Accordant,
     S: FeeStrategy,
+    N: Network,
 {
+    /// Type of offer and network to use
+    pub network: N,
     /// The chosen arbitrating blockchain
     pub arbitrating: Ar,
     /// The chosen accordant blockchain
@@ -29,13 +32,14 @@ where
     pub maker_role: SwapRole,
 }
 
-pub struct PublicOffer<Ar, Ac, S>
+pub struct PublicOffer<Ar, Ac, S, N>
 where
     Ar: Arbitrating + Fee<S>,
     Ac: Accordant,
     S: FeeStrategy,
+    N: Network,
 {
-    pub offer: Offer<Ar, Ac, S>,
+    pub offer: Offer<Ar, Ac, S, N>,
     pub daemon_service: InetSocketAddrExt,
 }
 
@@ -45,12 +49,13 @@ mod tests {
     use crate::blockchains::{
         bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, FixeFee,
     };
-    use crate::roles::SwapRole;
+    use crate::roles::{Local, SwapRole};
     use bitcoin::util::amount::Amount;
 
     #[test]
     fn create_offer() {
-        let _ = Offer::<Bitcoin, Monero, FixeFee<Bitcoin>> {
+        let _ = Offer::<Bitcoin, Monero, FixeFee<Bitcoin>, Local> {
+            network: Local,
             arbitrating: Bitcoin::new(),
             accordant: Monero::new(),
             arbitrating_assets: Amount::from_sat(1),

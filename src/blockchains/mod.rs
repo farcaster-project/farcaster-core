@@ -1,5 +1,7 @@
 //! Defines what a blockchain is and what needs to be implemented
 
+use std::str::FromStr;
+
 use crate::roles::Arbitrating;
 
 pub mod bitcoin;
@@ -10,8 +12,17 @@ pub trait Blockchain {
     /// Type for the traded asset unit
     type AssetUnit;
 
-    /// Returns a string identifier for the blockchain
-    fn id(&self) -> String;
+    /// Type of the blockchain identifier
+    type Id: FromStr + Into<String>;
+
+    /// Type of the chain identifier
+    type ChainId;
+
+    /// Returns the blockchain identifier
+    fn id(&self) -> Self::Id;
+
+    /// Returns the chain identifier
+    fn chain_id(&self) -> Self::ChainId;
 
     /// Create a new blockchain
     fn new() -> Self;

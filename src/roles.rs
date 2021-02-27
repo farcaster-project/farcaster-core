@@ -34,15 +34,21 @@ pub enum BlockchainRole {
 pub trait Arbitrating: Blockchain {
     /// Defines the address format for the arbitrating blockchain
     type Address;
+
     /// Defines the transaction format for the arbitrating blockchain
     type Transaction;
+
+    //// Defines the type of timelock used for the arbitrating transactions
+    type Timelock;
 }
 
 pub trait Accordant: Blockchain {
     /// Private key type for the blockchain
     type PrivateKey;
+
     /// Public key type for the blockchain
     type PublicKey;
+
     /// Commitment type for the blockchain
     type Commitment;
 }

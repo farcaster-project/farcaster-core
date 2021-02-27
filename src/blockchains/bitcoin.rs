@@ -1,6 +1,7 @@
 //! Defines and implements all the traits for Bitcoin
 
 use bitcoin::hash_types::PubkeyHash;
+use bitcoin::network::constants::Network;
 use bitcoin::util::address::Address;
 use bitcoin::util::amount::Amount;
 use bitcoin::util::psbt::PartiallySignedTransaction;
@@ -15,12 +16,26 @@ use crate::roles::Arbitrating;
 pub struct Bitcoin {}
 
 impl Blockchain for Bitcoin {
+    /// Type for the traded asset unit
     type AssetUnit = Amount;
 
+    /// Type of the blockchain identifier
+    type Id = String;
+
+    /// Type of the chain identifier
+    type ChainId = Network;
+
+    /// Returns the blockchain identifier
     fn id(&self) -> String {
         String::from("btc")
     }
 
+    /// Returns the chain identifier
+    fn chain_id(&self) -> Network {
+        Network::Bitcoin
+    }
+
+    /// Create a new Bitcoin blockchain
     fn new() -> Self {
         Bitcoin {}
     }
@@ -50,8 +65,14 @@ impl Fee<FixeFee<Bitcoin>> for Bitcoin {
 }
 
 impl Arbitrating for Bitcoin {
+    /// Defines the address format for the arbitrating blockchain
     type Transaction = PartiallySignedTransaction;
+
+    /// Defines the transaction format for the arbitrating blockchain
     type Address = Address;
+
+    //// Defines the type of timelock used for the arbitrating transactions
+    type Timelock = u32;
 }
 
 impl Crypto<ECDSAScripts> for Bitcoin {

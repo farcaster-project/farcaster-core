@@ -1,10 +1,9 @@
-//! Negotiation Phase utilities
+//! Negotiation phase utilities
 
-use crate::blockchains::{Fee, FeeStrategy};
-use crate::roles::{Accordant, Arbitrating};
 use inet2_addr::InetSocketAddrExt;
 
-use crate::roles::SwapRole;
+use crate::blockchains::{Fee, FeeStrategy};
+use crate::roles::{Accordant, Arbitrating, SwapRole};
 
 pub struct Offer<Ar, Ac, S>
 where
@@ -12,13 +11,22 @@ where
     Ac: Accordant,
     S: FeeStrategy,
 {
+    /// The chosen arbitrating blockchain
     pub arbitrating: Ar,
+    /// The chosen accordant blockchain
     pub accordant: Ac,
+    /// Amount of arbitrating assets to exchanged
     pub arbitrating_assets: Ar::AssetUnit,
+    /// Amount of accordant assets to exchanged
     pub accordant_assets: Ac::AssetUnit,
-    pub cancel_timelock: u64,
-    pub punish_timelock: u64,
+    /// The cancel timelock parameter of the arbitrating blockchain
+    pub cancel_timelock: Ar::Timelock,
+    /// The punish timelock parameter of the arbitrating blockchain
+    pub punish_timelock: Ar::Timelock,
+    /// The chosen fee strategy for the arbitrating transactions
     pub fee_strategy: S,
+    /// The future maker swap role
+    pub maker_role: SwapRole,
 }
 
 pub struct PublicOffer<Ar, Ac, S>
@@ -28,7 +36,6 @@ where
     S: FeeStrategy,
 {
     pub offer: Offer<Ar, Ac, S>,
-    pub maker_role: SwapRole,
     pub daemon_service: InetSocketAddrExt,
 }
 
@@ -38,6 +45,7 @@ mod tests {
     use crate::blockchains::{
         bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, FixeFee,
     };
+    use crate::roles::SwapRole;
     use bitcoin::util::amount::Amount;
 
     #[test]
@@ -50,6 +58,7 @@ mod tests {
             cancel_timelock: 10,
             punish_timelock: 10,
             fee_strategy: FixeFee::new(SatPerVByte::from_sat(20)),
+            maker_role: SwapRole::Alice,
         };
     }
 }

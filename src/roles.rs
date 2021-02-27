@@ -1,7 +1,6 @@
 //! Protocol roles
 
 use crate::blockchains::Blockchain;
-use crate::crypto::{Crypto, CryptoEngine};
 
 pub enum NegotiationRole {
     Maker,

@@ -1,11 +1,7 @@
 //! Protocol messages exchanged between swap daemons
 
-use bitcoin::hash_types::PubkeyHash;
-use monero::cryptonote::hash::Hash;
-
 use crate::crypto::{Crypto, CryptoEngine};
 use crate::roles::{Accordant, Arbitrating};
-use crate::roles::{Alice, Bob};
 
 pub trait ProtocolMessage {}
 

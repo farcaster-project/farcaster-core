@@ -1,7 +1,7 @@
 //! Protocol session
 //! Defines role pre-session and session and their respective parameters
 
-use crate::roles::{Alice, Bob, Role};
+use crate::roles::Role;
 
 pub mod client;
 pub mod daemon;

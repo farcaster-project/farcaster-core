@@ -54,7 +54,7 @@ mod tests {
 
     #[test]
     fn create_offer() {
-        let _ = Offer::<Bitcoin, Monero, FixeFee<Bitcoin>, Local> {
+        let _ = Offer {
             network: Local,
             arbitrating: Bitcoin::new(),
             accordant: Monero::new(),

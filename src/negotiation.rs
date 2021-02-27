@@ -36,20 +36,20 @@ where
 mod tests {
     use super::Offer;
     use crate::blockchains::{
-        bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, StaticFee,
+        bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, FixeFee,
     };
     use bitcoin::util::amount::Amount;
 
     #[test]
     fn create_offer() {
-        let _ = Offer::<Bitcoin, Monero, StaticFee<Bitcoin>> {
+        let _ = Offer::<Bitcoin, Monero, FixeFee<Bitcoin>> {
             arbitrating: Bitcoin::new(),
             accordant: Monero::new(),
             arbitrating_assets: Amount::from_sat(1),
             accordant_assets: 200,
             cancel_timelock: 10,
             punish_timelock: 10,
-            fee_strategy: StaticFee::new(SatPerVByte::from_sat(20)),
+            fee_strategy: FixeFee::new(SatPerVByte::from_sat(20)),
         };
     }
 }

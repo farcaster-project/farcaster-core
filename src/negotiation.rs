@@ -36,6 +36,10 @@ where
     pub maker_role: SwapRole,
 }
 
+/// Helper to create an offer from an arbitrating asset buyer perspective.
+///
+/// **This helper works only for buying Arbitrating assets with some Accordant assets**. The
+/// reverse is not implemented for the `Buy` helper. You should use the `Sell` helper.
 pub struct Buy<T, U, S, N>(BuilderState<T, U, S, N>)
 where
     T: Arbitrating + Fee<S>,
@@ -50,6 +54,8 @@ where
     S: FeeStrategy,
     N: Network,
 {
+    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
+    /// defined in the `with` method.
     pub fn some(asset: T, amount: T::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
@@ -57,28 +63,38 @@ where
         buy
     }
 
+    /// Defines the asset and its amount the maker will send to get the assets defined in the
+    /// `some` method.
     pub fn with(&mut self, asset: U, amount: U::AssetUnit) -> &Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
         self
     }
 
+    /// Sets the timelocks for the proposed offer
     pub fn with_timelocks(&mut self, cancel: T::Timelock, punish: T::Timelock) -> &Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
         self
     }
 
+    /// Sets the fee strategy for the proposed offer
     pub fn with_fee(&mut self, strategy: S) -> &Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
 
+    /// Sets the network for the proposed offer
     pub fn on(&mut self, network: N) -> &Self {
         self.0.network = Some(network);
         self
     }
 
+    /// Transform the internal state into an offer if all parameters have been set properly,
+    /// otherwise return `None`.
+    ///
+    /// This function automatically sets the maker swap role as **Alice** to comply with the buy
+    /// contract.
     pub fn to_offer(&mut self) -> Option<Offer<T, U, S, N>> {
         self.0.maker_role = Some(SwapRole::Alice);
         Some(Offer {
@@ -95,6 +111,10 @@ where
     }
 }
 
+/// Helper to create an offer from an arbitrating asset seller perspective.
+///
+/// **This helper works only for selling Arbitrating assets for some Accordant assets**. The
+/// reverse is not implemented for the `Sell` helper. You should use the `Buy` helper.
 pub struct Sell<T, U, S, N>(BuilderState<T, U, S, N>)
 where
     T: Arbitrating + Fee<S>,
@@ -109,6 +129,8 @@ where
     S: FeeStrategy,
     N: Network,
 {
+    /// Defines the asset and its amount the maker will send to get the assets defined in the
+    /// `for_some` method.
     pub fn some(asset: T, amount: T::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
@@ -116,28 +138,38 @@ where
         buy
     }
 
+    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
+    /// defined in the `some` method.
     pub fn for_some(&mut self, asset: U, amount: U::AssetUnit) -> &Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
         self
     }
 
+    /// Sets the timelocks for the proposed offer
     pub fn with_timelocks(&mut self, cancel: T::Timelock, punish: T::Timelock) -> &Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
         self
     }
 
+    /// Sets the fee strategy for the proposed offer
     pub fn with_fee(&mut self, strategy: S) -> &Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
 
+    /// Sets the network for the proposed offer
     pub fn on(&mut self, network: N) -> &Self {
         self.0.network = Some(network);
         self
     }
 
+    /// Transform the internal state into an offer if all parameters have been set properly,
+    /// otherwise return `None`.
+    ///
+    /// This function automatically sets the maker swap role as **Bob** to comply with the buy
+    /// contract.
     pub fn to_offer(&mut self) -> Option<Offer<T, U, S, N>> {
         self.0.maker_role = Some(SwapRole::Bob);
         Some(Offer {
@@ -154,6 +186,7 @@ where
     }
 }
 
+// Internal state of an offer builder
 struct BuilderState<Ar, Ac, S, N>
 where
     Ar: Arbitrating + Fee<S>,

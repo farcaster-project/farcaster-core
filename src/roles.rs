@@ -3,19 +3,22 @@
 use crate::blockchains::Blockchain;
 
 /// Three network that need to be defined for every blockchains
-pub trait Network {}
+pub trait Network: Copy {}
 
 /// Mainnet works with real assets
+#[derive(Clone, Copy)]
 pub struct Mainnet;
 
 impl Network for Mainnet {}
 
 /// Testnet works with decentralized testing network for both chains
+#[derive(Clone, Copy)]
 pub struct Testnet;
 
 impl Network for Testnet {}
 
 /// Local works with local blockchains for both chains
+#[derive(Clone, Copy)]
 pub struct Local;
 
 impl Network for Local {}
@@ -31,6 +34,7 @@ pub struct Taker;
 
 pub trait Role {}
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SwapRole {
     Alice,
     Bob,
@@ -57,7 +61,12 @@ pub trait Arbitrating: Blockchain {
     type Transaction;
 
     //// Defines the type of timelock used for the arbitrating transactions
-    type Timelock;
+    type Timelock: Copy;
+
+    /// Return if the blockchain implements the Arbitrating role, returns true
+    fn can_play_arbitrating_role(&self) -> bool {
+        true
+    }
 }
 
 pub trait Accordant: Blockchain {
@@ -69,4 +78,9 @@ pub trait Accordant: Blockchain {
 
     /// Commitment type for the blockchain
     type Commitment;
+
+    /// Return if the blockchain implements the Accordant role, returns true
+    fn can_play_accordant_role(&self) -> bool {
+        true
+    }
 }

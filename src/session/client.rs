@@ -5,10 +5,9 @@ use curve25519_dalek::scalar::Scalar;
 use monero::util::key::PrivateKey;
 use secp256k1::key::SecretKey;
 
-use super::{PreSession, PreSessionParameters, Session, SessionParameters};
-use crate::blockchains::{Bitcoin, Monero};
+use crate::blockchains::{bitcoin::Bitcoin, monero::Monero};
 use crate::crypto::{Crypto, CryptoEngine, ECDSAScripts};
-use crate::roles::{Accordant, Alice, Arbitrating, Bob, Role};
+use crate::roles::{Accordant, Arbitrating};
 
 #[derive(Clone)]
 pub struct AlicePreSessionParameters<Ar>

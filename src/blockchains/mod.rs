@@ -28,11 +28,11 @@ pub trait Blockchain: Copy {
     fn new() -> Self;
 }
 
-/// Enable fee calculation for a blockchain.
+/// Enable fee management for an arbitrating blockchain.
 ///
 /// This trait require implementing the Arbitrating role to have access to transaction associated
 /// type and because in the base protocol transactions for the accordant blockchain are generated
-/// outsite, thus we don't need this trait on Accordant blockchain.
+/// outside, thus we don't need this trait on Accordant blockchain.
 pub trait Fee<S>: Arbitrating
 where
     S: FeeStrategy,
@@ -47,7 +47,7 @@ where
     fn validate_fee(tx: &Self::Transaction, strategy: &S) -> bool;
 }
 
-/// Describes a fee strategy
+/// A fee strategy to be applied on an arbitrating transaction.
 ///
 /// As described in the specifications a fee strategy can be: fixe, range, or more advanced form
 /// of fee calculation.

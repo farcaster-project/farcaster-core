@@ -66,7 +66,7 @@ where
     fn to_offer(&mut self) -> Option<Offer<Self::V, Self::W, S, N>>;
 }
 
-pub struct Buy<T, U, S, N>(Builder<T, U, S, N>)
+pub struct Buy<T, U, S, N>(BuilderState<T, U, S, N>)
 where
     T: Arbitrating + Fee<S>,
     U: Accordant,
@@ -84,7 +84,7 @@ where
     type W = U;
 
     fn some(asset: T, amount: T::AssetUnit) -> Self {
-        let mut buy = Self(Builder::default());
+        let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
         buy.0.arbitrating_assets = Some(amount);
         buy
@@ -132,7 +132,7 @@ where
     }
 }
 
-struct Builder<Ar, Ac, S, N>
+struct BuilderState<Ar, Ac, S, N>
 where
     Ar: Arbitrating + Fee<S>,
     Ac: Accordant,
@@ -150,15 +150,15 @@ where
     maker_role: Option<SwapRole>,
 }
 
-impl<Ar, Ac, S, N> Default for Builder<Ar, Ac, S, N>
+impl<Ar, Ac, S, N> Default for BuilderState<Ar, Ac, S, N>
 where
     Ar: Arbitrating + Fee<S>,
     Ac: Accordant,
     S: FeeStrategy,
     N: Network,
 {
-    fn default() -> Builder<Ar, Ac, S, N> {
-        Builder {
+    fn default() -> BuilderState<Ar, Ac, S, N> {
+        BuilderState {
             network: None,
             arbitrating: None,
             accordant: None,

@@ -62,11 +62,6 @@ pub trait Arbitrating: Blockchain {
 
     //// Defines the type of timelock used for the arbitrating transactions
     type Timelock: Copy;
-
-    /// Return if the blockchain implements the Arbitrating role, returns true
-    fn can_play_arbitrating_role(&self) -> bool {
-        true
-    }
 }
 
 pub trait Accordant: Blockchain {
@@ -78,9 +73,4 @@ pub trait Accordant: Blockchain {
 
     /// Commitment type for the blockchain
     type Commitment;
-
-    /// Return if the blockchain implements the Accordant role, returns true
-    fn can_play_accordant_role(&self) -> bool {
-        true
-    }
 }

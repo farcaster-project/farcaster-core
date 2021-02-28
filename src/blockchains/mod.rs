@@ -26,18 +26,6 @@ pub trait Blockchain: Copy {
 
     /// Create a new blockchain
     fn new() -> Self;
-
-    /// Return if the blockchain implements the Arbitrating role
-    /// Default: false
-    fn can_play_arbitrating_role(&self) -> bool {
-        false
-    }
-
-    /// Return if the blockchain implements the Accordant role
-    /// Default: false
-    fn can_play_accordant_role(&self) -> bool {
-        false
-    }
 }
 
 /// Enable fee calculation for a blockchain.

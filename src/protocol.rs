@@ -3,6 +3,7 @@
 use crate::crypto::{Crypto, CryptoEngine};
 use crate::roles::{Accordant, Arbitrating};
 
+/// Trait for defining inter-daemon communication messages.
 pub trait ProtocolMessage {}
 
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
@@ -29,6 +30,14 @@ where
     pub view: Ac::Commitment,
 }
 
+impl<Ar, Ac, C> ProtocolMessage for CommitAliceSessionParams<Ar, Ac, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    Ac: Accordant,
+    C: CryptoEngine,
+{
+}
+
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
 pub struct CommitBobSessionParams<Ar, Ac, C>
@@ -49,6 +58,14 @@ where
     pub spend: Ac::Commitment,
     /// Commitment to `K_s^b` curve point
     pub view: Ac::Commitment,
+}
+
+impl<Ar, Ac, C> ProtocolMessage for CommitBobSessionParams<Ar, Ac, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    Ac: Accordant,
+    C: CryptoEngine,
+{
 }
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
@@ -79,6 +96,14 @@ where
     pub proof: Option<String>,
 }
 
+impl<Ar, Ac, C> ProtocolMessage for RevealAliceSessionParams<Ar, Ac, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    Ac: Accordant,
+    C: CryptoEngine,
+{
+}
+
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
 pub struct RevealBobSessionParams<Ar, Ac, C>
@@ -105,6 +130,14 @@ where
     pub proof: Option<String>,
 }
 
+impl<Ar, Ac, C> ProtocolMessage for RevealBobSessionParams<Ar, Ac, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    Ac: Accordant,
+    C: CryptoEngine,
+{
+}
+
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
 pub struct CoreArbitratingSetup<Ar, C>
@@ -122,6 +155,13 @@ where
     pub cancel_sig: Ar::Signature,
 }
 
+impl<Ar, C> ProtocolMessage for CoreArbitratingSetup<Ar, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    C: CryptoEngine,
+{
+}
+
 /// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
 /// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
 /// must validate the signatures.
@@ -134,6 +174,13 @@ where
     pub cancel_sig: Ar::Signature,
     /// The `Ar(Tb)` `refund (e)` adaptor signature
     pub refund_adaptor_sig: Ar::Signature,
+}
+
+impl<Ar, C> ProtocolMessage for RefundProcedureSignatures<Ar, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    C: CryptoEngine,
+{
 }
 
 /// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
@@ -150,9 +197,18 @@ where
     pub buy_adaptor_sig: Ar::Signature,
 }
 
+impl<Ar, C> ProtocolMessage for BuyProcedureSignature<Ar, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    C: CryptoEngine,
+{
+}
+
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
 pub struct Abort {
     /// OPTIONAL `body`: error code | string
     pub error_body: Option<String>,
 }
+
+impl ProtocolMessage for Abort {}

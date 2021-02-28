@@ -227,6 +227,9 @@ where
     }
 }
 
+/// A public offer is shared across maker's prefered network to signal is willing of trading some
+/// assets at some conditions. The assets and condition are defined in the offer, the make peer
+/// connection information are happen to the offer the create a public offer.
 pub struct PublicOffer<Ar, Ac, S, N>
 where
     Ar: Arbitrating + Fee<S>,

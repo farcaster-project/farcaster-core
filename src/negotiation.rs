@@ -2,7 +2,7 @@
 
 //use internet2::session::node_addr::NodeAddr;
 
-use crate::blockchains::{Blockchain, Fee, FeeStrategy};
+use crate::blockchains::{Fee, FeeStrategy};
 use crate::roles::{Accordant, Arbitrating, Network, SwapRole};
 
 /// An offer is created by a Maker before the start of his daemon, it references all the data
@@ -36,36 +36,6 @@ where
     pub maker_role: SwapRole,
 }
 
-// Buy some Ar with Ac -> role: Alice
-// Buy some Ac with Ar -> role: Bob
-
-pub trait Buyer<T, U, S, N>
-where
-    T: Blockchain,
-    U: Blockchain,
-    S: FeeStrategy,
-    N: Network,
-{
-    type V: Arbitrating + Fee<S>;
-    type W: Accordant;
-
-    fn some(asset: T, amount: T::AssetUnit) -> Self;
-
-    fn with(&mut self, asset: U, amount: U::AssetUnit) -> &Self;
-
-    fn with_timelocks(
-        &mut self,
-        cancel: <Self::V as Arbitrating>::Timelock,
-        punish: <Self::V as Arbitrating>::Timelock,
-    ) -> &Self;
-
-    fn with_fee(&mut self, strategy: S) -> &Self;
-
-    fn on(&mut self, network: N) -> &Self;
-
-    fn to_offer(&mut self) -> Option<Offer<Self::V, Self::W, S, N>>;
-}
-
 pub struct Buy<T, U, S, N>(BuilderState<T, U, S, N>)
 where
     T: Arbitrating + Fee<S>,
@@ -73,51 +43,103 @@ where
     S: FeeStrategy,
     N: Network;
 
-impl<T, U, S, N> Buyer<T, U, S, N> for Buy<T, U, S, N>
+impl<T, U, S, N> Buy<T, U, S, N>
 where
     T: Arbitrating + Fee<S>,
     U: Accordant,
     S: FeeStrategy,
     N: Network,
 {
-    type V = T;
-    type W = U;
-
-    fn some(asset: T, amount: T::AssetUnit) -> Self {
+    pub fn some(asset: T, amount: T::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
         buy.0.arbitrating_assets = Some(amount);
         buy
     }
 
-    fn with(&mut self, asset: U, amount: U::AssetUnit) -> &Self {
+    pub fn with(&mut self, asset: U, amount: U::AssetUnit) -> &Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
         self
     }
 
-    fn with_timelocks(
-        &mut self,
-        cancel: <Self::V as Arbitrating>::Timelock,
-        punish: <Self::V as Arbitrating>::Timelock,
-    ) -> &Self {
+    pub fn with_timelocks(&mut self, cancel: T::Timelock, punish: T::Timelock) -> &Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
         self
     }
 
-    fn with_fee(&mut self, strategy: S) -> &Self {
+    pub fn with_fee(&mut self, strategy: S) -> &Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
 
-    fn on(&mut self, network: N) -> &Self {
+    pub fn on(&mut self, network: N) -> &Self {
         self.0.network = Some(network);
         self
     }
 
-    fn to_offer(&mut self) -> Option<Offer<Self::V, Self::W, S, N>> {
+    pub fn to_offer(&mut self) -> Option<Offer<T, U, S, N>> {
         self.0.maker_role = Some(SwapRole::Alice);
+        Some(Offer {
+            network: self.0.network?,
+            arbitrating: self.0.arbitrating?,
+            accordant: self.0.accordant?,
+            arbitrating_assets: self.0.arbitrating_assets?,
+            accordant_assets: self.0.accordant_assets?,
+            cancel_timelock: self.0.cancel_timelock?,
+            punish_timelock: self.0.punish_timelock?,
+            fee_strategy: self.0.fee_strategy?,
+            maker_role: self.0.maker_role?,
+        })
+    }
+}
+
+pub struct Sell<T, U, S, N>(BuilderState<T, U, S, N>)
+where
+    T: Arbitrating + Fee<S>,
+    U: Accordant,
+    S: FeeStrategy,
+    N: Network;
+
+impl<T, U, S, N> Sell<T, U, S, N>
+where
+    T: Arbitrating + Fee<S>,
+    U: Accordant,
+    S: FeeStrategy,
+    N: Network,
+{
+    pub fn some(asset: T, amount: T::AssetUnit) -> Self {
+        let mut buy = Self(BuilderState::default());
+        buy.0.arbitrating = Some(asset);
+        buy.0.arbitrating_assets = Some(amount);
+        buy
+    }
+
+    pub fn for_some(&mut self, asset: U, amount: U::AssetUnit) -> &Self {
+        self.0.accordant = Some(asset);
+        self.0.accordant_assets = Some(amount);
+        self
+    }
+
+    pub fn with_timelocks(&mut self, cancel: T::Timelock, punish: T::Timelock) -> &Self {
+        self.0.cancel_timelock = Some(cancel);
+        self.0.punish_timelock = Some(punish);
+        self
+    }
+
+    pub fn with_fee(&mut self, strategy: S) -> &Self {
+        self.0.fee_strategy = Some(strategy);
+        self
+    }
+
+    pub fn on(&mut self, network: N) -> &Self {
+        self.0.network = Some(network);
+        self
+    }
+
+    pub fn to_offer(&mut self) -> Option<Offer<T, U, S, N>> {
+        self.0.maker_role = Some(SwapRole::Bob);
         Some(Offer {
             network: self.0.network?,
             arbitrating: self.0.arbitrating?,
@@ -185,7 +207,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{Buy, Buyer, Offer};
+    use super::{Buy, Offer, Sell};
     use crate::blockchains::{
         bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, FixeFee,
     };
@@ -208,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn buy_arbitrating_assets_offer() {
+    fn maker_buy_arbitrating_assets_offer() {
         let mut buy = Buy::some(Bitcoin::new(), Amount::from_sat(100000));
         buy.with(Monero::new(), 200);
         buy.with_timelocks(10, 10);
@@ -219,5 +241,16 @@ mod tests {
             buy.to_offer().expect("an offer").maker_role,
             SwapRole::Alice
         );
+    }
+
+    #[test]
+    fn maker_sell_arbitrating_assets_offer() {
+        let mut sell = Sell::some(Bitcoin::new(), Amount::from_sat(100000));
+        sell.for_some(Monero::new(), 200);
+        sell.with_timelocks(10, 10);
+        sell.with_fee(FixeFee::new(SatPerVByte::from_sat(20)));
+        sell.on(Local);
+        assert!(sell.to_offer().is_some());
+        assert_eq!(sell.to_offer().expect("an offer").maker_role, SwapRole::Bob);
     }
 }

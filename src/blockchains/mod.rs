@@ -8,9 +8,9 @@ pub mod bitcoin;
 pub mod monero;
 
 /// Base trait for defining a blockchain and its asset type.
-pub trait Blockchain {
+pub trait Blockchain: Copy {
     /// Type for the traded asset unit
-    type AssetUnit;
+    type AssetUnit: Copy;
 
     /// Type of the blockchain identifier
     type Id: FromStr + Into<String>;
@@ -26,6 +26,18 @@ pub trait Blockchain {
 
     /// Create a new blockchain
     fn new() -> Self;
+
+    /// Return if the blockchain implements the Arbitrating role
+    /// Default: false
+    fn can_play_arbitrating_role(&self) -> bool {
+        false
+    }
+
+    /// Return if the blockchain implements the Accordant role
+    /// Default: false
+    fn can_play_accordant_role(&self) -> bool {
+        false
+    }
 }
 
 /// Enable fee calculation for a blockchain.
@@ -38,7 +50,7 @@ where
     S: FeeStrategy,
 {
     /// Type for describing the fees of a blockchain
-    type FeeUnit;
+    type FeeUnit: Copy;
 
     /// Calculates and sets the fees on the given transaction and return the fees set
     fn set_fees(tx: &mut Self::Transaction, strategy: &S) -> Self::FeeUnit;
@@ -54,9 +66,10 @@ where
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transaction are valid
 /// uppon reception by the other participant.
-pub trait FeeStrategy {}
+pub trait FeeStrategy: Copy {}
 
 /// A static fee strategy. Sets a fixe fee on every transactions.
+#[derive(Clone, Copy)]
 pub struct FixeFee<B>(B::FeeUnit)
 where
     B: Fee<Self> + ?Sized;
@@ -75,6 +88,7 @@ impl<B> FeeStrategy for FixeFee<B> where B: Fee<Self> + ?Sized {}
 
 /// A range strategy for setting transactions' fees. Build from lower and upper bounds, the fee on
 /// the transaction MUST be within the bounds, lower and upper inclusive.
+#[derive(Clone, Copy)]
 pub struct RangeFee<B>(B::FeeUnit, B::FeeUnit)
 where
     B: Fee<Self> + ?Sized;

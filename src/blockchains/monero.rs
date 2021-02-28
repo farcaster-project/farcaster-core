@@ -8,7 +8,8 @@ use monero::util::key::PublicKey;
 use crate::blockchains::Blockchain;
 use crate::roles::Accordant;
 
-pub struct Monero {}
+#[derive(Clone, Copy)]
+pub struct Monero;
 
 impl Blockchain for Monero {
     /// Type for the traded asset unit

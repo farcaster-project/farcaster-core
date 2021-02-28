@@ -13,7 +13,8 @@ use crate::blockchains::{Blockchain, Fee, FixeFee};
 use crate::crypto::{Crypto, ECDSAScripts, TrSchnorrScripts};
 use crate::roles::Arbitrating;
 
-pub struct Bitcoin {}
+#[derive(Clone, Copy)]
+pub struct Bitcoin;
 
 impl Blockchain for Bitcoin {
     /// Type for the traded asset unit
@@ -41,6 +42,7 @@ impl Blockchain for Bitcoin {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {

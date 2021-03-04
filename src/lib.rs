@@ -8,3 +8,4 @@ pub mod protocol;
 pub mod roles;
 pub mod session;
 pub mod version;
+pub mod interactions;

@@ -1,7 +1,7 @@
 //! Protocol messages exchanged between swap daemons
 
 use crate::crypto::{Crypto, CryptoEngine};
-use crate::roles::{Accordant, Arbitrating};
+use crate::role::{Accordant, Arbitrating};
 
 /// Trait for defining inter-daemon communication messages.
 pub trait ProtocolMessage {}
@@ -221,7 +221,7 @@ mod tests {
     use secp256k1::Signature;
 
     use super::{Abort, BuyProcedureSignature};
-    use crate::blockchains::bitcoin::Bitcoin;
+    use crate::blockchain::bitcoin::Bitcoin;
     use crate::crypto::ECDSAScripts;
 
     #[test]
@@ -251,3 +251,4 @@ mod tests {
         };
     }
 }
+

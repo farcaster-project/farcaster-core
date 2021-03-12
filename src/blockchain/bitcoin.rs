@@ -9,9 +9,10 @@ use secp256k1::key::PublicKey;
 use secp256k1::key::SecretKey;
 use secp256k1::Signature;
 
-use crate::blockchains::{Blockchain, Fee, FixeFee};
-use crate::crypto::{Crypto, ECDSAScripts, TrSchnorrScripts};
-use crate::roles::Arbitrating;
+use crate::blockchain::{Blockchain, Fee, FixeFee};
+use crate::blockchain::monero::{Monero};
+use crate::crypto::{Crypto, ECDSAScripts, TrSchnorrScripts, CrossGroupDLEQ};
+use crate::role::Arbitrating;
 
 #[derive(Clone, Copy)]
 pub struct Bitcoin;
@@ -90,3 +91,7 @@ impl Crypto<TrSchnorrScripts> for Bitcoin {
     type Commitment = PubkeyHash;
     type Signature = secp256k1::schnorrsig::Signature;
 }
+
+pub struct RingSignatureProof;
+
+impl CrossGroupDLEQ<Bitcoin, Monero> for RingSignatureProof { }

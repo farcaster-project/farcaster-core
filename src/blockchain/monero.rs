@@ -5,8 +5,8 @@ use monero::network::Network;
 use monero::util::key::PrivateKey;
 use monero::util::key::PublicKey;
 
-use crate::blockchains::Blockchain;
-use crate::roles::Accordant;
+use crate::blockchain::Blockchain;
+use crate::role::Accordant;
 
 #[derive(Clone, Copy)]
 pub struct Monero;

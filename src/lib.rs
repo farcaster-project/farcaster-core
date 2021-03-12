@@ -1,11 +1,13 @@
 //! Farcaster Core library
 
-pub mod blockchains;
+pub mod blockchain;
+pub mod bundle;
 pub mod crypto;
-pub mod instructions;
+pub mod datum;
+pub mod instruction;
 pub mod negotiation;
 pub mod protocol;
-pub mod roles;
+pub mod role;
 pub mod session;
 pub mod version;
 pub mod interactions;

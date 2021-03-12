@@ -3,7 +3,7 @@
 //! exchanged between client and daemon called instructions.
 
 use crate::crypto::{Crypto, CryptoEngine};
-use crate::roles::{Accordant, Arbitrating};
+use crate::role::{Accordant, Arbitrating};
 
 pub struct AliceSessionParameters<Ar, Ac, C>
 where

@@ -1,5 +1,48 @@
 //! Cryptographic type definitions and primitives supported in Farcaster
 
+use crate::role::{Accordant, Arbitrating};
+
+pub enum Key<Ar, Ac, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    Ac: Accordant,
+    C: CryptoEngine,
+{
+    AliceBuy(Ar::PublicKey),
+    AliceCancel(Ar::PublicKey),
+    AliceRefund(Ar::PublicKey),
+    AlicePunish(Ar::PublicKey),
+    AliceAdaptor(Ar::PublicKey),
+    AliceSpend(Ac::PublicKey),
+    AlicePrivateView(Ac::PrivateKey),
+    BobFund(Ar::PublicKey),
+    BobBuy(Ar::PublicKey),
+    BobCancel(Ar::PublicKey),
+    BobRefund(Ar::PublicKey),
+    BobAdaptor(Ar::PublicKey),
+    BobSpend(Ac::PublicKey),
+    BobPrivateView(Ac::PrivateKey),
+}
+
+pub enum Signature<Ar, C>
+where
+    Ar: Arbitrating + Crypto<C>,
+    C: CryptoEngine,
+{
+    Adaptor(Ar::Signature),
+    Adapted(Ar::Signature),
+    Regular(Ar::Signature),
+}
+
+pub enum Proof<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    CrossGroupDLEQ(Box<dyn CrossGroupDLEQ<Ar, Ac>>),
+}
+
+
 /// This trait is defined for blockchains once per cryptographic engine wanted and allow a
 /// blockchain to use different cryptographic types depending on the engine used.
 ///
@@ -38,3 +81,11 @@ impl CryptoEngine for TrSchnorrScripts {}
 pub struct TrMuSig2;
 
 impl CryptoEngine for TrMuSig2 {}
+
+pub trait CrossGroupDLEQ<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    // TODO(h4sh3d): add the methods to impl
+}

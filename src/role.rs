@@ -1,6 +1,6 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
-use crate::blockchains::Blockchain;
+use crate::blockchain::Blockchain;
 
 /// Three network that need to be defined for every blockchains.
 pub trait Network: Copy {}

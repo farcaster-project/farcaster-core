@@ -9,9 +9,10 @@ use secp256k1::key::PublicKey;
 use secp256k1::key::SecretKey;
 use secp256k1::Signature;
 
-use crate::blockchains::{Blockchain, Fee, FixeFee};
-use crate::crypto::{Crypto, ECDSAScripts, TrSchnorrScripts};
-use crate::roles::Arbitrating;
+use crate::blockchain::monero::Monero;
+use crate::blockchain::{Blockchain, Fee, FixeFee};
+use crate::crypto::{CrossGroupDLEQ, Crypto, ECDSAScripts, TrSchnorrScripts};
+use crate::role::Arbitrating;
 
 #[derive(Clone, Copy)]
 pub struct Bitcoin;
@@ -77,11 +78,16 @@ impl Arbitrating for Bitcoin {
     type Timelock = u32;
 }
 
+/// Produces a zero-knowledge proof of knowledge of the same relation k between two pairs of
+/// elements in the same group, i.e. `(G, R')` and `(T, R)`.
+pub struct PDLEQ;
+
 impl Crypto<ECDSAScripts> for Bitcoin {
     type PrivateKey = SecretKey;
     type PublicKey = PublicKey;
     type Commitment = PubkeyHash;
     type Signature = Signature;
+    type AdaptorSignature = (Signature, PublicKey, PDLEQ);
 }
 
 impl Crypto<TrSchnorrScripts> for Bitcoin {
@@ -89,4 +95,9 @@ impl Crypto<TrSchnorrScripts> for Bitcoin {
     type PublicKey = secp256k1::schnorrsig::PublicKey;
     type Commitment = PubkeyHash;
     type Signature = secp256k1::schnorrsig::Signature;
+    type AdaptorSignature = secp256k1::schnorrsig::Signature;
 }
+
+pub struct RingSignatureProof;
+
+impl CrossGroupDLEQ<Bitcoin, Monero> for RingSignatureProof {}

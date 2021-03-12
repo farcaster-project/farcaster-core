@@ -1,6 +1,6 @@
 //! Protocol messages exchanged between swap daemons
 
-use crate::crypto::{Crypto, CryptoEngine};
+use crate::crypto::{Crypto, CryptoEngine, Proof};
 use crate::role::{Accordant, Arbitrating};
 
 /// Trait for defining inter-daemon communication messages.
@@ -93,7 +93,7 @@ where
     /// The `K_s^a` spend public key
     pub view: Ac::PrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
-    pub proof: Option<String>,
+    pub proof: Proof<Ar, Ac>,
 }
 
 impl<Ar, Ac, C> ProtocolMessage for RevealAliceSessionParams<Ar, Ac, C>
@@ -127,7 +127,7 @@ where
     /// The `K_s^b` spend public key
     pub view: Ac::PrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
-    pub proof: Option<String>,
+    pub proof: Proof<Ar, Ac>,
 }
 
 impl<Ar, Ac, C> ProtocolMessage for RevealBobSessionParams<Ar, Ac, C>

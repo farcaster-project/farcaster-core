@@ -29,7 +29,7 @@ where
     Ar: Arbitrating + Crypto<C>,
     C: CryptoEngine,
 {
-    Adaptor(Ar::Signature),
+    Adaptor(Ar::AdaptorSignature),
     Adapted(Ar::Signature),
     Regular(Ar::Signature),
 }
@@ -41,7 +41,6 @@ where
 {
     CrossGroupDLEQ(Box<dyn CrossGroupDLEQ<Ar, Ac>>),
 }
-
 
 /// This trait is defined for blockchains once per cryptographic engine wanted and allow a
 /// blockchain to use different cryptographic types depending on the engine used.
@@ -60,6 +59,10 @@ pub trait Crypto<C: CryptoEngine> {
 
     /// Defines the signature format for the arbitrating blockchain
     type Signature;
+
+    /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
+    /// have a different format from the signature depending on the cryptographic engine used.
+    type AdaptorSignature;
 }
 
 /// Defines a type of cryptography used inside arbitrating transactions to validate the
@@ -82,6 +85,7 @@ pub struct TrMuSig2;
 
 impl CryptoEngine for TrMuSig2 {}
 
+/// Define a prooving system to link to blockchain cryptographic group parameters.
 pub trait CrossGroupDLEQ<Ar, Ac>
 where
     Ar: Arbitrating,

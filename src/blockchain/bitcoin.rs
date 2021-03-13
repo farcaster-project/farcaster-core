@@ -10,7 +10,7 @@ use secp256k1::key::SecretKey;
 use secp256k1::Signature;
 
 use crate::blockchain::monero::Monero;
-use crate::blockchain::{Blockchain, Fee, FeeStrategy, FixeFee};
+use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeStrategies};
 use crate::crypto::{CrossGroupDLEQ, Crypto, ECDSAScripts, TrSchnorrScripts};
 use crate::role::Arbitrating;
 
@@ -53,7 +53,7 @@ impl SatPerVByte {
 }
 
 impl FeeStrategy for Bitcoin {
-    type FeeStrategy = FixeFee<Bitcoin>;
+    type FeeStrategy = FeeStrategies<Bitcoin>;
 }
 
 impl Fee for Bitcoin {
@@ -61,12 +61,12 @@ impl Fee for Bitcoin {
     type FeeUnit = SatPerVByte;
 
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(_tx: &mut PartiallySignedTransaction, _strategy: &FixeFee<Bitcoin>) -> SatPerVByte {
+    fn set_fees(_tx: &mut PartiallySignedTransaction, _strategy: &FeeStrategies<Self>) -> SatPerVByte {
         todo!()
     }
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(_tx: &PartiallySignedTransaction, _strategy: &FixeFee<Bitcoin>) -> bool {
+    fn validate_fee(_tx: &PartiallySignedTransaction, _strategy: &FeeStrategies<Self>) -> bool {
         todo!()
     }
 }

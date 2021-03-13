@@ -36,6 +36,7 @@ where
     pub maker_role: SwapRole,
 }
 
+
 /// Helper to create an offer from an arbitrating asset buyer perspective.
 ///
 /// **This helper works only for buying Arbitrating assets with some Accordant assets**. The
@@ -245,7 +246,7 @@ where
 mod tests {
     use super::{Buy, Offer, Sell};
     use crate::blockchain::{
-        bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, FixeFee,
+        bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, FeeStrategies,
     };
     use crate::role::{Local, SwapRole};
     use bitcoin::util::amount::Amount;
@@ -260,7 +261,7 @@ mod tests {
             accordant_assets: 200,
             cancel_timelock: 10,
             punish_timelock: 10,
-            fee_strategy: FixeFee::<Bitcoin>::new(SatPerVByte::from_sat(20)),
+            fee_strategy: FeeStrategies::<Bitcoin>::fixed(SatPerVByte::from_sat(20)),
             maker_role: SwapRole::Alice,
         };
     }
@@ -270,7 +271,7 @@ mod tests {
         let mut buy = Buy::some(Bitcoin::new(), Amount::from_sat(100000));
         buy.with(Monero::new(), 200);
         buy.with_timelocks(10, 10);
-        buy.with_fee(FixeFee::<Bitcoin>::new(SatPerVByte::from_sat(20)));
+        buy.with_fee(FeeStrategies::<Bitcoin>::fixed(SatPerVByte::from_sat(20)));
         buy.on(Local);
         assert!(buy.to_offer().is_some());
         assert_eq!(
@@ -284,7 +285,7 @@ mod tests {
         let mut sell = Sell::some(Bitcoin::new(), Amount::from_sat(100000));
         sell.for_some(Monero::new(), 200);
         sell.with_timelocks(10, 10);
-        sell.with_fee(FixeFee::<Bitcoin>::new(SatPerVByte::from_sat(20)));
+        sell.with_fee(FeeStrategies::<Bitcoin>::fixed(SatPerVByte::from_sat(20)));
         sell.on(Local);
         assert!(sell.to_offer().is_some());
         assert_eq!(sell.to_offer().expect("an offer").maker_role, SwapRole::Bob);

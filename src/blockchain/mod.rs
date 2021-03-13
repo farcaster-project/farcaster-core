@@ -33,16 +33,15 @@ pub trait Blockchain: Copy {
 /// This trait require implementing the Arbitrating role to have access to transaction associated
 /// type and because in the base protocol transactions for the accordant blockchain are generated
 /// outside, thus we don't need this trait on Accordant blockchain.
-pub trait Fee: Arbitrating + FeeStrategy
-{
+pub trait Fee: Arbitrating + FeeStrategy {
     /// Type for describing the fees of a blockchain
     type FeeUnit: Copy;
 
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(tx: &mut Self::Transaction, strategy: &Self::FeeStrategy) -> Self::FeeUnit;
+    fn set_fees(tx: &mut Self::Transaction, strategy: &FeeStrategies<Self>) -> Self::FeeUnit;
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(tx: &Self::Transaction, strategy: &Self::FeeStrategy) -> bool;
+    fn validate_fee(tx: &Self::Transaction, strategy: &FeeStrategies<Self>) -> bool;
 }
 
 /// A fee strategy to be applied on an arbitrating transaction.
@@ -56,44 +55,21 @@ pub trait FeeStrategy: Copy {
     type FeeStrategy;
 }
 
-/// A static fee strategy. Sets a fixed fee on every transactions.
-#[derive(Clone, Copy)]
-pub struct FixeFee<B>(B::FeeUnit)
-where
-    B: Fee + ?Sized;
+impl<B: Fee> FeeStrategy for FeeStrategies<B> {
+    type FeeStrategy = FeeStrategies<B>;
+}
 
-impl<B> FixeFee<B>
-where
-    B: Fee + ?Sized,
-{
-    /// Creates a new fixed fee stategy, setting the fixed amount of fees on every transaction.
-    pub fn new(fee: B::FeeUnit) -> Self {
-        Self(fee)
+#[derive(Copy, Clone)]
+pub enum FeeStrategies<B: Fee> {
+    FixedFee(B::FeeUnit),
+    RangeFee(B::FeeUnit, B::FeeUnit),
+}
+
+impl<B: Fee> FeeStrategies<B> {
+    pub fn fixed(fee: B::FeeUnit) -> Self {
+        Self::FixedFee(fee)
     }
-}
-
-impl<B> FeeStrategy for FixeFee<B> where B: Fee + ?Sized {
-    type FeeStrategy = FixeFee<B>;
-}
-
-/// A range strategy for setting transactions' fees. Build from lower and upper bounds, the fee on
-/// the transaction MUST be within the bounds, lower and upper inclusive.
-#[derive(Clone, Copy)]
-pub struct RangeFee<B>(B::FeeUnit, B::FeeUnit)
-where
-    B: Fee + ?Sized;
-
-impl<B> RangeFee<B>
-where
-    B: Fee + ?Sized,
-{
-    /// Creates a new range fee stategy, fees on every transaction must be within the bounds,
-    /// lower and upper inclusive.
-    pub fn new(lower_bound: B::FeeUnit, upper_bound: B::FeeUnit) -> Self {
-        Self(lower_bound, upper_bound)
+    pub fn range(fee_low: B::FeeUnit, fee_high: B::FeeUnit) -> Self {
+        Self::RangeFee(fee_low, fee_high)
     }
-}
-
-impl<B> FeeStrategy for RangeFee<B> where B: Fee + ?Sized {
-    type FeeStrategy = RangeFee<B>;
 }

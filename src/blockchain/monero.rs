@@ -47,7 +47,10 @@ impl Curve for Monero {
 impl Accordant for Monero {}
 
 impl Keys for Monero {
+    /// Private key type for the blockchain
     type PrivateKey = PrivateKey;
+
+    /// Public key type for the blockchain
     type PublicKey = PublicKey;
 }
 

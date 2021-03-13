@@ -1,5 +1,6 @@
 //! Defines and implements all the traits for Bitcoin
 
+use bitcoin::blockdata::transaction;
 use bitcoin::hash_types::PubkeyHash;
 use bitcoin::network::constants::Network;
 use bitcoin::util::address::Address;
@@ -12,7 +13,7 @@ use secp256k1::Signature;
 use crate::blockchain::monero::{Ed25519, Monero};
 use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit};
 use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures};
-use crate::role::{Arbitrating, Transaction};
+use crate::role::{Arbitrating, Onchain};
 
 #[derive(Clone, Copy)]
 pub struct Bitcoin;
@@ -93,9 +94,14 @@ impl Arbitrating for Bitcoin {
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock = u32;
 }
-impl Transaction for Bitcoin {
-    /// Defines the address format for the arbitrating blockchain
-    type Transaction = PartiallySignedTransaction;
+
+impl Onchain for Bitcoin {
+    /// Defines the transaction format used to transfer partial transaction between participant for
+    /// the arbitrating blockchain
+    type PartialTransaction = PartiallySignedTransaction;
+
+    /// Defines the finalized transaction format for the arbitrating blockchain
+    type Transaction = transaction::Transaction;
 }
 
 pub struct Secp256k1;
@@ -117,6 +123,7 @@ impl Keys for Bitcoin {
     type PrivateKey = SecretKey;
     type PublicKey = PublicKey;
 }
+
 impl Commitment for Bitcoin {
     type Commitment = PubkeyHash;
 }
@@ -125,6 +132,7 @@ impl Signatures for Bitcoin {
     type Signature = Signature;
     type AdaptorSignature = (Signature, PublicKey, PDLEQ);
 }
+
 //// TODO: implement on another struct or on a generic Bitcoin<T>
 // impl Crypto for Bitcoin {
 //     type PrivateKey = SecretKey;
@@ -145,5 +153,141 @@ impl PartialEq<Ed25519> for Secp256k1 {
 impl PartialEq<Secp256k1> for Ed25519 {
     fn eq(&self, other: &Secp256k1) -> bool {
         other.eq(self)
+    }
+}
+
+// =========================================================================================
+// =============================     TRANSACTIONS    =======================================
+// =========================================================================================
+
+use bitcoin::util::psbt;
+
+use crate::transaction::{
+    Broadcastable, Failable, Forkable, Funding, Linkable, Lock, Spendable, Transaction,
+};
+
+#[derive(Debug)]
+pub struct FundingTx {
+    privkey: bitcoin::util::key::PrivateKey,
+    network: Network,
+    seen_tx: Option<transaction::Transaction>,
+}
+
+impl Failable for FundingTx {
+    type Err = ();
+}
+
+impl Linkable<Bitcoin> for FundingTx {
+    type Output = transaction::OutPoint;
+
+    fn get_consumable_output(&self) -> Result<transaction::OutPoint, ()> {
+        match &self.seen_tx {
+            Some(t) => {
+                // More than one UTXO is not supported
+                if t.output.len() != 1 {
+                    return Err(());
+                }
+                // vout is always 0 because output len is 1
+                Ok(transaction::OutPoint::new(t.txid(), 0))
+            }
+            // The transaction has not been see yet, cannot infer the UTXO
+            None => Err(()),
+        }
+    }
+}
+
+impl Spendable<Bitcoin> for FundingTx {
+    type Witness = ();
+
+    fn generate_witness(&self) -> Result<(), ()> {
+        todo!()
+    }
+}
+
+impl Funding<Bitcoin> for FundingTx {
+    fn initialize(privkey: SecretKey) -> Result<Self, ()> {
+        let privkey = bitcoin::util::key::PrivateKey {
+            compressed: true,
+            network: Network::Bitcoin,
+            key: privkey,
+        };
+        Ok(FundingTx {
+            privkey,
+            network: Network::Bitcoin,
+            seen_tx: None,
+        })
+    }
+
+    fn get_address(&self) -> Result<Address, ()> {
+        let pubkey = bitcoin::util::key::PublicKey::from_private_key(
+            &secp256k1::Secp256k1::new(),
+            &self.privkey,
+        );
+        Ok(Address::p2wpkh(&pubkey, self.network).expect("FIXME latter"))
+    }
+
+    fn update(&mut self, args: transaction::Transaction) -> Result<(), ()> {
+        self.seen_tx = Some(args);
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct LockTx {
+    tx: transaction::Transaction,
+    pubkeys: (bitcoin::util::key::PublicKey, bitcoin::util::key::PublicKey),
+    network: Network,
+}
+
+impl Failable for LockTx {
+    type Err = ();
+}
+
+impl Transaction<Bitcoin> for LockTx {
+    fn to_partial(&self) -> Option<PartiallySignedTransaction> {
+        todo!()
+    }
+
+    fn from_partial(tx: &PartiallySignedTransaction) -> Option<Self> {
+        todo!()
+    }
+}
+
+impl Broadcastable<Bitcoin> for LockTx {
+    fn finalize<T>(&self, args: T) -> transaction::Transaction {
+        todo!()
+    }
+}
+
+impl Linkable<Bitcoin> for LockTx {
+    type Output = ();
+
+    fn get_consumable_output(&self) -> Result<(), ()> {
+        todo!()
+    }
+}
+
+impl Spendable<Bitcoin> for LockTx {
+    type Witness = ();
+
+    fn generate_witness(&self) -> Result<(), ()> {
+        todo!()
+    }
+}
+
+impl Forkable<Bitcoin> for LockTx {
+    fn generate_failure_witness<T>(&self, args: T) -> Result<(), ()> {
+        todo!()
+    }
+}
+
+impl Lock<Bitcoin> for LockTx {
+    fn initialize(
+        prev: &impl Funding<Bitcoin>,
+        timelock: u32,
+        fee_strategy: &impl FeeStrategy,
+        pubkeys: (PublicKey, PublicKey),
+    ) -> Result<Self, ()> {
+        todo!()
     }
 }

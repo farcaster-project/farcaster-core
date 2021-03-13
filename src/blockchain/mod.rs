@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use crate::role::Transaction;
+use crate::role::Onchain;
 
 pub mod bitcoin;
 pub mod monero;
@@ -38,12 +38,12 @@ pub trait FeeUnit {
 /// This trait require implementing the Arbitrating role to have access to transaction associated
 /// type and because in the base protocol transactions for the accordant blockchain are generated
 /// outside, thus we don't need this trait on Accordant blockchain.
-pub trait Fee: Transaction + FeeUnit + FeeStrategy {
+pub trait Fee: Onchain + FeeUnit + FeeStrategy {
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(tx: &mut Self::Transaction, strategy: &Self::FeeStrategy) -> Self::FeeUnit;
+    fn set_fees(tx: &mut Self::PartialTransaction, strategy: &Self::FeeStrategy) -> Self::FeeUnit;
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(tx: &Self::Transaction, strategy: &Self::FeeStrategy) -> bool;
+    fn validate_fee(tx: &Self::PartialTransaction, strategy: &Self::FeeStrategy) -> bool;
 }
 
 /// A fee strategy to be applied on an arbitrating transaction.

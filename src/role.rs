@@ -68,7 +68,7 @@ pub enum BlockchainRole {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Blockchain + Keys + Commitment + Signatures + Curve + Script + Transaction
+    Blockchain + Keys + Commitment + Signatures + Curve + Script + Onchain
 {
     /// Defines the address format for the arbitrating blockchain
     type Address;
@@ -77,9 +77,12 @@ pub trait Arbitrating:
     type Timelock: Copy;
 }
 
-// TODO: move me to transaction file
-pub trait Transaction {
-    /// Defines the transaction format for the arbitrating blockchain
+pub trait Onchain {
+    /// Defines the transaction format used to transfer partial transaction between participant for
+    /// the arbitrating blockchain
+    type PartialTransaction;
+
+    /// Defines the finalized transaction format for the arbitrating blockchain
     type Transaction;
 }
 

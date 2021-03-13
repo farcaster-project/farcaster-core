@@ -137,11 +137,11 @@ where
     Ar: Arbitrating,
 {
     /// The arbitrating `lock (b)` transaction
-    pub lock: Ar::Transaction,
+    pub lock: Ar::PartialTransaction,
     /// The arbitrating `cancel (d)` transaction
-    pub cancel: Ar::Transaction,
+    pub cancel: Ar::PartialTransaction,
     /// The arbitrating `refund (e)` transaction
-    pub refund: Ar::Transaction,
+    pub refund: Ar::PartialTransaction,
     /// The `Bc` `cancel (d)` signature
     pub cancel_sig: Ar::Signature,
 }
@@ -171,7 +171,7 @@ where
     Ar: Arbitrating,
 {
     /// The arbitrating `buy (c)` transaction
-    pub buy: Ar::Transaction,
+    pub buy: Ar::PartialTransaction,
     /// The `Bb(Ta)` `buy (c)` adaptor signature
     pub buy_adaptor_sig: Ar::AdaptorSignature,
 }

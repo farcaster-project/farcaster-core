@@ -10,4 +10,5 @@ pub mod negotiation;
 pub mod protocol;
 pub mod role;
 pub mod session;
+pub mod transaction;
 pub mod version;

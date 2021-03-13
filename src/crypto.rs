@@ -61,10 +61,6 @@ pub trait Crypto {
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic engine used.
     type AdaptorSignature;
-
-    /// Defines the method used for enforcing the contract, such as
-    /// ECDSAScripts, TrSchnorrScripts, TrMuSig2
-    type Arbitration;
 }
 
 /// Defines a type of cryptography used inside arbitrating transactions to validate the
@@ -81,11 +77,19 @@ pub struct TrSchnorrScripts;
 /// blockchain transaction layer.
 pub struct TrMuSig2;
 
-/// Define a prooving system to link to blockchain cryptographic group parameters.
-pub trait CrossGroupDLEQ<Ar, Ac>
+// /// Define a prooving system to link to blockchain cryptographic group parameters.
+pub trait CrossGroupDLEQ<Left, Right>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Left: Group + PartialEq<Right>,
+    Right: Group + PartialEq<Left>
 {
-    // TODO(h4sh3d): add the methods to impl
+}
+
+/// Eliptic curve ed25519 or secp256k1
+pub trait Group {
+    type Group;
+}
+
+pub trait Arbitration {
+    type Arbitration;
 }

@@ -11,7 +11,7 @@ use crate::role::{Accordant, Arbitrating, Network, SwapRole};
 /// the data needed to a Taker to connect to the Maker's daemon.
 pub struct Offer<Ar, Ac, S, N>
 where
-    Ar: Arbitrating + Fee<S>,
+    Ar: Arbitrating + Fee,
     Ac: Accordant,
     S: FeeStrategy,
     N: Network,
@@ -42,14 +42,14 @@ where
 /// reverse is not implemented for the `Buy` helper. You should use the `Sell` helper.
 pub struct Buy<T, U, S, N>(BuilderState<T, U, S, N>)
 where
-    T: Arbitrating + Fee<S>,
+    T: Arbitrating + Fee,
     U: Accordant,
     S: FeeStrategy,
     N: Network;
 
 impl<T, U, S, N> Buy<T, U, S, N>
 where
-    T: Arbitrating + Fee<S>,
+    T: Arbitrating + Fee,
     U: Accordant,
     S: FeeStrategy,
     N: Network,
@@ -117,14 +117,14 @@ where
 /// reverse is not implemented for the `Sell` helper. You should use the `Buy` helper.
 pub struct Sell<T, U, S, N>(BuilderState<T, U, S, N>)
 where
-    T: Arbitrating + Fee<S>,
+    T: Arbitrating + Fee,
     U: Accordant,
     S: FeeStrategy,
     N: Network;
 
 impl<T, U, S, N> Sell<T, U, S, N>
 where
-    T: Arbitrating + Fee<S>,
+    T: Arbitrating + Fee,
     U: Accordant,
     S: FeeStrategy,
     N: Network,
@@ -189,7 +189,7 @@ where
 // Internal state of an offer builder
 struct BuilderState<Ar, Ac, S, N>
 where
-    Ar: Arbitrating + Fee<S>,
+    Ar: Arbitrating + Fee,
     Ac: Accordant,
     S: FeeStrategy,
     N: Network,
@@ -207,7 +207,7 @@ where
 
 impl<Ar, Ac, S, N> Default for BuilderState<Ar, Ac, S, N>
 where
-    Ar: Arbitrating + Fee<S>,
+    Ar: Arbitrating + Fee,
     Ac: Accordant,
     S: FeeStrategy,
     N: Network,
@@ -232,7 +232,7 @@ where
 /// connection information are happen to the offer the create a public offer.
 pub struct PublicOffer<Ar, Ac, S, N>
 where
-    Ar: Arbitrating + Fee<S>,
+    Ar: Arbitrating + Fee,
     Ac: Accordant,
     S: FeeStrategy,
     N: Network,
@@ -260,7 +260,7 @@ mod tests {
             accordant_assets: 200,
             cancel_timelock: 10,
             punish_timelock: 10,
-            fee_strategy: FixeFee::new(SatPerVByte::from_sat(20)),
+            fee_strategy: FixeFee::<Bitcoin>::new(SatPerVByte::from_sat(20)),
             maker_role: SwapRole::Alice,
         };
     }
@@ -270,7 +270,7 @@ mod tests {
         let mut buy = Buy::some(Bitcoin::new(), Amount::from_sat(100000));
         buy.with(Monero::new(), 200);
         buy.with_timelocks(10, 10);
-        buy.with_fee(FixeFee::new(SatPerVByte::from_sat(20)));
+        buy.with_fee(FixeFee::<Bitcoin>::new(SatPerVByte::from_sat(20)));
         buy.on(Local);
         assert!(buy.to_offer().is_some());
         assert_eq!(
@@ -284,7 +284,7 @@ mod tests {
         let mut sell = Sell::some(Bitcoin::new(), Amount::from_sat(100000));
         sell.for_some(Monero::new(), 200);
         sell.with_timelocks(10, 10);
-        sell.with_fee(FixeFee::new(SatPerVByte::from_sat(20)));
+        sell.with_fee(FixeFee::<Bitcoin>::new(SatPerVByte::from_sat(20)));
         sell.on(Local);
         assert!(sell.to_offer().is_some());
         assert_eq!(sell.to_offer().expect("an offer").maker_role, SwapRole::Bob);

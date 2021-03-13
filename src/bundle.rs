@@ -14,7 +14,7 @@ pub trait Bundle {}
 /// step of a swap.
 pub struct AliceSessionParams<Ar, Ac, S>
 where
-    Ar: Arbitrating + Crypto + Fee<S>,
+    Ar: Arbitrating + Crypto + Fee,
     Ac: Accordant,
     S: FeeStrategy,
 {
@@ -36,7 +36,7 @@ where
 /// step of a swap.
 pub struct BobSessionParams<Ar, Ac, S>
 where
-    Ar: Arbitrating + Crypto + Fee<S>,
+    Ar: Arbitrating + Crypto + Fee,
     Ac: Accordant,
     S: FeeStrategy,
 {

@@ -49,7 +49,7 @@ where
 
 pub enum Parameter<Ar, S>
 where
-    Ar: Arbitrating + Fee<S>,
+    Ar: Arbitrating + Fee,
     S: FeeStrategy,
 {
     DestinationAddress(Ar::Address),

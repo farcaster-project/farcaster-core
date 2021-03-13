@@ -10,7 +10,7 @@ use secp256k1::key::SecretKey;
 use secp256k1::Signature;
 
 use crate::blockchain::monero::Monero;
-use crate::blockchain::{Blockchain, Fee, FixeFee};
+use crate::blockchain::{Blockchain, Fee, FeeStrategy, FixeFee};
 use crate::crypto::{CrossGroupDLEQ, Crypto, ECDSAScripts, TrSchnorrScripts};
 use crate::role::Arbitrating;
 
@@ -52,7 +52,11 @@ impl SatPerVByte {
     }
 }
 
-impl Fee<FixeFee<Bitcoin>> for Bitcoin {
+impl FeeStrategy for Bitcoin {
+    type FeeStrategy = FixeFee<Bitcoin>;
+}
+
+impl Fee for Bitcoin {
     /// Type for describing the fees of a blockchain
     type FeeUnit = SatPerVByte;
 
@@ -90,7 +94,6 @@ impl Crypto for Bitcoin {
     type Signature = Signature;
     type AdaptorSignature = (Signature, PublicKey, PDLEQ);
 }
-
 //// TODO: implement on another struct or on a generic Bitcoin<T>
 // impl Crypto for Bitcoin {
 //     type Scripts = TrSchnorrScripts;

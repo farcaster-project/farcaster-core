@@ -4,7 +4,7 @@ use crate::role::{Accordant, Arbitrating};
 
 pub enum Key<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
     Ac: Accordant,
 {
     AliceBuy(Ar::PublicKey),
@@ -72,10 +72,6 @@ pub trait CryptoEngine {}
 
 /// Uses ECDSA signatures inside the scripting layer of the arbitrating blockchain.
 pub struct ECDSAScripts;
-
-impl CryptoEngine for ECDSAScripts { }
-impl CryptoEngine for TrSchnorrScripts { }
-impl CryptoEngine for TrMuSig2 { }
 
 /// Uses Schnorr signatures inside the scripting layer of the arbitrating blockchain.
 pub struct TrSchnorrScripts;

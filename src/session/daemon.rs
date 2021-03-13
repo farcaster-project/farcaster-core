@@ -5,11 +5,10 @@
 use crate::crypto::{Crypto, CryptoEngine};
 use crate::role::{Accordant, Arbitrating};
 
-pub struct AliceSessionParameters<Ar, Ac, C>
+pub struct AliceSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating + Crypto,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     pub destination_address: Ar::Address,
     pub buy: Ar::PublicKey,
@@ -21,11 +20,10 @@ where
     pub view: Ac::PrivateKey,
 }
 
-pub struct BobSessionParameters<Ar, Ac, C>
+pub struct BobSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating + Crypto,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     pub refund_address: Ar::Address,
     pub fund: Ar::PublicKey,

@@ -52,11 +52,11 @@ where
 /// As described in the specifications a fee strategy can be: fixe, range, or more advanced form
 /// of fee calculation.
 ///
-/// A fee strategy is included in an offer, so Alice and Bob can verify that transaction are valid
-/// uppon reception by the other participant.
+/// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
+/// upon reception by the other participant.
 pub trait FeeStrategy: Copy {}
 
-/// A static fee strategy. Sets a fixe fee on every transactions.
+/// A static fee strategy. Sets a fixed fee on every transactions.
 #[derive(Clone, Copy)]
 pub struct FixeFee<B>(B::FeeUnit)
 where

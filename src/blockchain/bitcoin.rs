@@ -82,7 +82,8 @@ impl Arbitrating for Bitcoin {
 /// elements in the same group, i.e. `(G, R')` and `(T, R)`.
 pub struct PDLEQ;
 
-impl Crypto<ECDSAScripts> for Bitcoin {
+impl Crypto for Bitcoin {
+    type Scripts = ECDSAScripts;
     type PrivateKey = SecretKey;
     type PublicKey = PublicKey;
     type Commitment = PubkeyHash;
@@ -90,13 +91,15 @@ impl Crypto<ECDSAScripts> for Bitcoin {
     type AdaptorSignature = (Signature, PublicKey, PDLEQ);
 }
 
-impl Crypto<TrSchnorrScripts> for Bitcoin {
-    type PrivateKey = SecretKey;
-    type PublicKey = secp256k1::schnorrsig::PublicKey;
-    type Commitment = PubkeyHash;
-    type Signature = secp256k1::schnorrsig::Signature;
-    type AdaptorSignature = secp256k1::schnorrsig::Signature;
-}
+//// TODO: implement on another struct or on a generic Bitcoin<T>
+// impl Crypto for Bitcoin {
+//     type Scripts = TrSchnorrScripts;
+//     type PrivateKey = SecretKey;
+//     type PublicKey = secp256k1::schnorrsig::PublicKey;
+//     type Commitment = PubkeyHash;
+//     type Signature = secp256k1::schnorrsig::Signature;
+//     type AdaptorSignature = secp256k1::schnorrsig::Signature;
+// }
 
 pub struct RingSignatureProof;
 

@@ -33,11 +33,10 @@ where
 //    type Parameters = BobPreSessionParameters<A>;
 //}
 
-pub struct AliceSessionParameters<Ar, Ac, C>
+pub struct AliceSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating + Crypto,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     pub buy: Ar::PrivateKey,
     pub cancel: Ar::PrivateKey,
@@ -47,7 +46,7 @@ where
     pub view: Ac::PrivateKey,
 }
 
-impl AliceSessionParameters<Bitcoin, Monero, ECDSAScripts> {
+impl AliceSessionParameters<Bitcoin, Monero> {
     pub fn new() -> Self {
         let (buy, cancel, refund, punish) = {
             use secp256k1::rand::rngs::OsRng;
@@ -85,11 +84,10 @@ impl AliceSessionParameters<Bitcoin, Monero, ECDSAScripts> {
 //    type Parameters = AliceSessionParameters<Bitcoin, Monero, ECDSAScripts>;
 //}
 
-pub struct BobSessionParameters<Ar, Ac, C>
+pub struct BobSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating + Crypto,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     pub fund: Ar::PrivateKey,
     pub buy: Ar::PrivateKey,
@@ -99,7 +97,7 @@ where
     pub view: Ac::PrivateKey,
 }
 
-impl BobSessionParameters<Bitcoin, Monero, ECDSAScripts> {
+impl BobSessionParameters<Bitcoin, Monero> {
     pub fn new() -> Self {
         let (fund, buy, cancel, refund) = {
             use secp256k1::rand::rngs::OsRng;

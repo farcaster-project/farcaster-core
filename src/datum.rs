@@ -22,23 +22,21 @@ pub enum TxId {
     Publish,
 }
 
-pub struct Key<Ar, Ac, C>
+pub struct Key<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating + Crypto,
     Ac: Accordant,
-    C: CryptoEngine,
 {
-    pub key: crypto::Key<Ar, Ac, C>,
+    pub key: crypto::Key<Ar, Ac>,
 }
 
-pub struct Signature<Ar, C>
+pub struct Signature<Ar>
 where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
+    Ar: Arbitrating + Crypto,
 {
     pub tx_id: TxId,
     pub role: SwapRole,
-    pub value: crypto::Signature<Ar, C>,
+    pub value: crypto::Signature<Ar>,
 }
 
 pub struct Proof<Ar, Ac>

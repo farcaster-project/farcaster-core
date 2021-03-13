@@ -2,11 +2,10 @@
 
 use crate::role::{Accordant, Arbitrating};
 
-pub enum Key<Ar, Ac, C>
+pub enum Key<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating + Crypto,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     AliceBuy(Ar::PublicKey),
     AliceCancel(Ar::PublicKey),
@@ -24,10 +23,9 @@ where
     BobPrivateView(Ac::PrivateKey),
 }
 
-pub enum Signature<Ar, C>
+pub enum Signature<Ar>
 where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
+    Ar: Arbitrating + Crypto,
 {
     Adaptor(Ar::AdaptorSignature),
     Adapted(Ar::Signature),
@@ -47,7 +45,7 @@ where
 ///
 /// E.g. ECDSA and Schnorr signature in Bitcoin are stored/parsed differently as Schnorr has been
 /// optimized further than ECDSA at the begining of Bitcoin.
-pub trait Crypto<C: CryptoEngine> {
+pub trait Crypto {
     /// Private key type given the blockchain and the crypto engine
     type PrivateKey;
 
@@ -63,27 +61,28 @@ pub trait Crypto<C: CryptoEngine> {
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic engine used.
     type AdaptorSignature;
+
+    /// Defines the script version type.
+    type Scripts;
 }
 
 /// Defines a type of cryptography used inside arbitrating transactions to validate the
-/// transactions at the blockchain level and transfert the secrets.
+/// transactions at the blockchain level and transfer the secrets.
 pub trait CryptoEngine {}
 
 /// Uses ECDSA signatures inside the scripting layer of the arbitrating blockchain.
 pub struct ECDSAScripts;
 
-impl CryptoEngine for ECDSAScripts {}
+impl CryptoEngine for ECDSAScripts { }
+impl CryptoEngine for TrSchnorrScripts { }
+impl CryptoEngine for TrMuSig2 { }
 
 /// Uses Schnorr signatures inside the scripting layer of the arbitrating blockchain.
 pub struct TrSchnorrScripts;
 
-impl CryptoEngine for TrSchnorrScripts {}
-
 /// Uses MuSig2 Schnorr off-chain multi-signature protocol to sign for a regular public key at the
 /// blockchain transaction layer.
 pub struct TrMuSig2;
-
-impl CryptoEngine for TrMuSig2 {}
 
 /// Define a prooving system to link to blockchain cryptographic group parameters.
 pub trait CrossGroupDLEQ<Ar, Ac>

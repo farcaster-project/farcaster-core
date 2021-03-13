@@ -25,7 +25,7 @@ where
 
 pub enum Signature<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
     Adaptor(Ar::AdaptorSignature),
     Adapted(Ar::Signature),
@@ -62,8 +62,9 @@ pub trait Crypto {
     /// have a different format from the signature depending on the cryptographic engine used.
     type AdaptorSignature;
 
-    /// Defines the script version type.
-    type Scripts;
+    /// Defines the method used for enforcing the contract, such as
+    /// ECDSAScripts, TrSchnorrScripts, TrMuSig2
+    type Arbitration;
 }
 
 /// Defines a type of cryptography used inside arbitrating transactions to validate the

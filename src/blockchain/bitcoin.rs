@@ -87,7 +87,7 @@ impl Arbitrating for Bitcoin {
 pub struct PDLEQ;
 
 impl Crypto for Bitcoin {
-    type Scripts = ECDSAScripts;
+    type Arbitration = ECDSAScripts;
     type PrivateKey = SecretKey;
     type PublicKey = PublicKey;
     type Commitment = PubkeyHash;

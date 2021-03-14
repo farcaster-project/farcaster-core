@@ -9,12 +9,12 @@ use secp256k1::key::PublicKey;
 use secp256k1::key::SecretKey;
 use secp256k1::Signature;
 
-use crate::blockchain::monero::{Monero, Ed25519};
-use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeStrategies};
-use crate::crypto::{CrossGroupDLEQ, Crypto, Signatures, ECDSAScripts, TrSchnorrScripts, Curve, Arbitration};
-use crate::role::{Arbitrating};
-
-
+use crate::blockchain::monero::{Ed25519, Monero};
+use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit};
+use crate::crypto::{
+    Arbitration, CrossGroupDLEQ, Crypto, Curve, ECDSAScripts, Signatures, TrSchnorrScripts
+};
+use crate::role::{Arbitrating, Transaction};
 
 #[derive(Clone, Copy)]
 pub struct Bitcoin;
@@ -54,21 +54,41 @@ impl SatPerVByte {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum FeeStrategies {
+    Fixed(SatPerVByte),
+    Range(SatPerVByte,SatPerVByte)
+}
+
 impl FeeStrategy for Bitcoin {
-    type FeeStrategy = FeeStrategies<Bitcoin>;
+    type FeeStrategy = FeeStrategies;
+
+    fn fixed_fee(fee: Self::FeeUnit) -> Self::FeeStrategy {
+        FeeStrategies::Fixed(fee)
+    }
+
+    fn range_fee(fee_low: Self::FeeUnit, fee_high: Self::FeeUnit) -> Self::FeeStrategy {
+        FeeStrategies::Range(fee_low, fee_high)
+    }
+}
+
+impl FeeUnit for Bitcoin {
+    /// Type for describing the fees of a blockchain
+    type FeeUnit = SatPerVByte;
 }
 
 impl Fee for Bitcoin {
-    /// Type for describing the fees of a blockchain
-    type FeeUnit = SatPerVByte;
 
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(_tx: &mut PartiallySignedTransaction, _strategy: &FeeStrategies<Self>) -> SatPerVByte {
+    fn set_fees(
+        _tx: &mut PartiallySignedTransaction,
+        _strategy: &FeeStrategies,
+    ) -> SatPerVByte {
         todo!()
     }
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(_tx: &PartiallySignedTransaction, _strategy: &FeeStrategies<Self>) -> bool {
+    fn validate_fee(_tx: &PartiallySignedTransaction, _strategy: &FeeStrategies) -> bool {
         todo!()
     }
 }
@@ -76,14 +96,15 @@ impl Fee for Bitcoin {
 pub struct Secp256k1;
 
 impl Arbitrating for Bitcoin {
-    /// Defines the address format for the arbitrating blockchain
-    type Transaction = PartiallySignedTransaction;
-
     /// Defines the transaction format for the arbitrating blockchain
     type Address = Address;
 
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock = u32;
+}
+impl Transaction for Bitcoin {
+    /// Defines the address format for the arbitrating blockchain
+    type Transaction = PartiallySignedTransaction;
 }
 
 impl Curve for Bitcoin {
@@ -95,7 +116,7 @@ impl Curve for Bitcoin {
 /// elements in the same group, i.e. `(G, R')` and `(T, R)`.
 pub struct PDLEQ;
 
-impl Arbitration for Bitcoin{
+impl Arbitration for Bitcoin {
     type Arbitration = ECDSAScripts;
 }
 
@@ -115,7 +136,6 @@ impl Signatures for Bitcoin {
 //     type PublicKey = secp256k1::schnorrsig::PublicKey;
 //     type Commitment = PubkeyHash;
 // }
-
 
 pub struct RingSignatureProof;
 

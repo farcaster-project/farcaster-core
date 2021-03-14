@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use crate::role::Arbitrating;
+use crate::role::{Arbitrating, Transaction};
 
 pub mod bitcoin;
 pub mod monero;
@@ -28,20 +28,22 @@ pub trait Blockchain: Copy {
     fn new() -> Self;
 }
 
+pub trait FeeUnit {
+    /// Type for describing the fees of a blockchain
+    type FeeUnit: Copy;
+}
+
 /// Enable fee management for an arbitrating blockchain.
 ///
 /// This trait require implementing the Arbitrating role to have access to transaction associated
 /// type and because in the base protocol transactions for the accordant blockchain are generated
 /// outside, thus we don't need this trait on Accordant blockchain.
-pub trait Fee: Arbitrating + FeeStrategy {
-    /// Type for describing the fees of a blockchain
-    type FeeUnit: Copy;
-
+pub trait Fee: Transaction + FeeUnit + FeeStrategy {
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(tx: &mut Self::Transaction, strategy: &FeeStrategies<Self>) -> Self::FeeUnit;
+    fn set_fees(tx: &mut Self::Transaction, strategy: &Self::FeeStrategy) -> Self::FeeUnit;
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(tx: &Self::Transaction, strategy: &FeeStrategies<Self>) -> bool;
+    fn validate_fee(tx: &Self::Transaction, strategy: &Self::FeeStrategy) -> bool;
 }
 
 /// A fee strategy to be applied on an arbitrating transaction.
@@ -51,26 +53,9 @@ pub trait Fee: Arbitrating + FeeStrategy {
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
-pub trait FeeStrategy: Copy {
-    type FeeStrategy;
-}
+pub trait FeeStrategy: FeeUnit {
+    type FeeStrategy: Copy;
 
-impl<B: Fee> FeeStrategy for FeeStrategies<B> {
-    type FeeStrategy = FeeStrategies<B>;
+    fn fixed_fee(fee: Self::FeeUnit) -> Self::FeeStrategy;
+    fn range_fee(fee_low: Self::FeeUnit, fee_high: Self::FeeUnit) -> Self::FeeStrategy;
 }
-
-#[derive(Copy, Clone)]
-pub enum FeeStrategies<B: Fee> {
-    FixedFee(B::FeeUnit),
-    RangeFee(B::FeeUnit, B::FeeUnit),
-}
-
-impl<B: Fee> FeeStrategies<B> {
-    pub fn fixed(fee: B::FeeUnit) -> Self {
-        Self::FixedFee(fee)
-    }
-    pub fn range(fee_low: B::FeeUnit, fee_high: B::FeeUnit) -> Self {
-        Self::RangeFee(fee_low, fee_high)
-    }
-}
-

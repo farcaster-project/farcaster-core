@@ -67,15 +67,16 @@ pub enum BlockchainRole {
 
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
-pub trait Arbitrating: Blockchain + Crypto + Signatures + Curve + Arbitration {
+pub trait Arbitrating: Blockchain + Crypto + Signatures + Curve + Arbitration + Transaction {
     /// Defines the address format for the arbitrating blockchain
     type Address;
 
-    /// Defines the transaction format for the arbitrating blockchain
-    type Transaction;
-
     //// Defines the type of timelock used for the arbitrating transactions
     type Timelock: Copy;
+}
+pub trait Transaction {
+    /// Defines the transaction format for the arbitrating blockchain
+    type Transaction;
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor

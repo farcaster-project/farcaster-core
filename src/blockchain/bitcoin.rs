@@ -11,7 +11,7 @@ use secp256k1::Signature;
 
 use crate::blockchain::monero::Monero;
 use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeStrategies};
-use crate::crypto::{CrossGroupDLEQ, Crypto, ECDSAScripts, TrSchnorrScripts, Group, Arbitration};
+use crate::crypto::{CrossGroupDLEQ, Crypto, Signatures, ECDSAScripts, TrSchnorrScripts, Group, Arbitration};
 use crate::role::{Arbitrating};
 
 #[derive(Clone, Copy)]
@@ -71,7 +71,6 @@ impl Fee for Bitcoin {
     }
 }
 
-
 pub struct Secp256k1;
 
 impl Arbitrating for Bitcoin {
@@ -102,6 +101,9 @@ impl Crypto for Bitcoin {
     type PrivateKey = SecretKey;
     type PublicKey = PublicKey;
     type Commitment = PubkeyHash;
+}
+
+impl Signatures for Bitcoin {
     type Signature = Signature;
     type AdaptorSignature = (Signature, PublicKey, PDLEQ);
 }

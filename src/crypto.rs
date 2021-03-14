@@ -54,7 +54,9 @@ pub trait Crypto {
 
     /// Commitment type given the blockchain and the crypto engine
     type Commitment;
+}
 
+pub trait Signatures {
     /// Defines the signature format for the arbitrating blockchain
     type Signature;
 

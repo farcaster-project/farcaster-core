@@ -1,7 +1,7 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
 use crate::blockchain::Blockchain;
-use crate::crypto::{Keys, Signatures, Curve, Arbitration, Commitment};
+use crate::crypto::{Arbitration, Commitment, CrossGroupDLEQ, Curve, Keys, Signatures};
 
 /// Three network that need to be defined for every blockchains.
 pub trait Network: Copy {}
@@ -67,7 +67,9 @@ pub enum BlockchainRole {
 
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
-pub trait Arbitrating: Blockchain + Keys + Commitment + Signatures + Curve + Arbitration + Transaction {
+pub trait Arbitrating:
+    Blockchain + Keys + Commitment + Signatures + Curve + Arbitration + Transaction
+{
     /// Defines the address format for the arbitrating blockchain
     type Address;
 
@@ -83,5 +85,14 @@ pub trait Transaction {
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
-pub trait Accordant: Blockchain + Keys + Curve + Commitment  {}
+pub trait Accordant: Blockchain + Keys + Curve + Commitment {}
 
+/// Specifies the entire swap, with a pair of Arbitrating and Accordant chains, and their eliptic curves, and their cross-group equality.
+pub trait Swap<Ar, Ac>: CrossGroupDLEQ<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+    Ar::Curve: PartialEq<Ac::Curve>,
+    Ac::Curve: PartialEq<Ar::Curve>,
+{
+}

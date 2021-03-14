@@ -12,7 +12,7 @@ use secp256k1::Signature;
 use crate::blockchain::monero::{Ed25519, Monero};
 use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit};
 use crate::crypto::{
-    Arbitration, CrossGroupDLEQ, Crypto, Curve, ECDSAScripts, Signatures, TrSchnorrScripts
+    Arbitration, CrossGroupDLEQ, Keys, Curve, ECDSAScripts, Signatures, TrSchnorrScripts, Commitment
 };
 use crate::role::{Arbitrating, Transaction};
 
@@ -57,7 +57,7 @@ impl SatPerVByte {
 #[derive(Clone, Copy)]
 pub enum FeeStrategies {
     Fixed(SatPerVByte),
-    Range(SatPerVByte,SatPerVByte)
+    Range(SatPerVByte, SatPerVByte)
 }
 
 impl FeeStrategy for Bitcoin {
@@ -73,7 +73,6 @@ impl FeeStrategy for Bitcoin {
 }
 
 impl FeeUnit for Bitcoin {
-    /// Type for describing the fees of a blockchain
     type FeeUnit = SatPerVByte;
 }
 
@@ -93,7 +92,6 @@ impl Fee for Bitcoin {
     }
 }
 
-pub struct Secp256k1;
 
 impl Arbitrating for Bitcoin {
     /// Defines the transaction format for the arbitrating blockchain
@@ -106,6 +104,8 @@ impl Transaction for Bitcoin {
     /// Defines the address format for the arbitrating blockchain
     type Transaction = PartiallySignedTransaction;
 }
+
+pub struct Secp256k1;
 
 impl Curve for Bitcoin {
     /// Eliptic curve
@@ -120,9 +120,11 @@ impl Arbitration for Bitcoin {
     type Arbitration = ECDSAScripts;
 }
 
-impl Crypto for Bitcoin {
+impl Keys for Bitcoin {
     type PrivateKey = SecretKey;
     type PublicKey = PublicKey;
+}
+impl Commitment for Bitcoin {
     type Commitment = PubkeyHash;
 }
 
@@ -148,7 +150,7 @@ impl PartialEq<Ed25519> for Secp256k1 {
 }
 
 impl PartialEq<Secp256k1> for Ed25519 {
-    fn eq(&self, _other: &Secp256k1) -> bool {
-        todo!()
+    fn eq(&self, other: &Secp256k1) -> bool {
+        other.eq(self)
     }
 }

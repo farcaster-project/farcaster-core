@@ -4,8 +4,8 @@ use crate::role::{Accordant, Arbitrating};
 
 pub enum Key<Ar, Ac>
 where
-    Ar: Crypto,
-    Ac: Crypto,
+    Ar: Keys,
+    Ac: Keys,
 {
     AliceBuy(Ar::PublicKey),
     AliceCancel(Ar::PublicKey),
@@ -45,13 +45,15 @@ where
 ///
 /// E.g. ECDSA and Schnorr signature in Bitcoin are stored/parsed differently as Schnorr has been
 /// optimized further than ECDSA at the begining of Bitcoin.
-pub trait Crypto {
+pub trait Keys {
     /// Private key type given the blockchain and the crypto engine
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine
     type PublicKey;
+}
 
+pub trait Commitment {
     /// Commitment type given the blockchain and the crypto engine
     type Commitment;
 }
@@ -72,8 +74,8 @@ pub trait CryptoEngine {}
 /// Define a prooving system to link to blockchain cryptographic group parameters.
 pub trait CrossGroupDLEQ<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Curve,
+    Ac: Curve,
     Ar::Curve: PartialEq<Ac::Curve>,
     Ac::Curve: PartialEq<Ar::Curve>,
 {
@@ -84,10 +86,17 @@ pub trait Curve {
     type Curve;
 }
 
-/// Defines the means of arbitraion, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
+/// Defines the means of arbitration, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
 pub trait Arbitration {
     type Arbitration;
 }
+
+enum Arbitrator {
+    ECDSAScripts(ECDSAScripts),
+    TrSchnorrScripts(TrSchnorrScripts),
+    TrMusig2(TrMuSig2),
+}
+
 /// Uses ECDSA signatures inside the scripting layer of the arbitrating blockchain.
 pub struct ECDSAScripts;
 

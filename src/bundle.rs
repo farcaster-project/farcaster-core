@@ -4,7 +4,7 @@
 //! daemons. Bundles are used during the different steps of the swap by both Alice and Bob.
 
 use crate::blockchain::{Fee, FeeStrategy};
-use crate::crypto::{Crypto, CryptoEngine};
+use crate::crypto::{Keys, CryptoEngine};
 use crate::datum;
 use crate::role::{Accordant, Arbitrating};
 

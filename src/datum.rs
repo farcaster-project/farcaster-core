@@ -1,5 +1,5 @@
 use crate::blockchain::{Fee, FeeStrategy};
-use crate::crypto::{self, Crypto, CryptoEngine, Signatures};
+use crate::crypto::{self, Keys, CryptoEngine, Signatures};
 use crate::role::{Accordant, Arbitrating, SwapRole};
 
 pub trait Datum {}
@@ -24,8 +24,8 @@ pub enum TxId {
 
 pub struct Key<Ar, Ac>
 where
-    Ar: Crypto,
-    Ac: Crypto,
+    Ar: Keys,
+    Ac: Keys,
 {
     pub key: crypto::Key<Ar, Ac>,
 }

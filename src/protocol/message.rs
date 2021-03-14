@@ -1,6 +1,6 @@
 //! Protocol messages exchanged between swap daemons
 
-use crate::crypto::{Crypto, CryptoEngine, Proof};
+use crate::crypto::{Keys, CryptoEngine, Proof};
 use crate::role::{Accordant, Arbitrating};
 
 /// Trait for defining inter-daemon communication messages.

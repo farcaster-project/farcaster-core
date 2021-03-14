@@ -1,7 +1,7 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
 use crate::blockchain::Blockchain;
-use crate::crypto::{Crypto, Signatures, Curve, Arbitration};
+use crate::crypto::{Keys, Signatures, Curve, Arbitration, Commitment};
 
 /// Three network that need to be defined for every blockchains.
 pub trait Network: Copy {}
@@ -67,13 +67,15 @@ pub enum BlockchainRole {
 
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
-pub trait Arbitrating: Blockchain + Crypto + Signatures + Curve + Arbitration + Transaction {
+pub trait Arbitrating: Blockchain + Keys + Commitment + Signatures + Curve + Arbitration + Transaction {
     /// Defines the address format for the arbitrating blockchain
     type Address;
 
     //// Defines the type of timelock used for the arbitrating transactions
     type Timelock: Copy;
 }
+
+// TODO: move me to transaction file
 pub trait Transaction {
     /// Defines the transaction format for the arbitrating blockchain
     type Transaction;
@@ -81,5 +83,5 @@ pub trait Transaction {
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
-pub trait Accordant: Blockchain + Crypto + Curve {}
+pub trait Accordant: Blockchain + Keys + Curve + Commitment  {}
 

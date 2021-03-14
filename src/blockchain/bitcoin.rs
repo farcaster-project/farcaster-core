@@ -9,10 +9,12 @@ use secp256k1::key::PublicKey;
 use secp256k1::key::SecretKey;
 use secp256k1::Signature;
 
-use crate::blockchain::monero::Monero;
+use crate::blockchain::monero::{Monero, Ed25519};
 use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeStrategies};
 use crate::crypto::{CrossGroupDLEQ, Crypto, Signatures, ECDSAScripts, TrSchnorrScripts, Curve, Arbitration};
 use crate::role::{Arbitrating};
+
+
 
 #[derive(Clone, Copy)]
 pub struct Bitcoin;
@@ -114,18 +116,19 @@ impl Signatures for Bitcoin {
 //     type Commitment = PubkeyHash;
 // }
 
+
 pub struct RingSignatureProof;
 
 impl CrossGroupDLEQ<Bitcoin, Monero> for RingSignatureProof {}
 
-impl PartialEq<Monero> for Bitcoin {
-    fn eq(&self, _other: &Monero) -> bool {
+impl PartialEq<Ed25519> for Secp256k1 {
+    fn eq(&self, _other: &Ed25519) -> bool {
         todo!()
     }
 }
 
-impl PartialEq<Bitcoin> for Monero {
-    fn eq(&self, _other: &Bitcoin) -> bool {
+impl PartialEq<Secp256k1> for Ed25519 {
+    fn eq(&self, _other: &Secp256k1) -> bool {
         todo!()
     }
 }

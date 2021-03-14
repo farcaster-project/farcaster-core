@@ -69,11 +69,13 @@ pub trait Signatures {
 /// transactions at the blockchain level and transfer the secrets.
 pub trait CryptoEngine {}
 
-// /// Define a prooving system to link to blockchain cryptographic group parameters.
-pub trait CrossGroupDLEQ<Left, Right>
+/// Define a prooving system to link to blockchain cryptographic group parameters.
+pub trait CrossGroupDLEQ<Ar, Ac>
 where
-    Left: Curve + PartialEq<Right>,
-    Right: Curve + PartialEq<Left>
+    Ar: Arbitrating,
+    Ac: Accordant,
+    Ar::Curve: PartialEq<Ac::Curve>,
+    Ac::Curve: PartialEq<Ar::Curve>,
 {
 }
 
@@ -82,7 +84,7 @@ pub trait Curve {
     type Curve;
 }
 
-/// Defines the means of arbitration, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
+/// Defines the means of arbitraion, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
 pub trait Arbitration {
     type Arbitration;
 }

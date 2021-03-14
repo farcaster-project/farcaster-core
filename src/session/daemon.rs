@@ -7,7 +7,7 @@ use crate::role::{Accordant, Arbitrating};
 
 pub struct AliceSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
     Ac: Accordant,
 {
     pub destination_address: Ar::Address,
@@ -22,7 +22,7 @@ where
 
 pub struct BobSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
     Ac: Accordant,
 {
     pub refund_address: Ar::Address,

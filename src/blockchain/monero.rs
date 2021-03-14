@@ -7,7 +7,7 @@ use monero::util::key::PublicKey;
 
 use crate::blockchain::Blockchain;
 use crate::role::{Accordant};
-use crate::crypto::{Group, Crypto};
+use crate::crypto::{Curve, Crypto};
 
 #[derive(Clone, Copy)]
 pub struct Monero;
@@ -40,8 +40,8 @@ impl Blockchain for Monero {
 
 pub struct Ed25519;
 
-impl Group for Monero {
-    type Group = Ed25519;
+impl Curve for Monero {
+    type Curve = Ed25519;
 }
 
 impl Accordant for Monero {}

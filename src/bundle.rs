@@ -14,7 +14,7 @@ pub trait Bundle {}
 /// step of a swap.
 pub struct AliceSessionParams<Ar, Ac, S>
 where
-    Ar: Arbitrating + Crypto + Fee,
+    Ar: Arbitrating + Fee,
     Ac: Accordant,
     S: FeeStrategy,
 {
@@ -36,7 +36,7 @@ where
 /// step of a swap.
 pub struct BobSessionParams<Ar, Ac, S>
 where
-    Ar: Arbitrating + Crypto + Fee,
+    Ar: Arbitrating + Fee,
     Ac: Accordant,
     S: FeeStrategy,
 {
@@ -56,7 +56,7 @@ where
 /// Provides daemon with a signature on the unsigned cancel (d) transaction.
 pub struct CosignedArbitratingCancel<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
     /// The `Ac|Bc` `cancel (d)` signature
     pub cancel_sig: datum::Signature<Ar>,
@@ -64,7 +64,7 @@ where
 
 impl<Ar> Bundle for CosignedArbitratingCancel<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
 }
 
@@ -82,14 +82,14 @@ where
 /// transaction.
 pub struct SignedAdaptorBuy<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
     pub buy_adaptor_sig: datum::Signature<Ar>,
 }
 
 impl<Ar> Bundle for SignedAdaptorBuy<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
 }
 
@@ -97,7 +97,7 @@ where
 /// transaction.
 pub struct FullySignedBuy<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
     pub buy_sig: datum::Signature<Ar>,
     pub buy_adapted_sig: datum::Signature<Ar>,
@@ -105,7 +105,7 @@ where
 
 impl<Ar> Bundle for FullySignedBuy<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
 }
 
@@ -113,14 +113,14 @@ where
 /// transaction.
 pub struct SignedAdaptorRefund<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
     pub refund_adaptor_sig: datum::Signature<Ar>,
 }
 
 impl<Ar> Bundle for SignedAdaptorRefund<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
 }
 
@@ -128,7 +128,7 @@ where
 /// transaction.
 pub struct FullySignedRefund<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
     pub refund_sig: datum::Signature<Ar>,
     pub refund_adapted_sig: datum::Signature<Ar>,
@@ -136,34 +136,34 @@ where
 
 impl<Ar> Bundle for FullySignedRefund<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
 }
 
 /// Provides Bob's daemon with the signature on the unsigned lock (b) transaction.
 pub struct SignedArbitratingLock<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
     pub lock_sig: datum::Signature<Ar>,
 }
 
 impl<Ar> Bundle for SignedArbitratingLock<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
 }
 
 /// Provides Alice's daemon with the signature on the unsigned punish (f) transaction.
 pub struct SignedArbitratingPunish<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
     pub punish_sig: datum::Signature<Ar>,
 }
 
 impl<Ar> Bundle for SignedArbitratingPunish<Ar>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
 {
 }

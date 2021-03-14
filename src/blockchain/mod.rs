@@ -73,3 +73,4 @@ impl<B: Fee> FeeStrategies<B> {
         Self::RangeFee(fee_low, fee_high)
     }
 }
+

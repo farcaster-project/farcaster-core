@@ -4,8 +4,8 @@ use crate::role::{Accordant, Arbitrating};
 
 pub enum Key<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Crypto,
+    Ac: Crypto,
 {
     AliceBuy(Ar::PublicKey),
     AliceCancel(Ar::PublicKey),
@@ -25,7 +25,7 @@ where
 
 pub enum Signature<Ar>
 where
-    Ar: Arbitrating,
+    Ar: Signatures,
 {
     Adaptor(Ar::AdaptorSignature),
     Adapted(Ar::Signature),
@@ -69,6 +69,23 @@ pub trait Signatures {
 /// transactions at the blockchain level and transfer the secrets.
 pub trait CryptoEngine {}
 
+// /// Define a prooving system to link to blockchain cryptographic group parameters.
+pub trait CrossGroupDLEQ<Left, Right>
+where
+    Left: Curve + PartialEq<Right>,
+    Right: Curve + PartialEq<Left>
+{
+}
+
+/// Eliptic curve ed25519 or secp256k1
+pub trait Curve {
+    type Curve;
+}
+
+/// Defines the means of arbitration, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
+pub trait Arbitration {
+    type Arbitration;
+}
 /// Uses ECDSA signatures inside the scripting layer of the arbitrating blockchain.
 pub struct ECDSAScripts;
 
@@ -78,20 +95,3 @@ pub struct TrSchnorrScripts;
 /// Uses MuSig2 Schnorr off-chain multi-signature protocol to sign for a regular public key at the
 /// blockchain transaction layer.
 pub struct TrMuSig2;
-
-// /// Define a prooving system to link to blockchain cryptographic group parameters.
-pub trait CrossGroupDLEQ<Left, Right>
-where
-    Left: Group + PartialEq<Right>,
-    Right: Group + PartialEq<Left>
-{
-}
-
-/// Eliptic curve ed25519 or secp256k1
-pub trait Group {
-    type Group;
-}
-
-pub trait Arbitration {
-    type Arbitration;
-}

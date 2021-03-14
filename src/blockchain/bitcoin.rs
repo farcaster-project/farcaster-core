@@ -11,7 +11,7 @@ use secp256k1::Signature;
 
 use crate::blockchain::monero::Monero;
 use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeStrategies};
-use crate::crypto::{CrossGroupDLEQ, Crypto, Signatures, ECDSAScripts, TrSchnorrScripts, Group, Arbitration};
+use crate::crypto::{CrossGroupDLEQ, Crypto, Signatures, ECDSAScripts, TrSchnorrScripts, Curve, Arbitration};
 use crate::role::{Arbitrating};
 
 #[derive(Clone, Copy)]
@@ -84,9 +84,9 @@ impl Arbitrating for Bitcoin {
     type Timelock = u32;
 }
 
-impl Group for Bitcoin {
+impl Curve for Bitcoin {
     /// Eliptic curve
-    type Group = Secp256k1;
+    type Curve = Secp256k1;
 }
 
 /// Produces a zero-knowledge proof of knowledge of the same relation k between two pairs of
@@ -109,12 +109,9 @@ impl Signatures for Bitcoin {
 }
 //// TODO: implement on another struct or on a generic Bitcoin<T>
 // impl Crypto for Bitcoin {
-//     type Scripts = TrSchnorrScripts;
 //     type PrivateKey = SecretKey;
 //     type PublicKey = secp256k1::schnorrsig::PublicKey;
 //     type Commitment = PubkeyHash;
-//     type Signature = secp256k1::schnorrsig::Signature;
-//     type AdaptorSignature = secp256k1::schnorrsig::Signature;
 // }
 
 pub struct RingSignatureProof;

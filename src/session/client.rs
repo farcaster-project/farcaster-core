@@ -35,7 +35,7 @@ where
 
 pub struct AliceSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
     Ac: Accordant,
 {
     pub buy: Ar::PrivateKey,
@@ -86,7 +86,7 @@ impl AliceSessionParameters<Bitcoin, Monero> {
 
 pub struct BobSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto,
+    Ar: Arbitrating,
     Ac: Accordant,
 {
     pub fund: Ar::PrivateKey,

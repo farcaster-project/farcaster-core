@@ -12,45 +12,43 @@ pub trait Bundle {}
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
-pub struct AliceSessionParams<Ar, Ac, S>
+pub struct AliceSessionParams<Ar, Ac>
 where
     Ar: Arbitrating + Fee,
     Ac: Accordant,
-    S: FeeStrategy,
 {
     pub buy: datum::Key<Ar, Ac>,
     pub cancel: datum::Key<Ar, Ac>,
     pub refund: datum::Key<Ar, Ac>,
     pub punish: datum::Key<Ar, Ac>,
     pub adaptor: datum::Key<Ar, Ac>,
-    pub destination_address: datum::Parameter<Ar, S>,
+    pub destination_address: datum::Parameter<Ar>,
     pub view: datum::Key<Ar, Ac>,
     pub spend: datum::Key<Ar, Ac>,
     pub proof: datum::Proof<Ar, Ac>,
-    pub cancel_timelock: datum::Parameter<Ar, S>,
-    pub punish_timelock: datum::Parameter<Ar, S>,
-    pub fee_strategy: datum::Parameter<Ar, S>,
+    pub cancel_timelock: datum::Parameter<Ar>,
+    pub punish_timelock: datum::Parameter<Ar>,
+    pub fee_strategy: datum::Parameter<Ar>,
 }
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
-pub struct BobSessionParams<Ar, Ac, S>
+pub struct BobSessionParams<Ar, Ac>
 where
     Ar: Arbitrating + Fee,
     Ac: Accordant,
-    S: FeeStrategy,
 {
     pub buy: datum::Key<Ar, Ac>,
     pub cancel: datum::Key<Ar, Ac>,
     pub refund: datum::Key<Ar, Ac>,
     pub adaptor: datum::Key<Ar, Ac>,
-    pub refund_address: datum::Parameter<Ar, S>,
+    pub refund_address: datum::Parameter<Ar>,
     pub view: datum::Key<Ar, Ac>,
     pub spend: datum::Key<Ar, Ac>,
     pub proof: datum::Proof<Ar, Ac>,
-    pub cancel_timelock: datum::Parameter<Ar, S>,
-    pub punish_timelock: datum::Parameter<Ar, S>,
-    pub fee_strategy: datum::Parameter<Ar, S>,
+    pub cancel_timelock: datum::Parameter<Ar>,
+    pub punish_timelock: datum::Parameter<Ar>,
+    pub fee_strategy: datum::Parameter<Ar>,
 }
 
 /// Provides daemon with a signature on the unsigned cancel (d) transaction.

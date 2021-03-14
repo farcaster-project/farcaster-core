@@ -47,14 +47,13 @@ where
     pub proof: crypto::Proof<Ar, Ac>,
 }
 
-pub enum Parameter<Ar, S>
+pub enum Parameter<Ar>
 where
     Ar: Arbitrating + Fee,
-    S: FeeStrategy,
 {
     DestinationAddress(Ar::Address),
     RefundAddress(Ar::Address),
     CancelTimelock(Ar::Timelock),
     PunishTimelock(Ar::Timelock),
-    FeeStrategy(S),
+    FeeStrategy(Ar::FeeStrategy),
 }

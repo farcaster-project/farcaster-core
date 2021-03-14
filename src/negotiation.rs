@@ -2,7 +2,7 @@
 
 //use internet2::session::node_addr::NodeAddr;
 
-use crate::blockchain::{Fee, FeeStrategy};
+use crate::blockchain::{Fee};
 use crate::role::{Accordant, Arbitrating, Network, SwapRole};
 
 /// An offer is created by a Maker before the start of his daemon, it references all the data
@@ -13,7 +13,6 @@ pub struct Offer<Ar, Ac, N>
 where
     Ar: Arbitrating + Fee,
     Ac: Accordant,
-    // S: FeeStrategy,
     N: Network,
 {
     /// Type of offer and network to use

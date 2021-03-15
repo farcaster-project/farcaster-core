@@ -2,11 +2,6 @@
 
 use std::str::FromStr;
 
-use crate::role::Onchain;
-
-pub mod bitcoin;
-pub mod monero;
-
 /// Base trait for defining a blockchain and its asset type.
 pub trait Blockchain: Copy {
     /// Type for the traded asset unit
@@ -26,6 +21,16 @@ pub trait Blockchain: Copy {
 
     /// Create a new blockchain
     fn new() -> Self;
+}
+
+/// Defines the types a blockchain needs to interact onchain, i.e. the transaction types.
+pub trait Onchain {
+    /// Defines the transaction format used to transfer partial transaction between participant for
+    /// the arbitrating blockchain
+    type PartialTransaction;
+
+    /// Defines the finalized transaction format for the arbitrating blockchain
+    type Transaction;
 }
 
 /// Define the unit type used for setting/validating blockchain fees.
@@ -61,3 +66,24 @@ pub trait FeeStrategy: FeeUnit {
     fn fixed_fee(fee: Self::FeeUnit) -> Self::FeeStrategy;
     fn range_fee(fee_low: Self::FeeUnit, fee_high: Self::FeeUnit) -> Self::FeeStrategy;
 }
+
+/// Defines a blockchain network, identifies how to interact with the blockchain.
+pub trait Network: Copy {}
+
+/// Mainnet works with real assets.
+#[derive(Clone, Copy)]
+pub struct Mainnet;
+
+impl Network for Mainnet {}
+
+/// Testnet works with decentralized testing network, assets have no value.
+#[derive(Clone, Copy)]
+pub struct Testnet;
+
+impl Network for Testnet {}
+
+/// Local works with local copy, auto-generated blockchains, assets have no value.
+#[derive(Clone, Copy)]
+pub struct Local;
+
+impl Network for Local {}

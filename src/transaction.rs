@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 
-use crate::blockchain::{Fee, FeeStrategy};
+use crate::blockchain::FeeStrategy;
 use crate::role::Arbitrating;
 
 /// Base trait for arbitrating transactions. Defines methods to create the wrappers from a partial

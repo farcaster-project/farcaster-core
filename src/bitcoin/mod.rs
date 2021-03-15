@@ -10,10 +10,13 @@ use secp256k1::key::PublicKey;
 use secp256k1::key::SecretKey;
 use secp256k1::Signature;
 
-use crate::blockchain::monero::{Ed25519, Monero};
-use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit};
+use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit, Onchain};
 use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures};
-use crate::role::{Arbitrating, Onchain};
+use crate::monero::{Ed25519, Monero};
+use crate::role::Arbitrating;
+use crate::transaction::{
+    Broadcastable, Failable, Forkable, Funding, Linkable, Lock, Spendable, Transaction,
+};
 
 #[derive(Clone, Copy)]
 pub struct Bitcoin;
@@ -159,12 +162,6 @@ impl PartialEq<Secp256k1> for Ed25519 {
 // =========================================================================================
 // =============================     TRANSACTIONS    =======================================
 // =========================================================================================
-
-use bitcoin::util::psbt;
-
-use crate::transaction::{
-    Broadcastable, Failable, Forkable, Funding, Linkable, Lock, Spendable, Transaction,
-};
 
 #[derive(Debug)]
 pub struct FundingTx {

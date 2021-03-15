@@ -1,28 +1,7 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
-use crate::blockchain::Blockchain;
-use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, Keys, Script, Signatures};
-
-/// Three network that need to be defined for every blockchains.
-pub trait Network: Copy {}
-
-/// Mainnet works with real assets.
-#[derive(Clone, Copy)]
-pub struct Mainnet;
-
-impl Network for Mainnet {}
-
-/// Testnet works with decentralized testing network for both chains.
-#[derive(Clone, Copy)]
-pub struct Testnet;
-
-impl Network for Testnet {}
-
-/// Local works with local blockchains for both chains.
-#[derive(Clone, Copy)]
-pub struct Local;
-
-impl Network for Local {}
+use crate::blockchain::{Blockchain, Onchain};
+use crate::crypto::{Commitment, Curve, Keys, Script, Signatures};
 
 /// Defines all possible negociation roles: maker and taker.
 pub enum NegotiationRole {
@@ -75,15 +54,6 @@ pub trait Arbitrating:
 
     //// Defines the type of timelock used for the arbitrating transactions
     type Timelock: Copy;
-}
-
-pub trait Onchain {
-    /// Defines the transaction format used to transfer partial transaction between participant for
-    /// the arbitrating blockchain
-    type PartialTransaction;
-
-    /// Defines the finalized transaction format for the arbitrating blockchain
-    type Transaction;
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor

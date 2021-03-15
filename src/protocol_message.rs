@@ -196,7 +196,7 @@ mod tests {
     use secp256k1::Signature;
 
     use super::{Abort, BuyProcedureSignature};
-    use crate::blockchain::bitcoin::{Bitcoin, PDLEQ};
+    use crate::bitcoin::{Bitcoin, PDLEQ};
 
     #[test]
     fn create_abort_message() {

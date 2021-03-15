@@ -2,8 +2,8 @@
 
 //use internet2::session::node_addr::NodeAddr;
 
-use crate::blockchain::Fee;
-use crate::role::{Accordant, Arbitrating, Network, SwapRole};
+use crate::blockchain::{Fee, Network};
+use crate::role::{Accordant, Arbitrating, SwapRole};
 
 /// An offer is created by a Maker before the start of his daemon, it references all the data
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
@@ -236,10 +236,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::{Buy, Offer, Sell};
-    use crate::blockchain::{
-        bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, FeeStrategy,
-    };
-    use crate::role::{Local, SwapRole};
+    use crate::bitcoin::{Bitcoin, SatPerVByte};
+    use crate::blockchain::{Blockchain, FeeStrategy, Local};
+    use crate::monero::Monero;
+    use crate::role::SwapRole;
     use bitcoin::util::amount::Amount;
 
     #[test]

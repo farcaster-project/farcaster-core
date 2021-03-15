@@ -21,6 +21,16 @@ where
     fn from_partial(tx: &Ar::PartialTransaction) -> Option<Self>;
 }
 
+/// Defines the transaction IDs for serialization and network communication.
+pub enum TxId {
+    Funding,
+    Lock,
+    Buy,
+    Cancel,
+    Refund,
+    Publish,
+}
+
 /// Must be implemented on transactions with failable opperations.
 pub trait Failable {
     /// Errors returned by the failable methods.

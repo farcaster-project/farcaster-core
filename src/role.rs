@@ -89,13 +89,3 @@ pub trait Onchain {
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
 pub trait Accordant: Blockchain + Keys + Curve + Commitment {}
-
-/// Specifies the entire swap, with a pair of Arbitrating and Accordant chains, and their eliptic curves, and their cross-group equality.
-pub trait Swap<Ar, Ac>: CrossGroupDLEQ<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-    Ar::Curve: PartialEq<Ac::Curve>,
-    Ac::Curve: PartialEq<Ar::Curve>,
-{
-}

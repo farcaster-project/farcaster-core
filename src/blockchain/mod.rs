@@ -28,6 +28,7 @@ pub trait Blockchain: Copy {
     fn new() -> Self;
 }
 
+/// Define the unit type used for setting/validating blockchain fees.
 pub trait FeeUnit {
     /// Type for describing the fees of a blockchain
     type FeeUnit: Copy;
@@ -54,6 +55,7 @@ pub trait Fee: Onchain + FeeUnit + FeeStrategy {
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
 pub trait FeeStrategy: FeeUnit {
+    /// The fee strategy concrete type
     type FeeStrategy: Copy;
 
     fn fixed_fee(fee: Self::FeeUnit) -> Self::FeeStrategy;

@@ -11,9 +11,7 @@ use secp256k1::Signature;
 
 use crate::blockchain::monero::{Ed25519, Monero};
 use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit};
-use crate::crypto::{
-    Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures, TrSchnorrScripts,
-};
+use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures};
 use crate::role::{Arbitrating, Transaction};
 
 #[derive(Clone, Copy)]

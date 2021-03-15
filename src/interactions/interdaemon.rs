@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 /// Interdaemon protocol messages
 
 // a: () -> ACommit OKACommit.

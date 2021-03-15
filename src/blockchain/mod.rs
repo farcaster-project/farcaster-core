@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use crate::role::{Arbitrating, Transaction};
+use crate::role::Transaction;
 
 pub mod bitcoin;
 pub mod monero;

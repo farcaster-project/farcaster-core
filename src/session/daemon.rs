@@ -2,7 +2,6 @@
 //! It is possible to create a daemon pre-session and session from a client one through messages
 //! exchanged between client and daemon called instructions.
 
-use crate::crypto::{CryptoEngine, Keys};
 use crate::role::{Accordant, Arbitrating};
 
 pub struct AliceSessionParameters<Ar, Ac>

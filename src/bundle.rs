@@ -3,8 +3,7 @@
 //! Datum are succinct and are used to convey atomic chunk of data (datum) between clients and
 //! daemons. Bundles are used during the different steps of the swap by both Alice and Bob.
 
-use crate::blockchain::{Fee, FeeStrategy};
-use crate::crypto::{CryptoEngine, Keys};
+use crate::blockchain::Fee;
 use crate::datum;
 use crate::role::{Accordant, Arbitrating};
 

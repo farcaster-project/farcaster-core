@@ -6,7 +6,6 @@ use monero::util::key::PrivateKey;
 use secp256k1::key::SecretKey;
 
 use crate::blockchain::{bitcoin::Bitcoin, monero::Monero};
-use crate::crypto::{CryptoEngine, ECDSAScripts, Keys};
 use crate::role::{Accordant, Arbitrating};
 
 #[derive(Clone)]

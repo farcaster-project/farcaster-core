@@ -190,11 +190,11 @@ impl ProtocolMessage for Abort {}
 #[cfg(test)]
 mod tests {
 
-    use bitcoin::secp256k1::Secp256k1;
-    use bitcoin::util::key::{PrivateKey, PublicKey};
     use bitcoin::blockdata::transaction::Transaction;
-    use bitcoin::util::psbt::PartiallySignedTransaction;
+    use bitcoin::secp256k1::Secp256k1;
     use bitcoin::secp256k1::Signature;
+    use bitcoin::util::key::{PrivateKey, PublicKey};
+    use bitcoin::util::psbt::PartiallySignedTransaction;
 
     use super::{Abort, BuyProcedureSignature};
     use crate::bitcoin::{Bitcoin, PDLEQ};

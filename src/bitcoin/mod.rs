@@ -286,7 +286,6 @@ impl Lock<Bitcoin> for LockTx {
         lock: script::Lock<Bitcoin>,
         fee_strategy: &impl Fee,
     ) -> Result<Self, ()> {
-
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)

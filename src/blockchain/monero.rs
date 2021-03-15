@@ -6,7 +6,7 @@ use monero::util::key::PrivateKey;
 use monero::util::key::PublicKey;
 
 use crate::blockchain::Blockchain;
-use crate::crypto::{Keys, Curve, Commitment};
+use crate::crypto::{Commitment, Curve, Keys};
 use crate::role::Accordant;
 
 #[derive(Clone, Copy)]

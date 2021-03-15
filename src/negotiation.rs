@@ -2,7 +2,7 @@
 
 //use internet2::session::node_addr::NodeAddr;
 
-use crate::blockchain::{Fee};
+use crate::blockchain::Fee;
 use crate::role::{Accordant, Arbitrating, Network, SwapRole};
 
 /// An offer is created by a Maker before the start of his daemon, it references all the data
@@ -34,7 +34,6 @@ where
     /// The future maker swap role
     pub maker_role: SwapRole,
 }
-
 
 /// Helper to create an offer from an arbitrating asset buyer perspective.
 ///
@@ -238,7 +237,7 @@ where
 mod tests {
     use super::{Buy, Offer, Sell};
     use crate::blockchain::{
-        bitcoin::Bitcoin, bitcoin::SatPerVByte, FeeStrategy, monero::Monero, Blockchain,
+        bitcoin::Bitcoin, bitcoin::SatPerVByte, monero::Monero, Blockchain, FeeStrategy,
     };
     use crate::role::{Local, SwapRole};
     use bitcoin::util::amount::Amount;

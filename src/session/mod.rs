@@ -26,7 +26,7 @@ where
     }
 }
 
-impl<R> PreSession<R> 
+impl<R> PreSession<R>
 where
     R: Role + PreSessionParameters + Parameters,
 {
@@ -53,10 +53,7 @@ where
     R: Role + PreSessionParameters + Parameters,
 {
     /// Generate a new session for a swap role
-    pub fn new(
-        pre_session_parameters: R::PreSessionParameters,
-        parameters: R::Parameters,
-    ) -> Self {
+    pub fn new(pre_session_parameters: R::PreSessionParameters, parameters: R::Parameters) -> Self {
         Self {
             uuid: String::from("session id"),
             pre_session_parameters,

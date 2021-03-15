@@ -1,6 +1,6 @@
 //! Protocol messages exchanged between swap daemons
 
-use crate::crypto::{Keys, CryptoEngine, Proof};
+use crate::crypto::{CryptoEngine, Keys, Proof};
 use crate::role::{Accordant, Arbitrating};
 
 /// Trait for defining inter-daemon communication messages.
@@ -146,11 +146,7 @@ where
     pub cancel_sig: Ar::Signature,
 }
 
-impl<Ar> ProtocolMessage for CoreArbitratingSetup<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> ProtocolMessage for CoreArbitratingSetup<Ar> where Ar: Arbitrating {}
 
 /// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
 /// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
@@ -165,11 +161,7 @@ where
     pub refund_adaptor_sig: Ar::AdaptorSignature,
 }
 
-impl<Ar> ProtocolMessage for RefundProcedureSignatures<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> ProtocolMessage for RefundProcedureSignatures<Ar> where Ar: Arbitrating {}
 
 /// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
@@ -184,11 +176,7 @@ where
     pub buy_adaptor_sig: Ar::AdaptorSignature,
 }
 
-impl<Ar> ProtocolMessage for BuyProcedureSignature<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> ProtocolMessage for BuyProcedureSignature<Ar> where Ar: Arbitrating {}
 
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.

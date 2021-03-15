@@ -1,7 +1,7 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
 use crate::blockchain::Blockchain;
-use crate::crypto::{Script, Commitment, CrossGroupDLEQ, Curve, Keys, Signatures};
+use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, Keys, Script, Signatures};
 
 /// Three network that need to be defined for every blockchains.
 pub trait Network: Copy {}

@@ -1,5 +1,5 @@
 use crate::blockchain::{Fee, FeeStrategy};
-use crate::crypto::{self, Keys, CryptoEngine, Signatures};
+use crate::crypto::{self, CryptoEngine, Keys, Signatures};
 use crate::role::{Accordant, Arbitrating, SwapRole};
 
 pub trait Datum {}

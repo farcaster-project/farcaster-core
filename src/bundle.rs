@@ -4,7 +4,7 @@
 //! daemons. Bundles are used during the different steps of the swap by both Alice and Bob.
 
 use crate::blockchain::{Fee, FeeStrategy};
-use crate::crypto::{Keys, CryptoEngine};
+use crate::crypto::{CryptoEngine, Keys};
 use crate::datum;
 use crate::role::{Accordant, Arbitrating};
 
@@ -60,11 +60,7 @@ where
     pub cancel_sig: datum::Signature<Ar>,
 }
 
-impl<Ar> Bundle for CosignedArbitratingCancel<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> Bundle for CosignedArbitratingCancel<Ar> where Ar: Arbitrating {}
 
 /// Provides Bob's daemon or Alice's clients the core set of arbritrating transactions.
 pub struct CoreArbitratingTransactions<Ar>
@@ -85,11 +81,7 @@ where
     pub buy_adaptor_sig: datum::Signature<Ar>,
 }
 
-impl<Ar> Bundle for SignedAdaptorBuy<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> Bundle for SignedAdaptorBuy<Ar> where Ar: Arbitrating {}
 
 /// Provides Alice's daemon or Bob's clients with the two signatures on the unsigned buy (c)
 /// transaction.
@@ -101,11 +93,7 @@ where
     pub buy_adapted_sig: datum::Signature<Ar>,
 }
 
-impl<Ar> Bundle for FullySignedBuy<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> Bundle for FullySignedBuy<Ar> where Ar: Arbitrating {}
 
 /// Provides Alice's daemon or Bob's clients with a signature on the unsigned refund (e)
 /// transaction.
@@ -116,11 +104,7 @@ where
     pub refund_adaptor_sig: datum::Signature<Ar>,
 }
 
-impl<Ar> Bundle for SignedAdaptorRefund<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> Bundle for SignedAdaptorRefund<Ar> where Ar: Arbitrating {}
 
 /// Provides Bob's daemon or Alice's clients with the two signatures on the unsigned refund (e)
 /// transaction.
@@ -132,11 +116,7 @@ where
     pub refund_adapted_sig: datum::Signature<Ar>,
 }
 
-impl<Ar> Bundle for FullySignedRefund<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> Bundle for FullySignedRefund<Ar> where Ar: Arbitrating {}
 
 /// Provides Bob's daemon with the signature on the unsigned lock (b) transaction.
 pub struct SignedArbitratingLock<Ar>
@@ -146,11 +126,7 @@ where
     pub lock_sig: datum::Signature<Ar>,
 }
 
-impl<Ar> Bundle for SignedArbitratingLock<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> Bundle for SignedArbitratingLock<Ar> where Ar: Arbitrating {}
 
 /// Provides Alice's daemon with the signature on the unsigned punish (f) transaction.
 pub struct SignedArbitratingPunish<Ar>
@@ -160,8 +136,4 @@ where
     pub punish_sig: datum::Signature<Ar>,
 }
 
-impl<Ar> Bundle for SignedArbitratingPunish<Ar>
-where
-    Ar: Arbitrating,
-{
-}
+impl<Ar> Bundle for SignedArbitratingPunish<Ar> where Ar: Arbitrating {}

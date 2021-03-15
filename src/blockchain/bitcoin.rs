@@ -12,7 +12,7 @@ use secp256k1::Signature;
 use crate::blockchain::monero::{Ed25519, Monero};
 use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit};
 use crate::crypto::{
-    Script, CrossGroupDLEQ, Keys, Curve, ECDSAScripts, Signatures, TrSchnorrScripts, Commitment
+    Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures, TrSchnorrScripts,
 };
 use crate::role::{Arbitrating, Transaction};
 
@@ -57,7 +57,7 @@ impl SatPerVByte {
 #[derive(Clone, Copy)]
 pub enum FeeStrategies {
     Fixed(SatPerVByte),
-    Range(SatPerVByte, SatPerVByte)
+    Range(SatPerVByte, SatPerVByte),
 }
 
 impl FeeStrategy for Bitcoin {
@@ -77,12 +77,8 @@ impl FeeUnit for Bitcoin {
 }
 
 impl Fee for Bitcoin {
-
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(
-        _tx: &mut PartiallySignedTransaction,
-        _strategy: &FeeStrategies,
-    ) -> SatPerVByte {
+    fn set_fees(_tx: &mut PartiallySignedTransaction, _strategy: &FeeStrategies) -> SatPerVByte {
         todo!()
     }
 
@@ -91,7 +87,6 @@ impl Fee for Bitcoin {
         todo!()
     }
 }
-
 
 impl Arbitrating for Bitcoin {
     /// Defines the transaction format for the arbitrating blockchain

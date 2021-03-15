@@ -87,11 +87,11 @@ pub trait Curve {
 }
 
 /// Defines the means of arbitration, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
-pub trait Arbitration {
-    type Arbitration;
+pub trait Script {
+    type Script;
 }
 
-enum Arbitrator {
+pub enum Scripts {
     ECDSAScripts(ECDSAScripts),
     TrSchnorrScripts(TrSchnorrScripts),
     TrMusig2(TrMuSig2),

@@ -75,6 +75,4 @@ where
 
 pub trait Parameters {
     type Parameters;
-
-    fn params(&self) -> Self::Parameters;
 }

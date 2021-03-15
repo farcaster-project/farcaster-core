@@ -12,7 +12,7 @@ use secp256k1::Signature;
 use crate::blockchain::monero::{Ed25519, Monero};
 use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit};
 use crate::crypto::{
-    Arbitration, CrossGroupDLEQ, Keys, Curve, ECDSAScripts, Signatures, TrSchnorrScripts, Commitment
+    Script, CrossGroupDLEQ, Keys, Curve, ECDSAScripts, Signatures, TrSchnorrScripts, Commitment
 };
 use crate::role::{Arbitrating, Transaction};
 
@@ -116,8 +116,8 @@ impl Curve for Bitcoin {
 /// elements in the same group, i.e. `(G, R')` and `(T, R)`.
 pub struct PDLEQ;
 
-impl Arbitration for Bitcoin {
-    type Arbitration = ECDSAScripts;
+impl Script for Bitcoin {
+    type Script = ECDSAScripts;
 }
 
 impl Keys for Bitcoin {

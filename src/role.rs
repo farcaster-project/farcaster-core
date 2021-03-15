@@ -1,7 +1,7 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
 use crate::blockchain::Blockchain;
-use crate::crypto::{Arbitration, Commitment, CrossGroupDLEQ, Curve, Keys, Signatures};
+use crate::crypto::{Script, Commitment, CrossGroupDLEQ, Curve, Keys, Signatures};
 
 /// Three network that need to be defined for every blockchains.
 pub trait Network: Copy {}
@@ -68,7 +68,7 @@ pub enum BlockchainRole {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Blockchain + Keys + Commitment + Signatures + Curve + Arbitration + Transaction
+    Blockchain + Keys + Commitment + Signatures + Curve + Script + Transaction
 {
     /// Defines the address format for the arbitrating blockchain
     type Address;

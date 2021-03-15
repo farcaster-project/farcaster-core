@@ -197,7 +197,6 @@ mod tests {
 
     use super::{Abort, BuyProcedureSignature};
     use crate::blockchain::bitcoin::{Bitcoin, PDLEQ};
-    use crate::crypto::ECDSAScripts;
 
     #[test]
     fn create_abort_message() {

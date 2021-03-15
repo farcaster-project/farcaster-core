@@ -1,6 +1,6 @@
 //! Protocol messages exchanged between swap daemons
 
-use crate::crypto::{Crypto, CryptoEngine, Proof};
+use crate::crypto::Proof;
 use crate::role::{Accordant, Arbitrating};
 
 /// Trait for defining inter-daemon communication messages.
@@ -8,11 +8,10 @@ pub trait ProtocolMessage {}
 
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
-pub struct CommitAliceSessionParams<Ar, Ac, C>
+pub struct CommitAliceSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     /// Commitment to `Ab` curve point
     pub buy: Ar::Commitment,
@@ -30,21 +29,19 @@ where
     pub view: Ac::Commitment,
 }
 
-impl<Ar, Ac, C> ProtocolMessage for CommitAliceSessionParams<Ar, Ac, C>
+impl<Ar, Ac> ProtocolMessage for CommitAliceSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
 }
 
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
-pub struct CommitBobSessionParams<Ar, Ac, C>
+pub struct CommitBobSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     /// Commitment to `Bb` curve point
     pub buy: Ar::Commitment,
@@ -60,21 +57,19 @@ where
     pub view: Ac::Commitment,
 }
 
-impl<Ar, Ac, C> ProtocolMessage for CommitBobSessionParams<Ar, Ac, C>
+impl<Ar, Ac> ProtocolMessage for CommitBobSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
 }
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
 /// `commit_alice_session_params` message.
-pub struct RevealAliceSessionParams<Ar, Ac, C>
+pub struct RevealAliceSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     /// The buy `Ab` public key
     pub buy: Ar::PublicKey,
@@ -96,21 +91,19 @@ where
     pub proof: Proof<Ar, Ac>,
 }
 
-impl<Ar, Ac, C> ProtocolMessage for RevealAliceSessionParams<Ar, Ac, C>
+impl<Ar, Ac> ProtocolMessage for RevealAliceSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
 }
 
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
-pub struct RevealBobSessionParams<Ar, Ac, C>
+pub struct RevealBobSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     /// The buy `Bb` public key
     pub buy: Ar::PublicKey,
@@ -130,20 +123,18 @@ where
     pub proof: Proof<Ar, Ac>,
 }
 
-impl<Ar, Ac, C> ProtocolMessage for RevealBobSessionParams<Ar, Ac, C>
+impl<Ar, Ac> ProtocolMessage for RevealBobSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
 }
 
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
-pub struct CoreArbitratingSetup<Ar, C>
+pub struct CoreArbitratingSetup<Ar>
 where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
+    Ar: Arbitrating,
 {
     /// The arbitrating `lock (b)` transaction
     pub lock: Ar::Transaction,
@@ -155,20 +146,14 @@ where
     pub cancel_sig: Ar::Signature,
 }
 
-impl<Ar, C> ProtocolMessage for CoreArbitratingSetup<Ar, C>
-where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
-{
-}
+impl<Ar> ProtocolMessage for CoreArbitratingSetup<Ar> where Ar: Arbitrating {}
 
 /// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
 /// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
 /// must validate the signatures.
-pub struct RefundProcedureSignatures<Ar, C>
+pub struct RefundProcedureSignatures<Ar>
 where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
+    Ar: Arbitrating,
 {
     /// The `Ac` `cancel (d)` signature
     pub cancel_sig: Ar::Signature,
@@ -176,20 +161,14 @@ where
     pub refund_adaptor_sig: Ar::AdaptorSignature,
 }
 
-impl<Ar, C> ProtocolMessage for RefundProcedureSignatures<Ar, C>
-where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
-{
-}
+impl<Ar> ProtocolMessage for RefundProcedureSignatures<Ar> where Ar: Arbitrating {}
 
 /// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
-pub struct BuyProcedureSignature<Ar, C>
+pub struct BuyProcedureSignature<Ar>
 where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
+    Ar: Arbitrating,
 {
     /// The arbitrating `buy (c)` transaction
     pub buy: Ar::Transaction,
@@ -197,12 +176,7 @@ where
     pub buy_adaptor_sig: Ar::AdaptorSignature,
 }
 
-impl<Ar, C> ProtocolMessage for BuyProcedureSignature<Ar, C>
-where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
-{
-}
+impl<Ar> ProtocolMessage for BuyProcedureSignature<Ar> where Ar: Arbitrating {}
 
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
@@ -223,7 +197,6 @@ mod tests {
 
     use super::{Abort, BuyProcedureSignature};
     use crate::blockchain::bitcoin::{Bitcoin, PDLEQ};
-    use crate::crypto::ECDSAScripts;
 
     #[test]
     fn create_abort_message() {
@@ -256,7 +229,7 @@ mod tests {
 
         let pdleq = PDLEQ;
 
-        let _ = BuyProcedureSignature::<Bitcoin, ECDSAScripts> {
+        let _ = BuyProcedureSignature::<Bitcoin> {
             buy: (PartiallySignedTransaction::from_unsigned_tx(tx).expect("PSBT should work here")),
             buy_adaptor_sig: (sig, point, pdleq),
         };

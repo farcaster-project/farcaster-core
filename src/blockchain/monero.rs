@@ -6,6 +6,7 @@ use monero::util::key::PrivateKey;
 use monero::util::key::PublicKey;
 
 use crate::blockchain::Blockchain;
+use crate::crypto::{Commitment, Curve, Keys};
 use crate::role::Accordant;
 
 #[derive(Clone, Copy)]
@@ -37,8 +38,19 @@ impl Blockchain for Monero {
     }
 }
 
-impl Accordant for Monero {
+pub struct Ed25519;
+
+impl Curve for Monero {
+    type Curve = Ed25519;
+}
+
+impl Accordant for Monero {}
+
+impl Keys for Monero {
     type PrivateKey = PrivateKey;
     type PublicKey = PublicKey;
+}
+
+impl Commitment for Monero {
     type Commitment = Hash;
 }

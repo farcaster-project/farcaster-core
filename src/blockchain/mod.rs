@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use crate::role::Arbitrating;
+use crate::role::Transaction;
 
 pub mod bitcoin;
 pub mod monero;
@@ -28,23 +28,22 @@ pub trait Blockchain: Copy {
     fn new() -> Self;
 }
 
+pub trait FeeUnit {
+    /// Type for describing the fees of a blockchain
+    type FeeUnit: Copy;
+}
+
 /// Enable fee management for an arbitrating blockchain.
 ///
 /// This trait require implementing the Arbitrating role to have access to transaction associated
 /// type and because in the base protocol transactions for the accordant blockchain are generated
 /// outside, thus we don't need this trait on Accordant blockchain.
-pub trait Fee<S>: Arbitrating
-where
-    S: FeeStrategy,
-{
-    /// Type for describing the fees of a blockchain
-    type FeeUnit: Copy;
-
+pub trait Fee: Transaction + FeeUnit + FeeStrategy {
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(tx: &mut Self::Transaction, strategy: &S) -> Self::FeeUnit;
+    fn set_fees(tx: &mut Self::Transaction, strategy: &Self::FeeStrategy) -> Self::FeeUnit;
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(tx: &Self::Transaction, strategy: &S) -> bool;
+    fn validate_fee(tx: &Self::Transaction, strategy: &Self::FeeStrategy) -> bool;
 }
 
 /// A fee strategy to be applied on an arbitrating transaction.
@@ -52,44 +51,11 @@ where
 /// As described in the specifications a fee strategy can be: fixe, range, or more advanced form
 /// of fee calculation.
 ///
-/// A fee strategy is included in an offer, so Alice and Bob can verify that transaction are valid
-/// uppon reception by the other participant.
-pub trait FeeStrategy: Copy {}
+/// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
+/// upon reception by the other participant.
+pub trait FeeStrategy: FeeUnit {
+    type FeeStrategy: Copy;
 
-/// A static fee strategy. Sets a fixe fee on every transactions.
-#[derive(Clone, Copy)]
-pub struct FixeFee<B>(B::FeeUnit)
-where
-    B: Fee<Self> + ?Sized;
-
-impl<B> FixeFee<B>
-where
-    B: Fee<Self> + ?Sized,
-{
-    /// Creates a new fixed fee stategy, setting the fixed amount of fees on every transaction.
-    pub fn new(fee: B::FeeUnit) -> Self {
-        Self(fee)
-    }
+    fn fixed_fee(fee: Self::FeeUnit) -> Self::FeeStrategy;
+    fn range_fee(fee_low: Self::FeeUnit, fee_high: Self::FeeUnit) -> Self::FeeStrategy;
 }
-
-impl<B> FeeStrategy for FixeFee<B> where B: Fee<Self> + ?Sized {}
-
-/// A range strategy for setting transactions' fees. Build from lower and upper bounds, the fee on
-/// the transaction MUST be within the bounds, lower and upper inclusive.
-#[derive(Clone, Copy)]
-pub struct RangeFee<B>(B::FeeUnit, B::FeeUnit)
-where
-    B: Fee<Self> + ?Sized;
-
-impl<B> RangeFee<B>
-where
-    B: Fee<Self> + ?Sized,
-{
-    /// Creates a new range fee stategy, fees on every transaction must be within the bounds,
-    /// lower and upper inclusive.
-    pub fn new(lower_bound: B::FeeUnit, upper_bound: B::FeeUnit) -> Self {
-        Self(lower_bound, upper_bound)
-    }
-}
-
-impl<B> FeeStrategy for RangeFee<B> where B: Fee<Self> + ?Sized {}

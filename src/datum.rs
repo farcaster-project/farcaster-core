@@ -1,5 +1,5 @@
-use crate::blockchain::{Fee, FeeStrategy};
-use crate::crypto::{self, Crypto, CryptoEngine};
+use crate::blockchain::Fee;
+use crate::crypto::{self, Keys, Signatures};
 use crate::role::{Accordant, Arbitrating, SwapRole};
 
 pub trait Datum {}
@@ -22,23 +22,21 @@ pub enum TxId {
     Publish,
 }
 
-pub struct Key<Ar, Ac, C>
+pub struct Key<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
-    Ac: Accordant,
-    C: CryptoEngine,
+    Ar: Keys,
+    Ac: Keys,
 {
-    pub key: crypto::Key<Ar, Ac, C>,
+    pub key: crypto::Key<Ar, Ac>,
 }
 
-pub struct Signature<Ar, C>
+pub struct Signature<Ar>
 where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
+    Ar: Signatures,
 {
     pub tx_id: TxId,
     pub role: SwapRole,
-    pub value: crypto::Signature<Ar, C>,
+    pub value: crypto::Signature<Ar>,
 }
 
 pub struct Proof<Ar, Ac>
@@ -49,14 +47,13 @@ where
     pub proof: crypto::Proof<Ar, Ac>,
 }
 
-pub enum Parameter<Ar, S>
+pub enum Parameter<Ar>
 where
-    Ar: Arbitrating + Fee<S>,
-    S: FeeStrategy,
+    Ar: Arbitrating + Fee,
 {
     DestinationAddress(Ar::Address),
     RefundAddress(Ar::Address),
     CancelTimelock(Ar::Timelock),
     PunishTimelock(Ar::Timelock),
-    FeeStrategy(S),
+    FeeStrategy(Ar::FeeStrategy),
 }

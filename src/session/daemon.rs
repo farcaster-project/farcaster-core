@@ -2,14 +2,12 @@
 //! It is possible to create a daemon pre-session and session from a client one through messages
 //! exchanged between client and daemon called instructions.
 
-use crate::crypto::{Crypto, CryptoEngine};
 use crate::role::{Accordant, Arbitrating};
 
-pub struct AliceSessionParameters<Ar, Ac, C>
+pub struct AliceSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     pub destination_address: Ar::Address,
     pub buy: Ar::PublicKey,
@@ -21,11 +19,10 @@ where
     pub view: Ac::PrivateKey,
 }
 
-pub struct BobSessionParameters<Ar, Ac, C>
+pub struct BobSessionParameters<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
+    Ar: Arbitrating,
     Ac: Accordant,
-    C: CryptoEngine,
 {
     pub refund_address: Ar::Address,
     pub fund: Ar::PublicKey,

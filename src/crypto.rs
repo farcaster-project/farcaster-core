@@ -2,11 +2,10 @@
 
 use crate::role::{Accordant, Arbitrating};
 
-pub enum Key<Ar, Ac, C>
+pub enum Key<Ar, Ac>
 where
-    Ar: Arbitrating + Crypto<C>,
-    Ac: Accordant,
-    C: CryptoEngine,
+    Ar: Keys,
+    Ac: Keys,
 {
     AliceBuy(Ar::PublicKey),
     AliceCancel(Ar::PublicKey),
@@ -24,10 +23,9 @@ where
     BobPrivateView(Ac::PrivateKey),
 }
 
-pub enum Signature<Ar, C>
+pub enum Signature<Ar>
 where
-    Ar: Arbitrating + Crypto<C>,
-    C: CryptoEngine,
+    Ar: Signatures,
 {
     Adaptor(Ar::AdaptorSignature),
     Adapted(Ar::Signature),
@@ -47,16 +45,20 @@ where
 ///
 /// E.g. ECDSA and Schnorr signature in Bitcoin are stored/parsed differently as Schnorr has been
 /// optimized further than ECDSA at the begining of Bitcoin.
-pub trait Crypto<C: CryptoEngine> {
+pub trait Keys {
     /// Private key type given the blockchain and the crypto engine
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine
     type PublicKey;
+}
 
+pub trait Commitment {
     /// Commitment type given the blockchain and the crypto engine
     type Commitment;
+}
 
+pub trait Signatures {
     /// Defines the signature format for the arbitrating blockchain
     type Signature;
 
@@ -66,30 +68,41 @@ pub trait Crypto<C: CryptoEngine> {
 }
 
 /// Defines a type of cryptography used inside arbitrating transactions to validate the
-/// transactions at the blockchain level and transfert the secrets.
+/// transactions at the blockchain level and transfer the secrets.
 pub trait CryptoEngine {}
-
-/// Uses ECDSA signatures inside the scripting layer of the arbitrating blockchain.
-pub struct ECDSAScripts;
-
-impl CryptoEngine for ECDSAScripts {}
-
-/// Uses Schnorr signatures inside the scripting layer of the arbitrating blockchain.
-pub struct TrSchnorrScripts;
-
-impl CryptoEngine for TrSchnorrScripts {}
-
-/// Uses MuSig2 Schnorr off-chain multi-signature protocol to sign for a regular public key at the
-/// blockchain transaction layer.
-pub struct TrMuSig2;
-
-impl CryptoEngine for TrMuSig2 {}
 
 /// Define a prooving system to link to blockchain cryptographic group parameters.
 pub trait CrossGroupDLEQ<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Curve,
+    Ac: Curve,
+    Ar::Curve: PartialEq<Ac::Curve>,
+    Ac::Curve: PartialEq<Ar::Curve>,
 {
-    // TODO(h4sh3d): add the methods to impl
 }
+
+/// Eliptic curve ed25519 or secp256k1
+pub trait Curve {
+    type Curve;
+}
+
+/// Defines the means of arbitration, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
+pub trait Script {
+    type Script;
+}
+
+pub enum Scripts {
+    ECDSAScripts(ECDSAScripts),
+    TrSchnorrScripts(TrSchnorrScripts),
+    TrMusig2(TrMuSig2),
+}
+
+/// Uses ECDSA signatures inside the scripting layer of the arbitrating blockchain.
+pub struct ECDSAScripts;
+
+/// Uses Schnorr signatures inside the scripting layer of the arbitrating blockchain.
+pub struct TrSchnorrScripts;
+
+/// Uses MuSig2 Schnorr off-chain multi-signature protocol to sign for a regular public key at the
+/// blockchain transaction layer.
+pub struct TrMuSig2;

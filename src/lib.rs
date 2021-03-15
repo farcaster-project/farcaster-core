@@ -12,6 +12,7 @@ pub mod role;
 //pub mod session;
 pub mod bitcoin;
 pub mod monero;
+pub mod script;
 pub mod swap;
 pub mod transaction;
 pub mod version;

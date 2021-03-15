@@ -2,8 +2,9 @@
 
 use std::fmt::Debug;
 
-use crate::blockchain::FeeStrategy;
+use crate::blockchain::Fee;
 use crate::role::Arbitrating;
+use crate::script;
 
 /// Base trait for arbitrating transactions. Defines methods to create the wrappers from a partial
 /// arbitrating transaction and into partial arbitrating transaction.
@@ -13,28 +14,33 @@ where
     Self: Sized,
 {
     /// Used to extract the transaction in the defined partial format on the arbitrating
-    /// blockchain. The partial format is used to exchange unsigned transactions.
+    /// blockchain. The partial format is used to exchange unsigned or patially signed
+    /// transactions.
     fn to_partial(&self) -> Option<Ar::PartialTransaction>;
-
-    /// Used to generate the wrapper transaction structure from the defined format on the
-    /// arbitrating blockchain.
-    fn from_partial(tx: &Ar::PartialTransaction) -> Option<Self>;
 }
 
 /// Defines the transaction IDs for serialization and network communication.
 pub enum TxId {
+    /// Represents the first transaction created outside of the system by an external wallet to
+    /// fund the swap on the arbitrating blockchain.
     Funding,
+    /// Represents the core locking arbitrating transaction.
     Lock,
+    /// Represents the happy path for swapping the assets.
     Buy,
+    /// Represents the failure path, used as the first step to cancel a swap.
     Cancel,
+    /// Represents the transaction that successfully cancel a swap by refunding both participants.
     Refund,
+    /// Represents the full failure path, where only one participant gets refunded because he
+    /// didn't act accordingly to the protocol.
     Publish,
 }
 
 /// Must be implemented on transactions with failable opperations.
 pub trait Failable {
     /// Errors returned by the failable methods.
-    type Err;
+    type Err: Debug;
 }
 
 /// Define a transaction broadcastable by the system. Externally managed transaction are not
@@ -47,8 +53,9 @@ where
     /// Finalizes the transaction and return a fully signed transaction type as defined in the
     /// arbitrating blockchain. Used before broadcasting the transaction on-chain.
     ///
-    /// The argumets `T` is used to inject the keys material needed to finalize the transaction.
-    fn finalize<T>(&self, args: T) -> Ar::Transaction;
+    /// This correspond to the "role" of a "finalizer" as defined in BIP 174 for dealing with
+    /// partial transactions, which can be applied more generically than just Bitcoin.
+    fn finalize(&self) -> Ar::Transaction;
 }
 
 /// Implemented by transactions that can be link to form chains of logic.
@@ -57,47 +64,54 @@ where
     Ar: Arbitrating,
     Self: Sized,
 {
-    /// Returned type of the consumable funding output, used to chain other transactions.
+    /// Returned type of the consumable output, used to reference the funds and chain other
+    /// transactions on it. This must contain all necessary data to latter create a valid unlocking
+    /// witness for the output.
     type Output;
 
     /// Return the consumable output of this transaction. The output does not contain the witness
-    /// data allowing spending the output, only the data that points to the consumable output.
+    /// data allowing spending the output, only the data that points to the consumable output and
+    /// the data necessary to produce a valid unlocking witness.
+    ///
+    /// This correspond to data an "updater" such as defined in BIP 174 can use to update a
+    /// partial transaction. This is used to get all data needed to describe this output as an
+    /// input in another transaction.
     fn get_consumable_output(&self) -> Result<Self::Output, Self::Err>;
 }
 
-pub trait Spendable<Ar>: Linkable<Ar> + Failable
-where
-    Ar: Arbitrating,
-    Self: Sized,
-{
-    /// Type returned by methods generating witnesses, used to unlock assets.
-    type Witness;
-
-    /// Generate the witness to unlock the default path of the asset lock.
-    fn generate_witness(&self) -> Result<Self::Witness, Self::Err>;
-}
-
-/// Defines a transaction where the consumable output has two paths: a successful path and a
-/// failure path.
-pub trait Forkable<Ar>: Spendable<Ar> + Failable
-where
-    Ar: Arbitrating,
-    Self: Sized,
-{
-    /// Generates the witness used to unlock the second path of the asset lock. The failure path.
-    fn generate_failure_witness<T>(&self, args: T) -> Result<Self::Witness, Self::Err>;
-}
+//pub trait Spendable<Ar>: /*Linkable<Ar> +*/ Failable
+//where
+//    Ar: Arbitrating,
+//    Self: Sized,
+//{
+//    /// Type returned by methods generating witnesses, used to unlock assets.
+//    type Witness;
+//
+//    /// Generate the witness to unlock the default path of the asset lock.
+//    fn generate_witness(&self) -> Result<Self::Witness, Self::Err>;
+//}
+//
+///// Defines a transaction where the consumable output has two paths: a successful path and a
+///// failure path.
+//pub trait Forkable<Ar>: /*Spendable<Ar> +*/ Failable
+//where
+//    Ar: Arbitrating,
+//    Self: Sized,
+//{
+//    /// Generates the witness used to unlock the second path of the asset lock. The failure path.
+//    fn generate_failure_witness(&self) -> Result<Self::Witness, Self::Err>;
+//}
 
 /// Funding is NOT a transaction generated by this library but the address is, we need to spend the
 /// funding from the `lock (b)` transaction latter.
-pub trait Funding<Ar>: Spendable<Ar> + Failable
+pub trait Funding<Ar>: Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
 {
     /// Create a new funding 'output', or equivalent depending on the blockchain and the
-    /// cryptographic engine, with the help of a generic argument of type `T`.
-    fn initialize(privkey: Ar::PrivateKey) -> Result<Self, Self::Err>;
+    /// cryptographic engine.
+    fn initialize(privkey: Ar::PublicKey) -> Result<Self, Self::Err>;
 
     /// Return the address to use for the funding.
     fn get_address(&self) -> Result<Ar::Address, Self::Err>;
@@ -112,21 +126,26 @@ where
 
 /// The `lock (b)` transaction consumes the `funding (a)` transaction and creates the scripts used
 /// by `buy (c)` and `cancel (d)` transactions.
-pub trait Lock<Ar>: Transaction<Ar> + Broadcastable<Ar> + Forkable<Ar> + Failable
+pub trait Lock<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
 {
+    type Input;
+
     /// Creates a new `lock (b)` transaction based on the `funding (a)` transaction and the public
     /// keys for the roles, return a new `lock (b)` transaction.
+    ///
+    /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
+    /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Funding<Ar>,
-        timelock: Ar::Timelock,
-        fee_strategy: &impl FeeStrategy,
-        pubkeys: (Ar::PublicKey, Ar::PublicKey),
+        prev: &impl Funding<Ar, Output = Self::Input>,
+        lock: script::Lock<Ar>,
+        fee_strategy: &impl Fee,
     ) -> Result<Self, Self::Err>;
 }
 
+/*
 pub trait Buy<Ar>: Transaction<Ar> + Broadcastable<Ar> + Spendable<Ar> + Failable
 where
     Ar: Arbitrating,
@@ -175,3 +194,4 @@ where
         args: T,
     ) -> Result<Self, Self::Err>;
 }
+*/

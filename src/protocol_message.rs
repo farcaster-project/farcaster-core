@@ -190,10 +190,11 @@ impl ProtocolMessage for Abort {}
 #[cfg(test)]
 mod tests {
 
+    use bitcoin::secp256k1::Secp256k1;
+    use bitcoin::util::key::{PrivateKey, PublicKey};
     use bitcoin::blockdata::transaction::Transaction;
     use bitcoin::util::psbt::PartiallySignedTransaction;
-    use secp256k1::key::PublicKey;
-    use secp256k1::Signature;
+    use bitcoin::secp256k1::Signature;
 
     use super::{Abort, BuyProcedureSignature};
     use crate::bitcoin::{Bitcoin, PDLEQ};
@@ -207,6 +208,8 @@ mod tests {
 
     #[test]
     fn create_buy_procedure_signature_message() {
+        let secp = Secp256k1::new();
+
         let ecdsa_sig = "3045022100b75f569de3e57f4f445bcf9e42be9e5b5128f317ab86e451fdfe7be5ffd6a7da0220776b30307b5d761512635dc0394573be7fe17b5300b160340dae370b641bc4ca";
 
         let tx = Transaction {
@@ -220,12 +223,9 @@ mod tests {
             Signature::from_der(&hex::decode(ecdsa_sig).expect("HEX decode should work here"))
                 .expect("Parse DER should work here");
 
-        let point = PublicKey::from_slice(&[
-            0x02, 0xc6, 0x6e, 0x7d, 0x89, 0x66, 0xb5, 0xc5, 0x55, 0xaf, 0x58, 0x05, 0x98, 0x9d,
-            0xa9, 0xfb, 0xf8, 0xdb, 0x95, 0xe1, 0x56, 0x31, 0xce, 0x35, 0x8c, 0x3a, 0x17, 0x10,
-            0xc9, 0x62, 0x67, 0x90, 0x63,
-        ])
-        .expect("public keys must be 33 or 65 bytes, serialized according to SEC 2");
+        let privkey: PrivateKey =
+            PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D").unwrap();
+        let point = PublicKey::from_private_key(&secp, &privkey);
 
         let pdleq = PDLEQ;
 

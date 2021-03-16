@@ -16,21 +16,23 @@ impl Blockchain for Monero {
     /// Type for the traded asset unit
     type AssetUnit = u64;
 
-    /// Type of the blockchain identifier
-    type Id = String;
+    type Network = Network;
 
-    /// Type of the chain identifier
-    type ChainId = Network;
+    ///// Type of the blockchain identifier
+    //type Id = String;
 
-    /// Returns the blockchain identifier
-    fn id(&self) -> String {
-        String::from("xmr")
-    }
+    ///// Type of the chain identifier
+    //type ChainId = Network;
 
-    /// Returns the chain identifier
-    fn chain_id(&self) -> Network {
-        Network::Mainnet
-    }
+    ///// Returns the blockchain identifier
+    //fn id(&self) -> String {
+    //    String::from("xmr")
+    //}
+
+    ///// Returns the chain identifier
+    //fn chain_id(&self) -> Network {
+    //    Network::Mainnet
+    //}
 
     /// Create a new Bitcoin blockchain
     fn new() -> Self {

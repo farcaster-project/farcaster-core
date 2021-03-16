@@ -1,23 +1,24 @@
 //! Defines what a blockchain is and what needs to be implemented
 
-use std::str::FromStr;
-
 /// Base trait for defining a blockchain and its asset type.
 pub trait Blockchain: Copy {
     /// Type for the traded asset unit
     type AssetUnit: Copy;
 
-    /// Type of the blockchain identifier
-    type Id: FromStr + Into<String>;
+    /// Type of the network for the blockchain
+    type Network;
 
-    /// Type of the chain identifier
-    type ChainId;
+    ///// Type of the blockchain identifier
+    //type Id: FromStr + Into<String>;
 
-    /// Returns the blockchain identifier
-    fn id(&self) -> Self::Id;
+    ///// Type of the chain identifier
+    //type ChainId;
 
-    /// Returns the chain identifier
-    fn chain_id(&self) -> Self::ChainId;
+    ///// Returns the blockchain identifier
+    //fn id(&self) -> Self::Id;
+
+    ///// Returns the chain identifier
+    //fn chain_id(&self) -> Self::ChainId;
 
     /// Create a new blockchain
     fn new() -> Self;

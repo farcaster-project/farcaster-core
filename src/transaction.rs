@@ -115,7 +115,7 @@ where
     fn initialize(privkey: Ar::PublicKey) -> Result<Self, Self::Err>;
 
     /// Return the address to use for the funding.
-    fn get_address(&self) -> Result<Ar::Address, Self::Err>;
+    fn get_address(&self, network: Ar::Network) -> Result<Ar::Address, Self::Err>;
 
     /// Update the transaction, this is used to update the data when the funding transaction is
     /// seen on-chain.

@@ -10,6 +10,8 @@ use bitcoin::util::address::Address;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::{Input, PartiallySignedTransaction};
 
+use bitcoin::util::bip143::SigHashCache;
+
 use crate::bitcoin::{Bitcoin, FeeStrategies};
 use crate::blockchain::{Fee, FeePolitic};
 use crate::script;
@@ -41,8 +43,16 @@ impl Linkable<Bitcoin> for Funding {
         match &self.seen_tx {
             Some(t) => {
                 // More than one UTXO is not supported
-                if t.output.len() != 1 {
-                    return Err(());
+                match t.output.len() {
+                    1 => (),
+                    2 =>
+                    // Check if coinbase transaction
+                    {
+                        if !t.is_coin_base() {
+                            return Err(());
+                        }
+                    }
+                    _ => return Err(()),
                 }
                 // vout is always 0 because output len is 1
                 Ok(MetadataFundingOutput {
@@ -64,9 +74,8 @@ impl Fundable<Bitcoin> for Funding {
         })
     }
 
-    fn get_address(&self) -> Result<Address, ()> {
-        // FIXME: this always produce mainnet addresses
-        Ok(Address::p2wpkh(&self.pubkey, Network::Bitcoin).map_err(|_| ())?)
+    fn get_address(&self, network: Network) -> Result<Address, ()> {
+        Ok(Address::p2wpkh(&self.pubkey, network).map_err(|_| ())?)
     }
 
     fn update(&mut self, args: bitcoin::blockdata::transaction::Transaction) -> Result<(), ()> {
@@ -115,9 +124,14 @@ where
     type Output = MetadataFundingOutput;
 
     fn get_consumable_output(&self) -> Result<MetadataFundingOutput, ()> {
-        if self.psbt.global.unsigned_tx.output.len() != 1 {
-            // multi outs not supported
-            return Err(());
+        match self.psbt.global.unsigned_tx.output.len() {
+            1 => (),
+            2 => {
+                if !self.psbt.global.unsigned_tx.is_coin_base() {
+                    return Err(());
+                }
+            }
+            _ => return Err(()),
         }
 
         Ok(MetadataFundingOutput {
@@ -169,7 +183,7 @@ impl Lockable<Bitcoin> for Tx<Lock> {
             input: vec![TxIn {
                 previous_output: output_metadata.out_point,
                 script_sig: bitcoin::blockdata::script::Script::default(),
-                sequence: 4294967295,
+                sequence: (1 << 31) as u32, // activate disable flag on CSV
                 witness: vec![],
             }],
             output: vec![TxOut {
@@ -210,7 +224,10 @@ impl Signable<Bitcoin> for Tx<Lock> {
         let pubkey = PublicKey::from_private_key(&secp, &privkey);
 
         // Finalize the witness
-        self.psbt.inputs[0].final_script_witness = Some(vec![sig.to_vec(), pubkey.to_bytes()]);
+        let sighash_type = self.psbt.inputs[0].sighash_type.ok_or(())?;
+        let mut sighash = sig.clone().to_vec();
+        sighash.extend_from_slice(&[sighash_type.as_u32() as u8]);
+        self.psbt.inputs[0].final_script_witness = Some(vec![sighash, pubkey.to_bytes()]);
 
         Ok(sig)
     }
@@ -381,15 +398,20 @@ impl Punishable<Bitcoin> for Tx<Punish> {
 fn sign_input(
     ctx: &Secp256k1<bitcoin::secp256k1::All>,
     unsigned_tx: &bitcoin::Transaction,
-    index: usize,
+    input_index: usize,
     input: Input,
     key: &bitcoin::secp256k1::SecretKey,
 ) -> SerializedSignature {
-    let sighash = unsigned_tx.signature_hash(
-        index,
-        &input.witness_utxo.unwrap().script_pubkey,
-        input.sighash_type.unwrap().as_u32(),
+    let utxo = input.witness_utxo.unwrap();
+
+    let mut sig_hasher = SigHashCache::new(unsigned_tx);
+    let sighash = sig_hasher.signature_hash(
+        input_index,
+        &utxo.script_pubkey,
+        utxo.value,
+        input.sighash_type.unwrap(),
     );
+
     let message = Message::from_slice(&sighash[..]).expect("32 bytes");
     let mut sig = ctx.sign(&message, &key);
     sig.normalize_s();
@@ -420,7 +442,7 @@ mod tests {
         let pubkey = PublicKey::from_private_key(&secp, &privkey);
 
         let mut funding = Funding::initialize(pubkey).unwrap();
-        println!("{}", funding.get_address().unwrap());
+        println!("{}", funding.get_address(Network::Bitcoin).unwrap());
 
         let funding_tx_seen = Transaction {
             version: 1,

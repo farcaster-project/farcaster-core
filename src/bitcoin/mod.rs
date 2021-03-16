@@ -25,21 +25,23 @@ impl Blockchain for Bitcoin {
     /// Type for the traded asset unit
     type AssetUnit = Amount;
 
-    /// Type of the blockchain identifier
-    type Id = String;
+    type Network = Network;
 
-    /// Type of the chain identifier
-    type ChainId = Network;
+    ///// Type of the blockchain identifier
+    //type Id = String;
 
-    /// Returns the blockchain identifier
-    fn id(&self) -> String {
-        String::from("btc")
-    }
+    ///// Type of the chain identifier
+    //type ChainId = Network;
 
-    /// Returns the chain identifier
-    fn chain_id(&self) -> Network {
-        Network::Bitcoin
-    }
+    ///// Returns the blockchain identifier
+    //fn id(&self) -> String {
+    //    String::from("btc")
+    //}
+
+    ///// Returns the chain identifier
+    //fn chain_id(&self) -> Network {
+    //    Network::Bitcoin
+    //}
 
     /// Create a new Bitcoin blockchain
     fn new() -> Self {

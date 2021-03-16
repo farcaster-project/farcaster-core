@@ -3,11 +3,11 @@
 use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::hash_types::PubkeyHash;
 use bitcoin::network::constants::Network;
+use bitcoin::secp256k1::SerializedSignature;
 use bitcoin::util::address::Address;
 use bitcoin::util::amount::Amount;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
-use secp256k1::Signature;
 
 use crate::blockchain::{
     Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
@@ -195,8 +195,8 @@ impl Commitment for Bitcoin {
 }
 
 impl Signatures for Bitcoin {
-    type Signature = Signature;
-    type AdaptorSignature = (Signature, PublicKey, PDLEQ);
+    type Signature = SerializedSignature;
+    type AdaptorSignature = (SerializedSignature, PublicKey, PDLEQ);
 }
 
 //// TODO: implement on another struct or on a generic Bitcoin<T>

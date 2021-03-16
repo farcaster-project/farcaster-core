@@ -5,16 +5,17 @@ use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::transaction::{OutPoint, SigHashType, TxIn, TxOut};
 use bitcoin::network::constants::Network;
+use bitcoin::secp256k1::{Message, Secp256k1, SerializedSignature};
 use bitcoin::util::address::Address;
-use bitcoin::util::key::PublicKey;
-use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoin::util::psbt::{Input, PartiallySignedTransaction};
 
 use crate::bitcoin::{Bitcoin, FeeStrategies};
 use crate::blockchain::{Fee, FeePolitic};
 use crate::script;
 use crate::transaction::{
     Broadcastable, Buyable, Cancelable, Failable, Fundable, Linkable, Lockable, Punishable,
-    Refundable, Transaction,
+    Refundable, Signable, Transaction,
 };
 
 #[derive(Debug)]
@@ -196,6 +197,25 @@ impl Lockable<Bitcoin> for Tx<Lock> {
     }
 }
 
+impl Signable<Bitcoin> for Tx<Lock> {
+    fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<SerializedSignature, ()> {
+        {
+            // TODO validate the transaction before signing
+        }
+
+        let secp = Secp256k1::new();
+        let unsigned_tx = self.psbt.global.unsigned_tx.clone();
+        let input = self.psbt.inputs[0].clone();
+        let sig = sign_input(&secp, &unsigned_tx, 0, input, &privkey.key);
+        let pubkey = PublicKey::from_private_key(&secp, &privkey);
+
+        // Finalize the witness
+        self.psbt.inputs[0].final_script_witness = Some(vec![sig.to_vec(), pubkey.to_bytes()]);
+
+        Ok(sig)
+    }
+}
+
 #[derive(Debug)]
 pub struct Buy;
 
@@ -211,6 +231,15 @@ impl Buyable<Bitcoin> for Tx<Buy> {
         _fee_strategy: &FeeStrategies,
         _fee_politic: FeePolitic,
     ) -> Result<Self, ()> {
+        todo!()
+    }
+}
+
+impl Signable<Bitcoin> for Tx<Buy> {
+    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<SerializedSignature, ()> {
+        {
+            // TODO validate the transaction before signing
+        }
         todo!()
     }
 }
@@ -349,6 +378,24 @@ impl Punishable<Bitcoin> for Tx<Punish> {
     }
 }
 
+fn sign_input(
+    ctx: &Secp256k1<bitcoin::secp256k1::All>,
+    unsigned_tx: &bitcoin::Transaction,
+    index: usize,
+    input: Input,
+    key: &bitcoin::secp256k1::SecretKey,
+) -> SerializedSignature {
+    let sighash = unsigned_tx.signature_hash(
+        index,
+        &input.witness_utxo.unwrap().script_pubkey,
+        input.sighash_type.unwrap().as_u32(),
+    );
+    let message = Message::from_slice(&sighash[..]).expect("32 bytes");
+    let mut sig = ctx.sign(&message, &key);
+    sig.normalize_s();
+    sig.serialize_der()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,7 +458,7 @@ mod tests {
         let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(20));
         let politic = FeePolitic::Aggressive;
 
-        let lock = Tx::<Lock>::initialize(&funding, datalock, &fee, politic).unwrap();
+        let mut lock = Tx::<Lock>::initialize(&funding, datalock, &fee, politic).unwrap();
         println!("{:#?}", lock);
 
         let datapunishablelock = script::DataPunishableLock {
@@ -443,6 +490,11 @@ mod tests {
         let refund = Tx::<Refund>::initialize(&cancel, address, &fee, politic).unwrap();
         println!("{:#?}", refund);
 
-        assert!(false);
+        // Sign lock tx
+        let sig = lock.generate_witness(&privkey).unwrap();
+        println!("{:?}", &sig[..]);
+        println!("{:#?}", lock.finalize());
+
+        assert!(true);
     }
 }

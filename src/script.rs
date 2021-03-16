@@ -3,6 +3,7 @@
 use crate::crypto::Keys;
 use crate::role::Arbitrating;
 
+/// Represent a public key-pair, one key per swap role in the system.
 pub struct DoubleKeys<Ar>
 where
     Ar: Keys,
@@ -15,7 +16,7 @@ impl<Ar> DoubleKeys<Ar>
 where
     Ar: Keys,
 {
-    /// Create a new double key pair
+    /// Create a new key pair
     pub fn new(alice: Ar::PublicKey, bob: Ar::PublicKey) -> Self {
         Self { alice, bob }
     }
@@ -31,6 +32,13 @@ where
     pub success: DoubleKeys<Ar>,
     pub failure: DoubleKeys<Ar>,
 }
+
+///// Define the path in a script
+//#[derive(Debug, PartialEq)]
+//pub enum ScriptPath {
+//    Success,
+//    Failure,
+//}
 
 /// The data used to create a lock and remove the double spending problem and create an unilateral
 /// punishment mechanism.

@@ -79,18 +79,18 @@ where
     fn get_consumable_output(&self) -> Result<Self::Output, Self::Err>;
 }
 
-//pub trait Spendable<Ar>: /*Linkable<Ar> +*/ Failable
-//where
-//    Ar: Arbitrating,
-//    Self: Sized,
-//{
-//    /// Type returned by methods generating witnesses, used to unlock assets.
-//    type Witness;
-//
-//    /// Generate the witness to unlock the default path of the asset lock.
-//    fn generate_witness(&self) -> Result<Self::Witness, Self::Err>;
-//}
-//
+pub trait Signable<Ar>: Failable
+where
+    Ar: Arbitrating,
+    Self: Sized,
+{
+    ///// Type returned by methods generating witnesses, used to unlock assets.
+    //type Witness;
+
+    /// Generate the witness to unlock the default path of the asset lock.
+    fn generate_witness(&mut self, privkey: &Ar::PrivateKey) -> Result<Ar::Signature, Self::Err>;
+}
+
 ///// Defines a transaction where the consumable output has two paths: a successful path and a
 ///// failure path.
 //pub trait Forkable<Ar>: /*Spendable<Ar> +*/ Failable
@@ -127,7 +127,8 @@ where
 
 /// Represent a lockable transaction such as the `lock (b)` transaction that consumes the `funding
 /// (a)` transaction and creates the scripts used by `buy (c)` and `cancel (d)` transactions.
-pub trait Lockable<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
+pub trait Lockable<Ar>:
+    Transaction<Ar> + Signable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
@@ -153,7 +154,8 @@ where
 /// transaction and transfer the funds to the buyer while revealing the secret needed to the seller
 /// to take ownership of the counter-party funds. This transaction becomes available directly after
 /// `lock (b)` but should be broadcasted only when `lock (b)` is finalized on-chain.
-pub trait Buyable<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
+pub trait Buyable<Ar>:
+    Transaction<Ar> + Signable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,

@@ -221,7 +221,8 @@ mod tests {
 
         let sig =
             Signature::from_der(&hex::decode(ecdsa_sig).expect("HEX decode should work here"))
-                .expect("Parse DER should work here");
+                .expect("Parse DER should work here")
+                .serialize_der();
 
         let privkey: PrivateKey =
             PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D").unwrap();

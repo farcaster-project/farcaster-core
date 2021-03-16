@@ -2,7 +2,7 @@
 
 //use internet2::session::node_addr::NodeAddr;
 
-use crate::blockchain::{Fee, Network};
+use crate::blockchain::Network;
 use crate::role::{Accordant, Arbitrating, SwapRole};
 
 /// An offer is created by a Maker before the start of his daemon, it references all the data
@@ -11,7 +11,7 @@ use crate::role::{Accordant, Arbitrating, SwapRole};
 /// the data needed to a Taker to connect to the Maker's daemon.
 pub struct Offer<Ar, Ac, N>
 where
-    Ar: Arbitrating + Fee,
+    Ar: Arbitrating,
     Ac: Accordant,
     N: Network,
 {
@@ -41,13 +41,13 @@ where
 /// reverse is not implemented for the `Buy` helper. You should use the `Sell` helper.
 pub struct Buy<T, U, N>(BuilderState<T, U, N>)
 where
-    T: Arbitrating + Fee,
+    T: Arbitrating,
     U: Accordant,
     N: Network;
 
 impl<T, U, N> Buy<T, U, N>
 where
-    T: Arbitrating + Fee,
+    T: Arbitrating,
     U: Accordant,
     N: Network,
 {
@@ -102,7 +102,7 @@ where
             accordant_assets: self.0.accordant_assets?,
             cancel_timelock: self.0.cancel_timelock?,
             punish_timelock: self.0.punish_timelock?,
-            fee_strategy: self.0.fee_strategy?,
+            fee_strategy: self.0.fee_strategy.clone()?,
             maker_role: self.0.maker_role?,
         })
     }
@@ -114,13 +114,13 @@ where
 /// reverse is not implemented for the `Sell` helper. You should use the `Buy` helper.
 pub struct Sell<T, U, N>(BuilderState<T, U, N>)
 where
-    T: Arbitrating + Fee,
+    T: Arbitrating,
     U: Accordant,
     N: Network;
 
 impl<T, U, N> Sell<T, U, N>
 where
-    T: Arbitrating + Fee,
+    T: Arbitrating,
     U: Accordant,
     N: Network,
 {
@@ -175,7 +175,7 @@ where
             accordant_assets: self.0.accordant_assets?,
             cancel_timelock: self.0.cancel_timelock?,
             punish_timelock: self.0.punish_timelock?,
-            fee_strategy: self.0.fee_strategy?,
+            fee_strategy: self.0.fee_strategy.clone()?,
             maker_role: self.0.maker_role?,
         })
     }
@@ -184,7 +184,7 @@ where
 // Internal state of an offer builder
 struct BuilderState<Ar, Ac, N>
 where
-    Ar: Arbitrating + Fee,
+    Ar: Arbitrating,
     Ac: Accordant,
     N: Network,
 {
@@ -201,7 +201,7 @@ where
 
 impl<Ar, Ac, N> Default for BuilderState<Ar, Ac, N>
 where
-    Ar: Arbitrating + Fee,
+    Ar: Arbitrating,
     Ac: Accordant,
     N: Network,
 {
@@ -225,7 +225,7 @@ where
 /// connection information are happen to the offer the create a public offer.
 pub struct PublicOffer<Ar, Ac, N>
 where
-    Ar: Arbitrating + Fee,
+    Ar: Arbitrating,
     Ac: Accordant,
     N: Network,
 {
@@ -236,7 +236,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{Buy, Offer, Sell};
-    use crate::bitcoin::{Bitcoin, SatPerVByte};
+    use crate::bitcoin::{Bitcoin, FeeStrategies, SatPerVByte};
     use crate::blockchain::{Blockchain, FeeStrategy, Local};
     use crate::monero::Monero;
     use crate::role::SwapRole;
@@ -252,7 +252,7 @@ mod tests {
             accordant_assets: 200,
             cancel_timelock: 10,
             punish_timelock: 10,
-            fee_strategy: Bitcoin::fixed_fee(SatPerVByte::from_sat(20)),
+            fee_strategy: FeeStrategies::fixed_fee(SatPerVByte::from_sat(20)),
             maker_role: SwapRole::Alice,
         };
     }
@@ -262,7 +262,7 @@ mod tests {
         let mut buy = Buy::some(Bitcoin::new(), Amount::from_sat(100000));
         buy.with(Monero::new(), 200);
         buy.with_timelocks(10, 10);
-        buy.with_fee(Bitcoin::fixed_fee(SatPerVByte::from_sat(20)));
+        buy.with_fee(FeeStrategies::fixed_fee(SatPerVByte::from_sat(20)));
         buy.on(Local);
         assert!(buy.to_offer().is_some());
         assert_eq!(
@@ -276,7 +276,7 @@ mod tests {
         let mut sell = Sell::some(Bitcoin::new(), Amount::from_sat(100000));
         sell.for_some(Monero::new(), 200);
         sell.with_timelocks(10, 10);
-        sell.with_fee(Bitcoin::fixed_fee(SatPerVByte::from_sat(20)));
+        sell.with_fee(FeeStrategies::fixed_fee(SatPerVByte::from_sat(20)));
         sell.on(Local);
         assert!(sell.to_offer().is_some());
         assert_eq!(sell.to_offer().expect("an offer").maker_role, SwapRole::Bob);

@@ -17,7 +17,9 @@ use bitcoin::util::key::{PrivateKey, PublicKey};
 //use secp256k1::key::SecretKey;
 use secp256k1::Signature;
 
-use crate::blockchain::{Blockchain, Fee, FeeStrategy, FeeUnit, Onchain};
+use crate::blockchain::{
+    Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
+};
 use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures};
 use crate::monero::{Ed25519, Monero};
 use crate::role::Arbitrating;
@@ -53,45 +55,108 @@ impl Blockchain for Bitcoin {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, PartialOrd, PartialEq)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {
     pub fn from_sat(satoshi: u64) -> Self {
         SatPerVByte(Amount::from_sat(satoshi))
     }
+
+    pub fn as_sat(&self) -> u64 {
+        self.0.as_sat()
+    }
+
+    pub fn as_native_unit(&self) -> Amount {
+        self.0
+    }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum FeeStrategies {
     Fixed(SatPerVByte),
-    Range(SatPerVByte, SatPerVByte),
+    Range(std::ops::Range<SatPerVByte>),
 }
 
-impl FeeStrategy for Bitcoin {
-    type FeeStrategy = FeeStrategies;
-
-    fn fixed_fee(fee: Self::FeeUnit) -> Self::FeeStrategy {
-        FeeStrategies::Fixed(fee)
-    }
-
-    fn range_fee(fee_low: Self::FeeUnit, fee_high: Self::FeeUnit) -> Self::FeeStrategy {
-        FeeStrategies::Range(fee_low, fee_high)
-    }
-}
-
-impl FeeUnit for Bitcoin {
+impl FeeUnit for FeeStrategies {
     type FeeUnit = SatPerVByte;
 }
 
+impl FeeStrategy for FeeStrategies {
+    fn fixed_fee(fee: Self::FeeUnit) -> Self {
+        FeeStrategies::Fixed(fee)
+    }
+
+    fn range_fee(fee_low: Self::FeeUnit, fee_high: Self::FeeUnit) -> Self {
+        if fee_low > fee_high {
+            FeeStrategies::Fixed(fee_high)
+        } else {
+            FeeStrategies::Range(std::ops::Range {
+                start: fee_low,
+                end: fee_high,
+            })
+        }
+    }
+}
+
 impl Fee for Bitcoin {
+    type FeeStrategy = FeeStrategies;
+
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(_tx: &mut PartiallySignedTransaction, _strategy: &FeeStrategies) -> SatPerVByte {
-        todo!()
+    fn set_fees(
+        tx: &mut PartiallySignedTransaction,
+        strategy: &FeeStrategies,
+        politic: FeePolitic,
+    ) -> Result<Amount, FeeStrategyError> {
+        // Get the available amount on the transaction
+        let inputs: Result<Vec<TxOut>, FeeStrategyError> = tx
+            .inputs
+            .iter()
+            .map(|psbt_in| {
+                psbt_in
+                    .witness_utxo
+                    .clone()
+                    .ok_or(FeeStrategyError::MissingInputsMetadata)
+            })
+            .collect();
+        let input_sum = Amount::from_sat(inputs?.iter().map(|txout| txout.value).sum());
+
+        // FIXME This does not account for witnesses
+        // Get the transaction weight
+        let weight = tx.global.unsigned_tx.get_weight() as u64;
+
+        // Compute the fee amount to set in total
+        let fee_amount = match strategy {
+            FeeStrategies::Fixed(sat_per_vbyte) => {
+                sat_per_vbyte.as_native_unit().checked_mul(weight)
+            }
+            FeeStrategies::Range(range) => match politic {
+                FeePolitic::Aggressive => range.start.as_native_unit().checked_mul(weight),
+                FeePolitic::Conservative => range.end.as_native_unit().checked_mul(weight),
+            },
+        }
+        .ok_or_else(|| FeeStrategyError::AmountOfFeeTooHigh)?;
+
+        if tx.global.unsigned_tx.output.len() != 1 {
+            return Err(FeeStrategyError::MultiOutputUnsupported);
+        }
+
+        // Apply the fee on the first output
+        tx.global.unsigned_tx.output[0].value = input_sum
+            .checked_sub(fee_amount)
+            .ok_or_else(|| FeeStrategyError::NotEnoughAssets)?
+            .as_sat();
+
+        // Return the fee amount set in native blockchain asset unit
+        Ok(fee_amount)
     }
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(_tx: &PartiallySignedTransaction, _strategy: &FeeStrategies) -> bool {
+    fn validate_fee(
+        _tx: &PartiallySignedTransaction,
+        _strategy: &FeeStrategies,
+        _politic: FeePolitic,
+    ) -> Result<bool, FeeStrategyError> {
         todo!()
     }
 }
@@ -284,13 +349,13 @@ impl Lock<Bitcoin> for LockTx {
     fn initialize(
         prev: &impl Funding<Bitcoin, Output = MetadataFundingOutput>,
         lock: script::Lock<Bitcoin>,
-        fee_strategy: &impl Fee,
+        fee_strategy: &FeeStrategies,
     ) -> Result<Self, ()> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
-            //.push_key(&lock.success.alice)
-            //.push_key(&lock.success.bob)
+            .push_key(&lock.success.alice)
+            .push_key(&lock.success.bob)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
             .push_opcode(opcodes::all::OP_CHECKMULTISIG)
             .push_opcode(opcodes::all::OP_ELSE)
@@ -298,8 +363,8 @@ impl Lock<Bitcoin> for LockTx {
             .push_opcode(opcodes::all::OP_CSV)
             .push_opcode(opcodes::all::OP_DROP)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
-            //.push_key(&lock.failure.alice)
-            //.push_key(&lock.failure.bob)
+            .push_key(&lock.failure.alice)
+            .push_key(&lock.failure.bob)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
             .push_opcode(opcodes::all::OP_CHECKMULTISIG)
             .push_opcode(opcodes::all::OP_ENDIF)
@@ -308,7 +373,7 @@ impl Lock<Bitcoin> for LockTx {
         let output_metadata = prev.get_consumable_output().map_err(|_| ())?;
 
         let unsigned_tx = transaction::Transaction {
-            version: 1,
+            version: 2,
             lock_time: 0,
             input: vec![TxIn {
                 previous_output: output_metadata.out_point,
@@ -331,8 +396,9 @@ impl Lock<Bitcoin> for LockTx {
         // Set the script witness of the output
         psbt.outputs[0].witness_script = Some(script);
 
-        // FIXME fee and fee strategy are not usable now
-        //fee_strategy.set_fees();
+        // Set the fees according to the given strategy
+        // FIXME FeePolitic is a global argument
+        Bitcoin::set_fees(&mut psbt, fee_strategy, FeePolitic::Aggressive).map_err(|_| ())?;
 
         Ok(LockTx { psbt })
     }
@@ -341,7 +407,8 @@ impl Lock<Bitcoin> for LockTx {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::secp256k1::{Message, Secp256k1, SerializedSignature};
+    use crate::script::DoubleKeys;
+    use crate::transaction::Lock;
 
     use bitcoin::blockdata::opcodes;
     use bitcoin::blockdata::script::{Builder, Script};
@@ -349,6 +416,7 @@ mod tests {
     use bitcoin::consensus::encode::{deserialize, serialize};
     use bitcoin::hash_types::Txid;
     use bitcoin::hashes::hex::FromHex;
+    use bitcoin::secp256k1::{Message, Secp256k1, SerializedSignature};
     use bitcoin::util::key::{PrivateKey, PublicKey};
     use bitcoin::util::psbt;
     use bitcoin::Transaction;
@@ -391,12 +459,16 @@ mod tests {
         funding.update(funding_tx_seen).unwrap();
         println!("{:?}", funding.get_consumable_output().unwrap());
 
-        //let lock = LockTx::initialize().unwrap();
-        //println!("{:?}", lock);
-        //prev: &impl Funding<Bitcoin, Output = MetadataFundingOutput>,
-        //lock: script::Lock<Bitcoin>,
-        //fee_strategy: &impl FeeStrategy,
+        let lock = script::Lock {
+            timelock: 10,
+            success: DoubleKeys::new(pubkey, pubkey),
+            failure: DoubleKeys::new(pubkey, pubkey),
+        };
 
-        //assert!(false);
+        let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(20));
+        let lock = LockTx::initialize(&funding, lock, &fee).unwrap();
+        println!("{:#?}", lock);
+
+        assert!(false);
     }
 }

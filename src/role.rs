@@ -1,6 +1,6 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
-use crate::blockchain::{Blockchain, Onchain};
+use crate::blockchain::{Blockchain, Fee, Onchain};
 use crate::crypto::{Commitment, Curve, Keys, Script, Signatures};
 
 /// Defines all possible negociation roles: maker and taker.
@@ -47,7 +47,7 @@ pub enum BlockchainRole {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Blockchain + Keys + Commitment + Signatures + Curve + Script + Onchain
+    Blockchain + Keys + Commitment + Signatures + Curve + Script + Onchain + Fee
 {
     /// Defines the address format for the arbitrating blockchain
     type Address;

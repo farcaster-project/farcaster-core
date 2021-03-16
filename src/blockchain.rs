@@ -36,20 +36,25 @@ pub trait Onchain {
 /// Define the unit type used for setting/validating blockchain fees.
 pub trait FeeUnit {
     /// Type for describing the fees of a blockchain
-    type FeeUnit: Copy;
+    type FeeUnit: Clone + PartialOrd + PartialEq;
 }
 
-/// Enable fee management for an arbitrating blockchain.
-///
-/// This trait require implementing the Arbitrating role to have access to transaction associated
-/// type and because in the base protocol transactions for the accordant blockchain are generated
-/// outside, thus we don't need this trait on Accordant blockchain.
-pub trait Fee: Onchain + FeeUnit + FeeStrategy {
-    /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(tx: &mut Self::PartialTransaction, strategy: &Self::FeeStrategy) -> Self::FeeUnit;
+/// Define the type of errors a fee strategy can encounter during calculation, application, and
+/// validation of fees on a partial transaction.
+pub enum FeeStrategyError {
+    MissingInputsMetadata,
+    AmountOfFeeTooHigh,
+    NotEnoughAssets,
+    MultiOutputUnsupported,
+}
 
-    /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(tx: &Self::PartialTransaction, strategy: &Self::FeeStrategy) -> bool;
+/// Defines how to set the fees when a strategy allows multiple possibilities.
+#[derive(Debug, Clone, Copy)]
+pub enum FeePolitic {
+    /// Set the fees at the minimum allowed by the strategy
+    Aggressive,
+    /// Set the fees at the maximum allowed by the strategy
+    Conservative,
 }
 
 /// A fee strategy to be applied on an arbitrating transaction.
@@ -60,11 +65,34 @@ pub trait Fee: Onchain + FeeUnit + FeeStrategy {
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
 pub trait FeeStrategy: FeeUnit {
-    /// The fee strategy concrete type
-    type FeeStrategy: Copy;
+    /// Create a new fixed fee strategy
+    fn fixed_fee(fee: Self::FeeUnit) -> Self;
 
-    fn fixed_fee(fee: Self::FeeUnit) -> Self::FeeStrategy;
-    fn range_fee(fee_low: Self::FeeUnit, fee_high: Self::FeeUnit) -> Self::FeeStrategy;
+    /// Create a new fee strategy that applies fees according to a range
+    fn range_fee(fee_low: Self::FeeUnit, fee_high: Self::FeeUnit) -> Self;
+}
+
+/// Enable fee management for an arbitrating blockchain. This trait require implementing the
+/// Onchain role to have access to transaction associated type and to specify the concrete fee
+/// strategy type to use.
+pub trait Fee: Onchain + Blockchain {
+    /// The fee strategy concrete type
+    type FeeStrategy: FeeStrategy + Clone;
+
+    /// Calculates and sets the fees on the given transaction and return the amount of fees set in
+    /// the blockchain native amount format.
+    fn set_fees(
+        tx: &mut Self::PartialTransaction,
+        strategy: &Self::FeeStrategy,
+        politic: FeePolitic,
+    ) -> Result<Self::AssetUnit, FeeStrategyError>;
+
+    /// Validates that the fees for the given transaction are set accordingly to the strategy
+    fn validate_fee(
+        tx: &Self::PartialTransaction,
+        strategy: &Self::FeeStrategy,
+        politic: FeePolitic,
+    ) -> Result<bool, FeeStrategyError>;
 }
 
 /// Defines a blockchain network, identifies how to interact with the blockchain.

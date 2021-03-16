@@ -12,7 +12,9 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use crate::bitcoin::{Bitcoin, FeeStrategies};
 use crate::blockchain::{Fee, FeePolitic};
 use crate::script;
-use crate::transaction::{Broadcastable, Cancel, Failable, Funding, Linkable, Lock, Transaction};
+use crate::transaction::{
+    Broadcastable, Buy, Cancel, Failable, Funding, Linkable, Lock, Punish, Refund, Transaction,
+};
 
 #[derive(Debug)]
 pub struct FundingTx {
@@ -194,6 +196,25 @@ impl Lock<Bitcoin> for BitcoinTx<LockTx> {
 }
 
 #[derive(Debug)]
+pub struct BuyTx;
+
+impl SubTransaction for BuyTx {}
+
+impl Buy<Bitcoin> for BitcoinTx<BuyTx> {
+    /// Type returned by the impl of a Lock tx
+    type Input = MetadataFundingOutput;
+
+    fn initialize(
+        _prev: &impl Lock<Bitcoin, Output = MetadataFundingOutput>,
+        _destination_target: Address,
+        _fee_strategy: &FeeStrategies,
+        _fee_politic: FeePolitic,
+    ) -> Result<Self, ()> {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
 pub struct CancelTx;
 
 impl SubTransaction for CancelTx {}
@@ -257,6 +278,73 @@ impl Cancel<Bitcoin> for BitcoinTx<CancelTx> {
             psbt,
             _t: PhantomData,
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct RefundTx;
+
+impl SubTransaction for RefundTx {}
+
+impl Refund<Bitcoin> for BitcoinTx<RefundTx> {
+    /// Type returned by the impl of a Lock tx
+    type Input = MetadataFundingOutput;
+
+    fn initialize(
+        prev: &impl Cancel<Bitcoin, Output = MetadataFundingOutput>,
+        refund_target: Address,
+        fee_strategy: &FeeStrategies,
+        fee_politic: FeePolitic,
+    ) -> Result<Self, ()> {
+        let output_metadata = prev.get_consumable_output().map_err(|_| ())?;
+
+        let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
+            version: 2,
+            lock_time: 0,
+            input: vec![TxIn {
+                previous_output: output_metadata.out_point,
+                script_sig: bitcoin::blockdata::script::Script::default(),
+                sequence: 4294967295,
+                witness: vec![],
+            }],
+            output: vec![TxOut {
+                value: output_metadata.tx_out.value,
+                script_pubkey: refund_target.script_pubkey(),
+            }],
+        };
+
+        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(|_| ())?;
+
+        // Set the input witness data and sighash type
+        psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
+        psbt.inputs[0].sighash_type = Some(SigHashType::All);
+
+        // Set the fees according to the given strategy
+        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
+
+        Ok(BitcoinTx {
+            psbt,
+            _t: PhantomData,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct PunishTx;
+
+impl SubTransaction for PunishTx {}
+
+impl Punish<Bitcoin> for BitcoinTx<PunishTx> {
+    /// Type returned by the impl of a Lock tx
+    type Input = MetadataFundingOutput;
+
+    fn initialize(
+        _prev: &impl Cancel<Bitcoin, Output = MetadataFundingOutput>,
+        _destination_target: Address,
+        _fee_strategy: &FeeStrategies,
+        _fee_politic: FeePolitic,
+    ) -> Result<Self, ()> {
+        todo!()
     }
 }
 
@@ -335,8 +423,27 @@ mod tests {
             BitcoinTx::<CancelTx>::initialize(&lock, datapunishablelock, &fee, politic).unwrap();
         println!("{:#?}", cancel);
 
-        // TODO create refund
+        let address = {
+            use bitcoin::network::constants::Network;
+            use bitcoin::secp256k1::rand::thread_rng;
+            use bitcoin::secp256k1::Secp256k1;
+            use bitcoin::util::address::Address;
+            use bitcoin::util::key;
 
-        assert!(true);
+            // Generate random key pair
+            let s = Secp256k1::new();
+            let public_key = key::PublicKey {
+                compressed: true,
+                key: s.generate_keypair(&mut thread_rng()).1,
+            };
+
+            // Generate pay-to-pubkey-hash address
+            Address::p2pkh(&public_key, Network::Bitcoin)
+        };
+
+        let refund = BitcoinTx::<RefundTx>::initialize(&cancel, address, &fee, politic).unwrap();
+        println!("{:#?}", refund);
+
+        assert!(false);
     }
 }

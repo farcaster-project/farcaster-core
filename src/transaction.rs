@@ -134,9 +134,9 @@ where
     /// Defines what type the funding transaction must return when creating an output.
     type Input;
 
-    /// Creates a new `lock (b)` transaction based on the `funding (a)` transaction and data needed
-    /// for creating the lock primitive (i.e. the timelock and the keys). Return a new `lock (b)`
-    /// transaction.
+    /// Creates a new `lock (b)` transaction based on the `funding (a)` transaction and the data
+    /// needed for creating the lock primitive (i.e. the timelock and the keys). Return a new `lock
+    /// (b)` transaction.
     ///
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
@@ -148,20 +148,35 @@ where
     ) -> Result<Self, Self::Err>;
 }
 
-/*
-pub trait Buy<Ar>: Transaction<Ar> + Broadcastable<Ar> + Spendable<Ar> + Failable
+/// The `buy (c)` transaction consumes the `lock (b)` transaction and transfer the funds to the
+/// buyer while revealing the secret needed to the seller to take ownership of the counter-party
+/// funds. This transaction becomes available directly after `lock (b)` but should be broadcasted
+/// only when `lock (b)` is finalized on-chain.
+pub trait Buy<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
 {
-    fn initialize<T>(
-        prev: &impl Lock<Ar>,
-        fee_strategy: &impl FeeStrategy,
-        args: T,
+    /// Defines what type the lock transaction must return when creating an output.
+    type Input;
+
+    /// Creates a new `buy (c)` transaction based on the `lock (b)` transaction and the data needed
+    /// for sending the funds to the buyer (i.e. the destination address). Return a new `buy (c)`
+    /// transaction.
+    ///
+    /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
+    /// transaction and fill the inputs and outputs data.
+    fn initialize(
+        prev: &impl Lock<Ar, Output = Self::Input>,
+        destination_target: Ar::Address,
+        fee_strategy: &Ar::FeeStrategy,
+        fee_politic: FeePolitic,
     ) -> Result<Self, Self::Err>;
 }
-*/
 
+/// The `cancel (d)` transaction consumes the `lock (b)` transaction and creates a new punishable
+/// lock, i.e. a lock with a consensus path and an unilateral path available after some defined
+/// timelaps. This transaction becomes available after the define timelock in `lock (b)`.
 pub trait Cancel<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
@@ -170,6 +185,12 @@ where
     /// Defines what type the lock transaction must return when creating an output.
     type Input;
 
+    /// Creates a new `cancel (d)` transaction based on the `lock (b)` transaction and the data
+    /// needed for creating the lock primitive (i.e. the timelock and the keys). Return a new
+    /// `cancel (d)` transaction.
+    ///
+    /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
+    /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Lock<Ar, Output = Self::Input>,
         lock: script::DataPunishableLock<Ar>,
@@ -178,6 +199,9 @@ where
     ) -> Result<Self, Self::Err>;
 }
 
+/// The `refund (e)` transaction consumes the `cancel (d)` transaction and send the money to its
+/// original owner. This transaction is directly available but should be broadcasted only after
+/// 'finalization' of `cancel (d)` on-chain.
 pub trait Refund<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
@@ -186,6 +210,12 @@ where
     /// Defines what type the lock transaction must return when creating an output.
     type Input;
 
+    /// Creates a new `refund (e)` transaction based on the `cancel (d)` transaction and the data
+    /// needed for refunding the funds (i.e. the refund address). Return a new `refund (e)`
+    /// transaction.
+    ///
+    /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
+    /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Cancel<Ar, Output = Self::Input>,
         refund_target: Ar::Address,
@@ -194,16 +224,28 @@ where
     ) -> Result<Self, Self::Err>;
 }
 
-/*
-pub trait Punish<Ar>: Transaction<Ar> + Broadcastable<Ar> + Spendable<Ar> + Failable
+/// The `punish (f)` transaction consumes the `cancel (d)` transaction and send the money to the
+/// counter-party, the original buyer, but do not reveal the secret needed to unlock the
+/// counter-party funds, effectivelly punishing the missbehaving participant.  This transaction
+/// becomes available after the define timelock in `cancel (d)`.
+pub trait Punish<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
 {
-    fn initialize<T>(
-        prev: &impl Cancel<Ar>,
-        fee_strategy: &impl FeeStrategy,
-        args: T,
+    /// Defines what type the lock transaction must return when creating an output.
+    type Input;
+
+    /// Creates a new `punish (f)` transaction based on the `cancel (d)` transaction and the data
+    /// needed for punishing the counter-party (i.e. the same address as the buyer). Return a new
+    /// `punish (f)` transaction.
+    ///
+    /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
+    /// transaction and fill the inputs and outputs data.
+    fn initialize(
+        prev: &impl Cancel<Ar, Output = Self::Input>,
+        destination_target: Ar::Address,
+        fee_strategy: &Ar::FeeStrategy,
+        fee_politic: FeePolitic,
     ) -> Result<Self, Self::Err>;
 }
-*/

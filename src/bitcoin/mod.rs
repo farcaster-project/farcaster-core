@@ -1,22 +1,12 @@
 //! Defines and implements all the traits for Bitcoin
 
-use std::fmt::Debug;
-use std::marker::PhantomData;
-
+use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::hash_types::PubkeyHash;
 use bitcoin::network::constants::Network;
 use bitcoin::util::address::Address;
 use bitcoin::util::amount::Amount;
-use bitcoin::util::psbt::PartiallySignedTransaction;
-
-use bitcoin::blockdata::opcodes;
-use bitcoin::blockdata::script::Builder;
-use bitcoin::blockdata::transaction::{OutPoint, SigHashType, TxIn, TxOut};
-use bitcoin::hash_types::Txid;
-
 use bitcoin::util::key::{PrivateKey, PublicKey};
-//use secp256k1::key::PublicKey;
-//use secp256k1::key::SecretKey;
+use bitcoin::util::psbt::PartiallySignedTransaction;
 use secp256k1::Signature;
 
 use crate::blockchain::{
@@ -25,8 +15,6 @@ use crate::blockchain::{
 use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures};
 use crate::monero::{Ed25519, Monero};
 use crate::role::Arbitrating;
-use crate::script;
-use crate::transaction::{Broadcastable, Cancel, Failable, Funding, Linkable, Lock, Transaction};
 
 pub mod transaction;
 

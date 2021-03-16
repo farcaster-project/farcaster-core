@@ -1,29 +1,16 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use bitcoin::hash_types::PubkeyHash;
-use bitcoin::network::constants::Network;
-use bitcoin::util::address::Address;
-use bitcoin::util::amount::Amount;
-use bitcoin::util::psbt::PartiallySignedTransaction;
-
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::transaction::{OutPoint, SigHashType, TxIn, TxOut};
-use bitcoin::hash_types::Txid;
-
-use bitcoin::util::key::{PrivateKey, PublicKey};
-//use secp256k1::key::PublicKey;
-//use secp256k1::key::SecretKey;
-use secp256k1::Signature;
+use bitcoin::network::constants::Network;
+use bitcoin::util::address::Address;
+use bitcoin::util::key::PublicKey;
+use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use crate::bitcoin::{Bitcoin, FeeStrategies};
-use crate::blockchain::{
-    Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
-};
-use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures};
-use crate::monero::{Ed25519, Monero};
-use crate::role::Arbitrating;
+use crate::blockchain::{Fee, FeePolitic};
 use crate::script;
 use crate::transaction::{Broadcastable, Cancel, Failable, Funding, Linkable, Lock, Transaction};
 
@@ -64,14 +51,6 @@ impl Linkable<Bitcoin> for FundingTx {
         }
     }
 }
-
-//impl<'a> Spendable<Bitcoin> for FundingTx<'a> {
-//    type Witness = ();
-//
-//    fn generate_witness(&self) -> Result<(), ()> {
-//        todo!()
-//    }
-//}
 
 impl Funding<Bitcoin> for FundingTx {
     fn initialize(pubkey: PublicKey) -> Result<Self, ()> {
@@ -145,11 +124,11 @@ where
 }
 
 #[derive(Debug)]
-pub struct LockLock;
+pub struct LockTx;
 
-impl SubTransaction for LockLock {}
+impl SubTransaction for LockTx {}
 
-impl Lock<Bitcoin> for BitcoinTx<LockLock> {
+impl Lock<Bitcoin> for BitcoinTx<LockTx> {
     /// Type returned by the impl of a Funding tx
     type Input = MetadataFundingOutput;
 
@@ -215,11 +194,11 @@ impl Lock<Bitcoin> for BitcoinTx<LockLock> {
 }
 
 #[derive(Debug)]
-pub struct CancelCancel;
+pub struct CancelTx;
 
-impl SubTransaction for CancelCancel {}
+impl SubTransaction for CancelTx {}
 
-impl Cancel<Bitcoin> for BitcoinTx<CancelCancel> {
+impl Cancel<Bitcoin> for BitcoinTx<CancelTx> {
     /// Type returned by the impl of a Lock tx
     type Input = MetadataFundingOutput;
 
@@ -281,207 +260,6 @@ impl Cancel<Bitcoin> for BitcoinTx<CancelCancel> {
     }
 }
 
-//#[derive(Debug)]
-//pub struct LockTx {
-//    psbt: PartiallySignedTransaction,
-//}
-//
-//impl Failable for LockTx {
-//    type Err = ();
-//}
-//
-//impl Transaction<Bitcoin> for LockTx {
-//    fn to_partial(&self) -> Option<PartiallySignedTransaction> {
-//        Some(self.psbt.clone())
-//    }
-//}
-//
-//impl Broadcastable<Bitcoin> for LockTx {
-//    fn finalize(&self) -> bitcoin::blockdata::transaction::Transaction {
-//        self.psbt.clone().extract_tx()
-//    }
-//}
-//
-//impl Linkable<Bitcoin> for LockTx {
-//    type Output = MetadataFundingOutput;
-//
-//    fn get_consumable_output(&self) -> Result<MetadataFundingOutput, ()> {
-//        if self.psbt.global.unsigned_tx.output.len() != 1 {
-//            // multi outs not supported
-//            return Err(());
-//        }
-//
-//        Ok(MetadataFundingOutput {
-//            out_point: OutPoint::new(self.psbt.global.unsigned_tx.txid(), 0),
-//            tx_out: self.psbt.global.unsigned_tx.output[0].clone(),
-//        })
-//    }
-//}
-//
-////impl Spendable<Bitcoin> for LockTx {
-////    type Witness = ();
-////
-////    fn generate_witness(&self) -> Result<(), ()> {
-////        todo!()
-////    }
-////}
-////
-////impl Forkable<Bitcoin> for LockTx {
-////    fn generate_failure_witness(&self) -> Result<(), ()> {
-////        todo!()
-////    }
-////}
-//
-//impl Lock<Bitcoin> for LockTx {
-//    /// Type returned by the impl of a Funding tx
-//    type Input = MetadataFundingOutput;
-//
-//    fn initialize(
-//        prev: &impl Funding<Bitcoin, Output = MetadataFundingOutput>,
-//        lock: script::DataLock<Bitcoin>,
-//        fee_strategy: &FeeStrategies,
-//        fee_politic: FeePolitic,
-//    ) -> Result<Self, ()> {
-//        let script = Builder::new()
-//            .push_opcode(opcodes::all::OP_IF)
-//            .push_opcode(opcodes::all::OP_PUSHNUM_2)
-//            .push_key(&lock.success.alice)
-//            .push_key(&lock.success.bob)
-//            .push_opcode(opcodes::all::OP_PUSHNUM_2)
-//            .push_opcode(opcodes::all::OP_CHECKMULTISIG)
-//            .push_opcode(opcodes::all::OP_ELSE)
-//            .push_int(lock.timelock.into())
-//            .push_opcode(opcodes::all::OP_CSV)
-//            .push_opcode(opcodes::all::OP_DROP)
-//            .push_opcode(opcodes::all::OP_PUSHNUM_2)
-//            .push_key(&lock.failure.alice)
-//            .push_key(&lock.failure.bob)
-//            .push_opcode(opcodes::all::OP_PUSHNUM_2)
-//            .push_opcode(opcodes::all::OP_CHECKMULTISIG)
-//            .push_opcode(opcodes::all::OP_ENDIF)
-//            .into_script();
-//
-//        let output_metadata = prev.get_consumable_output().map_err(|_| ())?;
-//
-//        let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
-//            version: 2,
-//            lock_time: 0,
-//            input: vec![TxIn {
-//                previous_output: output_metadata.out_point,
-//                script_sig: bitcoin::blockdata::script::Script::default(),
-//                sequence: 4294967295,
-//                witness: vec![],
-//            }],
-//            output: vec![TxOut {
-//                value: output_metadata.tx_out.value,
-//                script_pubkey: script.to_v0_p2wsh(),
-//            }],
-//        };
-//
-//        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(|_| ())?;
-//
-//        // Set the input witness data and sighash type
-//        psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
-//        psbt.inputs[0].sighash_type = Some(SigHashType::All);
-//
-//        // Set the script witness of the output
-//        psbt.outputs[0].witness_script = Some(script);
-//
-//        // Set the fees according to the given strategy
-//        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
-//
-//        Ok(LockTx { psbt })
-//    }
-//}
-//
-//#[derive(Debug)]
-//pub struct CancelTx {
-//    psbt: PartiallySignedTransaction,
-//}
-//
-//impl Failable for CancelTx {
-//    type Err = ();
-//}
-//
-//impl Transaction<Bitcoin> for CancelTx {
-//    fn to_partial(&self) -> Option<PartiallySignedTransaction> {
-//        Some(self.psbt.clone())
-//    }
-//}
-//
-//impl Broadcastable<Bitcoin> for CancelTx {
-//    fn finalize(&self) -> bitcoin::blockdata::transaction::Transaction {
-//        self.psbt.clone().extract_tx()
-//    }
-//}
-//
-//impl Linkable<Bitcoin> for CancelTx {
-//    type Output = ();
-//
-//    fn get_consumable_output(&self) -> Result<(), ()> {
-//        todo!()
-//    }
-//}
-//
-//impl Cancel<Bitcoin> for CancelTx {
-//    /// Type returned by the impl of a Lock tx
-//    type Input = MetadataFundingOutput;
-//
-//    fn initialize(
-//        prev: &impl Lock<Bitcoin, Output = MetadataFundingOutput>,
-//        lock: script::DataPunishableLock<Bitcoin>,
-//        fee_strategy: &FeeStrategies,
-//        fee_politic: FeePolitic,
-//    ) -> Result<Self, ()> {
-//        let script = Builder::new()
-//            .push_opcode(opcodes::all::OP_IF)
-//            .push_opcode(opcodes::all::OP_PUSHNUM_2)
-//            .push_key(&lock.success.alice)
-//            .push_key(&lock.success.bob)
-//            .push_opcode(opcodes::all::OP_PUSHNUM_2)
-//            .push_opcode(opcodes::all::OP_CHECKMULTISIG)
-//            .push_opcode(opcodes::all::OP_ELSE)
-//            .push_int(lock.timelock.into())
-//            .push_opcode(opcodes::all::OP_CSV)
-//            .push_opcode(opcodes::all::OP_DROP)
-//            .push_key(&lock.failure)
-//            .push_opcode(opcodes::all::OP_CHECKSIG)
-//            .push_opcode(opcodes::all::OP_ENDIF)
-//            .into_script();
-//
-//        let output_metadata = prev.get_consumable_output().map_err(|_| ())?;
-//
-//        let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
-//            version: 2,
-//            lock_time: 0,
-//            input: vec![TxIn {
-//                previous_output: output_metadata.out_point,
-//                script_sig: bitcoin::blockdata::script::Script::default(),
-//                sequence: 4294967295,
-//                witness: vec![],
-//            }],
-//            output: vec![TxOut {
-//                value: output_metadata.tx_out.value,
-//                script_pubkey: script.to_v0_p2wsh(),
-//            }],
-//        };
-//
-//        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(|_| ())?;
-//
-//        // Set the input witness data and sighash type
-//        psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
-//        psbt.inputs[0].sighash_type = Some(SigHashType::All);
-//
-//        // Set the script witness of the output
-//        psbt.outputs[0].witness_script = Some(script);
-//
-//        // Set the fees according to the given strategy
-//        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
-//
-//        Ok(CancelTx { psbt })
-//    }
-//}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -499,69 +277,6 @@ mod tests {
     use bitcoin::util::key::{PrivateKey, PublicKey};
     use bitcoin::util::psbt;
     use bitcoin::Transaction;
-
-    //#[test]
-    //fn create_funding() {
-    //    let secp = Secp256k1::new();
-
-    //    let privkey: PrivateKey =
-    //        PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D").unwrap();
-    //    let pubkey = PublicKey::from_private_key(&secp, &privkey);
-
-    //    let mut funding = FundingTx::initialize(pubkey).unwrap();
-    //    println!("{}", funding.get_address().unwrap());
-
-    //    let funding_tx_seen = Transaction {
-    //        version: 1,
-    //        lock_time: 0,
-    //        input: vec![TxIn {
-    //            previous_output: OutPoint {
-    //                txid: Txid::from_hex(
-    //                    "e567952fb6cc33857f392efa3a46c995a28f69cca4bb1b37e0204dab1ec7a389",
-    //                )
-    //                .unwrap(),
-    //                vout: 1,
-    //            },
-    //            script_sig: Script::from_hex("160014be18d152a9b012039daf3da7de4f53349eecb985")
-    //                .unwrap(),
-    //            sequence: 4294967295,
-    //            witness: vec![Vec::from_hex(
-    //                "03d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f2105",
-    //            )
-    //            .unwrap()],
-    //        }],
-    //        output: vec![TxOut {
-    //            value: 10_000_000,
-    //            script_pubkey: Script::new_v0_wpkh(&pubkey.wpubkey_hash().unwrap()),
-    //        }],
-    //    };
-    //    funding.update(funding_tx_seen).unwrap();
-    //    println!("{:?}", funding.get_consumable_output().unwrap());
-
-    //    let datalock = script::DataLock {
-    //        timelock: 10,
-    //        success: DoubleKeys::new(pubkey, pubkey),
-    //        failure: DoubleKeys::new(pubkey, pubkey),
-    //    };
-
-    //    let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(20));
-    //    let politic = FeePolitic::Aggressive;
-
-    //    let lock = LockTx::initialize(&funding, datalock, &fee, politic).unwrap();
-    //    println!("{:#?}", lock);
-
-    //    let datapunishablelock = script::DataPunishableLock {
-    //        timelock: 10,
-    //        success: DoubleKeys::new(pubkey, pubkey),
-    //        failure: pubkey,
-    //    };
-    //    let cancel = CancelTx::initialize(&lock, datapunishablelock, &fee, politic).unwrap();
-    //    println!("{:#?}", cancel);
-
-    //    // TODO create refund
-
-    //    assert!(true);
-    //}
 
     #[test]
     fn create_funding_generic() {
@@ -610,7 +325,7 @@ mod tests {
         let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(20));
         let politic = FeePolitic::Aggressive;
 
-        let lock = BitcoinTx::<LockLock>::initialize(&funding, datalock, &fee, politic).unwrap();
+        let lock = BitcoinTx::<LockTx>::initialize(&funding, datalock, &fee, politic).unwrap();
         println!("{:#?}", lock);
 
         let datapunishablelock = script::DataPunishableLock {
@@ -619,8 +334,7 @@ mod tests {
             failure: pubkey,
         };
         let cancel =
-            BitcoinTx::<CancelCancel>::initialize(&lock, datapunishablelock, &fee, politic)
-                .unwrap();
+            BitcoinTx::<CancelTx>::initialize(&lock, datapunishablelock, &fee, politic).unwrap();
         println!("{:#?}", cancel);
 
         // TODO create refund

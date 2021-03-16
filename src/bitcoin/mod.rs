@@ -9,6 +9,7 @@ use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use std::io;
 
+use std::fmt::{self, Debug, Display, Formatter};
 use crate::blockchain::{
     Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
 };
@@ -21,6 +22,13 @@ pub mod transaction;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Bitcoin;
+
+impl Display for Bitcoin {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        println!("btc");
+        Ok(())
+    }
+}
 
 impl Blockchain for Bitcoin {
     /// Type for the traded asset unit

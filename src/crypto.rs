@@ -1,6 +1,7 @@
 //! Cryptographic type definitions and primitives supported in Farcaster
 
 use crate::role::{Accordant, Arbitrating};
+use strict_encoding::{StrictDecode, StrictEncode};
 
 pub enum Key<Ar, Ac>
 where
@@ -50,12 +51,12 @@ pub trait Keys {
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine
-    type PublicKey;
+    type PublicKey: StrictEncode + StrictDecode;
 }
 
 pub trait Commitment {
     /// Commitment type given the blockchain and the crypto engine
-    type Commitment;
+    type Commitment: StrictDecode + StrictEncode;
 }
 
 pub trait Signatures {

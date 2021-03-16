@@ -263,19 +263,17 @@ impl Cancel<Bitcoin> for BitcoinTx<CancelTx> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitcoin::SatPerVByte;
+    use crate::bitcoin::{FeeStrategies, SatPerVByte};
+    use crate::blockchain::FeeStrategy;
     use crate::script::DoubleKeys;
     use crate::transaction::Lock;
 
-    use bitcoin::blockdata::opcodes;
-    use bitcoin::blockdata::script::{Builder, Script};
-    use bitcoin::blockdata::transaction::{OutPoint, SigHashType, TxIn, TxOut};
-    use bitcoin::consensus::encode::{deserialize, serialize};
+    use bitcoin::blockdata::script::Script;
+    use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
     use bitcoin::hash_types::Txid;
     use bitcoin::hashes::hex::FromHex;
-    use bitcoin::secp256k1::{Message, Secp256k1, SerializedSignature};
+    use bitcoin::secp256k1::Secp256k1;
     use bitcoin::util::key::{PrivateKey, PublicKey};
-    use bitcoin::util::psbt;
     use bitcoin::Transaction;
 
     #[test]

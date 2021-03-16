@@ -131,16 +131,18 @@ where
     Ar: Arbitrating,
     Self: Sized,
 {
+    /// Defines what type the funding transaction must return when creating an output.
     type Input;
 
-    /// Creates a new `lock (b)` transaction based on the `funding (a)` transaction and the public
-    /// keys for the roles, return a new `lock (b)` transaction.
+    /// Creates a new `lock (b)` transaction based on the `funding (a)` transaction and data needed
+    /// for creating the lock primitive (i.e. the timelock and the keys). Return a new `lock (b)`
+    /// transaction.
     ///
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Funding<Ar, Output = Self::Input>,
-        lock: script::Lock<Ar>,
+        lock: script::DataLock<Ar>,
         fee_strategy: &Ar::FeeStrategy,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Err>;
@@ -158,32 +160,41 @@ where
         args: T,
     ) -> Result<Self, Self::Err>;
 }
+*/
 
-pub trait Cancel<Ar>: Transaction<Ar> + Broadcastable<Ar> + Forkable<Ar> + Failable
+pub trait Cancel<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
 {
-    fn initialize<T>(
-        prev: &impl Lock<Ar>,
-        timelock: Ar::Timelock,
-        fee_strategy: &impl FeeStrategy,
-        args: T,
+    /// Defines what type the lock transaction must return when creating an output.
+    type Input;
+
+    fn initialize(
+        prev: &impl Lock<Ar, Output = Self::Input>,
+        lock: script::DataPunishableLock<Ar>,
+        fee_strategy: &Ar::FeeStrategy,
+        fee_politic: FeePolitic,
     ) -> Result<Self, Self::Err>;
 }
 
-pub trait Refund<Ar>: Transaction<Ar> + Broadcastable<Ar> + Spendable<Ar> + Failable
+pub trait Refund<Ar>: Transaction<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
 {
-    fn initialize<T>(
-        prev: &impl Cancel<Ar>,
-        fee_strategy: &impl FeeStrategy,
-        args: T,
+    /// Defines what type the lock transaction must return when creating an output.
+    type Input;
+
+    fn initialize(
+        prev: &impl Cancel<Ar, Output = Self::Input>,
+        refund_target: Ar::Address,
+        fee_strategy: &Ar::FeeStrategy,
+        fee_politic: FeePolitic,
     ) -> Result<Self, Self::Err>;
 }
 
+/*
 pub trait Punish<Ar>: Transaction<Ar> + Broadcastable<Ar> + Spendable<Ar> + Failable
 where
     Ar: Arbitrating,

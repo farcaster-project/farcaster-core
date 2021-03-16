@@ -350,6 +350,7 @@ impl Lock<Bitcoin> for LockTx {
         prev: &impl Funding<Bitcoin, Output = MetadataFundingOutput>,
         lock: script::Lock<Bitcoin>,
         fee_strategy: &FeeStrategies,
+        fee_politic: FeePolitic,
     ) -> Result<Self, ()> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
@@ -397,8 +398,7 @@ impl Lock<Bitcoin> for LockTx {
         psbt.outputs[0].witness_script = Some(script);
 
         // Set the fees according to the given strategy
-        // FIXME FeePolitic is a global argument
-        Bitcoin::set_fees(&mut psbt, fee_strategy, FeePolitic::Aggressive).map_err(|_| ())?;
+        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
 
         Ok(LockTx { psbt })
     }
@@ -466,8 +466,14 @@ mod tests {
         };
 
         let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(20));
-        let lock = LockTx::initialize(&funding, lock, &fee).unwrap();
+        let politic = FeePolitic::Aggressive;
+
+        let lock = LockTx::initialize(&funding, lock, &fee, politic).unwrap();
         println!("{:#?}", lock);
+
+        // TODO create cancel
+
+        // TODO create refund
 
         assert!(false);
     }

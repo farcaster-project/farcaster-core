@@ -2,6 +2,7 @@
 
 use std::fmt::Debug;
 
+use crate::blockchain::FeePolitic;
 use crate::role::Arbitrating;
 use crate::script;
 
@@ -141,6 +142,7 @@ where
         prev: &impl Funding<Ar, Output = Self::Input>,
         lock: script::Lock<Ar>,
         fee_strategy: &Ar::FeeStrategy,
+        fee_politic: FeePolitic,
     ) -> Result<Self, Self::Err>;
 }
 

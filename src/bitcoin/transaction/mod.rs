@@ -13,16 +13,17 @@ use crate::bitcoin::{Bitcoin, FeeStrategies};
 use crate::blockchain::{Fee, FeePolitic};
 use crate::script;
 use crate::transaction::{
-    Broadcastable, Buy, Cancel, Failable, Funding, Linkable, Lock, Punish, Refund, Transaction,
+    Broadcastable, Buyable, Cancelable, Failable, Fundable, Linkable, Lockable, Punishable,
+    Refundable, Transaction,
 };
 
 #[derive(Debug)]
-pub struct FundingTx {
+pub struct Funding {
     pubkey: PublicKey,
     seen_tx: Option<bitcoin::blockdata::transaction::Transaction>,
 }
 
-impl Failable for FundingTx {
+impl Failable for Funding {
     type Err = ();
 }
 
@@ -32,7 +33,7 @@ pub struct MetadataFundingOutput {
     pub tx_out: TxOut,
 }
 
-impl Linkable<Bitcoin> for FundingTx {
+impl Linkable<Bitcoin> for Funding {
     type Output = MetadataFundingOutput;
 
     fn get_consumable_output(&self) -> Result<MetadataFundingOutput, ()> {
@@ -54,9 +55,9 @@ impl Linkable<Bitcoin> for FundingTx {
     }
 }
 
-impl Funding<Bitcoin> for FundingTx {
+impl Fundable<Bitcoin> for Funding {
     fn initialize(pubkey: PublicKey) -> Result<Self, ()> {
-        Ok(FundingTx {
+        Ok(Funding {
             pubkey,
             seen_tx: None,
         })
@@ -76,19 +77,19 @@ impl Funding<Bitcoin> for FundingTx {
 pub trait SubTransaction: Debug {}
 
 #[derive(Debug)]
-pub struct BitcoinTx<T: SubTransaction> {
+pub struct Tx<T: SubTransaction> {
     psbt: PartiallySignedTransaction,
     _t: PhantomData<T>,
 }
 
-impl<T> Failable for BitcoinTx<T>
+impl<T> Failable for Tx<T>
 where
     T: SubTransaction,
 {
     type Err = ();
 }
 
-impl<T> Transaction<Bitcoin> for BitcoinTx<T>
+impl<T> Transaction<Bitcoin> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -97,7 +98,7 @@ where
     }
 }
 
-impl<T> Broadcastable<Bitcoin> for BitcoinTx<T>
+impl<T> Broadcastable<Bitcoin> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -106,7 +107,7 @@ where
     }
 }
 
-impl<T> Linkable<Bitcoin> for BitcoinTx<T>
+impl<T> Linkable<Bitcoin> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -126,16 +127,16 @@ where
 }
 
 #[derive(Debug)]
-pub struct LockTx;
+pub struct Lock;
 
-impl SubTransaction for LockTx {}
+impl SubTransaction for Lock {}
 
-impl Lock<Bitcoin> for BitcoinTx<LockTx> {
+impl Lockable<Bitcoin> for Tx<Lock> {
     /// Type returned by the impl of a Funding tx
     type Input = MetadataFundingOutput;
 
     fn initialize(
-        prev: &impl Funding<Bitcoin, Output = MetadataFundingOutput>,
+        prev: &impl Fundable<Bitcoin, Output = MetadataFundingOutput>,
         lock: script::DataLock<Bitcoin>,
         fee_strategy: &FeeStrategies,
         fee_politic: FeePolitic,
@@ -188,7 +189,7 @@ impl Lock<Bitcoin> for BitcoinTx<LockTx> {
         // Set the fees according to the given strategy
         Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
 
-        Ok(BitcoinTx {
+        Ok(Tx {
             psbt,
             _t: PhantomData,
         })
@@ -196,16 +197,16 @@ impl Lock<Bitcoin> for BitcoinTx<LockTx> {
 }
 
 #[derive(Debug)]
-pub struct BuyTx;
+pub struct Buy;
 
-impl SubTransaction for BuyTx {}
+impl SubTransaction for Buy {}
 
-impl Buy<Bitcoin> for BitcoinTx<BuyTx> {
+impl Buyable<Bitcoin> for Tx<Buy> {
     /// Type returned by the impl of a Lock tx
     type Input = MetadataFundingOutput;
 
     fn initialize(
-        _prev: &impl Lock<Bitcoin, Output = MetadataFundingOutput>,
+        _prev: &impl Lockable<Bitcoin, Output = MetadataFundingOutput>,
         _destination_target: Address,
         _fee_strategy: &FeeStrategies,
         _fee_politic: FeePolitic,
@@ -215,16 +216,16 @@ impl Buy<Bitcoin> for BitcoinTx<BuyTx> {
 }
 
 #[derive(Debug)]
-pub struct CancelTx;
+pub struct Cancel;
 
-impl SubTransaction for CancelTx {}
+impl SubTransaction for Cancel {}
 
-impl Cancel<Bitcoin> for BitcoinTx<CancelTx> {
+impl Cancelable<Bitcoin> for Tx<Cancel> {
     /// Type returned by the impl of a Lock tx
     type Input = MetadataFundingOutput;
 
     fn initialize(
-        prev: &impl Lock<Bitcoin, Output = MetadataFundingOutput>,
+        prev: &impl Lockable<Bitcoin, Output = MetadataFundingOutput>,
         lock: script::DataPunishableLock<Bitcoin>,
         fee_strategy: &FeeStrategies,
         fee_politic: FeePolitic,
@@ -274,7 +275,7 @@ impl Cancel<Bitcoin> for BitcoinTx<CancelTx> {
         // Set the fees according to the given strategy
         Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
 
-        Ok(BitcoinTx {
+        Ok(Tx {
             psbt,
             _t: PhantomData,
         })
@@ -282,16 +283,16 @@ impl Cancel<Bitcoin> for BitcoinTx<CancelTx> {
 }
 
 #[derive(Debug)]
-pub struct RefundTx;
+pub struct Refund;
 
-impl SubTransaction for RefundTx {}
+impl SubTransaction for Refund {}
 
-impl Refund<Bitcoin> for BitcoinTx<RefundTx> {
+impl Refundable<Bitcoin> for Tx<Refund> {
     /// Type returned by the impl of a Lock tx
     type Input = MetadataFundingOutput;
 
     fn initialize(
-        prev: &impl Cancel<Bitcoin, Output = MetadataFundingOutput>,
+        prev: &impl Cancelable<Bitcoin, Output = MetadataFundingOutput>,
         refund_target: Address,
         fee_strategy: &FeeStrategies,
         fee_politic: FeePolitic,
@@ -322,7 +323,7 @@ impl Refund<Bitcoin> for BitcoinTx<RefundTx> {
         // Set the fees according to the given strategy
         Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
 
-        Ok(BitcoinTx {
+        Ok(Tx {
             psbt,
             _t: PhantomData,
         })
@@ -330,16 +331,16 @@ impl Refund<Bitcoin> for BitcoinTx<RefundTx> {
 }
 
 #[derive(Debug)]
-pub struct PunishTx;
+pub struct Punish;
 
-impl SubTransaction for PunishTx {}
+impl SubTransaction for Punish {}
 
-impl Punish<Bitcoin> for BitcoinTx<PunishTx> {
+impl Punishable<Bitcoin> for Tx<Punish> {
     /// Type returned by the impl of a Lock tx
     type Input = MetadataFundingOutput;
 
     fn initialize(
-        _prev: &impl Cancel<Bitcoin, Output = MetadataFundingOutput>,
+        _prev: &impl Cancelable<Bitcoin, Output = MetadataFundingOutput>,
         _destination_target: Address,
         _fee_strategy: &FeeStrategies,
         _fee_politic: FeePolitic,
@@ -354,7 +355,6 @@ mod tests {
     use crate::bitcoin::{FeeStrategies, SatPerVByte};
     use crate::blockchain::FeeStrategy;
     use crate::script::DoubleKeys;
-    use crate::transaction::Lock;
 
     use bitcoin::blockdata::script::Script;
     use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
@@ -372,7 +372,7 @@ mod tests {
             PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D").unwrap();
         let pubkey = PublicKey::from_private_key(&secp, &privkey);
 
-        let mut funding = FundingTx::initialize(pubkey).unwrap();
+        let mut funding = Funding::initialize(pubkey).unwrap();
         println!("{}", funding.get_address().unwrap());
 
         let funding_tx_seen = Transaction {
@@ -411,7 +411,7 @@ mod tests {
         let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(20));
         let politic = FeePolitic::Aggressive;
 
-        let lock = BitcoinTx::<LockTx>::initialize(&funding, datalock, &fee, politic).unwrap();
+        let lock = Tx::<Lock>::initialize(&funding, datalock, &fee, politic).unwrap();
         println!("{:#?}", lock);
 
         let datapunishablelock = script::DataPunishableLock {
@@ -419,8 +419,7 @@ mod tests {
             success: DoubleKeys::new(pubkey, pubkey),
             failure: pubkey,
         };
-        let cancel =
-            BitcoinTx::<CancelTx>::initialize(&lock, datapunishablelock, &fee, politic).unwrap();
+        let cancel = Tx::<Cancel>::initialize(&lock, datapunishablelock, &fee, politic).unwrap();
         println!("{:#?}", cancel);
 
         let address = {
@@ -441,7 +440,7 @@ mod tests {
             Address::p2pkh(&public_key, Network::Bitcoin)
         };
 
-        let refund = BitcoinTx::<RefundTx>::initialize(&cancel, address, &fee, politic).unwrap();
+        let refund = Tx::<Refund>::initialize(&cancel, address, &fee, politic).unwrap();
         println!("{:#?}", refund);
 
         assert!(false);

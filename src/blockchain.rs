@@ -42,6 +42,7 @@ pub trait FeeUnit {
 
 /// Define the type of errors a fee strategy can encounter during calculation, application, and
 /// validation of fees on a partial transaction.
+#[derive(Debug, PartialEq)]
 pub enum FeeStrategyError {
     MissingInputsMetadata,
     AmountOfFeeTooHigh,

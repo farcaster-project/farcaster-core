@@ -2,18 +2,18 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use bitcoin::blockdata::opcodes;
-use bitcoin::blockdata::script::Builder;
+use bitcoin::blockdata::script::{Builder, Script};
 use bitcoin::blockdata::transaction::{OutPoint, SigHashType, TxIn, TxOut};
+use bitcoin::hashes::sha256d::Hash;
 use bitcoin::network::constants::Network;
-use bitcoin::secp256k1::{Message, Secp256k1, SerializedSignature};
-use bitcoin::util::address::Address;
-use bitcoin::util::key::{PrivateKey, PublicKey};
-use bitcoin::util::psbt::{Input, PartiallySignedTransaction};
-
+use bitcoin::secp256k1::{Message, Secp256k1, SerializedSignature, Signing};
+use bitcoin::util::address::{self, Address};
 use bitcoin::util::bip143::SigHashCache;
+use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 use crate::bitcoin::{Bitcoin, FeeStrategies};
-use crate::blockchain::{Fee, FeePolitic};
+use crate::blockchain::{Fee, FeePolitic, FeeStrategyError};
 use crate::script;
 use crate::transaction::{
     Broadcastable, Buyable, Cancelable, Failable, Fundable, Linkable, Lockable, Punishable,
@@ -26,8 +26,43 @@ pub struct Funding {
     seen_tx: Option<bitcoin::blockdata::transaction::Transaction>,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    MultiUTXOUnsuported,
+    MissingWitnessUTXO,
+    MissingSigHashType,
+    PSBT(psbt::Error),
+    Address(address::Error),
+    Fee(FeeStrategyError),
+    Secp256k1(bitcoin::secp256k1::Error),
+}
+
+impl From<bitcoin::secp256k1::Error> for Error {
+    fn from(e: bitcoin::secp256k1::Error) -> Self {
+        Self::Secp256k1(e)
+    }
+}
+
+impl From<psbt::Error> for Error {
+    fn from(e: psbt::Error) -> Self {
+        Self::PSBT(e)
+    }
+}
+
+impl From<address::Error> for Error {
+    fn from(e: address::Error) -> Self {
+        Self::Address(e)
+    }
+}
+
+impl From<FeeStrategyError> for Error {
+    fn from(e: FeeStrategyError) -> Self {
+        Self::Fee(e)
+    }
+}
+
 impl Failable for Funding {
-    type Err = ();
+    type Error = Error;
 }
 
 #[derive(Debug)]
@@ -39,7 +74,7 @@ pub struct MetadataFundingOutput {
 impl Linkable<Bitcoin> for Funding {
     type Output = MetadataFundingOutput;
 
-    fn get_consumable_output(&self) -> Result<MetadataFundingOutput, ()> {
+    fn get_consumable_output(&self) -> Result<MetadataFundingOutput, Error> {
         match &self.seen_tx {
             Some(t) => {
                 // More than one UTXO is not supported
@@ -49,10 +84,10 @@ impl Linkable<Bitcoin> for Funding {
                     // Check if coinbase transaction
                     {
                         if !t.is_coin_base() {
-                            return Err(());
+                            return Err(Error::MultiUTXOUnsuported);
                         }
                     }
-                    _ => return Err(()),
+                    _ => return Err(Error::MultiUTXOUnsuported),
                 }
                 // vout is always 0 because output len is 1
                 Ok(MetadataFundingOutput {
@@ -61,24 +96,24 @@ impl Linkable<Bitcoin> for Funding {
                 })
             }
             // The transaction has not been see yet, cannot infer the UTXO
-            None => Err(()),
+            None => Err(Error::MultiUTXOUnsuported),
         }
     }
 }
 
 impl Fundable<Bitcoin> for Funding {
-    fn initialize(pubkey: PublicKey) -> Result<Self, ()> {
+    fn initialize(pubkey: PublicKey) -> Result<Self, Error> {
         Ok(Funding {
             pubkey,
             seen_tx: None,
         })
     }
 
-    fn get_address(&self, network: Network) -> Result<Address, ()> {
-        Ok(Address::p2wpkh(&self.pubkey, network).map_err(|_| ())?)
+    fn get_address(&self, network: Network) -> Result<Address, Error> {
+        Ok(Address::p2wpkh(&self.pubkey, network)?)
     }
 
-    fn update(&mut self, args: bitcoin::blockdata::transaction::Transaction) -> Result<(), ()> {
+    fn update(&mut self, args: bitcoin::blockdata::transaction::Transaction) -> Result<(), Error> {
         self.seen_tx = Some(args);
         Ok(())
     }
@@ -96,7 +131,7 @@ impl<T> Failable for Tx<T>
 where
     T: SubTransaction,
 {
-    type Err = ();
+    type Error = Error;
 }
 
 impl<T> Transaction<Bitcoin> for Tx<T>
@@ -123,15 +158,15 @@ where
 {
     type Output = MetadataFundingOutput;
 
-    fn get_consumable_output(&self) -> Result<MetadataFundingOutput, ()> {
+    fn get_consumable_output(&self) -> Result<MetadataFundingOutput, Error> {
         match self.psbt.global.unsigned_tx.output.len() {
             1 => (),
             2 => {
                 if !self.psbt.global.unsigned_tx.is_coin_base() {
-                    return Err(());
+                    return Err(Error::MultiUTXOUnsuported);
                 }
             }
-            _ => return Err(()),
+            _ => return Err(Error::MultiUTXOUnsuported),
         }
 
         Ok(MetadataFundingOutput {
@@ -151,11 +186,11 @@ impl Lockable<Bitcoin> for Tx<Lock> {
     type Input = MetadataFundingOutput;
 
     fn initialize(
-        prev: &impl Fundable<Bitcoin, Output = MetadataFundingOutput>,
+        prev: &impl Fundable<Bitcoin, Output = MetadataFundingOutput, Error = Error>,
         lock: script::DataLock<Bitcoin>,
         fee_strategy: &FeeStrategies,
         fee_politic: FeePolitic,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, Error> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
@@ -175,7 +210,7 @@ impl Lockable<Bitcoin> for Tx<Lock> {
             .push_opcode(opcodes::all::OP_ENDIF)
             .into_script();
 
-        let output_metadata = prev.get_consumable_output().map_err(|_| ())?;
+        let output_metadata = prev.get_consumable_output()?;
 
         let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
             version: 2,
@@ -192,7 +227,7 @@ impl Lockable<Bitcoin> for Tx<Lock> {
             }],
         };
 
-        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(|_| ())?;
+        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx)?;
 
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
@@ -202,7 +237,7 @@ impl Lockable<Bitcoin> for Tx<Lock> {
         psbt.outputs[0].witness_script = Some(script);
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
+        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
 
         Ok(Tx {
             psbt,
@@ -211,23 +246,79 @@ impl Lockable<Bitcoin> for Tx<Lock> {
     }
 }
 
+/// A borrowed reference to a transaction input.
+#[derive(Debug, Copy, Clone)]
+pub struct TxInRef<'a> {
+    transaction: &'a bitcoin::blockdata::transaction::Transaction,
+    index: usize,
+}
+
+impl<'a> TxInRef<'a> {
+    /// Constructs a reference to the input with the given index of the given transaction.
+    pub fn new(
+        transaction: &'a bitcoin::blockdata::transaction::Transaction,
+        index: usize,
+    ) -> TxInRef<'a> {
+        assert!(transaction.input.len() > index);
+        TxInRef { transaction, index }
+    }
+
+    /// Returns a reference to the borrowed transaction.
+    pub fn transaction(&self) -> &bitcoin::blockdata::transaction::Transaction {
+        self.transaction
+    }
+
+    /// Returns a reference to the input.
+    pub fn input(&self) -> &TxIn {
+        &self.transaction.input[self.index]
+    }
+
+    /// Returns the index of input.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+}
+
+impl<'a> AsRef<TxIn> for TxInRef<'a> {
+    fn as_ref(&self) -> &TxIn {
+        self.input()
+    }
+}
+
 impl Signable<Bitcoin> for Tx<Lock> {
-    fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<SerializedSignature, ()> {
+    fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<SerializedSignature, Error> {
         {
             // TODO validate the transaction before signing
         }
 
-        let secp = Secp256k1::new();
+        let mut secp = Secp256k1::new();
+
         let unsigned_tx = self.psbt.global.unsigned_tx.clone();
-        let input = self.psbt.inputs[0].clone();
-        let sig = sign_input(&secp, &unsigned_tx, 0, input, &privkey.key);
-        let pubkey = PublicKey::from_private_key(&secp, &privkey);
+        let txin = TxInRef::new(&unsigned_tx, 0);
+
+        let witness_utxo = self.psbt.inputs[0]
+            .witness_utxo
+            .clone()
+            .ok_or(Error::MissingWitnessUTXO)?;
+        let script = witness_utxo.script_pubkey;
+        let value = witness_utxo.value;
+
+        let sighash_type = self.psbt.inputs[0]
+            .sighash_type
+            .ok_or(Error::MissingSigHashType)?;
+
+        println!("{:?}", txin);
+        println!("{:?}", script);
+        println!("{:?}", value);
+        println!("{:?}", sighash_type);
+        let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)?;
 
         // Finalize the witness
-        let sighash_type = self.psbt.inputs[0].sighash_type.ok_or(())?;
-        let mut sighash = sig.clone().to_vec();
-        sighash.extend_from_slice(&[sighash_type.as_u32() as u8]);
-        self.psbt.inputs[0].final_script_witness = Some(vec![sighash, pubkey.to_bytes()]);
+        let mut full_sig = sig.clone().to_vec();
+        full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
+
+        let pubkey = PublicKey::from_private_key(&secp, &privkey);
+        self.psbt.inputs[0].final_script_witness = Some(vec![full_sig, pubkey.to_bytes()]);
 
         Ok(sig)
     }
@@ -247,13 +338,13 @@ impl Buyable<Bitcoin> for Tx<Buy> {
         _destination_target: Address,
         _fee_strategy: &FeeStrategies,
         _fee_politic: FeePolitic,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, Error> {
         todo!()
     }
 }
 
 impl Signable<Bitcoin> for Tx<Buy> {
-    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<SerializedSignature, ()> {
+    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<SerializedSignature, Error> {
         {
             // TODO validate the transaction before signing
         }
@@ -271,11 +362,11 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
     type Input = MetadataFundingOutput;
 
     fn initialize(
-        prev: &impl Lockable<Bitcoin, Output = MetadataFundingOutput>,
+        prev: &impl Lockable<Bitcoin, Output = MetadataFundingOutput, Error = Error>,
         lock: script::DataPunishableLock<Bitcoin>,
         fee_strategy: &FeeStrategies,
         fee_politic: FeePolitic,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, Error> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
@@ -292,7 +383,7 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
             .push_opcode(opcodes::all::OP_ENDIF)
             .into_script();
 
-        let output_metadata = prev.get_consumable_output().map_err(|_| ())?;
+        let output_metadata = prev.get_consumable_output()?;
 
         let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
             version: 2,
@@ -309,7 +400,7 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
             }],
         };
 
-        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(|_| ())?;
+        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx)?;
 
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
@@ -319,7 +410,7 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
         psbt.outputs[0].witness_script = Some(script);
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
+        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
 
         Ok(Tx {
             psbt,
@@ -338,12 +429,12 @@ impl Refundable<Bitcoin> for Tx<Refund> {
     type Input = MetadataFundingOutput;
 
     fn initialize(
-        prev: &impl Cancelable<Bitcoin, Output = MetadataFundingOutput>,
+        prev: &impl Cancelable<Bitcoin, Output = MetadataFundingOutput, Error = Error>,
         refund_target: Address,
         fee_strategy: &FeeStrategies,
         fee_politic: FeePolitic,
-    ) -> Result<Self, ()> {
-        let output_metadata = prev.get_consumable_output().map_err(|_| ())?;
+    ) -> Result<Self, Error> {
+        let output_metadata = prev.get_consumable_output()?;
 
         let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
             version: 2,
@@ -360,14 +451,14 @@ impl Refundable<Bitcoin> for Tx<Refund> {
             }],
         };
 
-        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(|_| ())?;
+        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx)?;
 
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
         psbt.inputs[0].sighash_type = Some(SigHashType::All);
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic).map_err(|_| ())?;
+        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
 
         Ok(Tx {
             psbt,
@@ -390,32 +481,48 @@ impl Punishable<Bitcoin> for Tx<Punish> {
         _destination_target: Address,
         _fee_strategy: &FeeStrategies,
         _fee_politic: FeePolitic,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, Error> {
         todo!()
     }
 }
 
-fn sign_input(
-    ctx: &Secp256k1<bitcoin::secp256k1::All>,
-    unsigned_tx: &bitcoin::Transaction,
-    input_index: usize,
-    input: Input,
-    key: &bitcoin::secp256k1::SecretKey,
-) -> SerializedSignature {
-    let utxo = input.witness_utxo.unwrap();
+/// Computes the [`BIP-143`][bip-143] compliant sighash for a [`SIGHASH_ALL`][sighash_all]
+/// signature for the given input.
+///
+/// [bip-143]: https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+/// [sighash_all]: https://bitcoin.org/en/developer-guide#signature-hash-types
+pub fn signature_hash<'a>(
+    txin: TxInRef<'a>,
+    script: &Script,
+    value: u64,
+    sighash_type: SigHashType,
+) -> Hash {
+    SigHashCache::new(txin.transaction)
+        .signature_hash(txin.index, script, value, sighash_type)
+        .as_hash()
+}
 
-    let mut sig_hasher = SigHashCache::new(unsigned_tx);
-    let sighash = sig_hasher.signature_hash(
-        input_index,
-        &utxo.script_pubkey,
-        utxo.value,
-        input.sighash_type.unwrap(),
-    );
-
-    let message = Message::from_slice(&sighash[..]).expect("32 bytes");
-    let mut sig = ctx.sign(&message, &key);
-    sig.normalize_s();
-    sig.serialize_der()
+/// Computes the [`BIP-143`][bip-143] compliant signature for the given input.
+/// [Read more...][signature-hash]
+///
+/// [bip-143]: https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+/// [signature-hash]: fn.signature_hash.html
+pub fn sign_input<'a, C>(
+    context: &mut Secp256k1<C>,
+    txin: TxInRef<'a>,
+    script: &Script,
+    value: u64,
+    sighash_type: SigHashType,
+    secret_key: &bitcoin::secp256k1::SecretKey,
+) -> Result<SerializedSignature, bitcoin::secp256k1::Error>
+where
+    C: Signing,
+{
+    // Computes sighash.
+    let sighash = signature_hash(txin, script, value, sighash_type);
+    // Makes signature.
+    let msg = Message::from_slice(&sighash[..])?;
+    Ok(context.sign(&msg, secret_key).serialize_der())
 }
 
 #[cfg(test)]
@@ -442,7 +549,6 @@ mod tests {
         let pubkey = PublicKey::from_private_key(&secp, &privkey);
 
         let mut funding = Funding::initialize(pubkey).unwrap();
-        println!("{}", funding.get_address(Network::Bitcoin).unwrap());
 
         let funding_tx_seen = Transaction {
             version: 1,
@@ -469,7 +575,6 @@ mod tests {
             }],
         };
         funding.update(funding_tx_seen).unwrap();
-        println!("{:?}", funding.get_consumable_output().unwrap());
 
         let datalock = script::DataLock {
             timelock: 10,
@@ -481,7 +586,6 @@ mod tests {
         let politic = FeePolitic::Aggressive;
 
         let mut lock = Tx::<Lock>::initialize(&funding, datalock, &fee, politic).unwrap();
-        println!("{:#?}", lock);
 
         let datapunishablelock = script::DataPunishableLock {
             timelock: 10,
@@ -489,7 +593,6 @@ mod tests {
             failure: pubkey,
         };
         let cancel = Tx::<Cancel>::initialize(&lock, datapunishablelock, &fee, politic).unwrap();
-        println!("{:#?}", cancel);
 
         let address = {
             use bitcoin::network::constants::Network;
@@ -509,14 +612,10 @@ mod tests {
             Address::p2pkh(&public_key, Network::Bitcoin)
         };
 
-        let refund = Tx::<Refund>::initialize(&cancel, address, &fee, politic).unwrap();
-        println!("{:#?}", refund);
+        let _refund = Tx::<Refund>::initialize(&cancel, address, &fee, politic).unwrap();
 
         // Sign lock tx
-        let sig = lock.generate_witness(&privkey).unwrap();
-        println!("{:?}", &sig[..]);
-        println!("{:#?}", lock.finalize());
-
+        let _sig = lock.generate_witness(&privkey).unwrap();
         assert!(true);
     }
 }

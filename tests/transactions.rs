@@ -5,15 +5,9 @@ use farcaster_core::script::{self, *};
 use farcaster_core::transaction::*;
 
 use bitcoin::consensus::encode::serialize_hex;
-use bitcoin::blockdata::script::Script;
-use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
-use bitcoin::hash_types::Txid;
-use bitcoin::hashes::hex::FromHex;
 use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::Secp256k1;
-use bitcoin::util::amount::Amount;
 use bitcoin::util::key::{PrivateKey, PublicKey};
-use bitcoin::Transaction;
 
 use bitcoincore_rpc::{Auth, Client, RpcApi};
 
@@ -41,15 +35,15 @@ fn create_funding_generic() {
     let mut funding = Funding::initialize(pubkey).unwrap();
     let address = funding.get_address(Network::Regtest).unwrap();
 
+    //println!("Address: {:#?}", client.get_address_info(&address).unwrap());
     //println!("Send funds to: {}", address);
     let blocks = client.generate_to_address(1, &address).unwrap();
-    //println!("{:?}", blocks);
 
     let block_hash = blocks[0];
     let block = client.get_block(&block_hash).unwrap();
     let funding_tx_seen = block.coinbase().unwrap().clone();
 
-    //println!("{:#?}", &funding_tx_seen);
+    println!("{:#?}", &funding_tx_seen);
     funding.update(funding_tx_seen).unwrap();
 
     let datalock = script::DataLock {
@@ -91,10 +85,10 @@ fn create_funding_generic() {
         Address::p2pkh(&public_key, Network::Regtest)
     };
 
-    let refund = Tx::<Refund>::initialize(&cancel, new_address, &fee, politic).unwrap();
+    let _refund = Tx::<Refund>::initialize(&cancel, new_address, &fee, politic).unwrap();
 
     // Sign lock tx
-    let sig = lock.generate_witness(&privkey).unwrap();
+    let _sig = lock.generate_witness(&privkey).unwrap();
     println!("{:#?}", &lock);
     let lock_finalized = lock.finalize();
 

@@ -39,7 +39,7 @@ pub enum TxId {
 /// Must be implemented on transactions with failable opperations.
 pub trait Failable {
     /// Errors returned by the failable methods.
-    type Err: Debug;
+    type Error: Debug;
 }
 
 /// Define a transaction broadcastable by the system. Externally managed transaction are not
@@ -76,7 +76,7 @@ where
     /// This correspond to data an "updater" such as defined in BIP 174 can use to update a
     /// partial transaction. This is used to get all data needed to describe this output as an
     /// input in another transaction.
-    fn get_consumable_output(&self) -> Result<Self::Output, Self::Err>;
+    fn get_consumable_output(&self) -> Result<Self::Output, Self::Error>;
 }
 
 pub trait Signable<Ar>: Failable
@@ -88,7 +88,7 @@ where
     //type Witness;
 
     /// Generate the witness to unlock the default path of the asset lock.
-    fn generate_witness(&mut self, privkey: &Ar::PrivateKey) -> Result<Ar::Signature, Self::Err>;
+    fn generate_witness(&mut self, privkey: &Ar::PrivateKey) -> Result<Ar::Signature, Self::Error>;
 }
 
 ///// Defines a transaction where the consumable output has two paths: a successful path and a
@@ -112,17 +112,17 @@ where
 {
     /// Create a new funding 'output', or equivalent depending on the blockchain and the
     /// cryptographic engine.
-    fn initialize(privkey: Ar::PublicKey) -> Result<Self, Self::Err>;
+    fn initialize(privkey: Ar::PublicKey) -> Result<Self, Self::Error>;
 
     /// Return the address to use for the funding.
-    fn get_address(&self, network: Ar::Network) -> Result<Ar::Address, Self::Err>;
+    fn get_address(&self, network: Ar::Network) -> Result<Ar::Address, Self::Error>;
 
     /// Update the transaction, this is used to update the data when the funding transaction is
     /// seen on-chain.
     ///
     /// This function is needed because we assume that the transaction is created outside of the
     /// system by an external wallet, the txid is not known in advance.
-    fn update(&mut self, args: Ar::Transaction) -> Result<(), Self::Err>;
+    fn update(&mut self, args: Ar::Transaction) -> Result<(), Self::Error>;
 }
 
 /// Represent a lockable transaction such as the `lock (b)` transaction that consumes the `funding
@@ -143,11 +143,11 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Fundable<Ar, Output = Self::Input>,
+        prev: &impl Fundable<Ar, Output = Self::Input, Error = Self::Error>,
         lock: script::DataLock<Ar>,
         fee_strategy: &Ar::FeeStrategy,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Err>;
+    ) -> Result<Self, Self::Error>;
 }
 
 /// Represent a buyable transaction such as the `buy (c)` transaction that consumes the `lock (b)`
@@ -170,11 +170,11 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Lockable<Ar, Output = Self::Input>,
+        prev: &impl Lockable<Ar, Output = Self::Input, Error = Self::Error>,
         destination_target: Ar::Address,
         fee_strategy: &Ar::FeeStrategy,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Err>;
+    ) -> Result<Self, Self::Error>;
 }
 
 /// Represent a cancelable transaction such as the `cancel (d)` transaction that consumes the `lock
@@ -196,11 +196,11 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Lockable<Ar, Output = Self::Input>,
+        prev: &impl Lockable<Ar, Output = Self::Input, Error = Self::Error>,
         lock: script::DataPunishableLock<Ar>,
         fee_strategy: &Ar::FeeStrategy,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Err>;
+    ) -> Result<Self, Self::Error>;
 }
 
 /// Represent a refundable transaction such as the `refund (e)` transaction that consumes the
@@ -221,11 +221,11 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Cancelable<Ar, Output = Self::Input>,
+        prev: &impl Cancelable<Ar, Output = Self::Input, Error = Self::Error>,
         refund_target: Ar::Address,
         fee_strategy: &Ar::FeeStrategy,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Err>;
+    ) -> Result<Self, Self::Error>;
 }
 
 /// Represent a punishable transaction such as the `punish (f)` transaction that consumes the
@@ -248,9 +248,9 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Cancelable<Ar, Output = Self::Input>,
+        prev: &impl Cancelable<Ar, Output = Self::Input, Error = Self::Error>,
         destination_target: Ar::Address,
         fee_strategy: &Ar::FeeStrategy,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Err>;
+    ) -> Result<Self, Self::Error>;
 }

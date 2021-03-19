@@ -522,7 +522,9 @@ where
     let sighash = signature_hash(txin, script, value, sighash_type);
     // Makes signature.
     let msg = Message::from_slice(&sighash[..])?;
-    Ok(context.sign(&msg, secret_key).serialize_der())
+    let mut sig = context.sign(&msg, secret_key);
+    sig.normalize_s();
+    Ok(sig.serialize_der())
 }
 
 #[cfg(test)]

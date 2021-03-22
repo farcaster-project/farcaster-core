@@ -1,28 +1,7 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
-use crate::blockchain::Blockchain;
-use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, Keys, Script, Signatures};
-
-/// Three network that need to be defined for every blockchains.
-pub trait Network: Copy {}
-
-/// Mainnet works with real assets.
-#[derive(Clone, Copy)]
-pub struct Mainnet;
-
-impl Network for Mainnet {}
-
-/// Testnet works with decentralized testing network for both chains.
-#[derive(Clone, Copy)]
-pub struct Testnet;
-
-impl Network for Testnet {}
-
-/// Local works with local blockchains for both chains.
-#[derive(Clone, Copy)]
-pub struct Local;
-
-impl Network for Local {}
+use crate::blockchain::{Blockchain, Fee, Onchain};
+use crate::crypto::{Commitment, Curve, Keys, Script, Signatures};
 
 /// Defines all possible negociation roles: maker and taker.
 pub enum NegotiationRole {
@@ -68,7 +47,7 @@ pub enum BlockchainRole {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Blockchain + Keys + Commitment + Signatures + Curve + Script + Transaction
+    Blockchain + Keys + Commitment + Signatures + Curve + Script + Onchain + Fee
 {
     /// Defines the address format for the arbitrating blockchain
     type Address;
@@ -77,22 +56,6 @@ pub trait Arbitrating:
     type Timelock: Copy;
 }
 
-// TODO: move me to transaction file
-pub trait Transaction {
-    /// Defines the transaction format for the arbitrating blockchain
-    type Transaction;
-}
-
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
 pub trait Accordant: Blockchain + Keys + Curve + Commitment {}
-
-/// Specifies the entire swap, with a pair of Arbitrating and Accordant chains, and their eliptic curves, and their cross-group equality.
-pub trait Swap<Ar, Ac>: CrossGroupDLEQ<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-    Ar::Curve: PartialEq<Ac::Curve>,
-    Ac::Curve: PartialEq<Ar::Curve>,
-{
-}

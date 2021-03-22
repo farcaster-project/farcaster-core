@@ -12,12 +12,12 @@ use bitcoin::util::bip143::SigHashCache;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
-use crate::bitcoin::{Bitcoin, FeeStrategies};
+use crate::bitcoin::{Bitcoin, FeeStrategies, PDLEQ};
 use crate::blockchain::{Fee, FeePolitic, FeeStrategyError};
 use crate::script;
 use crate::transaction::{
-    Broadcastable, Buyable, Cancelable, Failable, Fundable, Linkable, Lockable, Punishable,
-    Refundable, Signable, Transaction,
+    AdaptorSignable, Broadcastable, Buyable, Cancelable, Failable, Forkable, Fundable, Linkable,
+    Lockable, Punishable, Refundable, Signable, Transaction,
 };
 
 #[derive(Debug)]
@@ -322,6 +322,14 @@ impl Signable<Bitcoin> for Tx<Lock> {
 
         Ok(sig)
     }
+
+    fn verify_witness(
+        &mut self,
+        _pubkey: &PublicKey,
+        _sig: SerializedSignature,
+    ) -> Result<(), Error> {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
@@ -348,6 +356,33 @@ impl Signable<Bitcoin> for Tx<Buy> {
         {
             // TODO validate the transaction before signing
         }
+        todo!()
+    }
+
+    fn verify_witness(
+        &mut self,
+        _pubkey: &PublicKey,
+        _sig: SerializedSignature,
+    ) -> Result<(), Error> {
+        todo!()
+    }
+}
+
+impl AdaptorSignable<Bitcoin> for Tx<Buy> {
+    fn generate_adaptor_witness(
+        &mut self,
+        _privkey: &PrivateKey,
+        _adaptor: &PublicKey,
+    ) -> Result<(SerializedSignature, PublicKey, PDLEQ), Error> {
+        todo!()
+    }
+
+    fn verify_adaptor_witness(
+        &mut self,
+        _pubkey: &PublicKey,
+        _adaptor: &PublicKey,
+        _sig: (SerializedSignature, PublicKey, PDLEQ),
+    ) -> Result<(), Error> {
         todo!()
     }
 }
@@ -419,6 +454,23 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
     }
 }
 
+impl Forkable<Bitcoin> for Tx<Cancel> {
+    fn generate_failure_witness(
+        &mut self,
+        _privkey: &PrivateKey,
+    ) -> Result<SerializedSignature, Error> {
+        todo!()
+    }
+
+    fn verify_failure_witness(
+        &mut self,
+        _pubkey: &PublicKey,
+        _sig: SerializedSignature,
+    ) -> Result<(), Error> {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 pub struct Refund;
 
@@ -467,6 +519,39 @@ impl Refundable<Bitcoin> for Tx<Refund> {
     }
 }
 
+impl Signable<Bitcoin> for Tx<Refund> {
+    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<SerializedSignature, Error> {
+        todo!()
+    }
+
+    fn verify_witness(
+        &mut self,
+        _pubkey: &PublicKey,
+        _sig: SerializedSignature,
+    ) -> Result<(), Error> {
+        todo!()
+    }
+}
+
+impl AdaptorSignable<Bitcoin> for Tx<Refund> {
+    fn generate_adaptor_witness(
+        &mut self,
+        _privkey: &PrivateKey,
+        _adaptor: &PublicKey,
+    ) -> Result<(SerializedSignature, PublicKey, PDLEQ), Error> {
+        todo!()
+    }
+
+    fn verify_adaptor_witness(
+        &mut self,
+        _pubkey: &PublicKey,
+        _adaptor: &PublicKey,
+        _sig: (SerializedSignature, PublicKey, PDLEQ),
+    ) -> Result<(), Error> {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 pub struct Punish;
 
@@ -482,6 +567,23 @@ impl Punishable<Bitcoin> for Tx<Punish> {
         _fee_strategy: &FeeStrategies,
         _fee_politic: FeePolitic,
     ) -> Result<Self, Error> {
+        todo!()
+    }
+}
+
+impl Forkable<Bitcoin> for Tx<Punish> {
+    fn generate_failure_witness(
+        &mut self,
+        _privkey: &PrivateKey,
+    ) -> Result<SerializedSignature, Error> {
+        todo!()
+    }
+
+    fn verify_failure_witness(
+        &mut self,
+        _pubkey: &PublicKey,
+        _sig: SerializedSignature,
+    ) -> Result<(), Error> {
         todo!()
     }
 }

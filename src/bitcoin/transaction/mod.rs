@@ -5,7 +5,7 @@ use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Builder, Script};
 use bitcoin::blockdata::transaction::{OutPoint, SigHashType, TxIn, TxOut};
 use bitcoin::hashes::sha256d::Hash;
-use bitcoin::network::constants::Network;
+use bitcoin::network::constants::Network as BtcNetwork;
 use bitcoin::secp256k1::{Message, Secp256k1, SerializedSignature, Signing};
 use bitcoin::util::address::{self, Address};
 use bitcoin::util::bip143::SigHashCache;
@@ -13,7 +13,7 @@ use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 use crate::bitcoin::{Bitcoin, FeeStrategies, PDLEQ};
-use crate::blockchain::{Fee, FeePolitic, FeeStrategyError};
+use crate::blockchain::{Fee, FeePolitic, FeeStrategyError, Network};
 use crate::script;
 use crate::transaction::{
     AdaptorSignable, Broadcastable, Buyable, Cancelable, Failable, Forkable, Fundable, Linkable,
@@ -110,7 +110,11 @@ impl Fundable<Bitcoin> for Funding {
     }
 
     fn get_address(&self, network: Network) -> Result<Address, Error> {
-        Ok(Address::p2wpkh(&self.pubkey, network)?)
+        match network {
+            Network::Mainnet => Ok(Address::p2wpkh(&self.pubkey, BtcNetwork::Bitcoin)?),
+            Network::Testnet => Ok(Address::p2wpkh(&self.pubkey, BtcNetwork::Testnet)?),
+            Network::Local => Ok(Address::p2wpkh(&self.pubkey, BtcNetwork::Regtest)?),
+        }
     }
 
     fn update(&mut self, args: bitcoin::blockdata::transaction::Transaction) -> Result<(), Error> {

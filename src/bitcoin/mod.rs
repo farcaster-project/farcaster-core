@@ -2,7 +2,7 @@
 
 use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::hash_types::PubkeyHash;
-use bitcoin::network::constants::Network;
+//use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::SerializedSignature;
 use bitcoin::util::address::Address;
 use bitcoin::util::amount::Amount;
@@ -25,7 +25,7 @@ impl Blockchain for Bitcoin {
     /// Type for the traded asset unit
     type AssetUnit = Amount;
 
-    type Network = Network;
+    //type Network = Network;
 
     ///// Type of the blockchain identifier
     //type Id = String;

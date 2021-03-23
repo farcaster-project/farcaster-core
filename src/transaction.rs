@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 
-use crate::blockchain::FeePolitic;
+use crate::blockchain::{FeePolitic, Network};
 use crate::role::Arbitrating;
 use crate::script;
 
@@ -155,7 +155,7 @@ where
     fn initialize(privkey: Ar::PublicKey) -> Result<Self, Self::Error>;
 
     /// Return the address to use for the funding.
-    fn get_address(&self, network: Ar::Network) -> Result<Ar::Address, Self::Error>;
+    fn get_address(&self, network: Network) -> Result<Ar::Address, Self::Error>;
 
     /// Update the transaction, this is used to update the data when the funding transaction is
     /// seen on-chain.

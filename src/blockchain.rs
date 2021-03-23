@@ -1,24 +1,12 @@
-//! Defines what a blockchain is and what needs to be implemented
+//! Defines the interface a blockchain must implement
+//!
+//! A blockchain must identify the block chain (or equivalent), e.g. with the genesis hash, and the
+//! asset, e.g. for Etherum blockchain assets can be eth or dai.
 
 /// Base trait for defining a blockchain and its asset type.
 pub trait Blockchain: Copy {
     /// Type for the traded asset unit
     type AssetUnit: Copy;
-
-    /// Type of the network for the blockchain
-    type Network;
-
-    ///// Type of the blockchain identifier
-    //type Id: FromStr + Into<String>;
-
-    ///// Type of the chain identifier
-    //type ChainId;
-
-    ///// Returns the blockchain identifier
-    //fn id(&self) -> Self::Id;
-
-    ///// Returns the chain identifier
-    //fn chain_id(&self) -> Self::ChainId;
 
     /// Create a new blockchain
     fn new() -> Self;
@@ -97,23 +85,14 @@ pub trait Fee: Onchain + Blockchain {
     ) -> Result<bool, FeeStrategyError>;
 }
 
-/// Defines a blockchain network, identifies how to interact with the blockchain.
-pub trait Network: Copy {}
-
-/// Mainnet works with real assets.
-#[derive(Clone, Copy)]
-pub struct Mainnet;
-
-impl Network for Mainnet {}
-
-/// Testnet works with decentralized testing network, assets have no value.
-#[derive(Clone, Copy)]
-pub struct Testnet;
-
-impl Network for Testnet {}
-
-/// Local works with local copy, auto-generated blockchains, assets have no value.
-#[derive(Clone, Copy)]
-pub struct Local;
-
-impl Network for Local {}
+/// Defines a blockchain network, identifies in which context the system interacts with the
+/// blockchain.
+#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum Network {
+    /// Represents a real asset on his valuable network
+    Mainnet,
+    /// Represents non-valuable assets on test networks
+    Testnet,
+    /// Local and private testnets
+    Local,
+}

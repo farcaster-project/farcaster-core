@@ -5,7 +5,6 @@ use farcaster_core::script::{self, *};
 use farcaster_core::transaction::*;
 
 use bitcoin::consensus::encode::serialize_hex;
-use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 
@@ -33,7 +32,7 @@ fn create_funding_generic() {
     let pubkey = PublicKey::from_private_key(&secp, &privkey);
 
     let mut funding = Funding::initialize(pubkey).unwrap();
-    let address = funding.get_address(Network::Regtest).unwrap();
+    let address = funding.get_address(Network::Local).unwrap();
 
     //println!("Address: {:#?}", client.get_address_info(&address).unwrap());
     //println!("Send funds to: {}", address);

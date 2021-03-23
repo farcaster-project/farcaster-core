@@ -1,7 +1,7 @@
 //! Defines and implements all the traits for Monero
 
 use monero::cryptonote::hash::Hash;
-use monero::network::Network;
+//use monero::network::Network;
 use monero::util::key::PrivateKey;
 use monero::util::key::PublicKey;
 
@@ -16,7 +16,7 @@ impl Blockchain for Monero {
     /// Type for the traded asset unit
     type AssetUnit = u64;
 
-    type Network = Network;
+    //type Network = Network;
 
     ///// Type of the blockchain identifier
     //type Id = String;

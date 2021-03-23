@@ -9,14 +9,13 @@ use crate::role::{Accordant, Arbitrating, SwapRole};
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
 /// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
 /// the data needed to a Taker to connect to the Maker's daemon.
-pub struct Offer<Ar, Ac, N>
+pub struct Offer<Ar, Ac>
 where
     Ar: Arbitrating,
     Ac: Accordant,
-    N: Network,
 {
     /// Type of offer and network to use
-    pub network: N,
+    pub network: Network,
     /// The chosen arbitrating blockchain
     pub arbitrating: Ar,
     /// The chosen accordant blockchain
@@ -39,17 +38,15 @@ where
 ///
 /// **This helper works only for buying Arbitrating assets with some Accordant assets**. The
 /// reverse is not implemented for the `Buy` helper. You should use the `Sell` helper.
-pub struct Buy<T, U, N>(BuilderState<T, U, N>)
+pub struct Buy<T, U>(BuilderState<T, U>)
 where
     T: Arbitrating,
-    U: Accordant,
-    N: Network;
+    U: Accordant;
 
-impl<T, U, N> Buy<T, U, N>
+impl<T, U> Buy<T, U>
 where
     T: Arbitrating,
     U: Accordant,
-    N: Network,
 {
     /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
     /// defined in the `with` method.
@@ -82,7 +79,7 @@ where
     }
 
     /// Sets the network for the proposed offer
-    pub fn on(&mut self, network: N) -> &Self {
+    pub fn on(&mut self, network: Network) -> &Self {
         self.0.network = Some(network);
         self
     }
@@ -92,7 +89,7 @@ where
     ///
     /// This function automatically sets the maker swap role as **Alice** to comply with the buy
     /// contract.
-    pub fn to_offer(&mut self) -> Option<Offer<T, U, N>> {
+    pub fn to_offer(&mut self) -> Option<Offer<T, U>> {
         self.0.maker_role = Some(SwapRole::Alice);
         Some(Offer {
             network: self.0.network?,
@@ -112,17 +109,15 @@ where
 ///
 /// **This helper works only for selling Arbitrating assets for some Accordant assets**. The
 /// reverse is not implemented for the `Sell` helper. You should use the `Buy` helper.
-pub struct Sell<T, U, N>(BuilderState<T, U, N>)
+pub struct Sell<T, U>(BuilderState<T, U>)
 where
     T: Arbitrating,
-    U: Accordant,
-    N: Network;
+    U: Accordant;
 
-impl<T, U, N> Sell<T, U, N>
+impl<T, U> Sell<T, U>
 where
     T: Arbitrating,
     U: Accordant,
-    N: Network,
 {
     /// Defines the asset and its amount the maker will send to get the assets defined in the
     /// `for_some` method.
@@ -155,7 +150,7 @@ where
     }
 
     /// Sets the network for the proposed offer
-    pub fn on(&mut self, network: N) -> &Self {
+    pub fn on(&mut self, network: Network) -> &Self {
         self.0.network = Some(network);
         self
     }
@@ -165,7 +160,7 @@ where
     ///
     /// This function automatically sets the maker swap role as **Bob** to comply with the buy
     /// contract.
-    pub fn to_offer(&mut self) -> Option<Offer<T, U, N>> {
+    pub fn to_offer(&mut self) -> Option<Offer<T, U>> {
         self.0.maker_role = Some(SwapRole::Bob);
         Some(Offer {
             network: self.0.network?,
@@ -182,13 +177,12 @@ where
 }
 
 // Internal state of an offer builder
-struct BuilderState<Ar, Ac, N>
+struct BuilderState<Ar, Ac>
 where
     Ar: Arbitrating,
     Ac: Accordant,
-    N: Network,
 {
-    network: Option<N>,
+    network: Option<Network>,
     arbitrating: Option<Ar>,
     accordant: Option<Ac>,
     arbitrating_assets: Option<Ar::AssetUnit>,
@@ -199,13 +193,12 @@ where
     maker_role: Option<SwapRole>,
 }
 
-impl<Ar, Ac, N> Default for BuilderState<Ar, Ac, N>
+impl<Ar, Ac> Default for BuilderState<Ar, Ac>
 where
     Ar: Arbitrating,
     Ac: Accordant,
-    N: Network,
 {
-    fn default() -> BuilderState<Ar, Ac, N> {
+    fn default() -> BuilderState<Ar, Ac> {
         BuilderState {
             network: None,
             arbitrating: None,
@@ -223,13 +216,12 @@ where
 /// A public offer is shared across maker's prefered network to signal is willing of trading some
 /// assets at some conditions. The assets and condition are defined in the offer, the make peer
 /// connection information are happen to the offer the create a public offer.
-pub struct PublicOffer<Ar, Ac, N>
+pub struct PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,
     Ac: Accordant,
-    N: Network,
 {
-    pub offer: Offer<Ar, Ac, N>,
+    pub offer: Offer<Ar, Ac>,
     //pub daemon_service: NodeAddr,
 }
 
@@ -237,7 +229,7 @@ where
 mod tests {
     use super::{Buy, Offer, Sell};
     use crate::bitcoin::{Bitcoin, FeeStrategies, SatPerVByte};
-    use crate::blockchain::{Blockchain, FeeStrategy, Local};
+    use crate::blockchain::{Blockchain, FeeStrategy, Network};
     use crate::monero::Monero;
     use crate::role::SwapRole;
     use bitcoin::util::amount::Amount;
@@ -245,7 +237,7 @@ mod tests {
     #[test]
     fn create_offer() {
         let _ = Offer {
-            network: Local,
+            network: Network::Testnet,
             arbitrating: Bitcoin::new(),
             accordant: Monero::new(),
             arbitrating_assets: Amount::from_sat(1),
@@ -263,7 +255,7 @@ mod tests {
         buy.with(Monero::new(), 200);
         buy.with_timelocks(10, 10);
         buy.with_fee(FeeStrategies::fixed_fee(SatPerVByte::from_sat(20)));
-        buy.on(Local);
+        buy.on(Network::Testnet);
         assert!(buy.to_offer().is_some());
         assert_eq!(
             buy.to_offer().expect("an offer").maker_role,
@@ -277,7 +269,7 @@ mod tests {
         sell.for_some(Monero::new(), 200);
         sell.with_timelocks(10, 10);
         sell.with_fee(FeeStrategies::fixed_fee(SatPerVByte::from_sat(20)));
-        sell.on(Local);
+        sell.on(Network::Testnet);
         assert!(sell.to_offer().is_some());
         assert_eq!(sell.to_offer().expect("an offer").maker_role, SwapRole::Bob);
     }

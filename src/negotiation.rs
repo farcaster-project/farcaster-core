@@ -1,6 +1,7 @@
 //! Negotiation phase utilities
 
 //use internet2::session::node_addr::NodeAddr;
+use thiserror::Error;
 
 use std::io;
 
@@ -9,9 +10,10 @@ use crate::consensus::{self, Decodable, Encodable};
 use crate::role::{Accordant, Arbitrating, SwapRole};
 
 /// First six magic bytes of a public offer
-pub const OFFER_MAGIC_BYTES: &[u8] = b"FCSWAP";
+pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
 /// A public offer version containing the version and the activated features if any.
+#[derive(Debug)]
 pub struct Version(u16);
 
 impl Version {
@@ -44,8 +46,10 @@ impl Decodable for Version {
 }
 
 /// Negotiation errors used when manipulating offers, public offers and its version.
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
     /// The magic bytes of the offer does not match
+    #[error("Incorrect magic bytes")]
     IncorrectMagicBytes,
 }
 
@@ -53,6 +57,7 @@ pub enum Error {
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
 /// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
 /// the data needed to a Taker to connect to the Maker's daemon.
+#[derive(Debug)]
 pub struct Offer<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -78,10 +83,63 @@ where
     pub maker_role: SwapRole,
 }
 
+impl<Ar, Ac> Offer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    /// Transform the offer in a public offer of [Version] 1
+    // TODO inject peer data here
+    pub fn to_public_v1(self) -> PublicOffer<Ar, Ac> {
+        PublicOffer {
+            version: Version::new_v1(),
+            offer: self,
+        }
+    }
+}
+
+impl<Ar, Ac> Encodable for Offer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        let mut len = self.network.consensus_encode(writer)?;
+        len += self.arbitrating.consensus_encode(writer)?;
+        len += self.accordant.consensus_encode(writer)?;
+        len += wrap_in_vec!(wrap arbitrating_assets for self in writer);
+        len += wrap_in_vec!(wrap accordant_assets for self in writer);
+        len += wrap_in_vec!(wrap cancel_timelock for self in writer);
+        len += wrap_in_vec!(wrap punish_timelock for self in writer);
+        len += self.fee_strategy.consensus_encode(writer)?;
+        Ok(len + self.maker_role.consensus_encode(writer)?)
+    }
+}
+
+impl<Ar, Ac> Decodable for Offer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Offer {
+            network: Decodable::consensus_decode(d)?,
+            arbitrating: Decodable::consensus_decode(d)?,
+            accordant: Decodable::consensus_decode(d)?,
+            arbitrating_assets: unwrap_from_vec!(d),
+            accordant_assets: unwrap_from_vec!(d),
+            cancel_timelock: unwrap_from_vec!(d),
+            punish_timelock: unwrap_from_vec!(d),
+            fee_strategy: Decodable::consensus_decode(d)?,
+            maker_role: Decodable::consensus_decode(d)?,
+        })
+    }
+}
+
 /// Helper to create an offer from an arbitrating asset buyer perspective.
 ///
 /// **This helper works only for buying Arbitrating assets with some Accordant assets**. The
-/// reverse is not implemented for the `Buy` helper. You should use the `Sell` helper.
+/// reverse is not implemented for the [Buy] helper. You should use the [Sell] helper.
 pub struct Buy<T, U>(BuilderState<T, U>)
 where
     T: Arbitrating,
@@ -152,7 +210,7 @@ where
 /// Helper to create an offer from an arbitrating asset seller perspective.
 ///
 /// **This helper works only for selling Arbitrating assets for some Accordant assets**. The
-/// reverse is not implemented for the `Sell` helper. You should use the `Buy` helper.
+/// reverse is not implemented for the [Sell] helper. You should use the [Buy] helper.
 pub struct Sell<T, U>(BuilderState<T, U>)
 where
     T: Arbitrating,
@@ -260,6 +318,7 @@ where
 /// A public offer is shared across maker's prefered network to signal is willing of trading some
 /// assets at some conditions. The assets and condition are defined in the offer, the make peer
 /// connection information are happen to the offer the create a public offer.
+#[derive(Debug)]
 pub struct PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -272,28 +331,61 @@ where
     //pub daemon_service: NodeAddr,
 }
 
+impl<Ar, Ac> Encodable for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        let mut len = OFFER_MAGIC_BYTES.consensus_encode(writer)?;
+        len += self.version.consensus_encode(writer)?;
+        Ok(len + self.offer.consensus_encode(writer)?)
+    }
+}
+
+impl<Ar, Ac> Decodable for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let magic_bytes: [u8; 6] = Decodable::consensus_decode(d)?;
+        if magic_bytes != *OFFER_MAGIC_BYTES {
+            return Err(consensus::Error::Negotiation(Error::IncorrectMagicBytes));
+        }
+        Ok(PublicOffer {
+            version: Decodable::consensus_decode(d)?,
+            offer: Decodable::consensus_decode(d)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Buy, Offer, Sell};
+    use super::{Buy, Offer, PublicOffer, Sell};
     use crate::bitcoin::{Bitcoin, CSVTimelock, SatPerVByte};
     use crate::blockchain::{Blockchain, FeeStrategy, Network};
+    use crate::consensus::{self, deserialize, serialize_hex};
     use crate::monero::Monero;
     use crate::role::SwapRole;
     use bitcoin::util::amount::Amount;
 
     #[test]
     fn create_offer() {
-        let _ = Offer {
+        let hex = "020000008080000080080500000000000000080600000000000000040700000004080000000108090000000000000002";
+        let offer = Offer {
             network: Network::Testnet,
             arbitrating: Bitcoin::new(),
             accordant: Monero::new(),
-            arbitrating_assets: Amount::from_sat(1),
-            accordant_assets: 200,
-            cancel_timelock: CSVTimelock::new(10),
-            punish_timelock: CSVTimelock::new(10),
-            fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(20)),
-            maker_role: SwapRole::Alice,
+            arbitrating_assets: Amount::from_sat(5),
+            accordant_assets: 6,
+            cancel_timelock: CSVTimelock::new(7),
+            punish_timelock: CSVTimelock::new(8),
+            fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
+            maker_role: SwapRole::Bob,
         };
+
+        assert_eq!(hex, serialize_hex(&offer));
     }
 
     #[test]
@@ -318,5 +410,33 @@ mod tests {
             .to_offer();
         assert!(offer.is_some());
         assert_eq!(offer.expect("an offer").maker_role, SwapRole::Bob);
+    }
+
+    #[test]
+    fn serialize_public_offer() {
+        let hex = "464353574150010002000000808000008008a08601000000000008c800000000000000040a000000040a0000000108140000000000000002";
+        let offer = Sell::some(Bitcoin::new(), Amount::from_sat(100000))
+            .for_some(Monero::new(), 200)
+            .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
+            .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
+            .on(Network::Testnet)
+            .to_offer()
+            .unwrap();
+        let public_offer = offer.to_public_v1();
+
+        assert_eq!(hex, serialize_hex(&public_offer));
+    }
+
+    #[test]
+    fn check_public_offer_magic_bytes() {
+        let valid = "464353574150010002000000808000008008a08601000000000008c800000000000000040a000000040a0000000108140000000000000002";
+        let pub_offer: Result<PublicOffer<Bitcoin, Monero>, consensus::Error> =
+            deserialize(&hex::decode(valid).unwrap()[..]);
+        assert!(pub_offer.is_ok());
+
+        let invalid = "474353574150010002000000808000008008a08601000000000008c800000000000000040a000000040a0000000108140000000000000002";
+        let pub_offer: Result<PublicOffer<Bitcoin, Monero>, consensus::Error> =
+            deserialize(&hex::decode(invalid).unwrap()[..]);
+        assert!(pub_offer.is_err());
     }
 }

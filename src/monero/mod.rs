@@ -9,7 +9,7 @@ use crate::blockchain::Blockchain;
 use crate::crypto::{Commitment, Curve, Keys};
 use crate::role::Accordant;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Monero;
 
 impl Blockchain for Monero {

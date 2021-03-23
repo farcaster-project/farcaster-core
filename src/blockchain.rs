@@ -3,15 +3,16 @@
 //! A blockchain must identify the block chain (or equivalent), e.g. with the genesis hash, and the
 //! asset, e.g. for Etherum blockchain assets can be eth or dai.
 
+use std::fmt::Debug;
 use std::io;
 use std::ops::Range;
 
 use crate::consensus::{self, Decodable, Encodable};
 
 /// Base trait for defining a blockchain and its asset type.
-pub trait Blockchain: Copy + Encodable + Decodable {
+pub trait Blockchain: Copy + Debug + Encodable + Decodable {
     /// Type for the traded asset unit
-    type AssetUnit: Copy + Encodable + Decodable;
+    type AssetUnit: Copy + Debug + Encodable + Decodable;
 
     /// Create a new blockchain
     fn new() -> Self;
@@ -56,7 +57,7 @@ pub trait Onchain {
 /// Define the unit type used for setting/validating blockchain fees.
 pub trait FeeUnit {
     /// Type for describing the fees of a blockchain
-    type FeeUnit: Clone + PartialOrd + PartialEq;
+    type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable;
 }
 
 /// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
@@ -64,36 +65,31 @@ pub trait FeeUnit {
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
+#[derive(Debug)]
 pub enum FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq,
+    T: Clone + PartialOrd + PartialEq + Encodable + Decodable,
 {
     /// A fixed strategy with the exact amount to set
     Fixed(T),
-    /// A range with a minimum and maximum [inclusive] possible fees
+    /// A range with a minimum and maximum (inclusive) possible fees
     Range(Range<T>),
 }
 
 impl<T> Encodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Encodable,
+    T: Clone + PartialOrd + PartialEq + Encodable + Decodable,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
             FeeStrategy::Fixed(t) => {
                 0x01u8.consensus_encode(writer)?;
-                let mut encoder = io::Cursor::new(vec![]);
-                t.consensus_encode(&mut encoder)?;
-                Ok(encoder.into_inner().consensus_encode(writer)? + 1)
+                Ok(wrap_in_vec!(wrap t in writer) + 1)
             }
             FeeStrategy::Range(Range { start, end }) => {
                 0x02u8.consensus_encode(writer)?;
-                let mut encoder = io::Cursor::new(vec![]);
-                start.consensus_encode(&mut encoder)?;
-                let len = encoder.into_inner().consensus_encode(writer)?;
-                let mut encoder = io::Cursor::new(vec![]);
-                end.consensus_encode(&mut encoder)?;
-                Ok(encoder.into_inner().consensus_encode(writer)? + len + 1)
+                let len = wrap_in_vec!(wrap start in writer);
+                Ok(wrap_in_vec!(wrap end in writer) + len + 1)
             }
         }
     }
@@ -101,24 +97,14 @@ where
 
 impl<T> Decodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Decodable,
+    T: Clone + PartialOrd + PartialEq + Encodable + Decodable,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         match Decodable::consensus_decode(d)? {
-            0x01u8 => {
-                let fixed: Vec<u8> = Decodable::consensus_decode(d)?;
-                let mut reader = io::Cursor::new(fixed);
-                Ok(FeeStrategy::Fixed(Decodable::consensus_decode(
-                    &mut reader,
-                )?))
-            }
+            0x01u8 => Ok(FeeStrategy::Fixed(unwrap_from_vec!(d))),
             0x02u8 => {
-                let start: Vec<u8> = Decodable::consensus_decode(d)?;
-                let mut reader = io::Cursor::new(start);
-                let start = Decodable::consensus_decode(&mut reader)?;
-                let end: Vec<u8> = Decodable::consensus_decode(d)?;
-                let mut reader = io::Cursor::new(end);
-                let end = Decodable::consensus_decode(&mut reader)?;
+                let start = unwrap_from_vec!(d);
+                let end = unwrap_from_vec!(d);
                 Ok(FeeStrategy::Range(Range { start, end }))
             }
             _ => Err(consensus::Error::UnknownType),

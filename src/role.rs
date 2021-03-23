@@ -1,5 +1,6 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
+use std::fmt::Debug;
 use std::io;
 
 use crate::blockchain::{Blockchain, Fee, Onchain};
@@ -75,7 +76,7 @@ pub trait Arbitrating:
     type Address;
 
     //// Defines the type of timelock used for the arbitrating transactions
-    type Timelock: Copy + Encodable + Decodable;
+    type Timelock: Copy + Debug + Encodable + Decodable;
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor

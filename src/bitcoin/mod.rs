@@ -20,7 +20,7 @@ use crate::role::Arbitrating;
 
 pub mod transaction;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Bitcoin;
 
 impl Blockchain for Bitcoin {
@@ -64,24 +64,19 @@ impl Blockchain for Bitcoin {
 
 impl Encodable for Amount {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        // 64 bits value
-        8u8.consensus_encode(writer)?;
         bitcoin::consensus::encode::Encodable::consensus_encode(&self.as_sat(), writer)
     }
 }
 
 impl Decodable for Amount {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let len: u8 = Decodable::consensus_decode(d)?;
-        // 64 bits value
-        debug_assert_eq!(len, 8);
         let sats: u64 = bitcoin::consensus::encode::Decodable::consensus_decode(d)
             .map_err(|_| consensus::Error::ParseFailed("Bitcoin amount parsing failed"))?;
         Ok(Amount::from_sat(sats))
     }
 }
 
-#[derive(Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, PartialOrd, PartialEq)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {
@@ -95,6 +90,19 @@ impl SatPerVByte {
 
     pub fn as_native_unit(&self) -> Amount {
         self.0
+    }
+}
+
+impl Encodable for SatPerVByte {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        self.0.consensus_encode(writer)
+    }
+}
+
+impl Decodable for SatPerVByte {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let amount: Amount = Decodable::consensus_decode(d)?;
+        Ok(SatPerVByte(amount))
     }
 }
 
@@ -183,17 +191,12 @@ impl CSVTimelock {
 
 impl Encodable for CSVTimelock {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        // 32 bits value
-        4u8.consensus_encode(writer)?;
         bitcoin::consensus::encode::Encodable::consensus_encode(&self.0, writer)
     }
 }
 
 impl Decodable for CSVTimelock {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let len: u8 = Decodable::consensus_decode(d)?;
-        // 32 bits value
-        debug_assert_eq!(len, 4);
         let timelock: u32 = bitcoin::consensus::encode::Decodable::consensus_decode(d)
             .map_err(|_| consensus::Error::ParseFailed("Bitcoin u32 timelock parsing failed"))?;
         Ok(CSVTimelock(timelock))

@@ -38,6 +38,17 @@ impl Blockchain for Monero {
     fn new() -> Self {
         Monero {}
     }
+
+    fn from_u32(bytes: u32) -> Option<Self> {
+        match bytes {
+            0x80000080 => Some(Self::new()),
+            _ => None,
+        }
+    }
+
+    fn to_u32(&self) -> u32 {
+        0x80000080
+    }
 }
 
 pub struct Ed25519;

@@ -11,6 +11,7 @@ pub mod protocol_message;
 pub mod role;
 //pub mod session;
 pub mod bitcoin;
+pub mod consensus;
 pub mod monero;
 pub mod script;
 pub mod swap;

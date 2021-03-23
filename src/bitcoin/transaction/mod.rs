@@ -12,8 +12,8 @@ use bitcoin::util::bip143::SigHashCache;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
-use crate::bitcoin::{Bitcoin, FeeStrategies, PDLEQ};
-use crate::blockchain::{Fee, FeePolitic, FeeStrategyError, Network};
+use crate::bitcoin::{Bitcoin, SatPerVByte, PDLEQ};
+use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError, Network};
 use crate::script;
 use crate::transaction::{
     AdaptorSignable, Broadcastable, Buyable, Cancelable, Failable, Forkable, Fundable, Linkable,
@@ -192,7 +192,7 @@ impl Lockable<Bitcoin> for Tx<Lock> {
     fn initialize(
         prev: &impl Fundable<Bitcoin, Output = MetadataFundingOutput, Error = Error>,
         lock: script::DataLock<Bitcoin>,
-        fee_strategy: &FeeStrategies,
+        fee_strategy: &FeeStrategy<SatPerVByte>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Error> {
         let script = Builder::new()
@@ -203,7 +203,7 @@ impl Lockable<Bitcoin> for Tx<Lock> {
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
             .push_opcode(opcodes::all::OP_CHECKMULTISIG)
             .push_opcode(opcodes::all::OP_ELSE)
-            .push_int(lock.timelock.into())
+            .push_int(lock.timelock.as_u32().into())
             .push_opcode(opcodes::all::OP_CSV)
             .push_opcode(opcodes::all::OP_DROP)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
@@ -348,7 +348,7 @@ impl Buyable<Bitcoin> for Tx<Buy> {
     fn initialize(
         _prev: &impl Lockable<Bitcoin, Output = MetadataFundingOutput>,
         _destination_target: Address,
-        _fee_strategy: &FeeStrategies,
+        _fee_strategy: &FeeStrategy<SatPerVByte>,
         _fee_politic: FeePolitic,
     ) -> Result<Self, Error> {
         todo!()
@@ -403,7 +403,7 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
     fn initialize(
         prev: &impl Lockable<Bitcoin, Output = MetadataFundingOutput, Error = Error>,
         lock: script::DataPunishableLock<Bitcoin>,
-        fee_strategy: &FeeStrategies,
+        fee_strategy: &FeeStrategy<SatPerVByte>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Error> {
         let script = Builder::new()
@@ -414,7 +414,7 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
             .push_opcode(opcodes::all::OP_CHECKMULTISIG)
             .push_opcode(opcodes::all::OP_ELSE)
-            .push_int(lock.timelock.into())
+            .push_int(lock.timelock.as_u32().into())
             .push_opcode(opcodes::all::OP_CSV)
             .push_opcode(opcodes::all::OP_DROP)
             .push_key(&lock.failure)
@@ -487,7 +487,7 @@ impl Refundable<Bitcoin> for Tx<Refund> {
     fn initialize(
         prev: &impl Cancelable<Bitcoin, Output = MetadataFundingOutput, Error = Error>,
         refund_target: Address,
-        fee_strategy: &FeeStrategies,
+        fee_strategy: &FeeStrategy<SatPerVByte>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Error> {
         let output_metadata = prev.get_consumable_output()?;
@@ -568,7 +568,7 @@ impl Punishable<Bitcoin> for Tx<Punish> {
     fn initialize(
         _prev: &impl Cancelable<Bitcoin, Output = MetadataFundingOutput>,
         _destination_target: Address,
-        _fee_strategy: &FeeStrategies,
+        _fee_strategy: &FeeStrategy<SatPerVByte>,
         _fee_politic: FeePolitic,
     ) -> Result<Self, Error> {
         todo!()
@@ -636,7 +636,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitcoin::{FeeStrategies, SatPerVByte};
+    use crate::bitcoin::{CSVTimelock, SatPerVByte};
     use crate::blockchain::FeeStrategy;
     use crate::script::DoubleKeys;
 
@@ -685,18 +685,18 @@ mod tests {
         funding.update(funding_tx_seen).unwrap();
 
         let datalock = script::DataLock {
-            timelock: 10,
+            timelock: CSVTimelock::new(10),
             success: DoubleKeys::new(pubkey, pubkey),
             failure: DoubleKeys::new(pubkey, pubkey),
         };
 
-        let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(20));
+        let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(20));
         let politic = FeePolitic::Aggressive;
 
         let mut lock = Tx::<Lock>::initialize(&funding, datalock, &fee, politic).unwrap();
 
         let datapunishablelock = script::DataPunishableLock {
-            timelock: 10,
+            timelock: CSVTimelock::new(10),
             success: DoubleKeys::new(pubkey, pubkey),
             failure: pubkey,
         };

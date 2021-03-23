@@ -46,12 +46,12 @@ fn create_funding_generic() {
     funding.update(funding_tx_seen).unwrap();
 
     let datalock = script::DataLock {
-        timelock: 10,
+        timelock: CSVTimelock::new(10),
         success: DoubleKeys::new(pubkey, pubkey),
         failure: DoubleKeys::new(pubkey, pubkey),
     };
 
-    let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(50));
+    let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(50));
     let politic = FeePolitic::Aggressive;
 
     println!("{:#?}", funding);
@@ -59,7 +59,7 @@ fn create_funding_generic() {
     //println!("{:#?}", lock);
 
     let datapunishablelock = script::DataPunishableLock {
-        timelock: 10,
+        timelock: CSVTimelock::new(10),
         success: DoubleKeys::new(pubkey, pubkey),
         failure: pubkey,
     };

@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 
-use crate::blockchain::{FeePolitic, Network};
+use crate::blockchain::{FeePolitic, FeeStrategy, Network};
 use crate::role::Arbitrating;
 use crate::script;
 
@@ -185,7 +185,7 @@ where
     fn initialize(
         prev: &impl Fundable<Ar, Output = Self::Input, Error = Self::Error>,
         lock: script::DataLock<Ar>,
-        fee_strategy: &Ar::FeeStrategy,
+        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 }
@@ -212,7 +212,7 @@ where
     fn initialize(
         prev: &impl Lockable<Ar, Output = Self::Input, Error = Self::Error>,
         destination_target: Ar::Address,
-        fee_strategy: &Ar::FeeStrategy,
+        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 }
@@ -239,7 +239,7 @@ where
     fn initialize(
         prev: &impl Lockable<Ar, Output = Self::Input, Error = Self::Error>,
         lock: script::DataPunishableLock<Ar>,
-        fee_strategy: &Ar::FeeStrategy,
+        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 }
@@ -265,7 +265,7 @@ where
     fn initialize(
         prev: &impl Cancelable<Ar, Output = Self::Input, Error = Self::Error>,
         refund_target: Ar::Address,
-        fee_strategy: &Ar::FeeStrategy,
+        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 }
@@ -293,7 +293,7 @@ where
     fn initialize(
         prev: &impl Cancelable<Ar, Output = Self::Input, Error = Self::Error>,
         destination_target: Ar::Address,
-        fee_strategy: &Ar::FeeStrategy,
+        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 }

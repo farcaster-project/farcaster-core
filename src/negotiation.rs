@@ -2,8 +2,52 @@
 
 //use internet2::session::node_addr::NodeAddr;
 
-use crate::blockchain::Network;
+use std::io;
+
+use crate::blockchain::{FeeStrategy, Network};
+use crate::consensus::{self, Decodable, Encodable};
 use crate::role::{Accordant, Arbitrating, SwapRole};
+
+/// First six magic bytes of a public offer
+pub const OFFER_MAGIC_BYTES: &[u8] = b"FCSWAP";
+
+/// A public offer version containing the version and the activated features if any.
+pub struct Version(u16);
+
+impl Version {
+    /// Create a new version 1 public offer
+    pub fn new_v1() -> Self {
+        Self::new(1)
+    }
+
+    /// Create a public offer from a raw version and feature `u16`
+    pub fn new(version: u16) -> Self {
+        Version(version)
+    }
+
+    /// Version and features as `u16`
+    pub fn to_u16(&self) -> u16 {
+        self.0
+    }
+}
+
+impl Encodable for Version {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        self.to_u16().consensus_encode(writer)
+    }
+}
+
+impl Decodable for Version {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self::new(Decodable::consensus_decode(d)?))
+    }
+}
+
+/// Negotiation errors used when manipulating offers, public offers and its version.
+pub enum Error {
+    /// The magic bytes of the offer does not match
+    IncorrectMagicBytes,
+}
 
 /// An offer is created by a Maker before the start of his daemon, it references all the data
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
@@ -29,7 +73,7 @@ where
     /// The punish timelock parameter of the arbitrating blockchain
     pub punish_timelock: Ar::Timelock,
     /// The chosen fee strategy for the arbitrating transactions
-    pub fee_strategy: Ar::FeeStrategy,
+    pub fee_strategy: FeeStrategy<Ar::FeeUnit>,
     /// The future maker swap role
     pub maker_role: SwapRole,
 }
@@ -73,7 +117,7 @@ where
     }
 
     /// Sets the fee strategy for the proposed offer
-    pub fn with_fee(mut self, strategy: T::FeeStrategy) -> Self {
+    pub fn with_fee(mut self, strategy: FeeStrategy<T::FeeUnit>) -> Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
@@ -144,7 +188,7 @@ where
     }
 
     /// Sets the fee strategy for the proposed offer
-    pub fn with_fee(mut self, strategy: T::FeeStrategy) -> Self {
+    pub fn with_fee(mut self, strategy: FeeStrategy<T::FeeUnit>) -> Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
@@ -189,7 +233,7 @@ where
     accordant_assets: Option<Ac::AssetUnit>,
     cancel_timelock: Option<Ar::Timelock>,
     punish_timelock: Option<Ar::Timelock>,
-    fee_strategy: Option<Ar::FeeStrategy>,
+    fee_strategy: Option<FeeStrategy<Ar::FeeUnit>>,
     maker_role: Option<SwapRole>,
 }
 
@@ -221,6 +265,9 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
+    /// The public offer version
+    pub version: Version,
+    /// The content of the offer
     pub offer: Offer<Ar, Ac>,
     //pub daemon_service: NodeAddr,
 }
@@ -228,7 +275,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{Buy, Offer, Sell};
-    use crate::bitcoin::{Bitcoin, FeeStrategies, SatPerVByte};
+    use crate::bitcoin::{Bitcoin, CSVTimelock, SatPerVByte};
     use crate::blockchain::{Blockchain, FeeStrategy, Network};
     use crate::monero::Monero;
     use crate::role::SwapRole;
@@ -242,9 +289,9 @@ mod tests {
             accordant: Monero::new(),
             arbitrating_assets: Amount::from_sat(1),
             accordant_assets: 200,
-            cancel_timelock: 10,
-            punish_timelock: 10,
-            fee_strategy: FeeStrategies::fixed_fee(SatPerVByte::from_sat(20)),
+            cancel_timelock: CSVTimelock::new(10),
+            punish_timelock: CSVTimelock::new(10),
+            fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(20)),
             maker_role: SwapRole::Alice,
         };
     }
@@ -253,8 +300,8 @@ mod tests {
     fn maker_buy_arbitrating_assets_offer() {
         let offer = Buy::some(Bitcoin::new(), Amount::from_sat(100000))
             .with(Monero::new(), 200)
-            .with_timelocks(10, 10)
-            .with_fee(FeeStrategies::fixed_fee(SatPerVByte::from_sat(20)))
+            .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
+            .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
             .on(Network::Testnet)
             .to_offer();
         assert!(offer.is_some());
@@ -265,8 +312,8 @@ mod tests {
     fn maker_sell_arbitrating_assets_offer() {
         let offer = Sell::some(Bitcoin::new(), Amount::from_sat(100000))
             .for_some(Monero::new(), 200)
-            .with_timelocks(10, 10)
-            .with_fee(FeeStrategies::fixed_fee(SatPerVByte::from_sat(20)))
+            .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
+            .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
             .on(Network::Testnet)
             .to_offer();
         assert!(offer.is_some());

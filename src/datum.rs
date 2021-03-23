@@ -1,4 +1,4 @@
-use crate::blockchain::Fee;
+use crate::blockchain::{Fee, FeeStrategy};
 use crate::crypto::{self, Keys, Signatures};
 use crate::role::{Accordant, Arbitrating, SwapRole};
 use crate::transaction::TxId;
@@ -46,5 +46,5 @@ where
     RefundAddress(Ar::Address),
     CancelTimelock(Ar::Timelock),
     PunishTimelock(Ar::Timelock),
-    FeeStrategy(Ar::FeeStrategy),
+    FeeStrategy(FeeStrategy<Ar::FeeUnit>),
 }

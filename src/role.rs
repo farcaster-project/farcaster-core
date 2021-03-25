@@ -5,7 +5,8 @@ use std::io;
 
 use crate::blockchain::{Blockchain, Fee, Onchain};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{Commitment, Curve, Keys, Script, Signatures};
+use crate::crypto::{Commitment, Curve, Keys, Script, Signatures, PrivateViewKey};
+use strict_encoding::{StrictEncode, StrictDecode};
 
 /// Defines all possible negociation roles: maker and taker.
 pub enum NegotiationRole {
@@ -73,11 +74,10 @@ pub trait Arbitrating:
     Blockchain + Keys + Commitment + Signatures + Curve + Script + Onchain + Fee + Clone
 {
     /// Defines the address format for the arbitrating blockchain
-    type Address;
+    type Address: StrictEncode + StrictDecode;
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock: Copy + Debug + Encodable + Decodable;
 }
-
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
-pub trait Accordant: Blockchain + Keys + Curve + Commitment + Clone {}
+pub trait Accordant: Blockchain + Keys + Curve + Commitment + Clone + PrivateViewKey {}

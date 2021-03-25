@@ -45,10 +45,11 @@ impl<T: Blockchain> Decodable for T {
 }
 
 /// Defines the types a blockchain needs to interact onchain, i.e. the transaction types.
+use strict_encoding::{StrictEncode, StrictDecode};
 pub trait Onchain {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
-    type PartialTransaction;
+    type PartialTransaction: StrictEncode + StrictDecode;
 
     /// Defines the finalized transaction format for the arbitrating blockchain
     type Transaction;

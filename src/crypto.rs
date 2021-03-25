@@ -33,12 +33,14 @@ where
     Regular(Ar::Signature),
 }
 
-pub enum Proof<Ar, Ac>
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub struct Proof<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Curve,
+    Ac: Curve,
 {
-    CrossGroupDLEQ(Box<dyn CrossGroupDLEQ<Ar, Ac>>),
+    pair: (Ar::Curve, Ac::Curve),
 }
 
 /// This trait is defined for blockchains once per cryptographic engine wanted and allow a
@@ -54,18 +56,22 @@ pub trait Keys {
     type PublicKey: StrictEncode + StrictDecode;
 }
 
+pub trait PrivateViewKey {
+    type PrivateViewKey: StrictEncode + StrictDecode;
+}
+
 pub trait Commitment {
     /// Commitment type given the blockchain and the crypto engine
-    type Commitment: StrictDecode + StrictEncode;
+    type Commitment: StrictEncode + StrictDecode;
 }
 
 pub trait Signatures {
     /// Defines the signature format for the arbitrating blockchain
-    type Signature;
+    type Signature: StrictEncode + StrictDecode;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic engine used.
-    type AdaptorSignature;
+    type AdaptorSignature: StrictEncode + StrictDecode;
 }
 
 /// Defines a type of cryptography used inside arbitrating transactions to validate the
@@ -84,9 +90,9 @@ where
 
 /// Eliptic curve ed25519 or secp256k1
 pub trait Curve {
-    type Curve;
+    type Curve: StrictEncode + StrictDecode + Clone + std::fmt::Debug;
+    fn curve(&self) -> Self::Curve;
 }
-
 /// Defines the means of arbitration, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
 pub trait Script {
     type Script;

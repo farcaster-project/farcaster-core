@@ -3,18 +3,20 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use bitcoin::hash_types::PubkeyHash;  // DELETEME encoding test
 use monero::cryptonote::hash::Hash;
+use crate::blockchain::Blockchain;
+use crate::crypto::{Commitment, Curve, Keys, PrivateViewKey};
+use crate::role::Accordant;
+use bitcoin::hash_types::PubkeyHash; // DELETEME encoding test
+use monero::network::Network;
 use monero::util::key::PrivateKey;
 use monero::util::key::PublicKey;
-
-use crate::blockchain::Blockchain;
-use crate::crypto::{Commitment, Curve, Keys};
-use crate::role::Accordant;
+use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Monero;
 
 impl Display for Monero {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
         println!("xmr");
         Ok(())
     }
@@ -41,10 +43,14 @@ impl Blockchain for Monero {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Ed25519;
 
 impl Curve for Monero {
     type Curve = Ed25519;
+    fn curve(&self) -> Self::Curve {
+        todo!()
+    }
 }
 
 impl Accordant for Monero {}
@@ -55,6 +61,10 @@ impl Keys for Monero {
 
     /// Public key type for the blockchain
     type PublicKey = PublicKey;
+}
+
+impl PrivateViewKey for Monero {
+    type PrivateViewKey = PrivateKey;
 }
 
 impl Commitment for Monero {

@@ -2,11 +2,10 @@
 
 use crate::crypto::{Commitment, Proof, Signatures, Curve};
 use crate::role::{Accordant, Arbitrating};
+use strict_encoding::{StrictDecode, StrictEncode};
 
 /// Trait for defining inter-daemon communication messages.
-pub trait ProtocolMessage {}
-
-use strict_encoding::{StrictDecode, StrictEncode};
+pub trait ProtocolMessage: StrictEncode + StrictDecode {}
 
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
@@ -187,7 +186,7 @@ impl<Ar> ProtocolMessage for RefundProcedureSignatures<Ar> where Ar: Arbitrating
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-    #[strict_encoding_crate(strict_encoding)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct BuyProcedureSignature<Ar>
 where
     Ar: Arbitrating,
@@ -202,6 +201,9 @@ impl<Ar> ProtocolMessage for BuyProcedureSignature<Ar> where Ar: Arbitrating {}
 
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
+
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct Abort {
     /// OPTIONAL `body`: error code | string
     pub error_body: Option<String>,

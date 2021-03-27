@@ -19,19 +19,12 @@ use crate::monero::{Ed25519, Monero};
 use monero::cryptonote::hash::Hash;
 
 use crate::role::Arbitrating;
-use std::fmt::{self, Debug, Display, Formatter};
+use std::fmt::Debug;
 
 pub mod transaction;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Bitcoin;
-
-impl Display for Bitcoin {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        println!("btc");
-        Ok(())
-    }
-}
 
 impl Blockchain for Bitcoin {
     /// Type for the traded asset unit

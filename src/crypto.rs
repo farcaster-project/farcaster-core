@@ -1,6 +1,5 @@
 //! Cryptographic type definitions and primitives supported in Farcaster
 
-use crate::role::{Accordant, Arbitrating};
 use strict_encoding::{StrictDecode, StrictEncode};
 
 pub enum Key<Ar, Ac>

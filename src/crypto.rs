@@ -91,7 +91,6 @@ where
 /// Eliptic curve ed25519 or secp256k1
 pub trait Curve {
     type Curve: StrictEncode + StrictDecode + Clone + std::fmt::Debug;
-    fn curve(&self) -> Self::Curve;
 }
 /// Defines the means of arbitration, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
 pub trait Script {

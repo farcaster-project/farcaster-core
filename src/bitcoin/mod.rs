@@ -16,6 +16,8 @@ use crate::blockchain::{
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures, Proof};
 use crate::monero::{Ed25519, Monero};
+use monero::cryptonote::hash::Hash;
+
 use crate::role::Arbitrating;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -208,9 +210,6 @@ pub struct Secp256k1;
 impl Curve for Bitcoin {
     /// Eliptic curve
     type Curve = Secp256k1;
-    fn curve(&self) -> Self::Curve {
-        todo!()
-    }
 }
 
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
@@ -228,15 +227,9 @@ use strict_encoding::{StrictDecode, StrictEncode};
 #[derive(Clone, Debug)]
 pub struct PDLEQ;
 
-impl PDLEQ {
-    fn to_bytes(&self) -> Vec<u8> {
-        "PDLEQ".to_string().into_bytes()
-    }
-}
-
 impl StrictEncode for PDLEQ {
     fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        let res = self.to_bytes();
+        let res = Hash::hash(&"Farcaster PDLEQ".as_bytes()).to_bytes();
         e.write(&res)?;
         Ok(res.len())
     }
@@ -244,13 +237,14 @@ impl StrictEncode for PDLEQ {
 
 impl StrictDecode for PDLEQ {
     fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        let mut buf = [0u8; 8];
+        let mut buf = [0u8; 32];
         d.read_exact(&mut buf)?;
-        if "PDLEQ".to_string().into_bytes() == buf {
+        let expected = Hash::hash(&"Farcaster PDLEQ".as_bytes()).to_bytes();
+        if expected == buf {
             Ok(PDLEQ)
         } else {
             Err(strict_encoding::Error::DataIntegrityError(
-                "string recovered mismatch PDLEQ string".to_string(),
+                "Not PDLEQ type".to_string(),
             ))
         }
     }
@@ -283,42 +277,9 @@ impl Signatures for Bitcoin {
 
 pub struct RingSignatureProof;
 
-impl Ed25519 {
-    fn to_bytes(&self) -> Vec<u8> {
-        "Ed25519".to_string().into_bytes()
-    }
-}
-
-impl Secp256k1 {
-    fn to_bytes(&self) -> Vec<u8> {
-        "Secp256k1".to_string().into_bytes()
-    }
-}
-
-impl StrictEncode for Ed25519 {
-    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        let res = self.to_bytes();
-        e.write(&res)?;
-        Ok(res.len())
-    }
-}
-
-impl StrictDecode for Ed25519 {
-    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        let mut buf = [0u8; 8];
-        d.read_exact(&mut buf)?;
-        if "Ed25519".to_string().into_bytes() == buf {
-            Ok(Ed25519)
-        } else {
-            Err(strict_encoding::Error::DataIntegrityError(
-                "string recovered mismatch Ed25519 string".to_string(),
-            ))
-        }
-    }
-}
 impl StrictEncode for Secp256k1 {
     fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        let res = self.to_bytes();
+        let res = Hash::hash(&"Farcaster Secp256k1".as_bytes()).to_bytes();
         e.write(&res)?;
         Ok(res.len())
     }
@@ -326,13 +287,14 @@ impl StrictEncode for Secp256k1 {
 
 impl StrictDecode for Secp256k1 {
     fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        let mut buf = [0u8; 8];
+        let mut buf = [0u8; 32];
         d.read_exact(&mut buf)?;
-        if "Secp256k1".to_string().into_bytes() == buf {
-            Ok(Secp256k1)
+        let expected = Hash::hash(&"Farcaster Secp256k1".as_bytes()).to_bytes();
+        if expected == buf {
+            Ok(Self)
         } else {
             Err(strict_encoding::Error::DataIntegrityError(
-                "string recovered mismatch PDLEQ string".to_string(),
+                "Not Secp256k1 type".to_string(),
             ))
         }
     }

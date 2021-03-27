@@ -8,15 +8,6 @@ pub trait ProtocolMessage {}
 
 use strict_encoding::{StrictDecode, StrictEncode};
 
-pub trait ProtMsg {}
-
-impl<Ar, Ac> ProtMsg for CommitAliceSessionParams<Ar, Ac>
-where
-    Ar: Commitment,
-    Ac: Commitment,
-{
-}
-
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]

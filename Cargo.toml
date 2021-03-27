@@ -16,11 +16,10 @@ rand_core = { version = "^0.5.0", features = ["getrandom"] }
 thiserror = "1.0.24"
 
 # monero = "0.10.0"
-monero = { git = "https://github.com/monero-rs/monero-rs", branch = "master"}
+monero = { git = "https://github.com/zkao/monero-rs", branch = "strict_encoding"}
 
 # node
-# lnpbp = { git = "https://github.com/zkao/rust-lnpbp.git", branch = "farcaster_encoding" }
-strict_encoding = { path = "../alt/rust-lnpbp/strict_encoding" }
+strict_encoding = "1.2.1"
 
 [dev-dependencies]
 bitcoincore-rpc = "0.13.0"

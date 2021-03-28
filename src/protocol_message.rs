@@ -135,7 +135,7 @@ where
     /// The `K_s^b` spend public key
     pub view: Ac::PrivateViewKey,
     // /// The cross-group discrete logarithm zero-knowledge proof
-    // pub proof: Proof<Ar, Ac>, // FIXME
+    pub proof: Proof<Ar, Ac>,
 }
 
 impl<Ar, Ac> ProtocolMessage for RevealBobSessionParams<Ar, Ac>
@@ -159,7 +159,7 @@ where
     pub cancel: Ar::PartialTransaction,
     /// The arbitrating `refund (e)` transaction
     pub refund: Ar::PartialTransaction,
-    // /// The `Bc` `cancel (d)` signature
+    /// The `Bc` `cancel (d)` signature
     pub cancel_sig: Ar::Signature, 
 }
 

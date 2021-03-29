@@ -6,13 +6,13 @@ use bitcoin::blockdata::script::{Builder, Script};
 use bitcoin::blockdata::transaction::{OutPoint, SigHashType, TxIn, TxOut};
 use bitcoin::hashes::sha256d::Hash;
 use bitcoin::network::constants::Network as BtcNetwork;
-use bitcoin::secp256k1::{Message, Secp256k1, SerializedSignature, Signing};
+use bitcoin::secp256k1::{Message, Secp256k1, Signature, Signing};
 use bitcoin::util::address::{self, Address};
 use bitcoin::util::bip143::SigHashCache;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
-use crate::bitcoin::{Bitcoin, SatPerVByte, PDLEQ};
+use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig, SatPerVByte};
 use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError, Network};
 use crate::script;
 use crate::transaction::{
@@ -290,7 +290,7 @@ impl<'a> AsRef<TxIn> for TxInRef<'a> {
 }
 
 impl Signable<Bitcoin> for Tx<Lock> {
-    fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<SerializedSignature, Error> {
+    fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, Error> {
         {
             // TODO validate the transaction before signing
         }
@@ -315,10 +315,11 @@ impl Signable<Bitcoin> for Tx<Lock> {
         println!("{:?}", script);
         println!("{:?}", value);
         println!("{:?}", sighash_type);
+
         let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)?;
 
         // Finalize the witness
-        let mut full_sig = sig.clone().to_vec();
+        let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
 
         let pubkey = PublicKey::from_private_key(&secp, &privkey);
@@ -327,11 +328,7 @@ impl Signable<Bitcoin> for Tx<Lock> {
         Ok(sig)
     }
 
-    fn verify_witness(
-        &mut self,
-        _pubkey: &PublicKey,
-        _sig: SerializedSignature,
-    ) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
         todo!()
     }
 }
@@ -356,18 +353,14 @@ impl Buyable<Bitcoin> for Tx<Buy> {
 }
 
 impl Signable<Bitcoin> for Tx<Buy> {
-    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<SerializedSignature, Error> {
+    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         {
             // TODO validate the transaction before signing
         }
         todo!()
     }
 
-    fn verify_witness(
-        &mut self,
-        _pubkey: &PublicKey,
-        _sig: SerializedSignature,
-    ) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
         todo!()
     }
 }
@@ -377,7 +370,7 @@ impl AdaptorSignable<Bitcoin> for Tx<Buy> {
         &mut self,
         _privkey: &PrivateKey,
         _adaptor: &PublicKey,
-    ) -> Result<(SerializedSignature, PublicKey, PDLEQ), Error> {
+    ) -> Result<ECDSAAdaptorSig, Error> {
         todo!()
     }
 
@@ -385,7 +378,7 @@ impl AdaptorSignable<Bitcoin> for Tx<Buy> {
         &mut self,
         _pubkey: &PublicKey,
         _adaptor: &PublicKey,
-        _sig: (SerializedSignature, PublicKey, PDLEQ),
+        _sig: ECDSAAdaptorSig,
     ) -> Result<(), Error> {
         todo!()
     }
@@ -459,17 +452,14 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
 }
 
 impl Forkable<Bitcoin> for Tx<Cancel> {
-    fn generate_failure_witness(
-        &mut self,
-        _privkey: &PrivateKey,
-    ) -> Result<SerializedSignature, Error> {
+    fn generate_failure_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }
 
     fn verify_failure_witness(
         &mut self,
         _pubkey: &PublicKey,
-        _sig: SerializedSignature,
+        _sig: Signature,
     ) -> Result<(), Error> {
         todo!()
     }
@@ -524,15 +514,11 @@ impl Refundable<Bitcoin> for Tx<Refund> {
 }
 
 impl Signable<Bitcoin> for Tx<Refund> {
-    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<SerializedSignature, Error> {
+    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }
 
-    fn verify_witness(
-        &mut self,
-        _pubkey: &PublicKey,
-        _sig: SerializedSignature,
-    ) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
         todo!()
     }
 }
@@ -542,7 +528,7 @@ impl AdaptorSignable<Bitcoin> for Tx<Refund> {
         &mut self,
         _privkey: &PrivateKey,
         _adaptor: &PublicKey,
-    ) -> Result<(SerializedSignature, PublicKey, PDLEQ), Error> {
+    ) -> Result<ECDSAAdaptorSig, Error> {
         todo!()
     }
 
@@ -550,7 +536,7 @@ impl AdaptorSignable<Bitcoin> for Tx<Refund> {
         &mut self,
         _pubkey: &PublicKey,
         _adaptor: &PublicKey,
-        _sig: (SerializedSignature, PublicKey, PDLEQ),
+        _sig: ECDSAAdaptorSig,
     ) -> Result<(), Error> {
         todo!()
     }
@@ -576,17 +562,14 @@ impl Punishable<Bitcoin> for Tx<Punish> {
 }
 
 impl Forkable<Bitcoin> for Tx<Punish> {
-    fn generate_failure_witness(
-        &mut self,
-        _privkey: &PrivateKey,
-    ) -> Result<SerializedSignature, Error> {
+    fn generate_failure_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }
 
     fn verify_failure_witness(
         &mut self,
         _pubkey: &PublicKey,
-        _sig: SerializedSignature,
+        _sig: Signature,
     ) -> Result<(), Error> {
         todo!()
     }
@@ -620,7 +603,7 @@ pub fn sign_input<'a, C>(
     value: u64,
     sighash_type: SigHashType,
     secret_key: &bitcoin::secp256k1::SecretKey,
-) -> Result<SerializedSignature, bitcoin::secp256k1::Error>
+) -> Result<Signature, bitcoin::secp256k1::Error>
 where
     C: Signing,
 {
@@ -630,7 +613,7 @@ where
     let msg = Message::from_slice(&sighash[..])?;
     let mut sig = context.sign(&msg, secret_key);
     sig.normalize_s();
-    Ok(sig.serialize_der())
+    Ok(sig)
 }
 
 #[cfg(test)]

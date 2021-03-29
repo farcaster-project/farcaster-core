@@ -1,17 +1,20 @@
 //! Protocol messages exchanged between swap daemons
 
-use crate::crypto::Proof;
+use crate::crypto::{Commitment, Curve, Proof, Signatures};
 use crate::role::{Accordant, Arbitrating};
+use strict_encoding::{StrictDecode, StrictEncode};
 
 /// Trait for defining inter-daemon communication messages.
-pub trait ProtocolMessage {}
+pub trait ProtocolMessage: StrictEncode + StrictDecode {}
 
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct CommitAliceSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Commitment,
+    Ac: Commitment,
 {
     /// Commitment to `Ab` curve point
     pub buy: Ar::Commitment,
@@ -29,19 +32,27 @@ where
     pub view: Ac::Commitment,
 }
 
+impl<Ar: Commitment, Ac: Commitment> std::fmt::Display for CommitAliceSessionParams<Ar, Ac> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 impl<Ar, Ac> ProtocolMessage for CommitAliceSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Commitment,
+    Ac: Commitment,
 {
 }
 
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct CommitBobSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Commitment,
+    Ac: Commitment,
 {
     /// Commitment to `Bb` curve point
     pub buy: Ar::Commitment,
@@ -59,17 +70,19 @@ where
 
 impl<Ar, Ac> ProtocolMessage for CommitBobSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Commitment,
+    Ac: Commitment,
 {
 }
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
 /// `commit_alice_session_params` message.
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct RevealAliceSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating,
-    Ac: Accordant,
+    Ar: Arbitrating + Curve,
+    Ac: Accordant + Curve,
 {
     /// The buy `Ab` public key
     pub buy: Ar::PublicKey,
@@ -86,7 +99,7 @@ where
     /// The `K_v^a` view private key
     pub spend: Ac::PublicKey,
     /// The `K_s^a` spend public key
-    pub view: Ac::PrivateKey,
+    pub view: Ac::PrivateViewKey,
     /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Proof<Ar, Ac>,
 }
@@ -100,6 +113,8 @@ where
 
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct RevealBobSessionParams<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -118,8 +133,8 @@ where
     /// The `K_v^b` view private key
     pub spend: Ac::PublicKey,
     /// The `K_s^b` spend public key
-    pub view: Ac::PrivateKey,
-    /// The cross-group discrete logarithm zero-knowledge proof
+    pub view: Ac::PrivateViewKey,
+    // /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Proof<Ar, Ac>,
 }
 
@@ -132,6 +147,8 @@ where
 
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct CoreArbitratingSetup<Ar>
 where
     Ar: Arbitrating,
@@ -151,9 +168,11 @@ impl<Ar> ProtocolMessage for CoreArbitratingSetup<Ar> where Ar: Arbitrating {}
 /// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
 /// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
 /// must validate the signatures.
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct RefundProcedureSignatures<Ar>
 where
-    Ar: Arbitrating,
+    Ar: Signatures,
 {
     /// The `Ac` `cancel (d)` signature
     pub cancel_sig: Ar::Signature,
@@ -166,6 +185,8 @@ impl<Ar> ProtocolMessage for RefundProcedureSignatures<Ar> where Ar: Arbitrating
 /// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct BuyProcedureSignature<Ar>
 where
     Ar: Arbitrating,
@@ -180,6 +201,9 @@ impl<Ar> ProtocolMessage for BuyProcedureSignature<Ar> where Ar: Arbitrating {}
 
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
+
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct Abort {
     /// OPTIONAL `body`: error code | string
     pub error_body: Option<String>,
@@ -197,7 +221,7 @@ mod tests {
     use bitcoin::util::psbt::PartiallySignedTransaction;
 
     use super::{Abort, BuyProcedureSignature};
-    use crate::bitcoin::{Bitcoin, PDLEQ};
+    use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig, PDLEQ};
 
     #[test]
     fn create_abort_message() {
@@ -221,8 +245,7 @@ mod tests {
 
         let sig =
             Signature::from_der(&hex::decode(ecdsa_sig).expect("HEX decode should work here"))
-                .expect("Parse DER should work here")
-                .serialize_der();
+                .expect("Parse DER should work here");
 
         let privkey: PrivateKey =
             PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D").unwrap();
@@ -232,7 +255,11 @@ mod tests {
 
         let _ = BuyProcedureSignature::<Bitcoin> {
             buy: (PartiallySignedTransaction::from_unsigned_tx(tx).expect("PSBT should work here")),
-            buy_adaptor_sig: (sig, point, pdleq),
+            buy_adaptor_sig: ECDSAAdaptorSig {
+                sig,
+                point,
+                dleq: pdleq,
+            },
         };
     }
 }

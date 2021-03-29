@@ -1,6 +1,6 @@
 use crate::blockchain::{Fee, FeeStrategy};
 use crate::crypto::{self, Keys, Signatures};
-use crate::role::{Accordant, Arbitrating, SwapRole};
+use crate::role::{Arbitrating, SwapRole};
 use crate::transaction::TxId;
 
 pub trait Datum {}
@@ -30,13 +30,17 @@ where
     pub value: crypto::Signature<Ar>,
 }
 
-pub struct Proof<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-    pub proof: crypto::Proof<Ar, Ac>,
-}
+pub use crate::crypto::Proof;
+// use strict_encoding::{StrictEncode, StrictDecode};
+// #[derive(Clone, Debug, StrictDecode, StrictEncode)]
+// #[strict_encoding_crate(strict_encoding)]
+// pub struct Proof<Ar, Ac>
+// where
+//     Ar: Curve + Clone,
+//     Ac: Curve + Clone,
+// {
+//     pub proof: crypto::InnerProof<Ar, Ac>,
+// }
 
 pub enum Parameter<Ar>
 where

@@ -2,7 +2,7 @@
 
 use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::hash_types::PubkeyHash;
-use bitcoin::secp256k1::SerializedSignature;
+use bitcoin::secp256k1::Signature;
 use bitcoin::util::address::Address;
 use bitcoin::util::amount::Amount;
 use bitcoin::util::key::{PrivateKey, PublicKey};
@@ -13,9 +13,14 @@ use crate::blockchain::{
     Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
 };
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures};
+use crate::crypto::{
+    Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Proof, Script, Signatures,
+};
 use crate::monero::{Ed25519, Monero};
+use monero::cryptonote::hash::Hash;
+
 use crate::role::Arbitrating;
+use std::fmt::Debug;
 
 pub mod transaction;
 
@@ -193,6 +198,7 @@ impl Onchain for Bitcoin {
     type Transaction = bitcoin::blockdata::transaction::Transaction;
 }
 
+#[derive(Clone, Debug)]
 pub struct Secp256k1;
 
 impl Curve for Bitcoin {
@@ -200,9 +206,43 @@ impl Curve for Bitcoin {
     type Curve = Secp256k1;
 }
 
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub struct ECDSAAdaptorSig {
+    pub sig: Signature,
+    pub point: PublicKey,
+    pub dleq: PDLEQ,
+}
+
+use strict_encoding::{StrictDecode, StrictEncode};
+
 /// Produces a zero-knowledge proof of knowledge of the same relation k between two pairs of
 /// elements in the same group, i.e. `(G, R')` and `(T, R)`.
+#[derive(Clone, Debug)]
 pub struct PDLEQ;
+
+impl StrictEncode for PDLEQ {
+    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        let res = Hash::hash(&"Farcaster PDLEQ".as_bytes()).to_bytes();
+        e.write(&res)?;
+        Ok(res.len())
+    }
+}
+
+impl StrictDecode for PDLEQ {
+    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        let mut buf = [0u8; 32];
+        d.read_exact(&mut buf)?;
+        let expected = Hash::hash(&"Farcaster PDLEQ".as_bytes()).to_bytes();
+        if expected == buf {
+            Ok(PDLEQ)
+        } else {
+            Err(strict_encoding::Error::DataIntegrityError(
+                "Not PDLEQ type".to_string(),
+            ))
+        }
+    }
+}
 
 impl Script for Bitcoin {
     type Script = ECDSAScripts;
@@ -218,8 +258,8 @@ impl Commitment for Bitcoin {
 }
 
 impl Signatures for Bitcoin {
-    type Signature = SerializedSignature;
-    type AdaptorSignature = (SerializedSignature, PublicKey, PDLEQ);
+    type Signature = Signature;
+    type AdaptorSignature = ECDSAAdaptorSig;
 }
 
 //// TODO: implement on another struct or on a generic Bitcoin<T>
@@ -230,6 +270,38 @@ impl Signatures for Bitcoin {
 // }
 
 pub struct RingSignatureProof;
+
+impl StrictEncode for Secp256k1 {
+    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        let res = Hash::hash(&"Farcaster Secp256k1".as_bytes()).to_bytes();
+        e.write(&res)?;
+        Ok(res.len())
+    }
+}
+
+impl StrictDecode for Secp256k1 {
+    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        let mut buf = [0u8; 32];
+        d.read_exact(&mut buf)?;
+        let expected = Hash::hash(&"Farcaster Secp256k1".as_bytes()).to_bytes();
+        if expected == buf {
+            Ok(Self)
+        } else {
+            Err(strict_encoding::Error::DataIntegrityError(
+                "Not Secp256k1 type".to_string(),
+            ))
+        }
+    }
+}
+
+impl<Ar, Ac> CrossGroupDLEQ<Ar, Ac> for Proof<Ar, Ac>
+where
+    Ar: Curve + Clone,
+    Ac: Curve + Clone,
+    Ar::Curve: PartialEq<Ac::Curve>,
+    Ac::Curve: PartialEq<Ar::Curve>,
+{
+}
 
 impl CrossGroupDLEQ<Bitcoin, Monero> for RingSignatureProof {}
 

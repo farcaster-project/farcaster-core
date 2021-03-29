@@ -12,7 +12,7 @@ use bitcoin::util::bip143::SigHashCache;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
-use crate::bitcoin::{Bitcoin, SatPerVByte, PDLEQ, FeeStrategies, ECDSAAdaptorSig};
+use crate::bitcoin::{Bitcoin, SatPerVByte, ECDSAAdaptorSig};
 use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError, Network};
 use crate::script;
 use crate::transaction::{

@@ -2,7 +2,6 @@
 
 use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::hash_types::PubkeyHash;
-use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::address::Address;
 use bitcoin::util::amount::Amount;

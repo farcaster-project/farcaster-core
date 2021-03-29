@@ -1,6 +1,6 @@
 use crate::blockchain::{Fee, FeeStrategy};
-use crate::crypto::{self, Keys, Signatures, Curve};
-use crate::role::{Accordant, Arbitrating, SwapRole};
+use crate::crypto::{self, Keys, Signatures};
+use crate::role::{Arbitrating, SwapRole};
 use crate::transaction::TxId;
 
 pub trait Datum {}

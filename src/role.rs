@@ -5,8 +5,8 @@ use std::io;
 
 use crate::blockchain::{Blockchain, Fee, Onchain};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{Commitment, Curve, Keys, Script, Signatures, PrivateViewKey};
-use strict_encoding::{StrictEncode, StrictDecode};
+use crate::crypto::{Commitment, Curve, Keys, PrivateViewKey, Script, Signatures};
+use strict_encoding::{StrictDecode, StrictEncode};
 
 /// Defines all possible negociation roles: maker and taker.
 pub enum NegotiationRole {

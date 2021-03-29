@@ -13,7 +13,9 @@ use crate::blockchain::{
     Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
 };
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures, Proof};
+use crate::crypto::{
+    Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Proof, Script, Signatures,
+};
 use crate::monero::{Ed25519, Monero};
 use monero::cryptonote::hash::Hash;
 

@@ -1,13 +1,13 @@
 //! Defines and implements all the traits for Monero
 
-use std::fmt::{self, Debug, Display, Formatter};
-use monero::cryptonote::hash::Hash;
 use crate::blockchain::Blockchain;
 use crate::crypto::{Commitment, Curve, Keys, PrivateViewKey};
 use crate::role::Accordant;
 use bitcoin::hash_types::PubkeyHash; // DELETEME encoding test
+use monero::cryptonote::hash::Hash;
 use monero::util::key::PrivateKey;
 use monero::util::key::PublicKey;
+use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Monero;
@@ -65,7 +65,7 @@ impl Commitment for Monero {
     type Commitment = PubkeyHash;
 }
 
-use strict_encoding::{StrictEncode, StrictDecode};
+use strict_encoding::{StrictDecode, StrictEncode};
 impl StrictEncode for Ed25519 {
     fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
         let res = Hash::hash(&"Farcaster Ed25519".as_bytes()).to_bytes();

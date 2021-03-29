@@ -1,6 +1,6 @@
 //! Protocol messages exchanged between swap daemons
 
-use crate::crypto::{Commitment, Proof, Signatures, Curve};
+use crate::crypto::{Commitment, Curve, Proof, Signatures};
 use crate::role::{Accordant, Arbitrating};
 use strict_encoding::{StrictDecode, StrictEncode};
 
@@ -160,7 +160,7 @@ where
     /// The arbitrating `refund (e)` transaction
     pub refund: Ar::PartialTransaction,
     /// The `Bc` `cancel (d)` signature
-    pub cancel_sig: Ar::Signature, 
+    pub cancel_sig: Ar::Signature,
 }
 
 impl<Ar> ProtocolMessage for CoreArbitratingSetup<Ar> where Ar: Arbitrating {}
@@ -221,7 +221,7 @@ mod tests {
     use bitcoin::util::psbt::PartiallySignedTransaction;
 
     use super::{Abort, BuyProcedureSignature};
-    use crate::bitcoin::{Bitcoin, PDLEQ, ECDSAAdaptorSig};
+    use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig, PDLEQ};
 
     #[test]
     fn create_abort_message() {
@@ -255,7 +255,11 @@ mod tests {
 
         let _ = BuyProcedureSignature::<Bitcoin> {
             buy: (PartiallySignedTransaction::from_unsigned_tx(tx).expect("PSBT should work here")),
-            buy_adaptor_sig: ECDSAAdaptorSig{sig, point, dleq: pdleq},
+            buy_adaptor_sig: ECDSAAdaptorSig {
+                sig,
+                point,
+                dleq: pdleq,
+            },
         };
     }
 }

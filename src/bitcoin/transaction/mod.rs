@@ -12,12 +12,12 @@ use bitcoin::util::bip143::SigHashCache;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
-use crate::bitcoin::{Bitcoin, SatPerVByte, ECDSAAdaptorSig};
+use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig, SatPerVByte};
 use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError, Network};
 use crate::script;
 use crate::transaction::{
     AdaptorSignable, Broadcastable, Buyable, Cancelable, Failable, Forkable, Fundable, Linkable,
-    Lockable, Punishable, Refundable, Signable, Transaction
+    Lockable, Punishable, Refundable, Signable, Transaction,
 };
 
 #[derive(Debug)]
@@ -328,11 +328,7 @@ impl Signable<Bitcoin> for Tx<Lock> {
         Ok(sig)
     }
 
-    fn verify_witness(
-        &mut self,
-        _pubkey: &PublicKey,
-        _sig: Signature,
-    ) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
         todo!()
     }
 }
@@ -364,11 +360,7 @@ impl Signable<Bitcoin> for Tx<Buy> {
         todo!()
     }
 
-    fn verify_witness(
-        &mut self,
-        _pubkey: &PublicKey,
-        _sig: Signature,
-    ) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
         todo!()
     }
 }
@@ -460,10 +452,7 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
 }
 
 impl Forkable<Bitcoin> for Tx<Cancel> {
-    fn generate_failure_witness(
-        &mut self,
-        _privkey: &PrivateKey,
-    ) -> Result<Signature, Error> {
+    fn generate_failure_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }
 
@@ -529,11 +518,7 @@ impl Signable<Bitcoin> for Tx<Refund> {
         todo!()
     }
 
-    fn verify_witness(
-        &mut self,
-        _pubkey: &PublicKey,
-        _sig: Signature,
-    ) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
         todo!()
     }
 }
@@ -577,10 +562,7 @@ impl Punishable<Bitcoin> for Tx<Punish> {
 }
 
 impl Forkable<Bitcoin> for Tx<Punish> {
-    fn generate_failure_witness(
-        &mut self,
-        _privkey: &PrivateKey,
-    ) -> Result<Signature, Error> {
+    fn generate_failure_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }
 

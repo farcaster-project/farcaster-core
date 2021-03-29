@@ -2,7 +2,6 @@
 
 use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::hash_types::PubkeyHash;
-//use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::SerializedSignature;
 use bitcoin::util::address::Address;
 use bitcoin::util::amount::Amount;
@@ -26,24 +25,6 @@ pub struct Bitcoin;
 impl Blockchain for Bitcoin {
     /// Type for the traded asset unit
     type AssetUnit = Amount;
-
-    //type Network = Network;
-
-    ///// Type of the blockchain identifier
-    //type Id = String;
-
-    ///// Type of the chain identifier
-    //type ChainId = Network;
-
-    ///// Returns the blockchain identifier
-    //fn id(&self) -> String {
-    //    String::from("btc")
-    //}
-
-    ///// Returns the chain identifier
-    //fn chain_id(&self) -> Network {
-    //    Network::Bitcoin
-    //}
 
     /// Create a new Bitcoin blockchain
     fn new() -> Self {

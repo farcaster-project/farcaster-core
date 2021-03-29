@@ -1,6 +1,10 @@
 //! Roles during negotiation and swap phases, blockchain roles, and network definitions.
 
+use std::fmt::Debug;
+use std::io;
+
 use crate::blockchain::{Blockchain, Fee, Onchain};
+use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{Commitment, Curve, Keys, Script, Signatures};
 
 /// Defines all possible negociation roles: maker and taker.
@@ -24,6 +28,25 @@ pub trait Role {}
 pub enum SwapRole {
     Alice,
     Bob,
+}
+
+impl Encodable for SwapRole {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        match self {
+            SwapRole::Alice => 0x01u8.consensus_encode(writer),
+            SwapRole::Bob => 0x02u8.consensus_encode(writer),
+        }
+    }
+}
+
+impl Decodable for SwapRole {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x01u8 => Ok(SwapRole::Alice),
+            0x02u8 => Ok(SwapRole::Bob),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
 }
 
 /// Alice, the swap role, is the role starting with accordant blockchain assets and exchange them
@@ -53,7 +76,7 @@ pub trait Arbitrating:
     type Address;
 
     //// Defines the type of timelock used for the arbitrating transactions
-    type Timelock: Copy;
+    type Timelock: Copy + Debug + Encodable + Decodable;
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor

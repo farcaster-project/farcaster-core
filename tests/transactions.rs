@@ -5,7 +5,6 @@ use farcaster_core::script::{self, *};
 use farcaster_core::transaction::*;
 
 use bitcoin::consensus::encode::serialize_hex;
-use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 
@@ -33,7 +32,7 @@ fn create_funding_generic() {
     let pubkey = PublicKey::from_private_key(&secp, &privkey);
 
     let mut funding = Funding::initialize(pubkey).unwrap();
-    let address = funding.get_address(Network::Regtest).unwrap();
+    let address = funding.get_address(Network::Local).unwrap();
 
     //println!("Address: {:#?}", client.get_address_info(&address).unwrap());
     //println!("Send funds to: {}", address);
@@ -47,12 +46,12 @@ fn create_funding_generic() {
     funding.update(funding_tx_seen).unwrap();
 
     let datalock = script::DataLock {
-        timelock: 10,
+        timelock: CSVTimelock::new(10),
         success: DoubleKeys::new(pubkey, pubkey),
         failure: DoubleKeys::new(pubkey, pubkey),
     };
 
-    let fee = FeeStrategies::fixed_fee(SatPerVByte::from_sat(50));
+    let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(50));
     let politic = FeePolitic::Aggressive;
 
     println!("{:#?}", funding);
@@ -60,7 +59,7 @@ fn create_funding_generic() {
     //println!("{:#?}", lock);
 
     let datapunishablelock = script::DataPunishableLock {
-        timelock: 10,
+        timelock: CSVTimelock::new(10),
         success: DoubleKeys::new(pubkey, pubkey),
         failure: pubkey,
     };

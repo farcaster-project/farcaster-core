@@ -4,23 +4,24 @@ use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::hash_types::PubkeyHash;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::address::Address;
-use bitcoin::util::amount::Amount;
+use bitcoin::util::amount;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
-use std::io;
-
-use crate::blockchain::{
-    Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
-};
-use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{
-    Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Proof, Script, Signatures,
-};
-use crate::monero::{Ed25519, Monero};
 use monero::cryptonote::hash::Hash;
 
-use crate::role::Arbitrating;
+use farcaster_core::blockchain::{
+    Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
+};
+use farcaster_core::consensus::{self, Decodable, Encodable};
+use farcaster_core::crypto::{
+    Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures,
+};
+use farcaster_core::role::Arbitrating;
+
+use crate::monero::{Ed25519, Monero};
+
 use std::fmt::Debug;
+use std::io;
 
 pub mod transaction;
 
@@ -45,6 +46,28 @@ impl Blockchain for Bitcoin {
 
     fn to_u32(&self) -> u32 {
         0x80000000
+    }
+}
+
+/// Bitcoin amount wrapper
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct Amount(amount::Amount);
+
+impl Amount {
+    pub fn as_sat(&self) -> u64 {
+        self.0.as_sat()
+    }
+
+    pub fn from_sat(sat: u64) -> Self {
+        Self(amount::Amount::from_sat(sat))
+    }
+
+    pub fn checked_mul(&self, other: u64) -> Option<Self> {
+        Some(Self(self.0.checked_mul(other)?))
+    }
+
+    pub fn checked_sub(&self, other: Self) -> Option<Self> {
+        Some(Self(self.0.checked_sub(other.0)?))
     }
 }
 
@@ -292,15 +315,6 @@ impl StrictDecode for Secp256k1 {
             ))
         }
     }
-}
-
-impl<Ar, Ac> CrossGroupDLEQ<Ar, Ac> for Proof<Ar, Ac>
-where
-    Ar: Curve + Clone,
-    Ac: Curve + Clone,
-    Ar::Curve: PartialEq<Ac::Curve>,
-    Ac::Curve: PartialEq<Ar::Curve>,
-{
 }
 
 impl CrossGroupDLEQ<Bitcoin, Monero> for RingSignatureProof {}

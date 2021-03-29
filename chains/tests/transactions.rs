@@ -1,8 +1,9 @@
-use farcaster_core::bitcoin::transaction::*;
-use farcaster_core::bitcoin::*;
 use farcaster_core::blockchain::*;
 use farcaster_core::script::{self, *};
 use farcaster_core::transaction::*;
+
+use farcaster_chains::bitcoin::transaction::*;
+use farcaster_chains::bitcoin::*;
 
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::secp256k1::Secp256k1;

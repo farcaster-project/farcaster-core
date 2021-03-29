@@ -1,0 +1,12 @@
+[package]
+name = "farcaster_core"
+version = "0.1.0"
+authors = ["h4sh3d <h4sh3d@protonmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hex = "0.4.3"
+strict_encoding = "1.2.1"
+thiserror = "1.0.24"

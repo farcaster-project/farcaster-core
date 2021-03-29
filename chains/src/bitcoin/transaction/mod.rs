@@ -12,13 +12,14 @@ use bitcoin::util::bip143::SigHashCache;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
-use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig, SatPerVByte};
-use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError, Network};
-use crate::script;
-use crate::transaction::{
+use farcaster_core::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError, Network};
+use farcaster_core::script;
+use farcaster_core::transaction::{
     AdaptorSignable, Broadcastable, Buyable, Cancelable, Failable, Forkable, Fundable, Linkable,
     Lockable, Punishable, Refundable, Signable, Transaction,
 };
+
+use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig, SatPerVByte};
 
 #[derive(Debug)]
 pub struct Funding {
@@ -620,8 +621,9 @@ where
 mod tests {
     use super::*;
     use crate::bitcoin::{CSVTimelock, SatPerVByte};
-    use crate::blockchain::FeeStrategy;
-    use crate::script::DoubleKeys;
+
+    use farcaster_core::blockchain::FeeStrategy;
+    use farcaster_core::script::DoubleKeys;
 
     use bitcoin::blockdata::script::Script;
     use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};

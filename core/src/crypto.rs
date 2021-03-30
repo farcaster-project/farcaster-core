@@ -42,6 +42,15 @@ where
     pair: (Ar::Curve, Ac::Curve),
 }
 
+impl<Ar, Ac> CrossGroupDLEQ<Ar, Ac> for Proof<Ar, Ac>
+where
+    Ar: Curve + Clone,
+    Ac: Curve + Clone,
+    Ar::Curve: PartialEq<Ac::Curve>,
+    Ac::Curve: PartialEq<Ar::Curve>,
+{
+}
+
 /// This trait is defined for blockchains once per cryptographic engine wanted and allow a
 /// blockchain to use different cryptographic types depending on the engine used.
 ///

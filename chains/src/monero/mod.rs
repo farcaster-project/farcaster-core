@@ -1,12 +1,15 @@
 //! Defines and implements all the traits for Monero
 
-use crate::blockchain::Blockchain;
-use crate::crypto::{Commitment, Curve, Keys, PrivateViewKey};
-use crate::role::Accordant;
+use farcaster_core::blockchain::Blockchain;
+use farcaster_core::crypto::{Commitment, Curve, Keys, PrivateViewKey};
+use farcaster_core::role::Accordant;
+
 use bitcoin::hash_types::PubkeyHash; // DELETEME encoding test
+
 use monero::cryptonote::hash::Hash;
 use monero::util::key::PrivateKey;
 use monero::util::key::PublicKey;
+
 use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Debug, Clone, Copy)]

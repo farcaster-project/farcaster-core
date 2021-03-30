@@ -10,6 +10,8 @@ use std::str::FromStr;
 
 use strict_encoding::{StrictDecode, StrictEncode};
 
+use thiserror::Error;
+
 use crate::consensus::{self, Decodable, Encodable};
 
 /// Base trait for defining a blockchain and its asset type.
@@ -139,11 +141,19 @@ where
 
 /// Define the type of errors a fee strategy can encounter during calculation, application, and
 /// validation of fees on a partial transaction.
-#[derive(Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum FeeStrategyError {
+    /// Missing metadata inputs
+    #[error("Missing metadata inputs")]
     MissingInputsMetadata,
+    /// Fee amount is too high
+    #[error("Fee amount is too high")]
     AmountOfFeeTooHigh,
+    /// Not enough assets to cover the fees
+    #[error("Not enough assets to cover the fees")]
     NotEnoughAssets,
+    /// Multi-input transaction is not supported
+    #[error("Multi-input transaction is not supported")]
     MultiOutputUnsupported,
 }
 

@@ -42,6 +42,21 @@ pub trait Failable {
     type Error: Debug;
 }
 
+/// Transaction that requries multiple participants to construct and finalize the transaction.
+pub trait Cooperable<Ar>: Failable
+where
+    Ar: Arbitrating,
+    Self: Sized,
+{
+    fn add_cooperation(
+        &mut self,
+        pubkey: Ar::PublicKey,
+        sig: Ar::Signature,
+    ) -> Result<(), Self::Error>;
+
+    fn finalize(&mut self) -> Result<(), Self::Error>;
+}
+
 /// Define a transaction broadcastable by the system. Externally managed transaction are not
 /// broadcastable.
 pub trait Broadcastable<Ar>
@@ -49,12 +64,12 @@ where
     Ar: Arbitrating,
     Self: Sized,
 {
-    /// Finalizes the transaction and return a fully signed transaction type as defined in the
-    /// arbitrating blockchain. Used before broadcasting the transaction on-chain.
+    /// Extract the finalized transaction and return a fully signed transaction type as defined in
+    /// the arbitrating blockchain. Used before broadcasting the transaction on-chain.
     ///
     /// This correspond to the "role" of a "finalizer" as defined in BIP 174 for dealing with
     /// partial transactions, which can be applied more generically than just Bitcoin.
-    fn finalize(&self) -> Ar::Transaction;
+    fn extract(&self) -> Ar::Transaction;
 }
 
 /// Implemented by transactions that can be link to form chains of logic. A linkable transaction
@@ -152,10 +167,10 @@ where
 {
     /// Create a new funding 'output', or equivalent depending on the blockchain and the
     /// cryptographic engine.
-    fn initialize(privkey: Ar::PublicKey) -> Result<Self, Self::Error>;
+    fn initialize(privkey: Ar::PublicKey, network: Network) -> Result<Self, Self::Error>;
 
     /// Return the address to use for the funding.
-    fn get_address(&self, network: Network) -> Result<Ar::Address, Self::Error>;
+    fn get_address(&self) -> Result<Ar::Address, Self::Error>;
 
     /// Update the transaction, this is used to update the data when the funding transaction is
     /// seen on-chain.
@@ -195,7 +210,13 @@ where
 /// to take ownership of the counter-party funds. This transaction becomes available directly after
 /// `lock (b)` but should be broadcasted only when `lock (b)` is finalized on-chain.
 pub trait Buyable<Ar>:
-    Transaction<Ar> + Signable<Ar> + AdaptorSignable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
+    Transaction<Ar>
+    + Signable<Ar>
+    + AdaptorSignable<Ar>
+    + Broadcastable<Ar>
+    + Linkable<Ar>
+    + Cooperable<Ar>
+    + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
@@ -211,6 +232,7 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Lockable<Ar, Output = Self::Input, Error = Self::Error>,
+        lock: script::DataLock<Ar>,
         destination_target: Ar::Address,
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
@@ -222,7 +244,7 @@ where
 /// unilateral path available after some defined timelaps. This transaction becomes available after
 /// the define timelock in `lock (b)`.
 pub trait Cancelable<Ar>:
-    Transaction<Ar> + Forkable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
+    Transaction<Ar> + Forkable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Cooperable<Ar> + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
@@ -238,7 +260,8 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Lockable<Ar, Output = Self::Input, Error = Self::Error>,
-        lock: script::DataPunishableLock<Ar>,
+        lock: script::DataLock<Ar>,
+        punish_lock: script::DataPunishableLock<Ar>,
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
@@ -248,7 +271,13 @@ where
 /// `cancel (d)` transaction and send the money to its original owner. This transaction is directly
 /// available but should be broadcasted only after 'finalization' of `cancel (d)` on-chain.
 pub trait Refundable<Ar>:
-    Transaction<Ar> + Signable<Ar> + AdaptorSignable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
+    Transaction<Ar>
+    + Signable<Ar>
+    + AdaptorSignable<Ar>
+    + Broadcastable<Ar>
+    + Linkable<Ar>
+    + Cooperable<Ar>
+    + Failable
 where
     Ar: Arbitrating,
     Self: Sized,
@@ -264,6 +293,7 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Cancelable<Ar, Output = Self::Input, Error = Self::Error>,
+        punish_lock: script::DataPunishableLock<Ar>,
         refund_target: Ar::Address,
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
@@ -292,6 +322,7 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Cancelable<Ar, Output = Self::Input, Error = Self::Error>,
+        punish_lock: script::DataPunishableLock<Ar>,
         destination_target: Ar::Address,
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,

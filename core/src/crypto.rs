@@ -61,7 +61,7 @@ pub trait Keys {
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine
-    type PublicKey: StrictEncode + StrictDecode;
+    type PublicKey: Clone + StrictEncode + StrictDecode;
 }
 
 pub trait PrivateViewKey {

@@ -4,6 +4,7 @@ use crate::crypto::Keys;
 use crate::role::Arbitrating;
 
 /// Represent a public key-pair, one key per swap role in the system.
+#[derive(Clone)]
 pub struct DoubleKeys<Ar>
 where
     Ar: Keys,
@@ -22,8 +23,16 @@ where
     }
 }
 
+/// Define the path in a script with its associated data.
+#[derive(Debug, PartialEq)]
+pub enum ScriptPath {
+    Success,
+    Failure,
+}
+
 /// The data used to create a lock and remove the double spending problem and create a mutually
 /// agreed refundable path.
+#[derive(Clone)]
 pub struct DataLock<Ar>
 where
     Ar: Arbitrating,
@@ -33,15 +42,9 @@ where
     pub failure: DoubleKeys<Ar>,
 }
 
-///// Define the path in a script
-//#[derive(Debug, PartialEq)]
-//pub enum ScriptPath {
-//    Success,
-//    Failure,
-//}
-
 /// The data used to create a lock and remove the double spending problem and create an unilateral
 /// punishment mechanism.
+#[derive(Clone)]
 pub struct DataPunishableLock<Ar>
 where
     Ar: Arbitrating,

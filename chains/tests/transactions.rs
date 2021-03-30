@@ -1,73 +1,75 @@
 use farcaster_core::blockchain::*;
-use farcaster_core::script::{self, *};
+use farcaster_core::script::*;
 use farcaster_core::transaction::*;
 
+use farcaster_chains::bitcoin::fee::SatPerVByte;
 use farcaster_chains::bitcoin::transaction::*;
-use farcaster_chains::bitcoin::*;
+use farcaster_chains::bitcoin::CSVTimelock;
 
-use bitcoin::consensus::encode::serialize_hex;
+use bitcoin::blockdata::script::Script;
+use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
+use bitcoin::hash_types::Txid;
+use bitcoin::hashes::hex::FromHex;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::util::key::{PrivateKey, PublicKey};
-
-use bitcoincore_rpc::{Auth, Client, RpcApi};
-
-fn setup() -> Result<Client, bitcoincore_rpc::Error> {
-    Client::new(
-        "http://127.0.0.1:18443".into(),
-        Auth::UserPass(
-            "test".into(),
-            "cEl2o3tHHgzYeuu3CiiZ2FjdgSiw9wNeMFzoNbFmx9k=".into(),
-        ),
-    )
-}
+use bitcoin::Transaction;
 
 #[test]
-#[ignore]
 fn create_funding_generic() {
-    let client = setup().unwrap();
-
     let secp = Secp256k1::new();
 
     let privkey: PrivateKey =
         PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D").unwrap();
     let pubkey = PublicKey::from_private_key(&secp, &privkey);
 
-    let mut funding = Funding::initialize(pubkey).unwrap();
-    let address = funding.get_address(Network::Local).unwrap();
+    let mut funding = Funding::initialize(pubkey, Network::Mainnet).unwrap();
 
-    //println!("Address: {:#?}", client.get_address_info(&address).unwrap());
-    //println!("Send funds to: {}", address);
-    let blocks = client.generate_to_address(1, &address).unwrap();
-
-    let block_hash = blocks[0];
-    let block = client.get_block(&block_hash).unwrap();
-    let funding_tx_seen = block.coinbase().unwrap().clone();
-
-    println!("{:#?}", &funding_tx_seen);
+    let funding_tx_seen = Transaction {
+        version: 1,
+        lock_time: 0,
+        input: vec![TxIn {
+            previous_output: OutPoint {
+                txid: Txid::from_hex(
+                    "e567952fb6cc33857f392efa3a46c995a28f69cca4bb1b37e0204dab1ec7a389",
+                )
+                .unwrap(),
+                vout: 1,
+            },
+            script_sig: Script::from_hex("160014be18d152a9b012039daf3da7de4f53349eecb985").unwrap(),
+            sequence: 4294967295,
+            witness: vec![Vec::from_hex(
+                "03d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f2105",
+            )
+            .unwrap()],
+        }],
+        output: vec![TxOut {
+            value: 10_000_000,
+            script_pubkey: Script::new_v0_wpkh(&pubkey.wpubkey_hash().unwrap()),
+        }],
+    };
     funding.update(funding_tx_seen).unwrap();
 
-    let datalock = script::DataLock {
+    let datalock = DataLock {
         timelock: CSVTimelock::new(10),
         success: DoubleKeys::new(pubkey, pubkey),
         failure: DoubleKeys::new(pubkey, pubkey),
     };
 
-    let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(50));
+    let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(20));
     let politic = FeePolitic::Aggressive;
 
-    println!("{:#?}", funding);
-    let mut lock = Tx::<Lock>::initialize(&funding, datalock, &fee, politic).unwrap();
-    //println!("{:#?}", lock);
+    let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), &fee, politic).unwrap();
 
-    let datapunishablelock = script::DataPunishableLock {
+    let datapunishablelock = DataPunishableLock {
         timelock: CSVTimelock::new(10),
         success: DoubleKeys::new(pubkey, pubkey),
         failure: pubkey,
     };
-    let cancel = Tx::<Cancel>::initialize(&lock, datapunishablelock, &fee, politic).unwrap();
-    //println!("{:#?}", cancel);
+    let cancel =
+        Tx::<Cancel>::initialize(&lock, datalock, datapunishablelock.clone(), &fee, politic)
+            .unwrap();
 
-    let new_address = {
+    let address = {
         use bitcoin::network::constants::Network;
         use bitcoin::secp256k1::rand::thread_rng;
         use bitcoin::secp256k1::Secp256k1;
@@ -82,25 +84,13 @@ fn create_funding_generic() {
         };
 
         // Generate pay-to-pubkey-hash address
-        Address::p2pkh(&public_key, Network::Regtest)
+        Address::p2pkh(&public_key, Network::Bitcoin)
     };
 
-    let _refund = Tx::<Refund>::initialize(&cancel, new_address, &fee, politic).unwrap();
+    let _refund =
+        Tx::<Refund>::initialize(&cancel, datapunishablelock, address, &fee, politic).unwrap();
 
     // Sign lock tx
     let _sig = lock.generate_witness(&privkey).unwrap();
-    println!("{:#?}", &lock);
-    let lock_finalized = lock.finalize();
-
-    // Generate 10 blocks to unlock the money
-    // don't use `generate` as it is not available anymore
-    client.generate_to_address(100, &address).unwrap();
-
-    // TODO do the other signatures
-
-    // Broadcast the lock
-    println!("{}", serialize_hex(&lock_finalized));
-    client.send_raw_transaction(&lock_finalized).unwrap();
-
     assert!(true);
 }

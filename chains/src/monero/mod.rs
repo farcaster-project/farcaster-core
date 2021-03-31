@@ -12,7 +12,7 @@ use monero::util::key::PublicKey;
 
 use std::fmt::{self, Debug, Display, Formatter};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
 
 impl Display for Monero {

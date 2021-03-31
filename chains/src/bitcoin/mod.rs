@@ -25,7 +25,7 @@ use std::io;
 
 pub mod transaction;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Debug, Copy, Eq, PartialEq)]
 pub struct Bitcoin;
 
 impl Blockchain for Bitcoin {

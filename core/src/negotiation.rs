@@ -12,7 +12,8 @@ use crate::role::{Accordant, Arbitrating, SwapRole};
 /// First six magic bytes of a public offer
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
-/// A public offer version containing the version and the activated features if any.
+/// A public offer version containing the version and the activated features if
+/// any.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Version(u16);
 
@@ -34,18 +35,24 @@ impl Version {
 }
 
 impl Encodable for Version {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> Result<usize, io::Error> {
         self.to_u16().consensus_encode(writer)
     }
 }
 
 impl Decodable for Version {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+    fn consensus_decode<D: io::Read>(
+        d: &mut D,
+    ) -> Result<Self, consensus::Error> {
         Ok(Self::new(Decodable::consensus_decode(d)?))
     }
 }
 
-/// Negotiation errors used when manipulating offers, public offers and its version.
+/// Negotiation errors used when manipulating offers, public offers and its
+/// version.
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
     /// The magic bytes of the offer does not match
@@ -54,10 +61,11 @@ pub enum Error {
 }
 
 use strict_encoding::{StrictDecode, StrictEncode};
-/// An offer is created by a Maker before the start of his daemon, it references all the data
-/// needed to know what the trade look likes from a Taker perspective. The daemon start when the
-/// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
-/// the data needed to a Taker to connect to the Maker's daemon.
+/// An offer is created by a Maker before the start of his daemon, it references
+/// all the data needed to know what the trade look likes from a Taker
+/// perspective. The daemon start when the Maker is ready to finalyze his offer,
+/// transforming the offer into a public offer which contains the data needed to
+/// a Taker to connect to the Maker's daemon.
 #[derive(Clone, Debug, StrictDecode, StrictEncode, PartialEq, Eq)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct Offer<Ar, Ac>
@@ -105,7 +113,10 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> Result<usize, io::Error> {
         let mut len = self.network.consensus_encode(writer)?;
         len += self.arbitrating.consensus_encode(writer)?;
         len += self.accordant.consensus_encode(writer)?;
@@ -123,7 +134,9 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+    fn consensus_decode<D: io::Read>(
+        d: &mut D,
+    ) -> Result<Self, consensus::Error> {
         Ok(Offer {
             network: Decodable::consensus_decode(d)?,
             arbitrating: Decodable::consensus_decode(d)?,
@@ -140,8 +153,9 @@ where
 
 /// Helper to create an offer from an arbitrating asset buyer perspective.
 ///
-/// **This helper works only for buying Arbitrating assets with some Accordant assets**. The
-/// reverse is not implemented for the [Buy] helper. You should use the [Sell] helper.
+/// **This helper works only for buying Arbitrating assets with some Accordant
+/// assets**. The reverse is not implemented for the [Buy] helper. You should
+/// use the [Sell] helper.
 pub struct Buy<T, U>(BuilderState<T, U>)
 where
     T: Arbitrating,
@@ -152,8 +166,8 @@ where
     T: Arbitrating,
     U: Accordant,
 {
-    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
-    /// defined in the `with` method.
+    /// Defines the asset and its amount the maker will receive in exchange of
+    /// the asset and amount defined in the `with` method.
     pub fn some(asset: T, amount: T::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
@@ -161,8 +175,8 @@ where
         buy
     }
 
-    /// Defines the asset and its amount the maker will send to get the assets defined in the
-    /// `some` method.
+    /// Defines the asset and its amount the maker will send to get the assets
+    /// defined in the `some` method.
     pub fn with(mut self, asset: U, amount: U::AssetUnit) -> Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
@@ -170,7 +184,11 @@ where
     }
 
     /// Sets the timelocks for the proposed offer
-    pub fn with_timelocks(mut self, cancel: T::Timelock, punish: T::Timelock) -> Self {
+    pub fn with_timelocks(
+        mut self,
+        cancel: T::Timelock,
+        punish: T::Timelock,
+    ) -> Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
         self
@@ -188,11 +206,11 @@ where
         self
     }
 
-    /// Transform the internal state into an offer if all parameters have been set properly,
-    /// otherwise return `None`.
+    /// Transform the internal state into an offer if all parameters have been
+    /// set properly, otherwise return `None`.
     ///
-    /// This function automatically sets the maker swap role as **Alice** to comply with the buy
-    /// contract.
+    /// This function automatically sets the maker swap role as **Alice** to
+    /// comply with the buy contract.
     pub fn to_offer(mut self) -> Option<Offer<T, U>> {
         self.0.maker_role = Some(SwapRole::Alice);
         Some(Offer {
@@ -211,8 +229,9 @@ where
 
 /// Helper to create an offer from an arbitrating asset seller perspective.
 ///
-/// **This helper works only for selling Arbitrating assets for some Accordant assets**. The
-/// reverse is not implemented for the [Sell] helper. You should use the [Buy] helper.
+/// **This helper works only for selling Arbitrating assets for some Accordant
+/// assets**. The reverse is not implemented for the [Sell] helper. You should
+/// use the [Buy] helper.
 pub struct Sell<T, U>(BuilderState<T, U>)
 where
     T: Arbitrating,
@@ -223,8 +242,8 @@ where
     T: Arbitrating,
     U: Accordant,
 {
-    /// Defines the asset and its amount the maker will send to get the assets defined in the
-    /// `for_some` method.
+    /// Defines the asset and its amount the maker will send to get the assets
+    /// defined in the `for_some` method.
     pub fn some(asset: T, amount: T::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
@@ -232,8 +251,8 @@ where
         buy
     }
 
-    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
-    /// defined in the `some` method.
+    /// Defines the asset and its amount the maker will receive in exchange of
+    /// the asset and amount defined in the `some` method.
     pub fn for_some(mut self, asset: U, amount: U::AssetUnit) -> Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
@@ -241,7 +260,11 @@ where
     }
 
     /// Sets the timelocks for the proposed offer
-    pub fn with_timelocks(mut self, cancel: T::Timelock, punish: T::Timelock) -> Self {
+    pub fn with_timelocks(
+        mut self,
+        cancel: T::Timelock,
+        punish: T::Timelock,
+    ) -> Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
         self
@@ -259,11 +282,11 @@ where
         self
     }
 
-    /// Transform the internal state into an offer if all parameters have been set properly,
-    /// otherwise return `None`.
+    /// Transform the internal state into an offer if all parameters have been
+    /// set properly, otherwise return `None`.
     ///
-    /// This function automatically sets the maker swap role as **Bob** to comply with the buy
-    /// contract.
+    /// This function automatically sets the maker swap role as **Bob** to
+    /// comply with the buy contract.
     pub fn to_offer(mut self) -> Option<Offer<T, U>> {
         self.0.maker_role = Some(SwapRole::Bob);
         Some(Offer {
@@ -317,9 +340,10 @@ where
     }
 }
 
-/// A public offer is shared across maker's prefered network to signal is willing of trading some
-/// assets at some conditions. The assets and condition are defined in the offer, the make peer
-/// connection information are happen to the offer the create a public offer.
+/// A public offer is shared across maker's prefered network to signal is
+/// willing of trading some assets at some conditions. The assets and condition
+/// are defined in the offer, the make peer connection information are happen to
+/// the offer the create a public offer.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicOffer<Ar, Ac>
 where
@@ -333,12 +357,28 @@ where
     //pub daemon_service: NodeAddr,
 }
 
+impl<Ar, Ac> std::str::FromStr for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut res = s.as_bytes();
+        Decodable::consensus_decode(&mut res)
+    }
+}
+
 impl<Ar, Ac> Encodable for PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> Result<usize, io::Error> {
         let mut len = OFFER_MAGIC_BYTES.consensus_encode(writer)?;
         len += self.version.consensus_encode(writer)?;
         Ok(len + self.offer.consensus_encode(writer)?)
@@ -350,10 +390,14 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+    fn consensus_decode<D: io::Read>(
+        d: &mut D,
+    ) -> Result<Self, consensus::Error> {
         let magic_bytes: [u8; 6] = Decodable::consensus_decode(d)?;
         if magic_bytes != *OFFER_MAGIC_BYTES {
-            return Err(consensus::Error::Negotiation(Error::IncorrectMagicBytes));
+            return Err(consensus::Error::Negotiation(
+                Error::IncorrectMagicBytes,
+            ));
         }
         Ok(PublicOffer {
             version: Decodable::consensus_decode(d)?,

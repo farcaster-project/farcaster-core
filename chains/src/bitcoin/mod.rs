@@ -25,7 +25,7 @@ use std::io;
 
 pub mod transaction;
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, Eq, PartialEq)]
 pub struct Bitcoin;
 
 impl StrictEncode for Bitcoin {
@@ -65,7 +65,7 @@ impl Blockchain for Bitcoin {
 }
 
 /// Bitcoin amount wrapper
-#[derive(Copy, PartialEq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Copy, PartialEq, Eq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct Amount(amount::Amount);
 
@@ -101,7 +101,7 @@ impl Decodable for Amount {
     }
 }
 
-#[derive(PartialOrd, PartialEq, Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(PartialOrd, PartialEq, Eq, Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct SatPerVByte(Amount);
 
@@ -202,7 +202,7 @@ impl Arbitrating for Bitcoin {
     type Timelock = CSVTimelock;
 }
 
-#[derive(PartialEq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode, Copy)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct CSVTimelock(u32);
 

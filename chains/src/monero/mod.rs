@@ -13,7 +13,7 @@ use monero::util::key::PublicKey;
 use std::fmt::{self, Debug, Display, Formatter};
 use strict_encoding::{StrictDecode, StrictEncode};
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
 
 impl StrictEncode for Monero {

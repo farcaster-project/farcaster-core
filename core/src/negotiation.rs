@@ -13,7 +13,7 @@ use crate::role::{Accordant, Arbitrating, SwapRole};
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
 /// A public offer version containing the version and the activated features if any.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Version(u16);
 
 impl Version {
@@ -58,7 +58,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
 /// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
 /// the data needed to a Taker to connect to the Maker's daemon.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug, StrictDecode, StrictEncode, PartialEq, Eq)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct Offer<Ar, Ac>
 where
@@ -320,7 +320,7 @@ where
 /// A public offer is shared across maker's prefered network to signal is willing of trading some
 /// assets at some conditions. The assets and condition are defined in the offer, the make peer
 /// connection information are happen to the offer the create a public offer.
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,

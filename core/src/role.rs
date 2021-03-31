@@ -25,7 +25,7 @@ pub struct Taker;
 pub trait Role {}
 
 /// Defines all possible swap roles: alice and bob.
-#[derive(Copy, PartialEq)]
+#[derive(Copy, PartialEq, Eq)]
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
 pub enum SwapRole {
@@ -88,7 +88,7 @@ pub trait Arbitrating:
     /// Defines the address format for the arbitrating blockchain
     type Address: StrictEncode + StrictDecode;
     /// Defines the type of timelock used for the arbitrating transactions
-    type Timelock: Copy + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
+    type Timelock: Copy + Debug + Encodable + Decodable + StrictEncode + StrictDecode + PartialEq + Eq;
 }
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.

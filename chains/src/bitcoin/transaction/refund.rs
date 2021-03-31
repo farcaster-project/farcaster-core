@@ -17,7 +17,11 @@ use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig};
 #[derive(Debug)]
 pub struct Refund;
 
-impl SubTransaction for Refund {}
+impl SubTransaction for Refund {
+    fn finalize(_psbt: &mut PartiallySignedTransaction) -> Result<(), Error> {
+        todo!()
+    }
+}
 
 impl Refundable<Bitcoin> for Tx<Refund> {
     /// Type returned by the impl of a Lock tx
@@ -101,9 +105,5 @@ impl Cooperable<Bitcoin> for Tx<Refund> {
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
         self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
         Ok(())
-    }
-
-    fn finalize(&mut self) -> Result<(), Error> {
-        todo!()
     }
 }

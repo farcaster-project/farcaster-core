@@ -18,7 +18,17 @@ use crate::bitcoin::Bitcoin;
 #[derive(Debug)]
 pub struct Lock;
 
-impl SubTransaction for Lock {}
+impl SubTransaction for Lock {
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), Error> {
+        let (pubkey, full_sig) = psbt.inputs[0]
+            .partial_sigs
+            .iter()
+            .next()
+            .ok_or(Error::MissingSignature)?;
+        psbt.inputs[0].final_script_witness = Some(vec![full_sig.clone(), pubkey.to_bytes()]);
+        Ok(())
+    }
+}
 
 impl Lockable<Bitcoin> for Tx<Lock> {
     /// Type returned by the impl of a Funding tx
@@ -119,7 +129,7 @@ impl Signable<Bitcoin> for Tx<Lock> {
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
 
         let pubkey = PublicKey::from_private_key(&secp, &privkey);
-        self.psbt.inputs[0].final_script_witness = Some(vec![full_sig, pubkey.to_bytes()]);
+        self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
 
         Ok(sig)
     }

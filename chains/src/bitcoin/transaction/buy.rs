@@ -2,6 +2,7 @@ use bitcoin::blockdata::script::Instruction;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::address::Address;
 use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
@@ -14,7 +15,50 @@ use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig};
 #[derive(Debug)]
 pub struct Buy;
 
-impl SubTransaction for Buy {}
+impl SubTransaction for Buy {
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), Error> {
+        let script = psbt.inputs[0]
+            .witness_script
+            .clone()
+            .ok_or(Error::MissingWitnessScript)?;
+
+        let mut keys = script.instructions().skip(2).take(2);
+
+        psbt.inputs[0].final_script_witness = Some(vec![
+            vec![], // 0 for multisig
+            psbt.inputs[0]
+                .partial_sigs
+                .get(
+                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
+                        |i| match i {
+                            Instruction::PushBytes(b) => Ok(b),
+                            _ => Err(Error::PublicKeyNotFound),
+                        },
+                    )??)
+                    .map_err(|_| Error::PublicKeyNotFound)?,
+                )
+                .ok_or(Error::MissingSignature)?
+                .clone(),
+            psbt.inputs[0]
+                .partial_sigs
+                .get(
+                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
+                        |i| match i {
+                            Instruction::PushBytes(b) => Ok(b),
+                            _ => Err(Error::PublicKeyNotFound),
+                        },
+                    )??)
+                    .map_err(|_| Error::PublicKeyNotFound)?,
+                )
+                .ok_or(Error::MissingSignature)?
+                .clone(),
+            vec![1],             // OP_TRUE
+            script.into_bytes(), // swaplock script
+        ]);
+
+        Ok(())
+    }
+}
 
 impl Buyable<Bitcoin> for Tx<Buy> {
     /// Type returned by the impl of a Lock tx
@@ -71,49 +115,6 @@ impl Cooperable<Bitcoin> for Tx<Buy> {
         let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
         self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
-        Ok(())
-    }
-
-    fn finalize(&mut self) -> Result<(), Error> {
-        let script = self.psbt.inputs[0]
-            .witness_script
-            .clone()
-            .ok_or(Error::MissingWitnessScript)?;
-
-        let mut keys = script.instructions().skip(2).take(2);
-
-        self.psbt.inputs[0].final_script_witness = Some(vec![
-            vec![], // 0 for multisig
-            self.psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
-                        |i| match i {
-                            Instruction::PushBytes(b) => Ok(b),
-                            _ => Err(Error::PublicKeyNotFound),
-                        },
-                    )??)
-                    .map_err(|_| Error::PublicKeyNotFound)?,
-                )
-                .ok_or(Error::MissingSignature)?
-                .clone(),
-            self.psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
-                        |i| match i {
-                            Instruction::PushBytes(b) => Ok(b),
-                            _ => Err(Error::PublicKeyNotFound),
-                        },
-                    )??)
-                    .map_err(|_| Error::PublicKeyNotFound)?,
-                )
-                .ok_or(Error::MissingSignature)?
-                .clone(),
-            vec![1],             // OP_TRUE
-            script.into_bytes(), // swaplock script
-        ]);
-
         Ok(())
     }
 }

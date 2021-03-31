@@ -19,7 +19,50 @@ use crate::bitcoin::Bitcoin;
 #[derive(Debug)]
 pub struct Cancel;
 
-impl SubTransaction for Cancel {}
+impl SubTransaction for Cancel {
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), Error> {
+        let script = psbt.inputs[0]
+            .witness_script
+            .clone()
+            .ok_or(Error::MissingWitnessScript)?;
+
+        let mut keys = script.instructions().skip(11).take(2);
+
+        psbt.inputs[0].final_script_witness = Some(vec![
+            vec![], // 0 for multisig
+            psbt.inputs[0]
+                .partial_sigs
+                .get(
+                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
+                        |i| match i {
+                            Instruction::PushBytes(b) => Ok(b),
+                            _ => Err(Error::PublicKeyNotFound),
+                        },
+                    )??)
+                    .map_err(|_| Error::PublicKeyNotFound)?,
+                )
+                .ok_or(Error::MissingSignature)?
+                .clone(),
+            psbt.inputs[0]
+                .partial_sigs
+                .get(
+                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
+                        |i| match i {
+                            Instruction::PushBytes(b) => Ok(b),
+                            _ => Err(Error::PublicKeyNotFound),
+                        },
+                    )??)
+                    .map_err(|_| Error::PublicKeyNotFound)?,
+                )
+                .ok_or(Error::MissingSignature)?
+                .clone(),
+            vec![],              // OP_FALSE
+            script.into_bytes(), // swaplock script
+        ]);
+
+        Ok(())
+    }
+}
 
 impl Cancelable<Bitcoin> for Tx<Cancel> {
     /// Type returned by the impl of a Lock tx
@@ -132,49 +175,6 @@ impl Cooperable<Bitcoin> for Tx<Cancel> {
         let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
         self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
-        Ok(())
-    }
-
-    fn finalize(&mut self) -> Result<(), Error> {
-        let script = self.psbt.inputs[0]
-            .witness_script
-            .clone()
-            .ok_or(Error::MissingWitnessScript)?;
-
-        let mut keys = script.instructions().skip(11).take(2);
-
-        self.psbt.inputs[0].final_script_witness = Some(vec![
-            vec![], // 0 for multisig
-            self.psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
-                        |i| match i {
-                            Instruction::PushBytes(b) => Ok(b),
-                            _ => Err(Error::PublicKeyNotFound),
-                        },
-                    )??)
-                    .map_err(|_| Error::PublicKeyNotFound)?,
-                )
-                .ok_or(Error::MissingSignature)?
-                .clone(),
-            self.psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
-                        |i| match i {
-                            Instruction::PushBytes(b) => Ok(b),
-                            _ => Err(Error::PublicKeyNotFound),
-                        },
-                    )??)
-                    .map_err(|_| Error::PublicKeyNotFound)?,
-                )
-                .ok_or(Error::MissingSignature)?
-                .clone(),
-            vec![],              // OP_FALSE
-            script.into_bytes(), // swaplock script
-        ]);
-
         Ok(())
     }
 }

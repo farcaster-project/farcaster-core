@@ -12,7 +12,7 @@ use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 use thiserror::Error;
 
 use farcaster_core::blockchain::FeeStrategyError;
-use farcaster_core::transaction::{Broadcastable, Failable, Linkable, Transaction};
+use farcaster_core::transaction::{Broadcastable, Failable, Finalizable, Linkable, Transaction};
 
 use crate::bitcoin::Bitcoin;
 
@@ -77,7 +77,9 @@ pub struct MetadataOutput {
     pub script_pubkey: Option<Script>,
 }
 
-pub trait SubTransaction: Debug {}
+pub trait SubTransaction: Debug {
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), Error>;
+}
 
 #[derive(Debug)]
 pub struct Tx<T: SubTransaction> {
@@ -98,6 +100,15 @@ where
 {
     fn to_partial(&self) -> Option<PartiallySignedTransaction> {
         Some(self.psbt.clone())
+    }
+}
+
+impl<T> Finalizable<Bitcoin> for Tx<T>
+where
+    T: SubTransaction,
+{
+    fn finalize(&mut self) -> Result<(), Error> {
+        T::finalize(&mut self.psbt)
     }
 }
 

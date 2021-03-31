@@ -33,7 +33,7 @@ pub enum TxId {
     Refund,
     /// Represents the full failure path, where only one participant gets refunded because he
     /// didn't act accordingly to the protocol.
-    Publish,
+    Punish,
 }
 
 /// Must be implemented on transactions with failable opperations.
@@ -48,18 +48,27 @@ where
     Ar: Arbitrating,
     Self: Sized,
 {
+    /// Add a cooperation to the transaction and store it internally for later usage.
     fn add_cooperation(
         &mut self,
         pubkey: Ar::PublicKey,
         sig: Ar::Signature,
     ) -> Result<(), Self::Error>;
+}
 
+/// Define a transaction that must have a finalization step.
+pub trait Finalizable<Ar>: Failable
+where
+    Ar: Arbitrating,
+    Self: Sized,
+{
+    /// Finalize the internal transaction and make it ready for extraction.
     fn finalize(&mut self) -> Result<(), Self::Error>;
 }
 
 /// Define a transaction broadcastable by the system. Externally managed transaction are not
 /// broadcastable.
-pub trait Broadcastable<Ar>
+pub trait Broadcastable<Ar>: Failable + Finalizable<Ar>
 where
     Ar: Arbitrating,
     Self: Sized,
@@ -70,6 +79,13 @@ where
     /// This correspond to the "role" of a "finalizer" as defined in BIP 174 for dealing with
     /// partial transactions, which can be applied more generically than just Bitcoin.
     fn extract(&self) -> Ar::Transaction;
+
+    /// Finalize the internal transaction and extract it, ready to be broadcasted.
+    fn finalize_and_extract(&mut self) -> Result<Ar::Transaction, Self::Error> {
+        // TODO maybe do more validation based on other traits
+        self.finalize()?;
+        Ok(self.extract())
+    }
 }
 
 /// Implemented by transactions that can be link to form chains of logic. A linkable transaction
@@ -178,6 +194,11 @@ where
     /// This function is needed because we assume that the transaction is created outside of the
     /// system by an external wallet, the txid is not known in advance.
     fn update(&mut self, args: Ar::Transaction) -> Result<(), Self::Error>;
+
+    /// Return the Farcaster transaction identifier.
+    fn get_id(&self) -> TxId {
+        TxId::Funding
+    }
 }
 
 /// Represent a lockable transaction such as the `lock (b)` transaction that consumes the `funding
@@ -203,6 +224,11 @@ where
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
+
+    /// Return the Farcaster transaction identifier.
+    fn get_id(&self) -> TxId {
+        TxId::Lock
+    }
 }
 
 /// Represent a buyable transaction such as the `buy (c)` transaction that consumes the `lock (b)`
@@ -237,6 +263,11 @@ where
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
+
+    /// Return the Farcaster transaction identifier.
+    fn get_id(&self) -> TxId {
+        TxId::Buy
+    }
 }
 
 /// Represent a cancelable transaction such as the `cancel (d)` transaction that consumes the `lock
@@ -265,6 +296,11 @@ where
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
+
+    /// Return the Farcaster transaction identifier.
+    fn get_id(&self) -> TxId {
+        TxId::Cancel
+    }
 }
 
 /// Represent a refundable transaction such as the `refund (e)` transaction that consumes the
@@ -298,6 +334,11 @@ where
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
+
+    /// Return the Farcaster transaction identifier.
+    fn get_id(&self) -> TxId {
+        TxId::Refund
+    }
 }
 
 /// Represent a punishable transaction such as the `punish (f)` transaction that consumes the
@@ -327,4 +368,9 @@ where
         fee_strategy: &FeeStrategy<Ar::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
+
+    /// Return the Farcaster transaction identifier.
+    fn get_id(&self) -> TxId {
+        TxId::Punish
+    }
 }

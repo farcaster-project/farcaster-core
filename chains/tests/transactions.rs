@@ -69,14 +69,13 @@ macro_rules! setup_txs {
         //
         // Finalize for failure path
         //
-        cancel.finalize().unwrap();
-        let cancel_finalized = cancel.extract();
+        let cancel_finalized = cancel.finalize_and_extract().unwrap();
 
         //
         // Sign lock tx
         //
         let _sig = lock.generate_witness(&secret_a1).unwrap();
-        let lock_finalized = lock.extract();
+        let lock_finalized = lock.finalize_and_extract().unwrap();
 
         (lock_finalized, cancel_finalized, refund)
     }};

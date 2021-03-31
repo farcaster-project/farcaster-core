@@ -5,7 +5,6 @@
 
 use std::fmt::Debug;
 use std::io;
-use std::ops::Range;
 
 use crate::consensus::{self, Decodable, Encodable};
 

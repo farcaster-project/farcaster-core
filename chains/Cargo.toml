@@ -24,3 +24,4 @@ bitcoincore-rpc = "0.13.0"
 rand_core = { version = "^0.5.0", features = ["getrandom"] }
 secp256k1 = { version = "0.20.1", features = ["rand-std"] }
 internet2 = "0.3.10"
+lazy_static = "1.4.0"

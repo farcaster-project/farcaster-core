@@ -1,5 +1,6 @@
 //! Negotiation phase utilities
 
+use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 
 use std::io;
@@ -405,6 +406,30 @@ where
             offer: Decodable::consensus_decode(d)?,
             daemon_service: strict_encoding::StrictDecode::strict_decode(d)
                 .map_err(|_| consensus::Error::ParseFailed("Failed to decode RemoteNodeAddr"))?,
+        })
+    }
+}
+
+impl<Ar, Ac> StrictEncode for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
+    }
+}
+
+impl<Ar, Ac> StrictDecode for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        Decodable::consensus_decode(&mut d).map_err(|_| {
+            strict_encoding::Error::DataIntegrityError(
+                "Failed to decode the public offer".to_string(),
+            )
         })
     }
 }

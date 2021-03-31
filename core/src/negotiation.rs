@@ -14,7 +14,7 @@ use crate::role::{Accordant, Arbitrating, SwapRole};
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
 /// A public offer version containing the version and the activated features if any.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Version(u16);
 
 impl Version {
@@ -319,7 +319,7 @@ where
 /// A public offer is shared across maker's prefered network to signal is willing of trading some
 /// assets at some conditions. The assets and condition are defined in the offer, the make peer
 /// connection information are happen to the offer the create a public offer.
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,

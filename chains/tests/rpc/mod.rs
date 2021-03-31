@@ -57,7 +57,11 @@ macro_rules! new_address {
         };
 
         // Generate pay-to-pubkey-hash address
-        (Address::p2pkh(&public_key, Network::Regtest), public_key, private_key)
+        (
+            Address::p2pkh(&public_key, Network::Regtest),
+            public_key,
+            private_key,
+        )
     }};
 }
 

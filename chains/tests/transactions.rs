@@ -19,7 +19,7 @@ macro_rules! setup_txs {
         let (_, pubkey_a2, secret_a2) = new_address!();
 
         let (_, pubkey_b1, _secret_b1) = new_address!();
-        let (_, pubkey_b2,  secret_b2) = new_address!();
+        let (_, pubkey_b2, secret_b2) = new_address!();
 
         let mut funding = Funding::initialize(pubkey_a1, Network::Local).unwrap();
         let address = funding.get_address().unwrap();
@@ -57,7 +57,8 @@ macro_rules! setup_txs {
         //
         let (new_address, _, _) = new_address!();
         let refund =
-            Tx::<Refund>::initialize(&cancel, datapunishablelock, new_address, &fee, politic).unwrap();
+            Tx::<Refund>::initialize(&cancel, datapunishablelock, new_address, &fee, politic)
+                .unwrap();
 
         //
         // Co-Sign refund
@@ -78,7 +79,7 @@ macro_rules! setup_txs {
         let lock_finalized = lock.extract();
 
         (lock_finalized, cancel_finalized, refund)
-    }}
+    }};
 }
 
 #[test]
@@ -88,7 +89,6 @@ fn create_transactions() {
 
 #[test]
 fn broadcast_lock() {
-
     let (lock_finalized, _, _) = setup_txs!();
 
     rpc! {
@@ -104,7 +104,6 @@ fn broadcast_lock() {
 #[test]
 #[should_panic]
 fn broadcast_cancel_before_timelock() {
-
     let (lock_finalized, cancel_finalized, _) = setup_txs!();
 
     rpc! {
@@ -119,7 +118,6 @@ fn broadcast_cancel_before_timelock() {
 
 #[test]
 fn broadcast_cancel_after_timelock() {
-
     let (lock_finalized, cancel_finalized, _) = setup_txs!();
 
     rpc! {

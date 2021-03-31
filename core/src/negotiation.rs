@@ -53,11 +53,13 @@ pub enum Error {
     IncorrectMagicBytes,
 }
 
+use strict_encoding::{StrictDecode, StrictEncode};
 /// An offer is created by a Maker before the start of his daemon, it references all the data
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
 /// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
 /// the data needed to a Taker to connect to the Maker's daemon.
-#[derive(Debug)]
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct Offer<Ar, Ac>
 where
     Ar: Arbitrating,

@@ -25,8 +25,23 @@ use std::io;
 
 pub mod transaction;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Debug, Copy)]
 pub struct Bitcoin;
+
+impl StrictEncode for Bitcoin {
+    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        farcaster_core::consensus::Encodable::consensus_encode(self, &mut e)
+            .map_err(strict_encoding::Error::from)
+    }
+}
+
+impl StrictDecode for Bitcoin {
+    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        farcaster_core::consensus::Decodable::consensus_decode(&mut d).map_err(|_| {
+            strict_encoding::Error::DataIntegrityError("Failed to decode Bitcoin".to_string())
+        })
+    }
+}
 
 impl Blockchain for Bitcoin {
     /// Type for the traded asset unit
@@ -50,7 +65,8 @@ impl Blockchain for Bitcoin {
 }
 
 /// Bitcoin amount wrapper
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Copy, PartialEq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct Amount(amount::Amount);
 
 impl Amount {
@@ -85,7 +101,8 @@ impl Decodable for Amount {
     }
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(PartialOrd, PartialEq, Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {
@@ -147,8 +164,8 @@ impl Fee for Bitcoin {
         let fee_amount = match strategy {
             FeeStrategy::Fixed(sat_per_vbyte) => sat_per_vbyte.as_native_unit().checked_mul(weight),
             FeeStrategy::Range(range) => match politic {
-                FeePolitic::Aggressive => range.start.as_native_unit().checked_mul(weight),
-                FeePolitic::Conservative => range.end.as_native_unit().checked_mul(weight),
+                FeePolitic::Aggressive => range.0.as_native_unit().checked_mul(weight),
+                FeePolitic::Conservative => range.1.as_native_unit().checked_mul(weight),
             },
         }
         .ok_or_else(|| FeeStrategyError::AmountOfFeeTooHigh)?;
@@ -185,7 +202,8 @@ impl Arbitrating for Bitcoin {
     type Timelock = CSVTimelock;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode, Copy)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct CSVTimelock(u32);
 
 impl CSVTimelock {

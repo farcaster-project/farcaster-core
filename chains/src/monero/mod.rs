@@ -11,9 +11,25 @@ use monero::util::key::PrivateKey;
 use monero::util::key::PublicKey;
 
 use std::fmt::{self, Debug, Display, Formatter};
+use strict_encoding::{StrictDecode, StrictEncode};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Debug, Copy)]
 pub struct Monero;
+
+impl StrictEncode for Monero {
+    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        farcaster_core::consensus::Encodable::consensus_encode(self, &mut e)
+            .map_err(strict_encoding::Error::from)
+    }
+}
+
+impl StrictDecode for Monero {
+    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        farcaster_core::consensus::Decodable::consensus_decode(&mut d).map_err(|_| {
+            strict_encoding::Error::DataIntegrityError("Failed to decode Monero".to_string())
+        })
+    }
+}
 
 impl Display for Monero {
     fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
@@ -68,7 +84,6 @@ impl Commitment for Monero {
     type Commitment = PubkeyHash;
 }
 
-use strict_encoding::{StrictDecode, StrictEncode};
 impl StrictEncode for Ed25519 {
     fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
         let res = Hash::hash(&"Farcaster Ed25519".as_bytes()).to_bytes();

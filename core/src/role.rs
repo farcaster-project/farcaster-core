@@ -24,6 +24,18 @@ pub struct Taker;
 /// Definition of a swap role.
 pub trait Role {}
 
+impl std::str::FromStr for SwapRole {
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Bob" => Ok(SwapRole::Alice),
+            "Alice" => Ok(SwapRole::Bob),
+            _ => Err(consensus::Error::ParseFailed("Bob or Alice valid".to_string()))
+        }
+    }
+}
+
 /// Defines all possible swap roles: alice and bob.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SwapRole {
@@ -76,7 +88,7 @@ pub trait Arbitrating:
     /// Defines the address format for the arbitrating blockchain
     type Address: StrictEncode + StrictDecode;
     /// Defines the type of timelock used for the arbitrating transactions
-    type Timelock: Copy + Debug + Encodable + Decodable;
+    type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
 }
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.

@@ -15,6 +15,32 @@ use std::fmt::{self, Debug, Display, Formatter};
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
 
+impl std::str::FromStr for Monero {
+    type Err = farcaster_core::consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Monero" => Ok(Monero),
+            _ => Err(farcaster_core::consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl StrictEncode for Monero {
+    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        farcaster_core::consensus::Encodable::consensus_encode(self, &mut e)
+            .map_err(strict_encoding::Error::from)
+    }
+}
+
+impl StrictDecode for Monero {
+    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        farcaster_core::consensus::Decodable::consensus_decode(&mut d).map_err(|_| {
+            strict_encoding::Error::DataIntegrityError("Failed to decode Monero".to_string())
+        })
+    }
+}
+
 impl Display for Monero {
     fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
         println!("xmr");

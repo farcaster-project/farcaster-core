@@ -45,6 +45,7 @@ fn maker_sell_arbitrating_assets_offer() {
         .on(Network::Testnet)
         .to_offer();
     assert!(offer.is_some());
+    dbg!(&offer);
     assert_eq!(offer.expect("an offer").maker_role, SwapRole::Bob);
 }
 
@@ -68,6 +69,7 @@ fn check_public_offer_magic_bytes() {
     let valid = "464353574150010002000000808000008008a08601000000000008c800000000000000040a000000040a0000000108140000000000000002";
     let pub_offer: Result<PublicOffer<Bitcoin, Monero>, consensus::Error> =
         deserialize(&hex::decode(valid).unwrap()[..]);
+    dbg!(&pub_offer);
     assert!(pub_offer.is_ok());
 
     let invalid = "474353574150010002000000808000008008a08601000000000008c800000000000000040a000000040a0000000108140000000000000002";

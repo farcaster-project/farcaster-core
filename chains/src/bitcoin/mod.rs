@@ -20,13 +20,41 @@ use farcaster_core::role::Arbitrating;
 
 use crate::monero::{Ed25519, Monero};
 
-use std::fmt::Debug;
 use std::io;
+use std::{convert::TryInto, fmt::Debug};
 
 pub mod transaction;
 
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
 pub struct Bitcoin;
+
+impl std::str::FromStr for Bitcoin {
+    type Err = strict_encoding::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Bitcoin" => Ok(Self),
+            _ => Err(strict_encoding::Error::DataIntegrityError(
+                "Not Bitcoin".to_string(),
+            )),
+        }
+    }
+}
+
+impl StrictEncode for Bitcoin {
+    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        farcaster_core::consensus::Encodable::consensus_encode(self, &mut e)
+            .map_err(strict_encoding::Error::from)
+    }
+}
+
+impl StrictDecode for Bitcoin {
+    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        farcaster_core::consensus::Decodable::consensus_decode(&mut d).map_err(|_| {
+            strict_encoding::Error::DataIntegrityError("Failed to decode Bitcoin".to_string())
+        })
+    }
+}
 
 impl Blockchain for Bitcoin {
     /// Type for the traded asset unit
@@ -46,6 +74,17 @@ impl Blockchain for Bitcoin {
 
     fn to_u32(&self) -> u32 {
         0x80000000
+    }
+}
+
+impl std::str::FromStr for Amount {
+    type Err = farcaster_core::consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let x = s
+            .parse::<u64>()
+            .map_err(|_| farcaster_core::consensus::Error::ParseFailed("Failed to parse amount"))?;
+        Ok(Self(amount::Amount::from_sat(x)))
     }
 }
 
@@ -185,7 +224,18 @@ impl Arbitrating for Bitcoin {
     type Timelock = CSVTimelock;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+impl std::str::FromStr for CSVTimelock {
+    type Err = farcaster_core::consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let x = s.parse::<u32>().map_err(|_| {
+            farcaster_core::consensus::Error::ParseFailed("Failed parsing CSV timelock")
+        })?;
+        Ok(CSVTimelock(x))
+    }
+}
+#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode, Copy)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct CSVTimelock(u32);
 
 impl CSVTimelock {

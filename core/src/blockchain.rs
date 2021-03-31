@@ -61,6 +61,20 @@ pub trait FeeUnit {
     type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable;
 }
 
+impl<T> std::str::FromStr for FeeStrategy<T>
+where
+    T: Clone + PartialOrd + PartialEq + Encodable + Decodable + StrictEncode + StrictDecode + std::str::FromStr,
+{
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<T>() {
+            Ok(x) => Ok(Self::Fixed(x)),
+            Err(_) => Err(consensus::Error::ParseFailed("Failed parsing FeeStrategy; range parsing not implemented")),
+        }
+    }
+}
+
 /// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
 /// a fee strategy can be: fixed or range.
 ///
@@ -150,6 +164,19 @@ pub trait Fee: Onchain + Blockchain + FeeUnit {
         strategy: &FeeStrategy<Self::FeeUnit>,
         politic: FeePolitic,
     ) -> Result<bool, FeeStrategyError>;
+}
+
+impl std::str::FromStr for Network {
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Mainnet" => Ok(Network::Mainnet),
+            "Testnet" => Ok(Network::Testnet),
+            "Local" => Ok(Network::Local),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
 }
 
 /// Defines a blockchain network, identifies in which context the system interacts with the

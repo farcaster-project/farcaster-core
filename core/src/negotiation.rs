@@ -1,7 +1,5 @@
 //! Negotiation phase utilities
 
-//use internet2::session::node_addr::NodeAddr;
-use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 
 use std::io;
@@ -36,18 +34,13 @@ impl Version {
 }
 
 impl Encodable for Version {
-    fn consensus_encode<W: io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> Result<usize, io::Error> {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         self.to_u16().consensus_encode(writer)
     }
 }
 
 impl Decodable for Version {
-    fn consensus_decode<D: io::Read>(
-        d: &mut D,
-    ) -> Result<Self, consensus::Error> {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self::new(Decodable::consensus_decode(d)?))
     }
 }
@@ -91,8 +84,7 @@ where
     pub maker_role: SwapRole,
 }
 
-impl<Ar: Arbitrating, Ac: Accordant> Eq for Offer<Ar, Ac> {
-}
+impl<Ar: Arbitrating, Ac: Accordant> Eq for Offer<Ar, Ac> {}
 
 impl<Ar: Arbitrating, Ac: Accordant> PartialEq for Offer<Ar, Ac> {
     fn eq(&self, other: &Self) -> bool {
@@ -107,10 +99,11 @@ where
 {
     /// Transform the offer in a public offer of [Version] 1
     // TODO inject peer data here
-    pub fn to_public_v1(self) -> PublicOffer<Ar, Ac> {
+    pub fn to_public_v1(self, daemon_service: RemoteNodeAddr) -> PublicOffer<Ar, Ac> {
         PublicOffer {
             version: Version::new_v1(),
             offer: self,
+            daemon_service,
         }
     }
 }
@@ -120,10 +113,7 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn consensus_encode<W: io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> Result<usize, io::Error> {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let mut len = self.network.consensus_encode(writer)?;
         len += self.arbitrating.consensus_encode(writer)?;
         len += self.accordant.consensus_encode(writer)?;
@@ -141,9 +131,7 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn consensus_decode<D: io::Read>(
-        d: &mut D,
-    ) -> Result<Self, consensus::Error> {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Offer {
             network: Decodable::consensus_decode(d)?,
             arbitrating: Decodable::consensus_decode(d)?,
@@ -191,11 +179,7 @@ where
     }
 
     /// Sets the timelocks for the proposed offer
-    pub fn with_timelocks(
-        mut self,
-        cancel: T::Timelock,
-        punish: T::Timelock,
-    ) -> Self {
+    pub fn with_timelocks(mut self, cancel: T::Timelock, punish: T::Timelock) -> Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
         self
@@ -267,11 +251,7 @@ where
     }
 
     /// Sets the timelocks for the proposed offer
-    pub fn with_timelocks(
-        mut self,
-        cancel: T::Timelock,
-        punish: T::Timelock,
-    ) -> Self {
+    pub fn with_timelocks(mut self, cancel: T::Timelock, punish: T::Timelock) -> Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
         self
@@ -351,6 +331,7 @@ where
 /// willing of trading some assets at some conditions. The assets and condition
 /// are defined in the offer, the make peer connection information are happen to
 /// the offer the create a public offer.
+use internet2::RemoteNodeAddr;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicOffer<Ar, Ac>
 where
@@ -361,7 +342,7 @@ where
     pub version: Version,
     /// The content of the offer
     pub offer: Offer<Ar, Ac>,
-    //pub daemon_service: NodeAddr,
+    pub daemon_service: RemoteNodeAddr,
 }
 
 impl<Ar, Ac> std::str::FromStr for PublicOffer<Ar, Ac>
@@ -382,10 +363,7 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn consensus_encode<W: io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> Result<usize, io::Error> {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let mut len = OFFER_MAGIC_BYTES.consensus_encode(writer)?;
         len += self.version.consensus_encode(writer)?;
         Ok(len + self.offer.consensus_encode(writer)?)
@@ -397,42 +375,16 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn consensus_decode<D: io::Read>(
-        d: &mut D,
-    ) -> Result<Self, consensus::Error> {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let magic_bytes: [u8; 6] = Decodable::consensus_decode(d)?;
         if magic_bytes != *OFFER_MAGIC_BYTES {
-            return Err(consensus::Error::Negotiation(
-                Error::IncorrectMagicBytes,
-            ));
+            return Err(consensus::Error::Negotiation(Error::IncorrectMagicBytes));
         }
         Ok(PublicOffer {
             version: Decodable::consensus_decode(d)?,
             offer: Decodable::consensus_decode(d)?,
-        })
-    }
-}
-
-impl<Ar, Ac> StrictEncode for PublicOffer<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
-    }
-}
-
-impl<Ar, Ac> StrictDecode for PublicOffer<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError(
-                "Failed to decode the public offer".to_string(),
-            )
+            daemon_service: strict_encoding::StrictDecode::strict_decode(d)
+                .map_err(|_| consensus::Error::ParseFailed("Failed to decode RemoteNodeAddr"))?,
         })
     }
 }

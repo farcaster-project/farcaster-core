@@ -31,13 +31,13 @@ impl std::str::FromStr for SwapRole {
         match s {
             "Bob" => Ok(SwapRole::Alice),
             "Alice" => Ok(SwapRole::Bob),
-            _ => Err(consensus::Error::ParseFailed("Bob or Alice valid".to_string()))
+            _ => Err(consensus::Error::ParseFailed("Bob or Alice valid"))
         }
     }
 }
 
 /// Defines all possible swap roles: alice and bob.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwapRole {
     Alice,
     Bob,
@@ -83,7 +83,7 @@ pub enum BlockchainRole {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Blockchain + Keys + Commitment + Signatures + Curve + Script + Onchain + Fee + Clone
+    Blockchain + Keys + Commitment + Signatures + Curve + Script + Onchain + Fee + Clone + Eq
 {
     /// Defines the address format for the arbitrating blockchain
     type Address: StrictEncode + StrictDecode;
@@ -92,4 +92,4 @@ pub trait Arbitrating:
 }
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
-pub trait Accordant: Blockchain + Keys + Curve + Commitment + Clone + PrivateViewKey {}
+pub trait Accordant: Blockchain + Keys + Curve + Commitment + Clone + PrivateViewKey + Eq {}

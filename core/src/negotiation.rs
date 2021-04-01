@@ -65,7 +65,7 @@ pub enum Error {
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
 /// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
 /// the data needed to a Taker to connect to the Maker's daemon.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Offer<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -89,6 +89,15 @@ where
     pub fee_strategy: FeeStrategy<Ar::FeeUnit>,
     /// The future maker swap role
     pub maker_role: SwapRole,
+}
+
+impl<Ar: Arbitrating, Ac: Accordant> Eq for Offer<Ar, Ac> {
+}
+
+impl<Ar: Arbitrating, Ac: Accordant> PartialEq for Offer<Ar, Ac> {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
 }
 
 impl<Ar, Ac> Offer<Ar, Ac>

@@ -89,7 +89,7 @@ impl std::str::FromStr for Amount {
 }
 
 /// Bitcoin amount wrapper
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, StrictDecode, StrictEncode)]
 pub struct Amount(amount::Amount);
 
 impl Amount {
@@ -124,7 +124,7 @@ impl Decodable for Amount {
     }
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {

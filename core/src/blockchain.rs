@@ -58,7 +58,7 @@ pub trait Onchain {
 /// Define the unit type used for setting/validating blockchain fees.
 pub trait FeeUnit {
     /// Type for describing the fees of a blockchain
-    type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable;
+    type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable + PartialEq + Eq;
 }
 
 impl<T> std::str::FromStr for FeeStrategy<T>
@@ -80,7 +80,7 @@ where
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FeeStrategy<T>
 where
     T: Clone + PartialOrd + PartialEq + Encodable + Decodable,

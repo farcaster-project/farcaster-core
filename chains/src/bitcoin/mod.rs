@@ -21,7 +21,7 @@ use farcaster_core::role::Arbitrating;
 use crate::monero::{Ed25519, Monero};
 
 use std::io;
-use std::{convert::TryInto, fmt::Debug};
+use std::fmt::Debug;
 
 pub mod transaction;
 
@@ -29,14 +29,12 @@ pub mod transaction;
 pub struct Bitcoin;
 
 impl std::str::FromStr for Bitcoin {
-    type Err = strict_encoding::Error;
+    type Err = farcaster_core::consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "Bitcoin" => Ok(Self),
-            _ => Err(strict_encoding::Error::DataIntegrityError(
-                "Not Bitcoin".to_string(),
-            )),
+            _ => Err(farcaster_core::consensus::Error::UnknownType)
         }
     }
 }

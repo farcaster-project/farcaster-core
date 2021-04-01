@@ -29,8 +29,8 @@ impl std::str::FromStr for SwapRole {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Bob" => Ok(SwapRole::Alice),
-            "Alice" => Ok(SwapRole::Bob),
+            "Alice" => Ok(SwapRole::Alice),
+            "Bob" => Ok(SwapRole::Bob),
             _ => Err(consensus::Error::ParseFailed("Bob or Alice valid"))
         }
     }

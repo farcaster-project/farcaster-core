@@ -39,21 +39,6 @@ impl std::str::FromStr for Bitcoin {
     }
 }
 
-impl StrictEncode for Bitcoin {
-    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        farcaster_core::consensus::Encodable::consensus_encode(self, &mut e)
-            .map_err(strict_encoding::Error::from)
-    }
-}
-
-impl StrictDecode for Bitcoin {
-    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        farcaster_core::consensus::Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError("Failed to decode Bitcoin".to_string())
-        })
-    }
-}
-
 impl Blockchain for Bitcoin {
     /// Type for the traded asset unit
     type AssetUnit = Amount;
@@ -121,8 +106,18 @@ impl Decodable for Amount {
         Ok(Amount::from_sat(sats))
     }
 }
+impl std::str::FromStr for SatPerVByte {
+    type Err = farcaster_core::consensus::Error;
 
-#[derive(Debug, Clone, PartialOrd, PartialEq, Eq)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let x = s
+            .parse::<u64>()
+            .map_err(|_| farcaster_core::consensus::Error::ParseFailed("Failed to parse amount"))?;
+        Ok(Self(Amount(amount::Amount::from_sat(x))))
+    }
+}
+
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, StrictDecode, StrictEncode)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {

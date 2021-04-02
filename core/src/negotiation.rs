@@ -353,7 +353,9 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut res = s.as_bytes();
+        let decoded =
+            hex::decode(s).map_err(|_| consensus::Error::ParseFailed("Hex decode failed"))?;
+        let mut res = std::io::Cursor::new(decoded);
         Decodable::consensus_decode(&mut res)
     }
 }
@@ -366,7 +368,16 @@ where
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let mut len = OFFER_MAGIC_BYTES.consensus_encode(writer)?;
         len += self.version.consensus_encode(writer)?;
-        Ok(len + self.offer.consensus_encode(writer)?)
+        len += self.offer.consensus_encode(writer)?;
+        len += strict_encoding::StrictEncode::strict_encode(&self.daemon_service, writer).map_err(
+            |_| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Failed to encode RemoteNodeAddr",
+                )
+            },
+        )?;
+        Ok(len)
     }
 }
 

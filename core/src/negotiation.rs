@@ -108,6 +108,16 @@ where
     }
 }
 
+impl<Ar, Ac> ToString for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn to_string(&self) -> String {
+        consensus::serialize_hex(self)
+    }
+}
+
 impl<Ar, Ac> Encodable for Offer<Ar, Ac>
 where
     Ar: Arbitrating,

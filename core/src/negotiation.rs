@@ -88,7 +88,7 @@ impl<Ar: Arbitrating, Ac: Accordant> Eq for Offer<Ar, Ac> {}
 
 impl<Ar: Arbitrating, Ac: Accordant> PartialEq for Offer<Ar, Ac> {
     fn eq(&self, other: &Self) -> bool {
-        todo!()
+        consensus::serialize_hex(self) == consensus::serialize_hex(other)
     }
 }
 
@@ -98,7 +98,6 @@ where
     Ac: Accordant,
 {
     /// Transform the offer in a public offer of [Version] 1
-    // TODO inject peer data here
     pub fn to_public_v1(self, daemon_service: RemoteNodeAddr) -> PublicOffer<Ar, Ac> {
         PublicOffer {
             version: Version::new_v1(),

@@ -68,9 +68,10 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // range parsing not implemented
         match s.parse::<T>() {
             Ok(x) => Ok(Self::Fixed(x)),
-            Err(_) => Err(consensus::Error::ParseFailed("Failed parsing FeeStrategy; range parsing not implemented")),
+            Err(_) => Err(consensus::Error::ParseFailed("Failed parsing FeeStrategy")),
         }
     }
 }

@@ -3,7 +3,6 @@
 //! Datum are succinct and are used to convey atomic chunk of data (datum) between clients and
 //! daemons. Bundles are used during the different steps of the swap by both Alice and Bob.
 
-use crate::blockchain::Fee;
 use crate::datum;
 use crate::role::{Accordant, Arbitrating};
 
@@ -13,7 +12,7 @@ pub trait Bundle {}
 /// step of a swap.
 pub struct AliceSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Fee,
+    Ar: Arbitrating,
     Ac: Accordant,
 {
     pub buy: datum::Key<Ar, Ac>,
@@ -34,7 +33,7 @@ where
 /// step of a swap.
 pub struct BobSessionParams<Ar, Ac>
 where
-    Ar: Arbitrating + Fee,
+    Ar: Arbitrating,
     Ac: Accordant,
 {
     pub buy: datum::Key<Ar, Ac>,

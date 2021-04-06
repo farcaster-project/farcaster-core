@@ -6,6 +6,9 @@
 use std::fmt::Debug;
 use std::io;
 use std::ops::Range;
+use std::str::FromStr;
+
+use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::consensus::{self, Decodable, Encodable};
 
@@ -45,7 +48,6 @@ impl<T: Blockchain> Decodable for T {
 }
 
 /// Defines the types a blockchain needs to interact onchain, i.e. the transaction types.
-use strict_encoding::{StrictDecode, StrictEncode};
 pub trait Onchain {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
@@ -61,9 +63,9 @@ pub trait FeeUnit {
     type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable + PartialEq + Eq;
 }
 
-impl<T> std::str::FromStr for FeeStrategy<T>
+impl<T> FromStr for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Encodable + Decodable + StrictEncode + StrictDecode + std::str::FromStr,
+    T: Clone + PartialOrd + PartialEq + Encodable + Decodable + StrictEncode + StrictDecode + FromStr,
 {
     type Err = consensus::Error;
 
@@ -167,7 +169,7 @@ pub trait Fee: Onchain + Blockchain + FeeUnit {
     ) -> Result<bool, FeeStrategyError>;
 }
 
-impl std::str::FromStr for Network {
+impl FromStr for Network {
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

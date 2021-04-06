@@ -2,6 +2,7 @@
 
 use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
+use internet2::RemoteNodeAddr;
 
 use std::io;
 
@@ -341,7 +342,6 @@ where
 /// willing of trading some assets at some conditions. The assets and condition
 /// are defined in the offer, the make peer connection information are happen to
 /// the offer the create a public offer.
-use internet2::RemoteNodeAddr;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicOffer<Ar, Ac>
 where
@@ -352,6 +352,7 @@ where
     pub version: Version,
     /// The content of the offer
     pub offer: Offer<Ar, Ac>,
+    /// Address of the listening daemon's peer
     pub daemon_service: RemoteNodeAddr,
 }
 

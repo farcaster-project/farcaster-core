@@ -8,6 +8,7 @@ use bitcoin::util::amount;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use monero::cryptonote::hash::Hash;
+use strict_encoding::{StrictDecode, StrictEncode};
 
 use farcaster_core::blockchain::{
     Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
@@ -22,13 +23,14 @@ use crate::monero::{Ed25519, Monero};
 
 use std::io;
 use std::fmt::Debug;
+use std::str::FromStr;
 
 pub mod transaction;
 
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
 pub struct Bitcoin;
 
-impl std::str::FromStr for Bitcoin {
+impl FromStr for Bitcoin {
     type Err = farcaster_core::consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -60,7 +62,7 @@ impl Blockchain for Bitcoin {
     }
 }
 
-impl std::str::FromStr for Amount {
+impl FromStr for Amount {
     type Err = farcaster_core::consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -106,7 +108,8 @@ impl Decodable for Amount {
         Ok(Amount::from_sat(sats))
     }
 }
-impl std::str::FromStr for SatPerVByte {
+
+impl FromStr for SatPerVByte {
     type Err = farcaster_core::consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -217,7 +220,7 @@ impl Arbitrating for Bitcoin {
     type Timelock = CSVTimelock;
 }
 
-impl std::str::FromStr for CSVTimelock {
+impl FromStr for CSVTimelock {
     type Err = farcaster_core::consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -227,6 +230,7 @@ impl std::str::FromStr for CSVTimelock {
         Ok(CSVTimelock(x))
     }
 }
+
 #[derive(PartialEq, Eq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode, Copy)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct CSVTimelock(u32);
@@ -279,8 +283,6 @@ pub struct ECDSAAdaptorSig {
     pub point: PublicKey,
     pub dleq: PDLEQ,
 }
-
-use strict_encoding::{StrictDecode, StrictEncode};
 
 /// Produces a zero-knowledge proof of knowledge of the same relation k between two pairs of
 /// elements in the same group, i.e. `(G, R')` and `(T, R)`.

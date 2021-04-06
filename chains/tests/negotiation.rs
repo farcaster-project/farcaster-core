@@ -5,7 +5,10 @@ use farcaster_core::blockchain::{Blockchain, FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};
 use farcaster_core::negotiation::{Buy, Offer, PublicOffer, Sell};
 use farcaster_core::role::SwapRole;
-use internet2::RemoteNodeAddr;
+
+use internet2::{RemoteSocketAddr, RemoteNodeAddr};
+
+use std::str::FromStr;
 
 #[test]
 fn create_offer() {
@@ -59,11 +62,9 @@ fn serialize_public_offer() {
         .on(Network::Testnet)
         .to_offer()
         .unwrap();
-    use std::str::FromStr;
     let overlay = FromStr::from_str("tcp").unwrap();
     let ip = FromStr::from_str("0.0.0.0").unwrap();
     let port = FromStr::from_str("9735").unwrap();
-    use internet2::{RemoteSocketAddr, RemoteNodeAddr};
     let remote_addr =
         RemoteSocketAddr::with_ip_addr(overlay, ip, port);
 

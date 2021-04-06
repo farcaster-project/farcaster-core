@@ -10,12 +10,14 @@ pub mod bundle;
 pub mod chain;
 pub mod crypto;
 pub mod datum;
+pub mod events;
 pub mod instruction;
 pub mod negotiation;
 pub mod protocol_message;
 pub mod role;
 pub mod script;
 pub mod swap;
+pub mod tasks;
 pub mod transaction;
 
 /// A list of possible errors when performing a cross-chain atomic swap with the **Farcaster**

@@ -22,6 +22,7 @@ use std::io;
 use std::str::FromStr;
 
 pub mod fee;
+pub mod tasks;
 pub mod transaction;
 
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]

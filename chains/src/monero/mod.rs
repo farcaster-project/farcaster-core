@@ -12,6 +12,8 @@ use monero::util::key::PublicKey;
 
 use std::fmt::{self, Debug, Display, Formatter};
 
+pub mod tasks;
+
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
 

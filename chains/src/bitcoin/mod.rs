@@ -25,6 +25,7 @@ use std::io;
 use std::fmt::Debug;
 use std::str::FromStr;
 
+pub mod tasks;
 pub mod transaction;
 
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]

@@ -356,6 +356,18 @@ where
     pub daemon_service: RemoteNodeAddr,
 }
 
+impl<Ar, Ac> std::hash::Hash for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+    {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let mut buf = io::Cursor::new(vec![]);
+        self.consensus_encode(&mut buf).unwrap();
+        buf.into_inner().hash(state)
+    }
+}
+
 impl<Ar, Ac> std::str::FromStr for PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,

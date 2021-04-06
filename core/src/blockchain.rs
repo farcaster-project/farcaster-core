@@ -6,6 +6,9 @@
 use std::fmt::Debug;
 use std::io;
 use std::ops::Range;
+use std::str::FromStr;
+
+use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::consensus::{self, Decodable, Encodable};
 
@@ -45,7 +48,6 @@ impl<T: Blockchain> Decodable for T {
 }
 
 /// Defines the types a blockchain needs to interact onchain, i.e. the transaction types.
-use strict_encoding::{StrictDecode, StrictEncode};
 pub trait Onchain {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
@@ -58,7 +60,22 @@ pub trait Onchain {
 /// Define the unit type used for setting/validating blockchain fees.
 pub trait FeeUnit {
     /// Type for describing the fees of a blockchain
-    type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable;
+    type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable + PartialEq + Eq;
+}
+
+impl<T> FromStr for FeeStrategy<T>
+where
+    T: Clone + PartialOrd + PartialEq + Encodable + Decodable + StrictEncode + StrictDecode + FromStr,
+{
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // range parsing not implemented
+        match s.parse::<T>() {
+            Ok(x) => Ok(Self::Fixed(x)),
+            Err(_) => Err(consensus::Error::ParseFailed("Failed parsing FeeStrategy")),
+        }
+    }
 }
 
 /// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
@@ -66,7 +83,7 @@ pub trait FeeUnit {
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FeeStrategy<T>
 where
     T: Clone + PartialOrd + PartialEq + Encodable + Decodable,
@@ -150,6 +167,19 @@ pub trait Fee: Onchain + Blockchain + FeeUnit {
         strategy: &FeeStrategy<Self::FeeUnit>,
         politic: FeePolitic,
     ) -> Result<bool, FeeStrategyError>;
+}
+
+impl FromStr for Network {
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Mainnet" => Ok(Network::Mainnet),
+            "Testnet" => Ok(Network::Testnet),
+            "Local" => Ok(Network::Local),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
 }
 
 /// Defines a blockchain network, identifies in which context the system interacts with the

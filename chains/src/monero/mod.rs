@@ -12,8 +12,19 @@ use monero::util::key::PublicKey;
 
 use std::fmt::{self, Debug, Display, Formatter};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
+
+impl std::str::FromStr for Monero {
+    type Err = farcaster_core::consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Monero" => Ok(Monero),
+            _ => Err(farcaster_core::consensus::Error::UnknownType),
+        }
+    }
+}
 
 impl Display for Monero {
     fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {

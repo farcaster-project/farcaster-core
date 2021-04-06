@@ -8,6 +8,7 @@ use bitcoin::util::amount;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use monero::cryptonote::hash::Hash;
+use strict_encoding::{StrictDecode, StrictEncode};
 
 use farcaster_core::blockchain::{
     Blockchain, Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit, Onchain,
@@ -20,13 +21,25 @@ use farcaster_core::role::Arbitrating;
 
 use crate::monero::{Ed25519, Monero};
 
-use std::fmt::Debug;
 use std::io;
+use std::fmt::Debug;
+use std::str::FromStr;
 
 pub mod transaction;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Debug, Copy, Eq, PartialEq)]
 pub struct Bitcoin;
+
+impl FromStr for Bitcoin {
+    type Err = farcaster_core::consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Bitcoin" => Ok(Self),
+            _ => Err(farcaster_core::consensus::Error::UnknownType)
+        }
+    }
+}
 
 impl Blockchain for Bitcoin {
     /// Type for the traded asset unit
@@ -49,8 +62,19 @@ impl Blockchain for Bitcoin {
     }
 }
 
+impl FromStr for Amount {
+    type Err = farcaster_core::consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let x = s
+            .parse::<u64>()
+            .map_err(|_| farcaster_core::consensus::Error::ParseFailed("Failed to parse amount"))?;
+        Ok(Self(amount::Amount::from_sat(x)))
+    }
+}
+
 /// Bitcoin amount wrapper
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, StrictDecode, StrictEncode)]
 pub struct Amount(amount::Amount);
 
 impl Amount {
@@ -85,7 +109,18 @@ impl Decodable for Amount {
     }
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+impl FromStr for SatPerVByte {
+    type Err = farcaster_core::consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let x = s
+            .parse::<u64>()
+            .map_err(|_| farcaster_core::consensus::Error::ParseFailed("Failed to parse amount"))?;
+        Ok(Self(Amount(amount::Amount::from_sat(x))))
+    }
+}
+
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, StrictDecode, StrictEncode)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {
@@ -185,7 +220,19 @@ impl Arbitrating for Bitcoin {
     type Timelock = CSVTimelock;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+impl FromStr for CSVTimelock {
+    type Err = farcaster_core::consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let x = s.parse::<u32>().map_err(|_| {
+            farcaster_core::consensus::Error::ParseFailed("Failed parsing CSV timelock")
+        })?;
+        Ok(CSVTimelock(x))
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode, Copy)]
+#[strict_encoding_crate(strict_encoding)]
 pub struct CSVTimelock(u32);
 
 impl CSVTimelock {
@@ -236,8 +283,6 @@ pub struct ECDSAAdaptorSig {
     pub point: PublicKey,
     pub dleq: PDLEQ,
 }
-
-use strict_encoding::{StrictDecode, StrictEncode};
 
 /// Produces a zero-knowledge proof of knowledge of the same relation k between two pairs of
 /// elements in the same group, i.e. `(G, R')` and `(T, R)`.

@@ -1,8 +1,8 @@
 //! Negotiation phase utilities
 
-//use internet2::session::node_addr::NodeAddr;
 use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
+use internet2::RemoteNodeAddr;
 
 use std::io;
 
@@ -13,8 +13,9 @@ use crate::role::{Accordant, Arbitrating, SwapRole};
 /// First six magic bytes of a public offer
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
-/// A public offer version containing the version and the activated features if any.
-#[derive(Debug)]
+/// A public offer version containing the version and the activated features if
+/// any.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Version(u16);
 
 impl Version {
@@ -46,7 +47,8 @@ impl Decodable for Version {
     }
 }
 
-/// Negotiation errors used when manipulating offers, public offers and its version.
+/// Negotiation errors used when manipulating offers, public offers and its
+/// version.
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
     /// The magic bytes of the offer does not match
@@ -58,7 +60,7 @@ pub enum Error {
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
 /// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
 /// the data needed to a Taker to connect to the Maker's daemon.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Offer<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -84,18 +86,36 @@ where
     pub maker_role: SwapRole,
 }
 
+impl<Ar: Arbitrating, Ac: Accordant> Eq for Offer<Ar, Ac> {}
+
+impl<Ar: Arbitrating, Ac: Accordant> PartialEq for Offer<Ar, Ac> {
+    fn eq(&self, other: &Self) -> bool {
+        consensus::serialize_hex(self) == consensus::serialize_hex(other)
+    }
+}
+
 impl<Ar, Ac> Offer<Ar, Ac>
 where
     Ar: Arbitrating,
     Ac: Accordant,
 {
     /// Transform the offer in a public offer of [Version] 1
-    // TODO inject peer data here
-    pub fn to_public_v1(self) -> PublicOffer<Ar, Ac> {
+    pub fn to_public_v1(self, daemon_service: RemoteNodeAddr) -> PublicOffer<Ar, Ac> {
         PublicOffer {
             version: Version::new_v1(),
             offer: self,
+            daemon_service,
         }
+    }
+}
+
+impl<Ar, Ac> ToString for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn to_string(&self) -> String {
+        consensus::serialize_hex(self)
     }
 }
 
@@ -139,8 +159,9 @@ where
 
 /// Helper to create an offer from an arbitrating asset buyer perspective.
 ///
-/// **This helper works only for buying Arbitrating assets with some Accordant assets**. The
-/// reverse is not implemented for the [Buy] helper. You should use the [Sell] helper.
+/// **This helper works only for buying Arbitrating assets with some Accordant
+/// assets**. The reverse is not implemented for the [Buy] helper. You should
+/// use the [Sell] helper.
 pub struct Buy<T, U>(BuilderState<T, U>)
 where
     T: Arbitrating,
@@ -151,8 +172,8 @@ where
     T: Arbitrating,
     U: Accordant,
 {
-    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
-    /// defined in the `with` method.
+    /// Defines the asset and its amount the maker will receive in exchange of
+    /// the asset and amount defined in the `with` method.
     pub fn some(asset: T, amount: T::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
@@ -160,8 +181,8 @@ where
         buy
     }
 
-    /// Defines the asset and its amount the maker will send to get the assets defined in the
-    /// `some` method.
+    /// Defines the asset and its amount the maker will send to get the assets
+    /// defined in the `some` method.
     pub fn with(mut self, asset: U, amount: U::AssetUnit) -> Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
@@ -187,11 +208,11 @@ where
         self
     }
 
-    /// Transform the internal state into an offer if all parameters have been set properly,
-    /// otherwise return `None`.
+    /// Transform the internal state into an offer if all parameters have been
+    /// set properly, otherwise return `None`.
     ///
-    /// This function automatically sets the maker swap role as **Alice** to comply with the buy
-    /// contract.
+    /// This function automatically sets the maker swap role as **Alice** to
+    /// comply with the buy contract.
     pub fn to_offer(mut self) -> Option<Offer<T, U>> {
         self.0.maker_role = Some(SwapRole::Alice);
         Some(Offer {
@@ -210,8 +231,9 @@ where
 
 /// Helper to create an offer from an arbitrating asset seller perspective.
 ///
-/// **This helper works only for selling Arbitrating assets for some Accordant assets**. The
-/// reverse is not implemented for the [Sell] helper. You should use the [Buy] helper.
+/// **This helper works only for selling Arbitrating assets for some Accordant
+/// assets**. The reverse is not implemented for the [Sell] helper. You should
+/// use the [Buy] helper.
 pub struct Sell<T, U>(BuilderState<T, U>)
 where
     T: Arbitrating,
@@ -222,8 +244,8 @@ where
     T: Arbitrating,
     U: Accordant,
 {
-    /// Defines the asset and its amount the maker will send to get the assets defined in the
-    /// `for_some` method.
+    /// Defines the asset and its amount the maker will send to get the assets
+    /// defined in the `for_some` method.
     pub fn some(asset: T, amount: T::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
@@ -231,8 +253,8 @@ where
         buy
     }
 
-    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
-    /// defined in the `some` method.
+    /// Defines the asset and its amount the maker will receive in exchange of
+    /// the asset and amount defined in the `some` method.
     pub fn for_some(mut self, asset: U, amount: U::AssetUnit) -> Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
@@ -258,11 +280,11 @@ where
         self
     }
 
-    /// Transform the internal state into an offer if all parameters have been set properly,
-    /// otherwise return `None`.
+    /// Transform the internal state into an offer if all parameters have been
+    /// set properly, otherwise return `None`.
     ///
-    /// This function automatically sets the maker swap role as **Bob** to comply with the buy
-    /// contract.
+    /// This function automatically sets the maker swap role as **Bob** to
+    /// comply with the buy contract.
     pub fn to_offer(mut self) -> Option<Offer<T, U>> {
         self.0.maker_role = Some(SwapRole::Bob);
         Some(Offer {
@@ -316,10 +338,11 @@ where
     }
 }
 
-/// A public offer is shared across maker's prefered network to signal is willing of trading some
-/// assets at some conditions. The assets and condition are defined in the offer, the make peer
-/// connection information are happen to the offer the create a public offer.
-#[derive(Debug)]
+/// A public offer is shared across maker's prefered network to signal is
+/// willing of trading some assets at some conditions. The assets and condition
+/// are defined in the offer, the make peer connection information are happen to
+/// the offer the create a public offer.
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -329,7 +352,23 @@ where
     pub version: Version,
     /// The content of the offer
     pub offer: Offer<Ar, Ac>,
-    //pub daemon_service: NodeAddr,
+    /// Address of the listening daemon's peer
+    pub daemon_service: RemoteNodeAddr,
+}
+
+impl<Ar, Ac> std::str::FromStr for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let decoded =
+            hex::decode(s).map_err(|_| consensus::Error::ParseFailed("Hex decode failed"))?;
+        let mut res = std::io::Cursor::new(decoded);
+        Decodable::consensus_decode(&mut res)
+    }
 }
 
 impl<Ar, Ac> Encodable for PublicOffer<Ar, Ac>
@@ -340,7 +379,16 @@ where
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let mut len = OFFER_MAGIC_BYTES.consensus_encode(writer)?;
         len += self.version.consensus_encode(writer)?;
-        Ok(len + self.offer.consensus_encode(writer)?)
+        len += self.offer.consensus_encode(writer)?;
+        len += strict_encoding::StrictEncode::strict_encode(&self.daemon_service, writer).map_err(
+            |_| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Failed to encode RemoteNodeAddr",
+                )
+            },
+        )?;
+        Ok(len)
     }
 }
 
@@ -357,6 +405,8 @@ where
         Ok(PublicOffer {
             version: Decodable::consensus_decode(d)?,
             offer: Decodable::consensus_decode(d)?,
+            daemon_service: strict_encoding::StrictDecode::strict_decode(d)
+                .map_err(|_| consensus::Error::ParseFailed("Failed to decode RemoteNodeAddr"))?,
         })
     }
 }

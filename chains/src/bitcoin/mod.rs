@@ -21,8 +21,8 @@ use farcaster_core::role::Arbitrating;
 
 use crate::monero::{Ed25519, Monero};
 
-use std::io;
 use std::fmt::Debug;
+use std::io;
 use std::str::FromStr;
 
 pub mod transaction;
@@ -36,7 +36,7 @@ impl FromStr for Bitcoin {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "Bitcoin" => Ok(Self),
-            _ => Err(farcaster_core::consensus::Error::UnknownType)
+            _ => Err(farcaster_core::consensus::Error::UnknownType),
         }
     }
 }

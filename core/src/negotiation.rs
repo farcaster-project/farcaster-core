@@ -1,8 +1,8 @@
 //! Negotiation phase utilities
 
+use internet2::RemoteNodeAddr;
 use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
-use internet2::RemoteNodeAddr;
 
 use std::io;
 

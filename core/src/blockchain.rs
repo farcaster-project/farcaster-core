@@ -65,7 +65,14 @@ pub trait FeeUnit {
 
 impl<T> FromStr for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Encodable + Decodable + StrictEncode + StrictDecode + FromStr,
+    T: Clone
+        + PartialOrd
+        + PartialEq
+        + Encodable
+        + Decodable
+        + StrictEncode
+        + StrictDecode
+        + FromStr,
 {
     type Err = consensus::Error;
 

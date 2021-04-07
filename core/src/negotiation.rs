@@ -109,16 +109,6 @@ where
     }
 }
 
-impl<Ar, Ac> ToString for PublicOffer<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-    fn to_string(&self) -> String {
-        consensus::serialize_hex(self)
-    }
-}
-
 impl<Ar, Ac> Encodable for Offer<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -354,6 +344,16 @@ where
     pub offer: Offer<Ar, Ac>,
     /// Address of the listening daemon's peer
     pub daemon_service: RemoteNodeAddr,
+}
+
+impl<Ar, Ac> std::fmt::Display for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", consensus::serialize_hex(self))
+    }
 }
 
 impl<Ar, Ac> std::hash::Hash for PublicOffer<Ar, Ac>

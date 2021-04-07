@@ -17,29 +17,29 @@ impl TaskCore for Abort {
     }
 }
 
-pub struct WatchHeight<T> {
+pub struct WatchHeight {
     pub id: i32,
     pub lifetime: u64,
 
     // Additional data, such as which blockchain to watch the height of
     // Useful for networks without a traditional structure
-    // Uses the default serializer, yet arguably this should return a Vec<u8> and not touch serialization
-    pub addendum: T,
+    // Expects serialization before being entered into this struct
+    pub addendum: Vec<u8>,
 }
 
-impl<T> TaskCore for WatchHeight<T> {
+impl TaskCore for WatchHeight {
     fn id(&self) -> i32 {
         self.id
     }
 }
 
-pub struct WatchAddress<T> {
+pub struct WatchAddress {
     pub id: i32,
     pub lifetime: u64,
-    pub addendum: T,
+    pub addendum: Vec<u8>,
 }
 
-impl<T> TaskCore for WatchAddress<T> {
+impl TaskCore for WatchAddress {
     fn id(&self) -> i32 {
         self.id
     }
@@ -69,6 +69,7 @@ impl TaskCore for BroadcastTransaction {
     }
 }
 
+#[enum_dispatch(TaskCore)]
 pub enum Task {
   Abort,
   WatchHeight,

@@ -4,15 +4,15 @@
 
 use async_trait::async_trait;
 
-use crate::tasks::Task;
+use crate::tasks::*;
 use crate::events::Event;
 
 #[async_trait]
-pub trait SyncerClient {
-    async fn issue(&mut self, task: Task);
-}
-
-#[async_trait]
-pub trait SyncerServer {
-    async fn handle(&mut self, task: Task);
+#[enum_dispatch]
+pub trait Syncer {
+    async fn abort(&mut self, task: Abort);
+    async fn watch_height(&mut self, task: WatchHeight);
+    async fn watch_address(&mut self, task: WatchAddress);
+    async fn watch_transaction(&mut self, task: WatchTransaction);
+    async fn broadcast_transaction(&mut self, task: BroadcastTransaction);
 }

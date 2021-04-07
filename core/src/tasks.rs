@@ -69,6 +69,7 @@ impl TaskCore for BroadcastTransaction {
     }
 }
 
+#[derive(Clone, Debug)]
 #[enum_dispatch(TaskCore)]
 pub enum Task {
   Abort,

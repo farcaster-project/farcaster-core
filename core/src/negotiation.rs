@@ -446,3 +446,27 @@ where
         })
     }
 }
+
+impl<Ar, Ac> StrictEncode for Offer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
+    }
+}
+
+impl<Ar, Ac> StrictDecode for Offer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        Decodable::consensus_decode(&mut d).map_err(|_| {
+            strict_encoding::Error::DataIntegrityError(
+                "Failed to decode the offer".to_string(),
+            )
+        })
+    }
+}

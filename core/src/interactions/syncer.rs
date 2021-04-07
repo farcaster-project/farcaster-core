@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 use async_trait::async_trait;
+use enum_dispatch::enum_dispatch;
 
 use crate::tasks::*;
 use crate::events::Event;

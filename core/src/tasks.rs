@@ -7,6 +7,7 @@ pub trait TaskCore {
     fn id(&self) -> i32;
 }
 
+#[derive(Debug, Clone)]
 pub struct Abort {
     pub id: i32,
 }
@@ -17,6 +18,7 @@ impl TaskCore for Abort {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct WatchHeight {
     pub id: i32,
     pub lifetime: u64,
@@ -33,6 +35,7 @@ impl TaskCore for WatchHeight {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct WatchAddress {
     pub id: i32,
     pub lifetime: u64,
@@ -45,6 +48,7 @@ impl TaskCore for WatchAddress {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct WatchTransaction {
     pub id: i32,
     pub lifetime: u64,
@@ -58,6 +62,7 @@ impl TaskCore for WatchTransaction {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct BroadcastTransaction {
     pub id: i32,
     pub tx: Vec<u8>,
@@ -69,8 +74,8 @@ impl TaskCore for BroadcastTransaction {
     }
 }
 
-#[derive(Clone, Debug)]
 #[enum_dispatch(TaskCore)]
+#[derive(Debug, Clone)]
 pub enum Task {
   Abort,
   WatchHeight,

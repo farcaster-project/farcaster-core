@@ -1,4 +1,5 @@
-use farcaster_chains::bitcoin::{Amount, Bitcoin, CSVTimelock, SatPerVByte};
+use farcaster_chains::bitcoin::fee::SatPerVByte;
+use farcaster_chains::bitcoin::{Amount, Bitcoin, CSVTimelock};
 use farcaster_chains::monero::Monero;
 
 use farcaster_core::blockchain::{Blockchain, FeeStrategy, Network};

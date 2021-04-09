@@ -1,106 +1,134 @@
+#![cfg(feature = "rpc")]
+
+use farcaster_chains::bitcoin::fee::SatPerVByte;
 use farcaster_core::blockchain::*;
-use farcaster_core::script::{self, *};
+use farcaster_core::script::*;
 use farcaster_core::transaction::*;
 
 use farcaster_chains::bitcoin::transaction::*;
 use farcaster_chains::bitcoin::*;
 
-use bitcoin::consensus::encode::serialize_hex;
-use bitcoin::secp256k1::Secp256k1;
-use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoincore_rpc::RpcApi;
 
-use bitcoincore_rpc::{Auth, Client, RpcApi};
+#[macro_use]
+mod rpc;
 
-fn setup() -> Result<Client, bitcoincore_rpc::Error> {
-    Client::new(
-        "http://127.0.0.1:18443".into(),
-        Auth::UserPass(
-            "test".into(),
-            "cEl2o3tHHgzYeuu3CiiZ2FjdgSiw9wNeMFzoNbFmx9k=".into(),
-        ),
-    )
+macro_rules! setup_txs {
+    () => {{
+        let (_, pubkey_a1, secret_a1) = new_address!();
+        let (_, pubkey_a2, secret_a2) = new_address!();
+
+        let (_, pubkey_b1, _secret_b1) = new_address!();
+        let (_, pubkey_b2, secret_b2) = new_address!();
+
+        let mut funding = Funding::initialize(pubkey_a1, Network::Local).unwrap();
+        let address = funding.get_address().unwrap();
+
+        let funding_tx_seen = fund_address!(address);
+
+        funding.update(funding_tx_seen).unwrap();
+
+        let datalock = DataLock {
+            timelock: CSVTimelock::new(10),
+            success: DoubleKeys::new(pubkey_a1, pubkey_b1),
+            failure: DoubleKeys::new(pubkey_a2, pubkey_b2),
+        };
+
+        let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
+        let politic = FeePolitic::Aggressive;
+
+        let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), &fee, politic).unwrap();
+
+        //
+        // Create cancel tx
+        //
+        let datapunishablelock = DataPunishableLock {
+            timelock: CSVTimelock::new(10),
+            success: DoubleKeys::new(pubkey_a1, pubkey_b1),
+            failure: pubkey_a2,
+        };
+
+        let mut cancel =
+            Tx::<Cancel>::initialize(&lock, datalock, datapunishablelock.clone(), &fee, politic)
+                .unwrap();
+
+        //
+        // Create refund tx
+        //
+        let (new_address, _, _) = new_address!();
+        let refund =
+            Tx::<Refund>::initialize(&cancel, datapunishablelock, new_address, &fee, politic)
+                .unwrap();
+
+        //
+        // Co-Sign refund
+        //
+        let _sig = cancel.generate_failure_witness(&secret_a2).unwrap();
+        let _sig = cancel.generate_failure_witness(&secret_b2).unwrap();
+
+        //
+        // Finalize for failure path
+        //
+        let cancel_finalized = cancel.finalize_and_extract().unwrap();
+
+        //
+        // Sign lock tx
+        //
+        let _sig = lock.generate_witness(&secret_a1).unwrap();
+        let lock_finalized = lock.finalize_and_extract().unwrap();
+
+        (lock_finalized, cancel_finalized, refund)
+    }};
 }
 
 #[test]
-#[ignore]
-fn create_funding_generic() {
-    let client = setup().unwrap();
+fn create_transactions() {
+    setup_txs!();
+}
 
-    let secp = Secp256k1::new();
+#[test]
+fn broadcast_lock() {
+    let (lock_finalized, _, _) = setup_txs!();
 
-    let privkey: PrivateKey =
-        PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D").unwrap();
-    let pubkey = PublicKey::from_private_key(&secp, &privkey);
+    rpc! {
+        // Wait 100 blocks to unlock the coinbase
+        mine 100;
 
-    let mut funding = Funding::initialize(pubkey).unwrap();
-    let address = funding.get_address(Network::Local).unwrap();
+        // Broadcast the lock and mine the number of blocks needed for CSV
+        then broadcast lock_finalized;
+        then mine 1;
+    }
+}
 
-    //println!("Address: {:#?}", client.get_address_info(&address).unwrap());
-    //println!("Send funds to: {}", address);
-    let blocks = client.generate_to_address(1, &address).unwrap();
+#[test]
+#[should_panic]
+fn broadcast_cancel_before_timelock() {
+    let (lock_finalized, cancel_finalized, _) = setup_txs!();
 
-    let block_hash = blocks[0];
-    let block = client.get_block(&block_hash).unwrap();
-    let funding_tx_seen = block.coinbase().unwrap().clone();
+    rpc! {
+        // Wait 100 blocks to unlock the coinbase
+        mine 100;
 
-    println!("{:#?}", &funding_tx_seen);
-    funding.update(funding_tx_seen).unwrap();
+        // Broadcast the lock and directly cancel without waiting the lock
+        then broadcast lock_finalized;
+        then broadcast cancel_finalized;
+    }
+}
 
-    let datalock = script::DataLock {
-        timelock: CSVTimelock::new(10),
-        success: DoubleKeys::new(pubkey, pubkey),
-        failure: DoubleKeys::new(pubkey, pubkey),
-    };
+#[test]
+fn broadcast_cancel_after_timelock() {
+    let (lock_finalized, cancel_finalized, _) = setup_txs!();
 
-    let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(50));
-    let politic = FeePolitic::Aggressive;
+    rpc! {
+        // Wait 100 blocks to unlock the coinbase
+        mine 100;
 
-    println!("{:#?}", funding);
-    let mut lock = Tx::<Lock>::initialize(&funding, datalock, &fee, politic).unwrap();
-    //println!("{:#?}", lock);
+        // Broadcast the lock and mine the number of blocks needed for CSV
+        then broadcast lock_finalized;
+        then mine 10;
 
-    let datapunishablelock = script::DataPunishableLock {
-        timelock: CSVTimelock::new(10),
-        success: DoubleKeys::new(pubkey, pubkey),
-        failure: pubkey,
-    };
-    let cancel = Tx::<Cancel>::initialize(&lock, datapunishablelock, &fee, politic).unwrap();
-    //println!("{:#?}", cancel);
-
-    let new_address = {
-        use bitcoin::network::constants::Network;
-        use bitcoin::secp256k1::rand::thread_rng;
-        use bitcoin::secp256k1::Secp256k1;
-        use bitcoin::util::address::Address;
-        use bitcoin::util::key;
-
-        // Generate random key pair
-        let s = Secp256k1::new();
-        let public_key = key::PublicKey {
-            compressed: true,
-            key: s.generate_keypair(&mut thread_rng()).1,
-        };
-
-        // Generate pay-to-pubkey-hash address
-        Address::p2pkh(&public_key, Network::Regtest)
-    };
-
-    let _refund = Tx::<Refund>::initialize(&cancel, new_address, &fee, politic).unwrap();
-
-    // Sign lock tx
-    let _sig = lock.generate_witness(&privkey).unwrap();
-    println!("{:#?}", &lock);
-    let lock_finalized = lock.finalize();
-
-    // Generate 10 blocks to unlock the money
-    // don't use `generate` as it is not available anymore
-    client.generate_to_address(100, &address).unwrap();
-
-    // TODO do the other signatures
-
-    // Broadcast the lock
-    println!("{}", serialize_hex(&lock_finalized));
-    client.send_raw_transaction(&lock_finalized).unwrap();
-
-    assert!(true);
+        // Broadcast the cancel and mine the transaction
+        then broadcast cancel_finalized;
+        then mine 1;
+    }
 }

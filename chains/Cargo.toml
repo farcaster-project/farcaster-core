@@ -6,10 +6,14 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+rpc = []
+
 [dependencies]
 farcaster_core = { path = "../core" }
 strict_encoding = "1.2.1"
 hex = "0.4.3"
+thiserror = "1.0.24"
 
 # blockchain specific
 bitcoin = "0.26.0"
@@ -20,3 +24,4 @@ bitcoincore-rpc = "0.13.0"
 rand_core = { version = "^0.5.0", features = ["getrandom"] }
 secp256k1 = { version = "0.20.1", features = ["rand-std"] }
 internet2 = "0.3.10"
+lazy_static = "1.4.0"

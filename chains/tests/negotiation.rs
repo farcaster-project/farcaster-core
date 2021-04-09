@@ -6,7 +6,7 @@ use farcaster_core::consensus::{self, deserialize, serialize_hex};
 use farcaster_core::negotiation::{Buy, Offer, PublicOffer, Sell};
 use farcaster_core::role::SwapRole;
 
-use internet2::{RemoteSocketAddr, RemoteNodeAddr};
+use internet2::{RemoteNodeAddr, RemoteSocketAddr};
 
 use std::str::FromStr;
 
@@ -65,12 +65,12 @@ fn serialize_public_offer() {
     let overlay = FromStr::from_str("tcp").unwrap();
     let ip = FromStr::from_str("0.0.0.0").unwrap();
     let port = FromStr::from_str("9735").unwrap();
-    let remote_addr =
-        RemoteSocketAddr::with_ip_addr(overlay, ip, port);
+    let remote_addr = RemoteSocketAddr::with_ip_addr(overlay, ip, port);
 
     let secp = secp256k1::Secp256k1::new();
-    let sk =
-        bitcoin::PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D").unwrap().key;
+    let sk = bitcoin::PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D")
+        .unwrap()
+        .key;
     let node_id = secp256k1::PublicKey::from_secret_key(&secp, &sk);
     let peer = RemoteNodeAddr {
         node_id,
@@ -81,11 +81,8 @@ fn serialize_public_offer() {
     assert_eq!(hex, serialize_hex(&public_offer));
 }
 
-
-
 #[test]
 fn check_public_offer_magic_bytes() {
-
     let valid = "4643535741500100020000008080000080086400000000000000086400000000000000040a000000041e0000000108140000000000000001026981c0e141351c1aae13014379d629dfddb3b5375c1265c34203b5d13c69cd270000000000000000000000000000000000000000000000000000000000000000000000260700";
     let pub_offer: Result<PublicOffer<Bitcoin, Monero>, consensus::Error> =
         deserialize(&hex::decode(valid).unwrap()[..]);

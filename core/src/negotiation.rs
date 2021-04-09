@@ -360,7 +360,7 @@ impl<Ar, Ac> std::hash::Hash for PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,
     Ac: Accordant,
-    {
+{
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let mut buf = io::Cursor::new(vec![]);
         self.consensus_encode(&mut buf).unwrap();
@@ -464,9 +464,7 @@ where
 {
     fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
         Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError(
-                "Failed to decode the offer".to_string(),
-            )
+            strict_encoding::Error::DataIntegrityError("Failed to decode the offer".to_string())
         })
     }
 }

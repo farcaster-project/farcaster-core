@@ -109,16 +109,6 @@ where
     }
 }
 
-impl<Ar, Ac> ToString for PublicOffer<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-    fn to_string(&self) -> String {
-        consensus::serialize_hex(self)
-    }
-}
-
 impl<Ar, Ac> Encodable for Offer<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -356,6 +346,28 @@ where
     pub daemon_service: RemoteNodeAddr,
 }
 
+impl<Ar, Ac> std::fmt::Display for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", consensus::serialize_hex(self))
+    }
+}
+
+impl<Ar, Ac> std::hash::Hash for PublicOffer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+    {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let mut buf = io::Cursor::new(vec![]);
+        self.consensus_encode(&mut buf).unwrap();
+        buf.into_inner().hash(state)
+    }
+}
+
 impl<Ar, Ac> std::str::FromStr for PublicOffer<Ar, Ac>
 where
     Ar: Arbitrating,
@@ -430,6 +442,30 @@ where
         Decodable::consensus_decode(&mut d).map_err(|_| {
             strict_encoding::Error::DataIntegrityError(
                 "Failed to decode the public offer".to_string(),
+            )
+        })
+    }
+}
+
+impl<Ar, Ac> StrictEncode for Offer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
+    }
+}
+
+impl<Ar, Ac> StrictDecode for Offer<Ar, Ac>
+where
+    Ar: Arbitrating,
+    Ac: Accordant,
+{
+    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        Decodable::consensus_decode(&mut d).map_err(|_| {
+            strict_encoding::Error::DataIntegrityError(
+                "Failed to decode the offer".to_string(),
             )
         })
     }

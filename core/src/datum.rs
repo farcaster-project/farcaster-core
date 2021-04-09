@@ -1,6 +1,11 @@
+//! Datum messages exchanged between client and daemon to update their states
+
+use strict_encoding::{StrictDecode, StrictEncode};
+
 use crate::blockchain::{Fee, FeeStrategy};
-use crate::crypto::{self, Keys, Signatures};
+use crate::crypto::{self, Signatures};
 use crate::role::{Arbitrating, SwapRole};
+use crate::swap::Swap;
 use crate::transaction::TxId;
 
 pub trait Datum {}
@@ -13,12 +18,10 @@ where
     pub tx_value: Ar::Transaction,
 }
 
-pub struct Key<Ar, Ac>
-where
-    Ar: Keys,
-    Ac: Keys,
-{
-    pub key: crypto::Key<Ar, Ac>,
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub struct Key<Ctx: Swap> {
+    pub key: crypto::Key<Ctx>,
 }
 
 pub struct Signature<Ar>
@@ -27,20 +30,14 @@ where
 {
     pub tx_id: TxId,
     pub role: SwapRole,
-    pub value: crypto::Signature<Ar>,
+    pub value: crypto::SignatureType<Ar>,
 }
 
-pub use crate::crypto::Proof;
-// use strict_encoding::{StrictEncode, StrictDecode};
-// #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-// #[strict_encoding_crate(strict_encoding)]
-// pub struct Proof<Ar, Ac>
-// where
-//     Ar: Curve + Clone,
-//     Ac: Curve + Clone,
-// {
-//     pub proof: crypto::InnerProof<Ar, Ac>,
-// }
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub struct Proof<Ctx: Swap> {
+    pub proof: Ctx::Proof,
+}
 
 pub enum Parameter<Ar>
 where

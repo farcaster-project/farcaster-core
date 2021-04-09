@@ -53,7 +53,7 @@ impl<T: Blockchain> Decodable for T {
 pub trait Onchain {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
-    type PartialTransaction: StrictEncode + StrictDecode;
+    type PartialTransaction: Clone + Debug + StrictEncode + StrictDecode;
 
     /// Defines the finalized transaction format for the arbitrating blockchain
     type Transaction;

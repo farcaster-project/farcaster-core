@@ -1,8 +1,11 @@
 //! Protocol messages exchanged between swap daemons
 
-use crate::crypto::{Commitment, Curve, Proof, Signatures};
-use crate::role::{Accordant, Arbitrating};
 use strict_encoding::{StrictDecode, StrictEncode};
+
+use crate::blockchain::Onchain;
+use crate::crypto::{Commitment, Keys, ShareablePrivateKeys, Signatures};
+use crate::role::Arbitrating;
+use crate::swap::Swap;
 
 /// Trait for defining inter-daemon communication messages.
 pub trait ProtocolMessage: StrictEncode + StrictDecode {}
@@ -11,197 +14,155 @@ pub trait ProtocolMessage: StrictEncode + StrictDecode {}
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct CommitAliceSessionParams<Ar, Ac>
-where
-    Ar: Commitment,
-    Ac: Commitment,
-{
+pub struct CommitAliceSessionParams<Ctx: Swap> {
     /// Commitment to `Ab` curve point
-    pub buy: Ar::Commitment,
+    pub buy: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Ac` curve point
-    pub cancel: Ar::Commitment,
+    pub cancel: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Ar` curve point
-    pub refund: Ar::Commitment,
+    pub refund: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Ap` curve point
-    pub punish: Ar::Commitment,
+    pub punish: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Ta` curve point
-    pub adaptor: Ar::Commitment,
+    pub adaptor: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `k_v^a` scalar
-    pub spend: Ac::Commitment,
+    pub spend: <Ctx::Ac as Commitment>::Commitment,
     /// Commitment to `K_s^a` curve point
-    pub view: Ac::Commitment,
+    pub view: <Ctx::Ac as Commitment>::Commitment,
 }
 
-impl<Ar: Commitment, Ac: Commitment> std::fmt::Display for CommitAliceSessionParams<Ar, Ac> {
+impl<Ctx> std::fmt::Display for CommitAliceSessionParams<Ctx>
+where
+    Ctx: Swap,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO
         write!(f, "{}", self)
     }
 }
 
-impl<Ar, Ac> ProtocolMessage for CommitAliceSessionParams<Ar, Ac>
-where
-    Ar: Commitment,
-    Ac: Commitment,
-{
-}
+impl<Ctx> ProtocolMessage for CommitAliceSessionParams<Ctx> where Ctx: Swap {}
 
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct CommitBobSessionParams<Ar, Ac>
-where
-    Ar: Commitment,
-    Ac: Commitment,
-{
+pub struct CommitBobSessionParams<Ctx: Swap> {
     /// Commitment to `Bb` curve point
-    pub buy: Ar::Commitment,
+    pub buy: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Bc` curve point
-    pub cancel: Ar::Commitment,
+    pub cancel: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Br` curve point
-    pub refund: Ar::Commitment,
+    pub refund: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Tb` curve point
-    pub adaptor: Ar::Commitment,
+    pub adaptor: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `k_v^b` scalar
-    pub spend: Ac::Commitment,
+    pub spend: <Ctx::Ac as Commitment>::Commitment,
     /// Commitment to `K_s^b` curve point
-    pub view: Ac::Commitment,
+    pub view: <Ctx::Ac as Commitment>::Commitment,
 }
 
-impl<Ar, Ac> ProtocolMessage for CommitBobSessionParams<Ar, Ac>
-where
-    Ar: Commitment,
-    Ac: Commitment,
-{
-}
+impl<Ctx> ProtocolMessage for CommitBobSessionParams<Ctx> where Ctx: Swap {}
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
 /// `commit_alice_session_params` message.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct RevealAliceSessionParams<Ar, Ac>
-where
-    Ar: Arbitrating + Curve,
-    Ac: Accordant + Curve,
-{
+pub struct RevealAliceSessionParams<Ctx: Swap> {
     /// The buy `Ab` public key
-    pub buy: Ar::PublicKey,
+    pub buy: <Ctx::Ar as Keys>::PublicKey,
     /// The cancel `Ac` public key
-    pub cancel: Ar::PublicKey,
+    pub cancel: <Ctx::Ar as Keys>::PublicKey,
     /// The refund `Ar` public key
-    pub refund: Ar::PublicKey,
+    pub refund: <Ctx::Ar as Keys>::PublicKey,
     /// The punish `Ap` public key
-    pub punish: Ar::PublicKey,
+    pub punish: <Ctx::Ar as Keys>::PublicKey,
     /// The `Ta` adaptor public key
-    pub adaptor: Ar::PublicKey,
+    pub adaptor: <Ctx::Ar as Keys>::PublicKey,
     /// The destination Bitcoin address
-    pub address: Ar::Address,
+    pub address: <Ctx::Ar as Arbitrating>::Address,
     /// The `K_v^a` view private key
-    pub spend: Ac::PublicKey,
+    pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^a` spend public key
-    pub view: Ac::PrivateViewKey,
+    pub view: <Ctx::Ac as ShareablePrivateKeys>::ShareablePrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
-    pub proof: Proof<Ar, Ac>,
+    pub proof: Ctx::Proof,
 }
 
-impl<Ar, Ac> ProtocolMessage for RevealAliceSessionParams<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-}
+impl<Ctx> ProtocolMessage for RevealAliceSessionParams<Ctx> where Ctx: Swap {}
 
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct RevealBobSessionParams<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
+pub struct RevealBobSessionParams<Ctx: Swap> {
     /// The buy `Bb` public key
-    pub buy: Ar::PublicKey,
+    pub buy: <Ctx::Ar as Keys>::PublicKey,
     /// The cancel `Bc` public key
-    pub cancel: Ar::PublicKey,
+    pub cancel: <Ctx::Ar as Keys>::PublicKey,
     /// The refund `Br` public key
-    pub refund: Ar::PublicKey,
+    pub refund: <Ctx::Ar as Keys>::PublicKey,
     /// The `Tb` adaptor public key
-    pub adaptor: Ar::PublicKey,
+    pub adaptor: <Ctx::Ar as Keys>::PublicKey,
     /// The refund Bitcoin address
-    pub address: Ar::Address,
+    pub address: <Ctx::Ar as Arbitrating>::Address,
     /// The `K_v^b` view private key
-    pub spend: Ac::PublicKey,
+    pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^b` spend public key
-    pub view: Ac::PrivateViewKey,
-    // /// The cross-group discrete logarithm zero-knowledge proof
-    pub proof: Proof<Ar, Ac>,
+    pub view: <Ctx::Ac as ShareablePrivateKeys>::ShareablePrivateKey,
+    /// The cross-group discrete logarithm zero-knowledge proof
+    pub proof: Ctx::Proof,
 }
 
-impl<Ar, Ac> ProtocolMessage for RevealBobSessionParams<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-}
+impl<Ctx> ProtocolMessage for RevealBobSessionParams<Ctx> where Ctx: Swap {}
 
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct CoreArbitratingSetup<Ar>
-where
-    Ar: Arbitrating,
-{
+pub struct CoreArbitratingSetup<Ctx: Swap> {
     /// The arbitrating `lock (b)` transaction
-    pub lock: Ar::PartialTransaction,
+    pub lock: <Ctx::Ar as Onchain>::PartialTransaction,
     /// The arbitrating `cancel (d)` transaction
-    pub cancel: Ar::PartialTransaction,
+    pub cancel: <Ctx::Ar as Onchain>::PartialTransaction,
     /// The arbitrating `refund (e)` transaction
-    pub refund: Ar::PartialTransaction,
+    pub refund: <Ctx::Ar as Onchain>::PartialTransaction,
     /// The `Bc` `cancel (d)` signature
-    pub cancel_sig: Ar::Signature,
+    pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
 }
 
-impl<Ar> ProtocolMessage for CoreArbitratingSetup<Ar> where Ar: Arbitrating {}
+impl<Ctx> ProtocolMessage for CoreArbitratingSetup<Ctx> where Ctx: Swap {}
 
 /// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
 /// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
 /// must validate the signatures.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct RefundProcedureSignatures<Ar>
-where
-    Ar: Signatures,
-{
+pub struct RefundProcedureSignatures<Ctx: Swap> {
     /// The `Ac` `cancel (d)` signature
-    pub cancel_sig: Ar::Signature,
+    pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
     /// The `Ar(Tb)` `refund (e)` adaptor signature
-    pub refund_adaptor_sig: Ar::AdaptorSignature,
+    pub refund_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
 }
 
-impl<Ar> ProtocolMessage for RefundProcedureSignatures<Ar> where Ar: Arbitrating {}
+impl<Ctx> ProtocolMessage for RefundProcedureSignatures<Ctx> where Ctx: Swap {}
 
 /// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct BuyProcedureSignature<Ar>
-where
-    Ar: Arbitrating,
-{
+pub struct BuyProcedureSignature<Ctx: Swap> {
     /// The arbitrating `buy (c)` transaction
-    pub buy: Ar::PartialTransaction,
+    pub buy: <Ctx::Ar as Onchain>::PartialTransaction,
     /// The `Bb(Ta)` `buy (c)` adaptor signature
-    pub buy_adaptor_sig: Ar::AdaptorSignature,
+    pub buy_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
 }
 
-impl<Ar> ProtocolMessage for BuyProcedureSignature<Ar> where Ar: Arbitrating {}
+impl<Ctx> ProtocolMessage for BuyProcedureSignature<Ctx> where Ctx: Swap {}
 
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
-
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct Abort {

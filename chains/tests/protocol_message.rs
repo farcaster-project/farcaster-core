@@ -6,7 +6,8 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::protocol_message::{Abort, BuyProcedureSignature};
 
-use farcaster_chains::bitcoin::{Bitcoin, ECDSAAdaptorSig, PDLEQ};
+use farcaster_chains::bitcoin::{ECDSAAdaptorSig, PDLEQ};
+use farcaster_chains::pairs::btcxmr::BtcXmr;
 
 #[test]
 fn create_abort_message() {
@@ -37,7 +38,7 @@ fn create_buy_procedure_signature_message() {
 
     let pdleq = PDLEQ;
 
-    let _ = BuyProcedureSignature::<Bitcoin> {
+    let _ = BuyProcedureSignature::<BtcXmr> {
         buy: (PartiallySignedTransaction::from_unsigned_tx(tx).expect("PSBT should work here")),
         buy_adaptor_sig: ECDSAAdaptorSig {
             sig,

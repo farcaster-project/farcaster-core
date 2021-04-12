@@ -1,7 +1,7 @@
 //! Defines and implements all the traits for Monero
 
 use farcaster_core::blockchain::Blockchain;
-use farcaster_core::crypto::{Commitment, Keys, ShareablePrivateKeys};
+use farcaster_core::crypto::{Commitment, Keys, SharedPrivateKeys};
 use farcaster_core::role::Accordant;
 
 use monero::cryptonote::hash::Hash;
@@ -62,8 +62,8 @@ impl Keys for Monero {
     type PublicKey = PublicKey;
 }
 
-impl ShareablePrivateKeys for Monero {
-    type ShareablePrivateKey = PrivateKey;
+impl SharedPrivateKeys for Monero {
+    type SharedPrivateKey = PrivateKey;
 }
 
 impl Commitment for Monero {

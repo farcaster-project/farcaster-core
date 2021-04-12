@@ -16,14 +16,14 @@ pub enum Key<Ctx: Swap> {
     AlicePunish(<Ctx::Ar as Keys>::PublicKey),
     AliceAdaptor(<Ctx::Ar as Keys>::PublicKey),
     AliceSpend(<Ctx::Ac as Keys>::PublicKey),
-    AlicePrivateView(<Ctx::Ac as ShareablePrivateKeys>::ShareablePrivateKey),
+    AlicePrivateView(<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey),
     BobFund(<Ctx::Ar as Keys>::PublicKey),
     BobBuy(<Ctx::Ar as Keys>::PublicKey),
     BobCancel(<Ctx::Ar as Keys>::PublicKey),
     BobRefund(<Ctx::Ar as Keys>::PublicKey),
     BobAdaptor(<Ctx::Ar as Keys>::PublicKey),
     BobSpend(<Ctx::Ac as Keys>::PublicKey),
-    BobPrivateView(<Ctx::Ac as ShareablePrivateKeys>::ShareablePrivateKey),
+    BobPrivateView(<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey),
 }
 
 /// Type of signatures
@@ -50,9 +50,9 @@ pub trait Keys: Commitment {
 
 /// This trait is required for blockchains for fixing the potential shared private key send over
 /// the network.
-pub trait ShareablePrivateKeys {
+pub trait SharedPrivateKeys {
     /// A shareable private key type used to parse non-transparent blockchain
-    type ShareablePrivateKey: Clone + Debug + StrictEncode + StrictDecode;
+    type SharedPrivateKey: Clone + Debug + StrictEncode + StrictDecode;
 }
 
 /// This trait is required for blockchains for fixing the commitment types of the keys.

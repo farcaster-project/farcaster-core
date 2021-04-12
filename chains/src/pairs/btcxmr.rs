@@ -6,6 +6,7 @@ use farcaster_core::swap::Swap;
 use crate::bitcoin::Bitcoin;
 use crate::monero::Monero;
 
+#[derive(Debug, Clone)]
 pub struct BtcXmr;
 
 impl Swap for BtcXmr {

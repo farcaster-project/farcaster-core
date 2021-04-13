@@ -1,18 +1,21 @@
 //! Defines and implements all the traits for Bitcoin
 
 use bitcoin::hash_types::PubkeyHash;
+use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::address::Address;
 use bitcoin::util::amount;
+use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Network;
 use monero::cryptonote::hash::Hash;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::blockchain::{Blockchain, Onchain};
+use farcaster_core::blockchain::{Asset, Onchain};
 use farcaster_core::consensus::{self, Decodable, Encodable};
-use farcaster_core::crypto::{Commitment, Keys, Signatures};
-use farcaster_core::role::Arbitrating;
+use farcaster_core::crypto::{ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
+use farcaster_core::role::{Arb, Arbitrating};
 
 use std::fmt::Debug;
 use std::io;
@@ -35,7 +38,7 @@ impl FromStr for Bitcoin {
     }
 }
 
-impl Blockchain for Bitcoin {
+impl Asset for Bitcoin {
     /// Type for the traded asset unit
     type AssetUnit = Amount;
 
@@ -207,4 +210,31 @@ impl Commitment for Bitcoin {
 impl Signatures for Bitcoin {
     type Signature = Signature;
     type AdaptorSignature = ECDSAAdaptorSig;
+}
+
+impl FromSeed<Arb> for Bitcoin {
+    type Seed = [u8; 32];
+
+    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PublicKey {
+        let secp = Secp256k1::new();
+        let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref()).unwrap();
+        let key = match key_type {
+            ArbitratingKey::Fund => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/1").unwrap())
+                .unwrap(),
+            ArbitratingKey::Buy => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/2").unwrap())
+                .unwrap(),
+            ArbitratingKey::Cancel => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/3").unwrap())
+                .unwrap(),
+            ArbitratingKey::Refund => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/4").unwrap())
+                .unwrap(),
+            ArbitratingKey::Punish => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/5").unwrap())
+                .unwrap(),
+        };
+        key.private_key.public_key(&secp)
+    }
 }

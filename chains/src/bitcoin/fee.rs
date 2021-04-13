@@ -3,7 +3,7 @@ use bitcoin::util::amount;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError, FeeUnit};
+use farcaster_core::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
 use farcaster_core::consensus::{self, Decodable, Encodable};
 
 use crate::bitcoin::{Amount, Bitcoin};
@@ -52,11 +52,9 @@ impl FromStr for SatPerVByte {
     }
 }
 
-impl FeeUnit for Bitcoin {
-    type FeeUnit = SatPerVByte;
-}
-
 impl Fee for Bitcoin {
+    type FeeUnit = SatPerVByte;
+
     /// Calculates and sets the fees on the given transaction and return the fees set
     fn set_fees(
         tx: &mut PartiallySignedTransaction,

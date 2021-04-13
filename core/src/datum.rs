@@ -10,12 +10,13 @@ use crate::transaction::TxId;
 
 pub trait Datum {}
 
+#[derive(Debug, Clone)]
 pub struct Transaction<Ar>
 where
     Ar: Arbitrating,
 {
     pub tx_id: TxId,
-    pub tx_value: Ar::Transaction,
+    pub tx_value: Ar::PartialTransaction,
 }
 
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
@@ -24,6 +25,13 @@ pub struct Key<Ctx: Swap> {
     pub key: crypto::Key<Ctx>,
 }
 
+impl<Ctx: Swap> From<crypto::Key<Ctx>> for Key<Ctx> {
+    fn from(key: crypto::Key<Ctx>) -> Self {
+        Key { key }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Signature<Ar>
 where
     Ar: Signatures,
@@ -39,6 +47,7 @@ pub struct Proof<Ctx: Swap> {
     pub proof: Ctx::Proof,
 }
 
+#[derive(Debug, Clone)]
 pub enum Parameter<Ar>
 where
     Ar: Arbitrating + Fee,

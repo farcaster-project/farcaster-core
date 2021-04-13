@@ -4,7 +4,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::Onchain;
 use crate::crypto::{Commitment, Keys, SharedPrivateKeys, Signatures};
-use crate::role::Arbitrating;
+use crate::role::{Acc, Arbitrating};
 use crate::swap::Swap;
 
 /// Trait for defining inter-daemon communication messages.
@@ -84,7 +84,7 @@ pub struct RevealAliceSessionParams<Ctx: Swap> {
     /// The `K_v^a` view private key
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^a` spend public key
-    pub view: <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
+    pub view: <Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Ctx::Proof,
 }
@@ -109,7 +109,7 @@ pub struct RevealBobSessionParams<Ctx: Swap> {
     /// The `K_v^b` view private key
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^b` spend public key
-    pub view: <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
+    pub view: <Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Ctx::Proof,
 }

@@ -1,14 +1,17 @@
 //! Defines and implements all the traits for Monero
 
-use farcaster_core::blockchain::Blockchain;
-use farcaster_core::crypto::{Commitment, Keys, SharedPrivateKeys};
-use farcaster_core::role::Accordant;
+use farcaster_core::blockchain::Asset;
+use farcaster_core::crypto::{
+    AccordantKey, Commitment, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys,
+};
+use farcaster_core::role::{Acc, Accordant};
 
 use monero::cryptonote::hash::Hash;
-use monero::util::key::PrivateKey;
-use monero::util::key::PublicKey;
+use monero::util::key::{PrivateKey, PublicKey};
 
 use std::fmt::{self, Debug, Display, Formatter};
+
+pub const SHARED_KEY_BITS: usize = 252;
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
@@ -31,7 +34,7 @@ impl Display for Monero {
     }
 }
 
-impl Blockchain for Monero {
+impl Asset for Monero {
     /// Type for the traded asset unit
     type AssetUnit = u64;
 
@@ -62,10 +65,40 @@ impl Keys for Monero {
     type PublicKey = PublicKey;
 }
 
-impl SharedPrivateKeys for Monero {
+impl SharedPrivateKeys<Acc> for Monero {
     type SharedPrivateKey = PrivateKey;
+
+    fn get_shared_privkey(seed: &[u8; 32], key_type: SharedPrivateKey) -> PrivateKey {
+        match key_type {
+            SharedPrivateKey::View => {
+                let mut bytes = Vec::from(b"farcaster_priv_view".as_ref());
+                bytes.extend_from_slice(&seed.as_ref());
+                Hash::hash(&bytes).as_scalar()
+            }
+        }
+    }
 }
 
 impl Commitment for Monero {
     type Commitment = Hash;
+}
+
+pub fn private_spend_from_seed<T: AsRef<[u8]>>(seed: T) -> PrivateKey {
+    let mut bytes = Vec::from(b"farcaster_priv_spend".as_ref());
+    bytes.extend_from_slice(&seed.as_ref());
+
+    let mut key = Hash::hash(&bytes).to_fixed_bytes();
+    key[31] &= 0b0000_1111; // Chop off bits that might be greater than the curve modulus
+
+    PrivateKey::from_slice(&key).unwrap()
+}
+
+impl FromSeed<Acc> for Monero {
+    type Seed = [u8; 32];
+
+    fn get_pubkey(seed: &[u8; 32], key_type: AccordantKey) -> PublicKey {
+        match key_type {
+            AccordantKey::Spend => PublicKey::from_private_key(&private_spend_from_seed(&seed)),
+        }
+    }
 }

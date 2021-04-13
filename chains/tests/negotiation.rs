@@ -3,7 +3,7 @@ use farcaster_chains::bitcoin::{Amount, Bitcoin, CSVTimelock};
 use farcaster_chains::monero::Monero;
 use farcaster_chains::pairs::btcxmr::BtcXmr;
 
-use farcaster_core::blockchain::{Blockchain, FeeStrategy, Network};
+use farcaster_core::blockchain::{Asset, FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};
 use farcaster_core::negotiation::{Buy, Offer, PublicOffer, Sell};
 use farcaster_core::role::SwapRole;

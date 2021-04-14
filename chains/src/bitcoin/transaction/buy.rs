@@ -1,6 +1,5 @@
 use bitcoin::blockdata::script::Instruction;
 use bitcoin::secp256k1::Signature;
-use bitcoin::util::address::Address;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
@@ -10,7 +9,7 @@ use farcaster_core::transaction::{AdaptorSignable, Buyable, Cooperable, Lockable
 
 use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::{Bitcoin, ECDSAAdaptorSig};
+use crate::bitcoin::{Address, Bitcoin, ECDSAAdaptorSig};
 
 #[derive(Debug)]
 pub struct Buy;

@@ -1,18 +1,20 @@
 //! Defines and implements all the traits for Bitcoin
 
 use bitcoin::hash_types::PubkeyHash;
+use bitcoin::hashes::Hash;
+use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Signature;
-use bitcoin::util::address::Address;
 use bitcoin::util::amount;
+use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
-use monero::cryptonote::hash::Hash;
+use bitcoin::Network;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::blockchain::{Blockchain, Onchain};
+use farcaster_core::blockchain::{Asset, Onchain};
 use farcaster_core::consensus::{self, Decodable, Encodable};
-use farcaster_core::crypto::{Commitment, Keys, Signatures};
-use farcaster_core::role::Arbitrating;
+use farcaster_core::crypto::{ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
+use farcaster_core::role::{Arb, Arbitrating};
 
 use std::fmt::Debug;
 use std::io;
@@ -35,7 +37,7 @@ impl FromStr for Bitcoin {
     }
 }
 
-impl Blockchain for Bitcoin {
+impl Asset for Bitcoin {
     /// Type for the traded asset unit
     type AssetUnit = Amount;
 
@@ -111,6 +113,37 @@ impl Arbitrating for Bitcoin {
     type Timelock = CSVTimelock;
 }
 
+#[derive(Debug, Clone, StrictDecode, StrictEncode)]
+pub struct Address(pub bitcoin::Address);
+
+impl From<bitcoin::Address> for Address {
+    fn from(address: bitcoin::Address) -> Self {
+        Self(address)
+    }
+}
+
+impl AsRef<bitcoin::Address> for Address {
+    fn as_ref(&self) -> &bitcoin::Address {
+        &self.0
+    }
+}
+
+impl Encodable for Address {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        bitcoin::consensus::encode::Encodable::consensus_encode(&self.0.to_string(), writer)
+    }
+}
+
+impl Decodable for Address {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: String = bitcoin::consensus::encode::Decodable::consensus_decode(d)
+            .map_err(|_| consensus::Error::ParseFailed("Bitcoin address parsing failed"))?;
+        let add: bitcoin::Address = FromStr::from_str(&bytes)
+            .map_err(|_| consensus::Error::ParseFailed("Bitcoin address parsing failed"))?;
+        Ok(Address(add))
+    }
+}
+
 impl FromStr for CSVTimelock {
     type Err = consensus::Error;
 
@@ -173,38 +206,65 @@ pub struct ECDSAAdaptorSig {
 pub struct PDLEQ;
 
 impl StrictEncode for PDLEQ {
-    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        let res = Hash::hash(&"Farcaster PDLEQ".as_bytes()).to_bytes();
-        e.write(&res)?;
-        Ok(res.len())
+    fn strict_encode<E: std::io::Write>(&self, mut _e: E) -> Result<usize, strict_encoding::Error> {
+        Ok(0)
     }
 }
 
 impl StrictDecode for PDLEQ {
-    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        let mut buf = [0u8; 32];
-        d.read_exact(&mut buf)?;
-        let expected = Hash::hash(&"Farcaster PDLEQ".as_bytes()).to_bytes();
-        if expected == buf {
-            Ok(PDLEQ)
-        } else {
-            Err(strict_encoding::Error::DataIntegrityError(
-                "Not PDLEQ type".to_string(),
-            ))
-        }
+    fn strict_decode<D: std::io::Read>(mut _d: D) -> Result<Self, strict_encoding::Error> {
+        Ok(Self)
     }
 }
 
 impl Keys for Bitcoin {
+    /// Private key type for the blockchain
     type PrivateKey = PrivateKey;
+
+    /// Public key type for the blockchain
     type PublicKey = PublicKey;
+
+    fn as_bytes(pubkey: &PublicKey) -> Vec<u8> {
+        pubkey.to_bytes()
+    }
 }
 
 impl Commitment for Bitcoin {
     type Commitment = PubkeyHash;
+
+    fn commit_to<T: AsRef<[u8]>>(value: T) -> PubkeyHash {
+        PubkeyHash::hash(value.as_ref())
+    }
 }
 
 impl Signatures for Bitcoin {
     type Signature = Signature;
     type AdaptorSignature = ECDSAAdaptorSig;
+}
+
+impl FromSeed<Arb> for Bitcoin {
+    type Seed = [u8; 32];
+
+    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PublicKey {
+        let secp = Secp256k1::new();
+        let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref()).unwrap();
+        let key = match key_type {
+            ArbitratingKey::Fund => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/1").unwrap())
+                .unwrap(),
+            ArbitratingKey::Buy => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/2").unwrap())
+                .unwrap(),
+            ArbitratingKey::Cancel => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/3").unwrap())
+                .unwrap(),
+            ArbitratingKey::Refund => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/4").unwrap())
+                .unwrap(),
+            ArbitratingKey::Punish => master_key
+                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/5").unwrap())
+                .unwrap(),
+        };
+        key.private_key.public_key(&secp)
+    }
 }

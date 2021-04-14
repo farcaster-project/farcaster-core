@@ -1,5 +1,4 @@
 use bitcoin::secp256k1::Signature;
-use bitcoin::util::address::Address;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
@@ -9,7 +8,7 @@ use farcaster_core::transaction::{Cancelable, Forkable, Punishable};
 
 use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::Bitcoin;
+use crate::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug)]
 pub struct Punish;

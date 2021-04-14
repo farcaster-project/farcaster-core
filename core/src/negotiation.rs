@@ -6,9 +6,9 @@ use thiserror::Error;
 
 use std::io;
 
-use crate::blockchain::{Blockchain, FeeStrategy, FeeUnit, Network};
+use crate::blockchain::{Asset, Fee, FeeStrategy, Network};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::role::{Arbitrating, SwapRole};
+use crate::role::{Arbitrating, NegotiationRole, SwapRole};
 use crate::swap::Swap;
 
 /// First six magic bytes of a public offer
@@ -70,15 +70,15 @@ pub struct Offer<Ctx: Swap> {
     /// The chosen accordant blockchain
     pub accordant: Ctx::Ac,
     /// Amount of arbitrating assets to exchanged
-    pub arbitrating_assets: <Ctx::Ar as Blockchain>::AssetUnit,
+    pub arbitrating_assets: <Ctx::Ar as Asset>::AssetUnit,
     /// Amount of accordant assets to exchanged
-    pub accordant_assets: <Ctx::Ac as Blockchain>::AssetUnit,
+    pub accordant_assets: <Ctx::Ac as Asset>::AssetUnit,
     /// The cancel timelock parameter of the arbitrating blockchain
     pub cancel_timelock: <Ctx::Ar as Arbitrating>::Timelock,
     /// The punish timelock parameter of the arbitrating blockchain
     pub punish_timelock: <Ctx::Ar as Arbitrating>::Timelock,
     /// The chosen fee strategy for the arbitrating transactions
-    pub fee_strategy: FeeStrategy<<Ctx::Ar as FeeUnit>::FeeUnit>,
+    pub fee_strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>,
     /// The future maker swap role
     pub maker_role: SwapRole,
 }
@@ -98,6 +98,14 @@ impl<Ctx: Swap> Offer<Ctx> {
             version: Version::new_v1(),
             offer: self,
             daemon_service,
+        }
+    }
+
+    /// Return the future swap role for the given negotiation role.
+    pub fn swap_role(&self, nego_role: &NegotiationRole) -> SwapRole {
+        match nego_role {
+            NegotiationRole::Maker => self.maker_role,
+            NegotiationRole::Taker => self.maker_role.other(),
         }
     }
 }
@@ -153,7 +161,7 @@ where
 {
     /// Defines the asset and its amount the maker will receive in exchange of
     /// the asset and amount defined in the `with` method.
-    pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Blockchain>::AssetUnit) -> Self {
+    pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Asset>::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
         buy.0.arbitrating_assets = Some(amount);
@@ -162,7 +170,7 @@ where
 
     /// Defines the asset and its amount the maker will send to get the assets
     /// defined in the `some` method.
-    pub fn with(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Blockchain>::AssetUnit) -> Self {
+    pub fn with(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Asset>::AssetUnit) -> Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
         self
@@ -180,7 +188,7 @@ where
     }
 
     /// Sets the fee strategy for the proposed offer
-    pub fn with_fee(mut self, strategy: FeeStrategy<<Ctx::Ar as FeeUnit>::FeeUnit>) -> Self {
+    pub fn with_fee(mut self, strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>) -> Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
@@ -227,7 +235,7 @@ where
 {
     /// Defines the asset and its amount the maker will send to get the assets
     /// defined in the `for_some` method.
-    pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Blockchain>::AssetUnit) -> Self {
+    pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Asset>::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating = Some(asset);
         buy.0.arbitrating_assets = Some(amount);
@@ -236,7 +244,7 @@ where
 
     /// Defines the asset and its amount the maker will receive in exchange of
     /// the asset and amount defined in the `some` method.
-    pub fn for_some(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Blockchain>::AssetUnit) -> Self {
+    pub fn for_some(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Asset>::AssetUnit) -> Self {
         self.0.accordant = Some(asset);
         self.0.accordant_assets = Some(amount);
         self
@@ -254,7 +262,7 @@ where
     }
 
     /// Sets the fee strategy for the proposed offer
-    pub fn with_fee(mut self, strategy: FeeStrategy<<Ctx::Ar as FeeUnit>::FeeUnit>) -> Self {
+    pub fn with_fee(mut self, strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>) -> Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
@@ -291,11 +299,11 @@ struct BuilderState<Ctx: Swap> {
     network: Option<Network>,
     arbitrating: Option<Ctx::Ar>,
     accordant: Option<Ctx::Ac>,
-    arbitrating_assets: Option<<Ctx::Ar as Blockchain>::AssetUnit>,
-    accordant_assets: Option<<Ctx::Ac as Blockchain>::AssetUnit>,
+    arbitrating_assets: Option<<Ctx::Ar as Asset>::AssetUnit>,
+    accordant_assets: Option<<Ctx::Ac as Asset>::AssetUnit>,
     cancel_timelock: Option<<Ctx::Ar as Arbitrating>::Timelock>,
     punish_timelock: Option<<Ctx::Ar as Arbitrating>::Timelock>,
-    fee_strategy: Option<FeeStrategy<<Ctx::Ar as FeeUnit>::FeeUnit>>,
+    fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
     maker_role: Option<SwapRole>,
 }
 
@@ -330,6 +338,13 @@ pub struct PublicOffer<Ctx: Swap> {
     pub offer: Offer<Ctx>,
     /// Address of the listening daemon's peer
     pub daemon_service: RemoteNodeAddr,
+}
+
+impl<Ctx: Swap> PublicOffer<Ctx> {
+    /// Return the future swap role for the given negotiation role.
+    pub fn swap_role(&self, nego_role: &NegotiationRole) -> SwapRole {
+        self.offer.swap_role(nego_role)
+    }
 }
 
 impl<Ctx> std::fmt::Display for PublicOffer<Ctx>

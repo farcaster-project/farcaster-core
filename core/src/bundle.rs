@@ -11,6 +11,7 @@ pub trait Bundle {}
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
+#[derive(Debug, Clone)]
 pub struct AliceSessionParams<Ctx: Swap> {
     pub buy: datum::Key<Ctx>,
     pub cancel: datum::Key<Ctx>,
@@ -28,6 +29,7 @@ pub struct AliceSessionParams<Ctx: Swap> {
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
+#[derive(Debug, Clone)]
 pub struct BobSessionParams<Ctx: Swap> {
     pub buy: datum::Key<Ctx>,
     pub cancel: datum::Key<Ctx>,
@@ -43,6 +45,7 @@ pub struct BobSessionParams<Ctx: Swap> {
 }
 
 /// Provides daemon with a signature on the unsigned cancel (d) transaction.
+#[derive(Debug, Clone)]
 pub struct CosignedArbitratingCancel<Ar>
 where
     Ar: Arbitrating,
@@ -54,6 +57,7 @@ where
 impl<Ar> Bundle for CosignedArbitratingCancel<Ar> where Ar: Arbitrating {}
 
 /// Provides Bob's daemon or Alice's clients the core set of arbritrating transactions.
+#[derive(Debug, Clone)]
 pub struct CoreArbitratingTransactions<Ar>
 where
     Ar: Arbitrating,
@@ -65,6 +69,7 @@ where
 
 /// Provides Bob's daemon or Alice's client with an adaptor signature for the unsigned buy (c)
 /// transaction.
+#[derive(Debug, Clone)]
 pub struct SignedAdaptorBuy<Ar>
 where
     Ar: Arbitrating,
@@ -76,6 +81,7 @@ impl<Ar> Bundle for SignedAdaptorBuy<Ar> where Ar: Arbitrating {}
 
 /// Provides Alice's daemon or Bob's clients with the two signatures on the unsigned buy (c)
 /// transaction.
+#[derive(Debug, Clone)]
 pub struct FullySignedBuy<Ar>
 where
     Ar: Arbitrating,
@@ -88,6 +94,7 @@ impl<Ar> Bundle for FullySignedBuy<Ar> where Ar: Arbitrating {}
 
 /// Provides Alice's daemon or Bob's clients with a signature on the unsigned refund (e)
 /// transaction.
+#[derive(Debug, Clone)]
 pub struct SignedAdaptorRefund<Ar>
 where
     Ar: Arbitrating,
@@ -99,6 +106,7 @@ impl<Ar> Bundle for SignedAdaptorRefund<Ar> where Ar: Arbitrating {}
 
 /// Provides Bob's daemon or Alice's clients with the two signatures on the unsigned refund (e)
 /// transaction.
+#[derive(Debug, Clone)]
 pub struct FullySignedRefund<Ar>
 where
     Ar: Arbitrating,
@@ -110,6 +118,7 @@ where
 impl<Ar> Bundle for FullySignedRefund<Ar> where Ar: Arbitrating {}
 
 /// Provides Bob's daemon with the signature on the unsigned lock (b) transaction.
+#[derive(Debug, Clone)]
 pub struct SignedArbitratingLock<Ar>
 where
     Ar: Arbitrating,
@@ -120,6 +129,7 @@ where
 impl<Ar> Bundle for SignedArbitratingLock<Ar> where Ar: Arbitrating {}
 
 /// Provides Alice's daemon with the signature on the unsigned punish (f) transaction.
+#[derive(Debug, Clone)]
 pub struct SignedArbitratingPunish<Ar>
 where
     Ar: Arbitrating,

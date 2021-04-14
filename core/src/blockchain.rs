@@ -14,8 +14,8 @@ use thiserror::Error;
 
 use crate::consensus::{self, Decodable, Encodable};
 
-/// Base trait for defining a blockchain and its asset type.
-pub trait Blockchain: Copy + Debug + Encodable + Decodable {
+/// Defines the asset identifier for a blockchain and its associated asset unit type.
+pub trait Asset: Copy + Debug + Encodable + Decodable {
     /// Type for the traded asset unit
     type AssetUnit: Copy + Debug + Encodable + Decodable;
 
@@ -32,13 +32,14 @@ pub trait Blockchain: Copy + Debug + Encodable + Decodable {
     fn to_u32(&self) -> u32;
 }
 
-impl<T: Blockchain> Encodable for T {
+// FIXME this is too large and produce bad error messages
+impl<T: Asset> Encodable for T {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         self.to_u32().consensus_encode(writer)
     }
 }
 
-impl<T: Blockchain> Decodable for T {
+impl<T: Asset> Decodable for T {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let identifier: u32 = Decodable::consensus_decode(d)?;
         // Follows Farcaster RFC 10
@@ -57,12 +58,6 @@ pub trait Onchain {
 
     /// Defines the finalized transaction format for the arbitrating blockchain
     type Transaction;
-}
-
-/// Define the unit type used for setting/validating blockchain fees.
-pub trait FeeUnit {
-    /// Type for describing the fees of a blockchain
-    type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable + PartialEq + Eq;
 }
 
 impl<T> FromStr for FeeStrategy<T>
@@ -169,7 +164,10 @@ pub enum FeePolitic {
 /// Enable fee management for an arbitrating blockchain. This trait require implementing the
 /// Onchain role to have access to transaction associated type and to specify the concrete fee
 /// strategy type to use.
-pub trait Fee: Onchain + Blockchain + FeeUnit {
+pub trait Fee: Onchain + Asset {
+    /// Type for describing the fees of a blockchain
+    type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable + PartialEq + Eq;
+
     /// Calculates and sets the fees on the given transaction and return the amount of fees set in
     /// the blockchain native amount format.
     fn set_fees(

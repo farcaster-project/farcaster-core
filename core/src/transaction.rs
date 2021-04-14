@@ -1,8 +1,10 @@
 //! Arbitrating transaction module
 
 use std::fmt::Debug;
+use std::io;
 
 use crate::blockchain::{FeePolitic, FeeStrategy, Network};
+use crate::consensus::{self, Decodable, Encodable};
 use crate::role::Arbitrating;
 use crate::script;
 
@@ -19,6 +21,7 @@ where
 }
 
 /// Defines the transaction IDs for serialization and network communication.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TxId {
     /// Represents the first transaction created outside of the system by an external wallet to
     /// fund the swap on the arbitrating blockchain.
@@ -34,6 +37,33 @@ pub enum TxId {
     /// Represents the full failure path, where only one participant gets refunded because he
     /// didn't act accordingly to the protocol.
     Punish,
+}
+
+impl Encodable for TxId {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        match self {
+            TxId::Funding => 0x01u16.consensus_encode(writer),
+            TxId::Lock => 0x02u16.consensus_encode(writer),
+            TxId::Buy => 0x03u16.consensus_encode(writer),
+            TxId::Cancel => 0x04u16.consensus_encode(writer),
+            TxId::Refund => 0x05u16.consensus_encode(writer),
+            TxId::Punish => 0x06u16.consensus_encode(writer),
+        }
+    }
+}
+
+impl Decodable for TxId {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x01u16 => Ok(TxId::Funding),
+            0x02u16 => Ok(TxId::Lock),
+            0x03u16 => Ok(TxId::Buy),
+            0x04u16 => Ok(TxId::Cancel),
+            0x05u16 => Ok(TxId::Refund),
+            0x06u16 => Ok(TxId::Punish),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
 }
 
 /// Must be implemented on transactions with failable opperations.

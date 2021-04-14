@@ -3,8 +3,9 @@
 use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::Onchain;
+use crate::bundle;
 use crate::crypto::{Commitment, Keys, SharedPrivateKeys, Signatures};
-use crate::role::Arbitrating;
+use crate::role::{Acc, Arbitrating};
 use crate::swap::Swap;
 
 /// Trait for defining inter-daemon communication messages.
@@ -38,6 +39,23 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO
         write!(f, "{}", self)
+    }
+}
+
+impl<Ctx> From<bundle::AliceSessionParams<Ctx>> for CommitAliceSessionParams<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(bundle: bundle::AliceSessionParams<Ctx>) -> Self {
+        Self {
+            buy: <Ctx::Ar as Commitment>::commit_to(bundle.buy.key().as_bytes()),
+            cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key().as_bytes()),
+            refund: <Ctx::Ar as Commitment>::commit_to(bundle.refund.key().as_bytes()),
+            punish: <Ctx::Ar as Commitment>::commit_to(bundle.punish.key().as_bytes()),
+            adaptor: <Ctx::Ar as Commitment>::commit_to(bundle.adaptor.key().as_bytes()),
+            spend: <Ctx::Ac as Commitment>::commit_to(bundle.spend.key().as_bytes()),
+            view: <Ctx::Ac as Commitment>::commit_to(bundle.view.key().as_bytes()),
+        }
     }
 }
 
@@ -84,10 +102,27 @@ pub struct RevealAliceSessionParams<Ctx: Swap> {
     /// The `K_v^a` view private key
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^a` spend public key
-    pub view: <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
+    pub view: <Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Ctx::Proof,
 }
+
+//impl<Ctx> From<bundle::AliceSessionParams<Ctx>> for RevealAliceSessionParams<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn from(bundle: bundle::AliceSessionParams<Ctx>) -> Self {
+//        Self {
+//            buy: bundle.buy.key,
+//            cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key.as_bytes()),
+//            refund: <Ctx::Ar as Commitment>::commit_to(bundle.refund.key.as_bytes()),
+//            punish: <Ctx::Ar as Commitment>::commit_to(bundle.punish.key.as_bytes()),
+//            adaptor: <Ctx::Ar as Commitment>::commit_to(bundle.adaptor.key.as_bytes()),
+//            spend: <Ctx::Ac as Commitment>::commit_to(bundle.spend.key.as_bytes()),
+//            view: <Ctx::Ac as Commitment>::commit_to(bundle.view.key.as_bytes()),
+//        }
+//    }
+//}
 
 impl<Ctx> ProtocolMessage for RevealAliceSessionParams<Ctx> where Ctx: Swap {}
 
@@ -109,7 +144,7 @@ pub struct RevealBobSessionParams<Ctx: Swap> {
     /// The `K_v^b` view private key
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^b` spend public key
-    pub view: <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
+    pub view: <Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Ctx::Proof,
 }

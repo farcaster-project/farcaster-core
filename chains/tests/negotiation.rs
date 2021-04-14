@@ -3,7 +3,7 @@ use farcaster_chains::bitcoin::{Amount, Bitcoin, CSVTimelock};
 use farcaster_chains::monero::Monero;
 use farcaster_chains::pairs::btcxmr::BtcXmr;
 
-use farcaster_core::blockchain::{Blockchain, FeeStrategy, Network};
+use farcaster_core::blockchain::{Asset, FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};
 use farcaster_core::negotiation::{Buy, Offer, PublicOffer, Sell};
 use farcaster_core::role::SwapRole;
@@ -14,8 +14,8 @@ use std::str::FromStr;
 
 #[test]
 fn create_offer() {
-    let hex = "02000000808000008008050000000000000008060000000000000004070000000408000000010809000\
-               0000000000002";
+    let hex = "02000000808000008008000500000000000000080006000000000000000400070000000400080000000\
+               10800090000000000000002";
     let offer: Offer<BtcXmr> = Offer {
         network: Network::Testnet,
         arbitrating: Bitcoin::new(),
@@ -57,10 +57,10 @@ fn maker_sell_arbitrating_assets_offer() {
 
 #[test]
 fn serialize_public_offer() {
-    let hex = "464353574150010002000000808000008008a08601000000000008c800000000000000040a00000004\
-               0a000000010814000000000000000203b31a0a70343bb46f3db3768296ac5027f9873921b37f852860\
-               c690063ff9e4c900000000000000000000000000000000000000000000000000000000000000000000\
-               00260700";
+    let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
+               a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
+               873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
+               000000000000000000000260700";
     let offer: Offer<BtcXmr> = Sell::some(Bitcoin::new(), Amount::from_sat(100000))
         .for_some(Monero::new(), 200)
         .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
@@ -89,10 +89,10 @@ fn serialize_public_offer() {
 
 #[test]
 fn check_public_offer_magic_bytes() {
-    let valid = "4643535741500100020000008080000080086400000000000000086400000000000000040a0000000\
-                 41e0000000108140000000000000001026981c0e141351c1aae13014379d629dfddb3b5375c1265c3\
-                 4203b5d13c69cd2700000000000000000000000000000000000000000000000000000000000000000\
-                 00000260700";
+    let valid = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
+                 a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
+                 873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
+                 000000000000000000000260700";
     let pub_offer: Result<PublicOffer<BtcXmr>, consensus::Error> =
         deserialize(&hex::decode(valid).unwrap()[..]);
     assert!(pub_offer.is_ok());

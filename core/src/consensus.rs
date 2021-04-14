@@ -19,6 +19,9 @@ pub enum Error {
     /// The type is not defined in the consensus
     #[error("Unknown consensus type")]
     UnknownType,
+    /// The type is not the one expected
+    #[error("Type mismatch, not the one expected")]
+    TypeMismatch,
     /// Error related to Farcaster negotiation
     #[error("Negotiation error: {0}")]
     Negotiation(#[from] negotiation::Error),
@@ -28,6 +31,9 @@ pub enum Error {
     /// Parsing error
     #[error("Parsing error: {0}")]
     ParseFailed(&'static str),
+    /// Strict encoding wrapping error
+    #[error("Strict encoding error: {0}")]
+    StrictEncoding(#[from] strict_encoding::Error),
 }
 
 /// Encode an object into a vector
@@ -94,22 +100,19 @@ pub trait Decodable: Sized {
 impl Encodable for Vec<u8> {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
-        if self.len() > u8::MAX as usize {
+        if self.len() > u16::MAX as usize {
             return Err(io::Error::new(io::ErrorKind::Other, "Value is too long"));
         }
-        (self.len() as u8).consensus_encode(s)?;
+        (self.len() as u16).consensus_encode(s)?;
         s.write_all(&self[..])?;
-        Ok(self.len() + 1)
+        Ok(self.len() + 2)
     }
 }
 
 impl Decodable for Vec<u8> {
     #[inline]
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
-        let len = u8::consensus_decode(d)?;
-        if len > u8::MAX {
-            return Err(Error::ParseFailed("Vec is too long"));
-        }
+        let len = u16::consensus_decode(d)?;
         let mut ret = Vec::<u8>::with_capacity(len as usize);
         for _ in 0..len {
             ret.push(Decodable::consensus_decode(d)?);
@@ -243,9 +246,10 @@ mod tests {
     #[test]
     fn simple_vec() {
         let vec = vec![0xde, 0xad, 0xbe, 0xef];
-        assert_eq!(serialize_hex(&vec), "04deadbeef");
+        // len of 4 as u16 in little endian = 0400
+        assert_eq!(serialize_hex(&vec), "0400deadbeef");
         // test max size vec
-        let vec = vec![0x41; 255];
+        let vec = vec![0x41; u16::MAX.into()];
         assert_eq!(deserialize::<Vec<u8>>(&serialize(&vec)[..]).unwrap(), vec);
     }
 }

@@ -3,6 +3,7 @@
 use std::fmt::Debug;
 use strict_encoding::{StrictDecode, StrictEncode};
 
+use crate::consensus::{self};
 use crate::role::{Acc, Accordant, Arbitrating, Blockchain};
 use crate::swap::Swap;
 
@@ -12,6 +13,34 @@ use crate::swap::Swap;
 pub enum Key<Ctx: Swap> {
     Alice(AliceKey<Ctx>),
     Bob(BobKey<Ctx>),
+}
+
+impl<Ctx> Key<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn as_bytes(&self) -> Vec<u8> {
+        match self {
+            Key::Alice(key_type) => match key_type {
+                AliceKey::Buy(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                AliceKey::Cancel(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                AliceKey::Refund(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                AliceKey::Punish(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                AliceKey::Adaptor(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                AliceKey::Spend(key) => <Ctx::Ac as Keys>::as_bytes(&key),
+                AliceKey::PrivateView(key) => <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&key),
+            },
+            Key::Bob(key_type) => match key_type {
+                BobKey::Fund(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                BobKey::Buy(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                BobKey::Cancel(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                BobKey::Refund(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                BobKey::Adaptor(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+                BobKey::Spend(key) => <Ctx::Ac as Keys>::as_bytes(&key),
+                BobKey::PrivateView(key) => <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&key),
+            },
+        }
+    }
 }
 
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
@@ -38,6 +67,57 @@ pub enum BobKey<Ctx: Swap> {
     PrivateView(<Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey),
 }
 
+#[derive(Debug, Clone, PartialEq, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub enum KeyType<Ctx>
+where
+    Ctx: Swap,
+{
+    PublicArbitrating(<Ctx::Ar as Keys>::PublicKey),
+    PublicAccordant(<Ctx::Ac as Keys>::PublicKey),
+    SharedPrivate(<Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey),
+}
+
+impl<Ctx> KeyType<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn try_into_arbitrating_pubkey(
+        &self,
+    ) -> Result<<Ctx::Ar as Keys>::PublicKey, consensus::Error> {
+        match self {
+            KeyType::PublicArbitrating(key) => Ok(key.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_accordant_pubkey(
+        &self,
+    ) -> Result<<Ctx::Ac as Keys>::PublicKey, consensus::Error> {
+        match self {
+            KeyType::PublicAccordant(key) => Ok(key.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_shared_private(
+        &self,
+    ) -> Result<<Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey, consensus::Error> {
+        match self {
+            KeyType::SharedPrivate(key) => Ok(key.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        match self {
+            KeyType::PublicArbitrating(key) => <Ctx::Ar as Keys>::as_bytes(&key),
+            KeyType::PublicAccordant(key) => <Ctx::Ac as Keys>::as_bytes(&key),
+            KeyType::SharedPrivate(key) => <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&key),
+        }
+    }
+}
+
 /// Type of signatures
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
@@ -57,8 +137,6 @@ pub enum ArbitratingKey {
     Cancel,
     Refund,
     Punish,
-    // TODO special case as it is the same as Spend but on the "other" (can be the same tho) group
-    //Adaptor,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -69,6 +147,19 @@ pub enum AccordantKey {
 #[derive(Debug, Clone, Copy)]
 pub enum SharedPrivateKey {
     View,
+}
+
+/// This trait is required for blockchains to fix the concrete cryptographic key types. The public
+/// key associated type is shared across the network.
+pub trait Keys {
+    /// Private key type given the blockchain and the crypto engine.
+    type PrivateKey;
+
+    /// Public key type given the blockchain and the crypto engine.
+    type PublicKey: Clone + PartialEq + Debug + StrictEncode + StrictDecode;
+
+    /// Get the bytes from the public key.
+    fn as_bytes(pubkey: &Self::PublicKey) -> Vec<u8>;
 }
 
 /// Generate the keys for a blockchain from a master seed.
@@ -82,16 +173,6 @@ where
     fn get_pubkey(seed: &Self::Seed, key_type: T::KeyList) -> Self::PublicKey;
 }
 
-/// This trait is required for blockchains to fix the concrete cryptographic key types. The public
-/// key associated type is shared across the network.
-pub trait Keys {
-    /// Private key type given the blockchain and the crypto engine
-    type PrivateKey;
-
-    /// Public key type given the blockchain and the crypto engine
-    type PublicKey: Clone + Debug + StrictEncode + StrictDecode;
-}
-
 /// This trait is required for blockchains for fixing the potential shared private key send over
 /// the network.
 pub trait SharedPrivateKeys<T>: FromSeed<T>
@@ -99,17 +180,28 @@ where
     T: Blockchain,
 {
     /// A shareable private key type used to parse non-transparent blockchain
-    type SharedPrivateKey: Clone + Debug + StrictEncode + StrictDecode;
+    type SharedPrivateKey: Clone + PartialEq + Debug + StrictEncode + StrictDecode;
 
     fn get_shared_privkey(seed: &Self::Seed, key_type: SharedPrivateKey) -> Self::SharedPrivateKey;
+
+    /// Get the bytes from the shared private key.
+    fn as_bytes(privkey: &Self::SharedPrivateKey) -> Vec<u8>;
 }
 
 /// This trait is required for blockchains for fixing the commitment types of the keys.
-pub trait Commitment {
-    /// Commitment type given the blockchain and the crypto engine
-    type Commitment: Clone + Debug + StrictEncode + StrictDecode;
+pub trait Commitment: Keys {
+    /// Commitment type used in the commit/reveal scheme during swap parameters setup.
+    type Commitment: Clone + PartialEq + Eq + Debug + StrictEncode + StrictDecode;
 
-    // TODO transform/validate PubKey into commitment
+    /// Provides a generic method to commit to any value referencable as stream of bytes.
+    //fn commit_to(value: Self::PublicKey) -> Self::Commitment;
+    fn commit_to<T: AsRef<[u8]>>(value: T) -> Self::Commitment;
+
+    /// Validate the equality between a value and a commitment, return yes if the value commits to
+    /// the same commitment's value.
+    fn validate<T: AsRef<[u8]>>(value: T, commitment: Self::Commitment) -> bool {
+        Self::commit_to(value) == commitment
+    }
 }
 
 /// This trait is required for arbitrating blockchains for fixing the types of signatures and

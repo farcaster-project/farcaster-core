@@ -3,6 +3,7 @@ use farcaster_chains::pairs::btcxmr::BtcXmr;
 use farcaster_core::blockchain::FeePolitic;
 use farcaster_core::consensus::deserialize;
 use farcaster_core::negotiation::PublicOffer;
+use farcaster_core::protocol_message::CommitAliceSessionParams;
 use farcaster_core::role::Alice;
 
 use bitcoin::Address;
@@ -11,13 +12,14 @@ use std::str::FromStr;
 
 #[test]
 fn create_alice_params() {
-    let hex = "464353574150010002000000808000008008a08601000000000008c800000000000000040a00000004\
-               0a000000010814000000000000000203b31a0a70343bb46f3db3768296ac5027f9873921b37f852860\
-               c690063ff9e4c900000000000000000000000000000000000000000000000000000000000000000000\
-               00260700";
+    let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
+               a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
+               873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
+               000000000000000000000260700";
 
-    let destination_address =
-        Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").expect("Parsable address");
+    let destination_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
+        .expect("Parsable address")
+        .into();
     let fee_politic = FeePolitic::Aggressive;
     let alice: Alice<BtcXmr> = Alice::new(destination_address, fee_politic);
 
@@ -33,5 +35,11 @@ fn create_alice_params() {
     let pub_offer: PublicOffer<BtcXmr> =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
 
-    let _alice_params = alice.session_params(&ar_seed, &ac_seed, &pub_offer);
+    let alice_params = dbg!(alice.session_params(&ar_seed, &ac_seed, &pub_offer));
+    println!("{:#?}", alice_params);
+
+    let commit_alice_params: CommitAliceSessionParams<BtcXmr> = alice_params.into();
+    println!("{:#?}", commit_alice_params);
+
+    //assert!(false);
 }

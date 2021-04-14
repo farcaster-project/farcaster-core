@@ -32,6 +32,7 @@ pub trait Asset: Copy + Debug + Encodable + Decodable {
     fn to_u32(&self) -> u32;
 }
 
+// FIXME this is too large and produce bad error messages
 impl<T: Asset> Encodable for T {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         self.to_u32().consensus_encode(writer)

@@ -63,6 +63,10 @@ impl Keys for Monero {
 
     /// Public key type for the blockchain
     type PublicKey = PublicKey;
+
+    fn as_bytes(pubkey: &PublicKey) -> Vec<u8> {
+        pubkey.as_bytes().into()
+    }
 }
 
 impl SharedPrivateKeys<Acc> for Monero {
@@ -77,10 +81,21 @@ impl SharedPrivateKeys<Acc> for Monero {
             }
         }
     }
+
+    fn as_bytes(privkey: &PrivateKey) -> Vec<u8> {
+        privkey.as_bytes().into()
+    }
 }
 
 impl Commitment for Monero {
     type Commitment = Hash;
+
+    fn commit_to<T: AsRef<[u8]>>(value: T) -> Hash {
+        Hash::hash(value.as_ref())
+    }
+    //fn commit_to(value: PublicKey) -> Hash {
+    //    value.hash()
+    //}
 }
 
 pub fn private_spend_from_seed<T: AsRef<[u8]>>(seed: T) -> PrivateKey {

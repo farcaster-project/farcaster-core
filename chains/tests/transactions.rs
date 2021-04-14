@@ -24,7 +24,7 @@ macro_rules! setup_txs {
         let mut funding = Funding::initialize(pubkey_a1, Network::Local).unwrap();
         let address = funding.get_address().unwrap();
 
-        let funding_tx_seen = fund_address!(address);
+        let funding_tx_seen = fund_address!(address.as_ref());
 
         funding.update(funding_tx_seen).unwrap();
 
@@ -56,9 +56,14 @@ macro_rules! setup_txs {
         // Create refund tx
         //
         let (new_address, _, _) = new_address!();
-        let refund =
-            Tx::<Refund>::initialize(&cancel, datapunishablelock, new_address, &fee, politic)
-                .unwrap();
+        let refund = Tx::<Refund>::initialize(
+            &cancel,
+            datapunishablelock,
+            new_address.into(),
+            &fee,
+            politic,
+        )
+        .unwrap();
 
         //
         // Co-Sign refund

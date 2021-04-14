@@ -1,13 +1,12 @@
 use bitcoin::blockdata::transaction::{OutPoint, Transaction};
 use bitcoin::network::constants::Network as BtcNetwork;
-use bitcoin::util::address::Address;
 use bitcoin::util::key::PublicKey;
 
 use farcaster_core::blockchain::Network;
 use farcaster_core::transaction::{Failable, Fundable, Linkable};
 
 use crate::bitcoin::transaction::{Error, MetadataOutput};
-use crate::bitcoin::Bitcoin;
+use crate::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug, Clone)]
 pub struct Funding {
@@ -44,9 +43,15 @@ impl Linkable<Bitcoin> for Funding {
                     tx_out: t.output[0].clone(),
                     script_pubkey: Some(
                         match self.network {
-                            Network::Mainnet => Address::p2pkh(&self.pubkey, BtcNetwork::Bitcoin),
-                            Network::Testnet => Address::p2pkh(&self.pubkey, BtcNetwork::Testnet),
-                            Network::Local => Address::p2pkh(&self.pubkey, BtcNetwork::Regtest),
+                            Network::Mainnet => {
+                                bitcoin::Address::p2pkh(&self.pubkey, BtcNetwork::Bitcoin)
+                            }
+                            Network::Testnet => {
+                                bitcoin::Address::p2pkh(&self.pubkey, BtcNetwork::Testnet)
+                            }
+                            Network::Local => {
+                                bitcoin::Address::p2pkh(&self.pubkey, BtcNetwork::Regtest)
+                            }
                         }
                         .script_pubkey(),
                     ),
@@ -69,9 +74,18 @@ impl Fundable<Bitcoin> for Funding {
 
     fn get_address(&self) -> Result<Address, Error> {
         match self.network {
-            Network::Mainnet => Ok(Address::p2wpkh(&self.pubkey, BtcNetwork::Bitcoin)?),
-            Network::Testnet => Ok(Address::p2wpkh(&self.pubkey, BtcNetwork::Testnet)?),
-            Network::Local => Ok(Address::p2wpkh(&self.pubkey, BtcNetwork::Regtest)?),
+            Network::Mainnet => Ok(Address(bitcoin::Address::p2wpkh(
+                &self.pubkey,
+                BtcNetwork::Bitcoin,
+            )?)),
+            Network::Testnet => Ok(Address(bitcoin::Address::p2wpkh(
+                &self.pubkey,
+                BtcNetwork::Testnet,
+            )?)),
+            Network::Local => Ok(Address(bitcoin::Address::p2wpkh(
+                &self.pubkey,
+                BtcNetwork::Regtest,
+            )?)),
         }
     }
 

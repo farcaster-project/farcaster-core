@@ -132,38 +132,43 @@ where
     ) -> AliceSessionParams<Ctx> {
         let (spend, adaptor, proof) = Ctx::Proof::generate(ac_seed);
         AliceSessionParams {
-            buy: crypto::Key::Alice(crypto::AliceKey::Buy(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Buy),
-            ))
-            .into(),
-            cancel: crypto::Key::Alice(crypto::AliceKey::Cancel(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Cancel),
-            ))
-            .into(),
-            refund: crypto::Key::Alice(crypto::AliceKey::Refund(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Refund),
-            ))
-            .into(),
-            punish: crypto::Key::Alice(crypto::AliceKey::Punish(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Punish),
-            ))
-            .into(),
-            adaptor: crypto::Key::Alice(crypto::AliceKey::Adaptor(adaptor)).into(),
-            destination_address: datum::Parameter::DestinationAddress(
+            buy: datum::Key::new_alice_buy(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_seed,
+                crypto::ArbitratingKey::Buy,
+            )),
+            cancel: datum::Key::new_alice_cancel(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_seed,
+                crypto::ArbitratingKey::Cancel,
+            )),
+            refund: datum::Key::new_alice_refund(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_seed,
+                crypto::ArbitratingKey::Refund,
+            )),
+            punish: datum::Key::new_alice_punish(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_seed,
+                crypto::ArbitratingKey::Punish,
+            )),
+            adaptor: datum::Key::new_alice_adaptor(adaptor),
+            destination_address: datum::Parameter::new_destination_address(
                 self.destination_address.clone(),
             ),
-            view: crypto::Key::Alice(crypto::AliceKey::PrivateView(
+            view: datum::Key::new_alice_private_view(
                 <Ctx::Ac as SharedPrivateKeys<Acc>>::get_shared_privkey(
                     ac_seed,
                     crypto::SharedPrivateKey::View,
                 ),
-            ))
-            .into(),
-            spend: crypto::Key::Alice(crypto::AliceKey::Spend(spend)).into(),
-            proof: datum::Proof { proof },
-            cancel_timelock: datum::Parameter::CancelTimelock(public_offer.offer.cancel_timelock),
-            punish_timelock: datum::Parameter::PunishTimelock(public_offer.offer.punish_timelock),
-            fee_strategy: datum::Parameter::FeeStrategy(public_offer.offer.fee_strategy.clone()),
+            ),
+            spend: datum::Key::new_alice_spend(spend),
+            proof: datum::Proof::new_cross_group_dleq(proof),
+            cancel_timelock: datum::Parameter::new_cancel_timelock(
+                public_offer.offer.cancel_timelock,
+            ),
+            punish_timelock: datum::Parameter::new_punish_timelock(
+                public_offer.offer.punish_timelock,
+            ),
+            fee_strategy: datum::Parameter::new_fee_strategy(
+                public_offer.offer.fee_strategy.clone(),
+            ),
         }
     }
 
@@ -210,7 +215,7 @@ pub trait Arbitrating:
     Asset + Keys + Commitment + Signatures + Onchain + Fee + FromSeed<Arb> + Clone + Eq
 {
     /// Defines the address format for the arbitrating blockchain
-    type Address: Clone + Debug + StrictEncode + StrictDecode;
+    type Address: Clone + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
 
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;

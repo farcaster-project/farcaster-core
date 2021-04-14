@@ -199,16 +199,6 @@ pub struct Bob<Ctx: Swap> {
     pub fee_politic: FeePolitic,
 }
 
-///// Defines all possible blockchain roles: arbitrating and accordant.
-//pub enum BlockchainRole {
-//    /// The arbitrating blockchain is used to conduct the swap as a decision engine and to
-//    /// guarentee the refund process.
-//    Arbitrating,
-//    /// The accordant blockchain is the blockchain with no on-chain features, such as e.g.
-//    /// timelocks or hashlocks, needed to complete the swap.
-//    Accordant,
-//}
-
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
@@ -219,11 +209,6 @@ pub trait Arbitrating:
 
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
-
-    ///// Returns the blockchain role
-    //fn role(&self) -> BlockchainRole {
-    //    BlockchainRole::Arbitrating
-    //}
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
@@ -231,10 +216,6 @@ pub trait Arbitrating:
 pub trait Accordant:
     Asset + Keys + Commitment + SharedPrivateKeys<Acc> + FromSeed<Acc> + Clone + Eq
 {
-    ///// Returns the blockchain role
-    //fn role(&self) -> BlockchainRole {
-    //    BlockchainRole::Accordant
-    //}
 }
 
 /// Defines the role of a blockchain. Farcaster uses two blockchain roles (1) [Arbitrating] and (2)

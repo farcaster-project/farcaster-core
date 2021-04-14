@@ -12,8 +12,6 @@ use crate::transaction::TxId;
 
 use std::io;
 
-//pub trait Datum {}
-
 /// The transaction datum is used to convey a transaction between clients and daemons. The
 /// transaction is transmitted within the tx_value field in its serialized format.
 #[derive(Debug, Clone)]

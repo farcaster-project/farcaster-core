@@ -4,7 +4,6 @@ use bitcoin::hash_types::PubkeyHash;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Signature;
-//use bitcoin::util::address::Address;
 use bitcoin::util::amount;
 use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
 use bitcoin::util::key::{PrivateKey, PublicKey};
@@ -208,8 +207,6 @@ pub struct PDLEQ;
 
 impl StrictEncode for PDLEQ {
     fn strict_encode<E: std::io::Write>(&self, mut _e: E) -> Result<usize, strict_encoding::Error> {
-        //let res = Hash::hash(&"Farcaster PDLEQ".as_bytes()).to_bytes();
-        //e.write(&res)?;
         Ok(0)
     }
 }
@@ -217,16 +214,6 @@ impl StrictEncode for PDLEQ {
 impl StrictDecode for PDLEQ {
     fn strict_decode<D: std::io::Read>(mut _d: D) -> Result<Self, strict_encoding::Error> {
         Ok(Self)
-        //let mut buf = [0u8; 32];
-        //d.read_exact(&mut buf)?;
-        //let expected = Hash::hash(&"Farcaster PDLEQ".as_bytes()).to_bytes();
-        //if expected == buf {
-        //    Ok(PDLEQ)
-        //} else {
-        //    Err(strict_encoding::Error::DataIntegrityError(
-        //        "Not PDLEQ type".to_string(),
-        //    ))
-        //}
     }
 }
 
@@ -248,7 +235,6 @@ impl Commitment for Bitcoin {
     fn commit_to<T: AsRef<[u8]>>(value: T) -> PubkeyHash {
         PubkeyHash::hash(value.as_ref())
     }
-    //fn commit_to(value: PublicKey) -> PubkeyHash {
 }
 
 impl Signatures for Bitcoin {

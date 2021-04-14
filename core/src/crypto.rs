@@ -7,66 +7,6 @@ use crate::consensus::{self};
 use crate::role::{Acc, Accordant, Arbitrating, Blockchain};
 use crate::swap::Swap;
 
-/// Keys used during the swap by both role
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
-pub enum Key<Ctx: Swap> {
-    Alice(AliceKey<Ctx>),
-    Bob(BobKey<Ctx>),
-}
-
-impl<Ctx> Key<Ctx>
-where
-    Ctx: Swap,
-{
-    pub fn as_bytes(&self) -> Vec<u8> {
-        match self {
-            Key::Alice(key_type) => match key_type {
-                AliceKey::Buy(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                AliceKey::Cancel(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                AliceKey::Refund(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                AliceKey::Punish(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                AliceKey::Adaptor(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                AliceKey::Spend(key) => <Ctx::Ac as Keys>::as_bytes(&key),
-                AliceKey::PrivateView(key) => <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&key),
-            },
-            Key::Bob(key_type) => match key_type {
-                BobKey::Fund(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                BobKey::Buy(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                BobKey::Cancel(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                BobKey::Refund(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                BobKey::Adaptor(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-                BobKey::Spend(key) => <Ctx::Ac as Keys>::as_bytes(&key),
-                BobKey::PrivateView(key) => <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&key),
-            },
-        }
-    }
-}
-
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
-pub enum AliceKey<Ctx: Swap> {
-    Buy(<Ctx::Ar as Keys>::PublicKey),
-    Cancel(<Ctx::Ar as Keys>::PublicKey),
-    Refund(<Ctx::Ar as Keys>::PublicKey),
-    Punish(<Ctx::Ar as Keys>::PublicKey),
-    Adaptor(<Ctx::Ar as Keys>::PublicKey),
-    Spend(<Ctx::Ac as Keys>::PublicKey),
-    PrivateView(<Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey),
-}
-
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
-pub enum BobKey<Ctx: Swap> {
-    Fund(<Ctx::Ar as Keys>::PublicKey),
-    Buy(<Ctx::Ar as Keys>::PublicKey),
-    Cancel(<Ctx::Ar as Keys>::PublicKey),
-    Refund(<Ctx::Ar as Keys>::PublicKey),
-    Adaptor(<Ctx::Ar as Keys>::PublicKey),
-    Spend(<Ctx::Ac as Keys>::PublicKey),
-    PrivateView(<Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey),
-}
-
 #[derive(Debug, Clone, PartialEq, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
 pub enum KeyType<Ctx>

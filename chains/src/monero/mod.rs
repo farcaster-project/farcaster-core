@@ -93,9 +93,6 @@ impl Commitment for Monero {
     fn commit_to<T: AsRef<[u8]>>(value: T) -> Hash {
         Hash::hash(value.as_ref())
     }
-    //fn commit_to(value: PublicKey) -> Hash {
-    //    value.hash()
-    //}
 }
 
 pub fn private_spend_from_seed<T: AsRef<[u8]>>(seed: T) -> PrivateKey {

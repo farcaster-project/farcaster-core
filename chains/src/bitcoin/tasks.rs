@@ -1,5 +1,5 @@
 pub struct BtcHeightAddendum {}
 pub struct BtcAddressAddendum {
-    address: String,
-    from_height: u64,
+    pub address: String,
+    pub from_height: u64,
 }

@@ -8,7 +8,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Asset, Fee, FeePolitic, Onchain};
 use crate::bundle::{
-    AliceSessionParams, CosignedArbitratingCancel, FullySignedBuy, SignedAdaptorRefund,
+    AliceSessionParams, BobSessionParams, CosignedArbitratingCancel, FullySignedBuy, SignedAdaptorRefund,
     SignedArbitratingPunish,
 };
 use crate::consensus::{self, Decodable, Encodable};
@@ -197,6 +197,64 @@ pub struct Bob<Ctx: Swap> {
     pub refund_address: <Ctx::Ar as Arbitrating>::Address,
     /// The fee politic to apply during the swap fee calculation
     pub fee_politic: FeePolitic,
+}
+
+impl<Ctx: Swap> Bob<Ctx> {
+    pub fn new(
+        refund_address: <Ctx::Ar as Arbitrating>::Address,
+        fee_politic: FeePolitic,
+    ) -> Self {
+        Self {
+            refund_address,
+            fee_politic,
+        }
+    }
+}
+
+impl<Ctx: Swap> Bob<Ctx> {
+    pub fn session_params(
+        &self,
+        ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        ac_seed: &<Ctx::Ac as FromSeed<Acc>>::Seed,
+        public_offer: &PublicOffer<Ctx>,
+    ) -> BobSessionParams<Ctx> {
+        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_seed);
+        BobSessionParams {
+            buy: datum::Key::new_bob_buy(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_seed,
+                crypto::ArbitratingKey::Buy,
+            )),
+            cancel: datum::Key::new_bob_cancel(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_seed,
+                crypto::ArbitratingKey::Cancel,
+            )),
+            refund: datum::Key::new_bob_refund(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_seed,
+                crypto::ArbitratingKey::Refund,
+            )),
+            adaptor: datum::Key::new_bob_adaptor(adaptor),
+            refund_address: datum::Parameter::new_destination_address(
+                self.refund_address.clone(),
+            ),
+            view: datum::Key::new_bob_private_view(
+                <Ctx::Ac as SharedPrivateKeys<Acc>>::get_shared_privkey(
+                    ac_seed,
+                    crypto::SharedPrivateKey::View,
+                ),
+            ),
+            spend: datum::Key::new_bob_spend(spend),
+            proof: datum::Proof::new_cross_group_dleq(proof),
+            cancel_timelock: datum::Parameter::new_cancel_timelock(
+                public_offer.offer.cancel_timelock,
+            ),
+            punish_timelock: datum::Parameter::new_punish_timelock(
+                public_offer.offer.punish_timelock,
+            ),
+            fee_strategy: datum::Parameter::new_fee_strategy(
+                public_offer.offer.fee_strategy.clone(),
+            ),
+        }
+    }
 }
 
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating

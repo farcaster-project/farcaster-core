@@ -1,29 +1,35 @@
 //! Cryptographic type definitions and primitives supported in Farcaster
 
+use std::fmt::Debug;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-pub enum Key<Ar, Ac>
-where
-    Ar: Keys,
-    Ac: Keys,
-{
-    AliceBuy(Ar::PublicKey),
-    AliceCancel(Ar::PublicKey),
-    AliceRefund(Ar::PublicKey),
-    AlicePunish(Ar::PublicKey),
-    AliceAdaptor(Ar::PublicKey),
-    AliceSpend(Ac::PublicKey),
-    AlicePrivateView(Ac::PrivateKey),
-    BobFund(Ar::PublicKey),
-    BobBuy(Ar::PublicKey),
-    BobCancel(Ar::PublicKey),
-    BobRefund(Ar::PublicKey),
-    BobAdaptor(Ar::PublicKey),
-    BobSpend(Ac::PublicKey),
-    BobPrivateView(Ac::PrivateKey),
+use crate::role::{Accordant, Arbitrating};
+use crate::swap::Swap;
+
+/// Keys used during the swap by both role
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub enum Key<Ctx: Swap> {
+    AliceBuy(<Ctx::Ar as Keys>::PublicKey),
+    AliceCancel(<Ctx::Ar as Keys>::PublicKey),
+    AliceRefund(<Ctx::Ar as Keys>::PublicKey),
+    AlicePunish(<Ctx::Ar as Keys>::PublicKey),
+    AliceAdaptor(<Ctx::Ar as Keys>::PublicKey),
+    AliceSpend(<Ctx::Ac as Keys>::PublicKey),
+    AlicePrivateView(<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey),
+    BobFund(<Ctx::Ar as Keys>::PublicKey),
+    BobBuy(<Ctx::Ar as Keys>::PublicKey),
+    BobCancel(<Ctx::Ar as Keys>::PublicKey),
+    BobRefund(<Ctx::Ar as Keys>::PublicKey),
+    BobAdaptor(<Ctx::Ar as Keys>::PublicKey),
+    BobSpend(<Ctx::Ac as Keys>::PublicKey),
+    BobPrivateView(<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey),
 }
 
-pub enum Signature<Ar>
+/// Type of signatures
+#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub enum SignatureType<Ar>
 where
     Ar: Signatures,
 {
@@ -32,91 +38,74 @@ where
     Regular(Ar::Signature),
 }
 
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
-pub struct Proof<Ar, Ac>
-where
-    Ar: Curve,
-    Ac: Curve,
-{
-    pair: (Ar::Curve, Ac::Curve),
-}
-
-impl<Ar, Ac> CrossGroupDLEQ<Ar, Ac> for Proof<Ar, Ac>
-where
-    Ar: Curve + Clone,
-    Ac: Curve + Clone,
-    Ar::Curve: PartialEq<Ac::Curve>,
-    Ac::Curve: PartialEq<Ar::Curve>,
-{
-}
-
-/// This trait is defined for blockchains once per cryptographic engine wanted and allow a
-/// blockchain to use different cryptographic types depending on the engine used.
-///
-/// E.g. ECDSA and Schnorr signature in Bitcoin are stored/parsed differently as Schnorr has been
-/// optimized further than ECDSA at the begining of Bitcoin.
-pub trait Keys {
+/// This trait is required for blockchains to fix the concrete cryptographic key types. The public
+/// key associated type is shared across the network.
+pub trait Keys: Commitment {
     /// Private key type given the blockchain and the crypto engine
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine
-    type PublicKey: Clone + StrictEncode + StrictDecode;
+    type PublicKey: Clone + Debug + StrictEncode + StrictDecode;
 }
 
-pub trait PrivateViewKey {
-    type PrivateViewKey: StrictEncode + StrictDecode;
+/// This trait is required for blockchains for fixing the potential shared private key send over
+/// the network.
+pub trait SharedPrivateKeys {
+    /// A shareable private key type used to parse non-transparent blockchain
+    type SharedPrivateKey: Clone + Debug + StrictEncode + StrictDecode;
 }
 
+/// This trait is required for blockchains for fixing the commitment types of the keys.
 pub trait Commitment {
     /// Commitment type given the blockchain and the crypto engine
-    type Commitment: StrictEncode + StrictDecode;
+    type Commitment: Clone + Debug + StrictEncode + StrictDecode;
 }
 
+/// This trait is required for arbitrating blockchains for fixing the types of signatures and
+/// adaptor signatures.
 pub trait Signatures {
     /// Defines the signature format for the arbitrating blockchain
-    type Signature: StrictEncode + StrictDecode;
+    type Signature: Clone + Debug + StrictEncode + StrictDecode;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
-    /// have a different format from the signature depending on the cryptographic engine used.
-    type AdaptorSignature: StrictEncode + StrictDecode;
+    /// have a different format from the signature depending on the cryptographic primitives used.
+    type AdaptorSignature: Clone + Debug + StrictEncode + StrictDecode;
 }
 
-/// Defines a type of cryptography used inside arbitrating transactions to validate the
-/// transactions at the blockchain level and transfer the secrets.
-pub trait CryptoEngine {}
-
-/// Define a prooving system to link to blockchain cryptographic group parameters.
-pub trait CrossGroupDLEQ<Ar, Ac>
+/// Define a prooving system to link two different blockchain cryptographic group parameters.
+pub trait DleqProof<Ar, Ac>: Clone + StrictEncode + StrictDecode
 where
-    Ar: Curve,
-    Ac: Curve,
-    Ar::Curve: PartialEq<Ac::Curve>,
-    Ac::Curve: PartialEq<Ar::Curve>,
+    Ar: Arbitrating,
+    Ac: Accordant,
 {
+    // TODO
 }
 
-/// Eliptic curve ed25519 or secp256k1
-pub trait Curve {
-    type Curve: StrictEncode + StrictDecode + Clone + std::fmt::Debug;
-}
-/// Defines the means of arbitration, such as ECDSAScripts, TrSchnorrScripts and TrMuSig2
-pub trait Script {
-    type Script;
-}
-
-pub enum Scripts {
-    ECDSAScripts(ECDSAScripts),
-    TrSchnorrScripts(TrSchnorrScripts),
-    TrMusig2(TrMuSig2),
-}
-
-/// Uses ECDSA signatures inside the scripting layer of the arbitrating blockchain.
-pub struct ECDSAScripts;
-
-/// Uses Schnorr signatures inside the scripting layer of the arbitrating blockchain.
-pub struct TrSchnorrScripts;
-
-/// Uses MuSig2 Schnorr off-chain multi-signature protocol to sign for a regular public key at the
-/// blockchain transaction layer.
-pub struct TrMuSig2;
+///// Defines the means of arbitration, such as, e.g. for Bitcoin, SegWit v0 p2wsh or SegWit v1
+///// Taproot Schnorr in scripts.
+/////
+///// This trait is implemented on arbitrating blockchins.
+//pub trait Script {
+//    /// Defines the script engine implementation to use for the arbitrating blockchain.
+//    type Script: ScriptEngine;
+//
+//    // TODO
+//}
+//
+///// Defines a type of cryptography used inside arbitrating transactions to validate the
+///// transactions at the blockchain level and transfer the secrets.
+//pub trait ScriptEngine {
+//    // TODO
+//}
+//
+///// Uses ECDSA signatures inside the scripting layer of the arbitrating blockchain.
+//pub struct ECDSAScripts;
+//
+//impl ScriptEngine for ECDSAScripts {}
+//
+///// Uses Schnorr signatures inside the scripting layer of the arbitrating blockchain.
+//pub struct TrSchnorrScripts;
+//
+///// Uses MuSig2 Schnorr off-chain multi-signature protocol to sign for a regular public key at the
+///// blockchain transaction layer.
+//pub struct TrMuSig2;

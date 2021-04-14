@@ -4,49 +4,42 @@
 //! daemons. Bundles are used during the different steps of the swap by both Alice and Bob.
 
 use crate::datum;
-use crate::role::{Accordant, Arbitrating};
+use crate::role::Arbitrating;
+use crate::swap::Swap;
 
 pub trait Bundle {}
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
-pub struct AliceSessionParams<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-    pub buy: datum::Key<Ar, Ac>,
-    pub cancel: datum::Key<Ar, Ac>,
-    pub refund: datum::Key<Ar, Ac>,
-    pub punish: datum::Key<Ar, Ac>,
-    pub adaptor: datum::Key<Ar, Ac>,
-    pub destination_address: datum::Parameter<Ar>,
-    pub view: datum::Key<Ar, Ac>,
-    pub spend: datum::Key<Ar, Ac>,
-    pub proof: datum::Proof<Ar, Ac>,
-    pub cancel_timelock: datum::Parameter<Ar>,
-    pub punish_timelock: datum::Parameter<Ar>,
-    pub fee_strategy: datum::Parameter<Ar>,
+pub struct AliceSessionParams<Ctx: Swap> {
+    pub buy: datum::Key<Ctx>,
+    pub cancel: datum::Key<Ctx>,
+    pub refund: datum::Key<Ctx>,
+    pub punish: datum::Key<Ctx>,
+    pub adaptor: datum::Key<Ctx>,
+    pub destination_address: datum::Parameter<Ctx::Ar>,
+    pub view: datum::Key<Ctx>,
+    pub spend: datum::Key<Ctx>,
+    pub proof: datum::Proof<Ctx>,
+    pub cancel_timelock: datum::Parameter<Ctx::Ar>,
+    pub punish_timelock: datum::Parameter<Ctx::Ar>,
+    pub fee_strategy: datum::Parameter<Ctx::Ar>,
 }
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
-pub struct BobSessionParams<Ar, Ac>
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-    pub buy: datum::Key<Ar, Ac>,
-    pub cancel: datum::Key<Ar, Ac>,
-    pub refund: datum::Key<Ar, Ac>,
-    pub adaptor: datum::Key<Ar, Ac>,
-    pub refund_address: datum::Parameter<Ar>,
-    pub view: datum::Key<Ar, Ac>,
-    pub spend: datum::Key<Ar, Ac>,
-    pub proof: datum::Proof<Ar, Ac>,
-    pub cancel_timelock: datum::Parameter<Ar>,
-    pub punish_timelock: datum::Parameter<Ar>,
-    pub fee_strategy: datum::Parameter<Ar>,
+pub struct BobSessionParams<Ctx: Swap> {
+    pub buy: datum::Key<Ctx>,
+    pub cancel: datum::Key<Ctx>,
+    pub refund: datum::Key<Ctx>,
+    pub adaptor: datum::Key<Ctx>,
+    pub refund_address: datum::Parameter<Ctx::Ar>,
+    pub view: datum::Key<Ctx>,
+    pub spend: datum::Key<Ctx>,
+    pub proof: datum::Proof<Ctx>,
+    pub cancel_timelock: datum::Parameter<Ctx::Ar>,
+    pub punish_timelock: datum::Parameter<Ctx::Ar>,
+    pub fee_strategy: datum::Parameter<Ctx::Ar>,
 }
 
 /// Provides daemon with a signature on the unsigned cancel (d) transaction.

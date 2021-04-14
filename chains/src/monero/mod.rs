@@ -1,10 +1,8 @@
 //! Defines and implements all the traits for Monero
 
 use farcaster_core::blockchain::Blockchain;
-use farcaster_core::crypto::{Commitment, Curve, Keys, PrivateViewKey};
+use farcaster_core::crypto::{Commitment, Keys, SharedPrivateKeys};
 use farcaster_core::role::Accordant;
-
-use bitcoin::hash_types::PubkeyHash; // DELETEME encoding test
 
 use monero::cryptonote::hash::Hash;
 use monero::util::key::PrivateKey;
@@ -54,13 +52,6 @@ impl Blockchain for Monero {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Ed25519;
-
-impl Curve for Monero {
-    type Curve = Ed25519;
-}
-
 impl Accordant for Monero {}
 
 impl Keys for Monero {
@@ -71,34 +62,10 @@ impl Keys for Monero {
     type PublicKey = PublicKey;
 }
 
-impl PrivateViewKey for Monero {
-    type PrivateViewKey = PrivateKey;
+impl SharedPrivateKeys for Monero {
+    type SharedPrivateKey = PrivateKey;
 }
 
 impl Commitment for Monero {
-    type Commitment = PubkeyHash;
-}
-
-use strict_encoding::{StrictDecode, StrictEncode};
-impl StrictEncode for Ed25519 {
-    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        let res = Hash::hash(&"Farcaster Ed25519".as_bytes()).to_bytes();
-        e.write(&res)?;
-        Ok(res.len())
-    }
-}
-
-impl StrictDecode for Ed25519 {
-    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        let mut buf = [0u8; 32];
-        d.read_exact(&mut buf)?;
-        let expected = Hash::hash(&"Farcaster Ed25519".as_bytes()).to_bytes();
-        if expected == buf {
-            Ok(Self)
-        } else {
-            Err(strict_encoding::Error::DataIntegrityError(
-                "Not Ed25519 type".to_string(),
-            ))
-        }
-    }
+    type Commitment = Hash;
 }

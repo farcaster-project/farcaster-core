@@ -11,12 +11,8 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use farcaster_core::blockchain::{Blockchain, Onchain};
 use farcaster_core::consensus::{self, Decodable, Encodable};
-use farcaster_core::crypto::{
-    Commitment, CrossGroupDLEQ, Curve, ECDSAScripts, Keys, Script, Signatures,
-};
+use farcaster_core::crypto::{Commitment, Keys, Signatures};
 use farcaster_core::role::Arbitrating;
-
-use crate::monero::{Ed25519, Monero};
 
 use std::fmt::Debug;
 use std::io;
@@ -163,14 +159,6 @@ impl Onchain for Bitcoin {
     type Transaction = bitcoin::blockdata::transaction::Transaction;
 }
 
-#[derive(Clone, Debug)]
-pub struct Secp256k1;
-
-impl Curve for Bitcoin {
-    /// Eliptic curve
-    type Curve = Secp256k1;
-}
-
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct ECDSAAdaptorSig {
@@ -207,10 +195,6 @@ impl StrictDecode for PDLEQ {
     }
 }
 
-impl Script for Bitcoin {
-    type Script = ECDSAScripts;
-}
-
 impl Keys for Bitcoin {
     type PrivateKey = PrivateKey;
     type PublicKey = PublicKey;
@@ -223,50 +207,4 @@ impl Commitment for Bitcoin {
 impl Signatures for Bitcoin {
     type Signature = Signature;
     type AdaptorSignature = ECDSAAdaptorSig;
-}
-
-//// TODO: implement on another struct or on a generic Bitcoin<T>
-// impl Crypto for Bitcoin {
-//     type PrivateKey = SecretKey;
-//     type PublicKey = secp256k1::schnorrsig::PublicKey;
-//     type Commitment = PubkeyHash;
-// }
-
-pub struct RingSignatureProof;
-
-impl StrictEncode for Secp256k1 {
-    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        let res = Hash::hash(&"Farcaster Secp256k1".as_bytes()).to_bytes();
-        e.write(&res)?;
-        Ok(res.len())
-    }
-}
-
-impl StrictDecode for Secp256k1 {
-    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        let mut buf = [0u8; 32];
-        d.read_exact(&mut buf)?;
-        let expected = Hash::hash(&"Farcaster Secp256k1".as_bytes()).to_bytes();
-        if expected == buf {
-            Ok(Self)
-        } else {
-            Err(strict_encoding::Error::DataIntegrityError(
-                "Not Secp256k1 type".to_string(),
-            ))
-        }
-    }
-}
-
-impl CrossGroupDLEQ<Bitcoin, Monero> for RingSignatureProof {}
-
-impl PartialEq<Ed25519> for Secp256k1 {
-    fn eq(&self, _other: &Ed25519) -> bool {
-        todo!()
-    }
-}
-
-impl PartialEq<Secp256k1> for Ed25519 {
-    fn eq(&self, other: &Secp256k1) -> bool {
-        other.eq(self)
-    }
 }

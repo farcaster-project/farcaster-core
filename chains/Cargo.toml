@@ -17,7 +17,8 @@ thiserror = "1.0.24"
 
 # blockchain specific
 bitcoin = "0.26.0"
-monero = { version = "0.11.0", features = ["strict_encoding_support"] }
+#monero = { version = "0.11", features = ["strict_encoding_support"] }
+monero = { git = "https://github.com/monero-rs/monero-rs", features = ["strict_encoding_support"] }
 
 [dev-dependencies]
 bitcoincore-rpc = "0.13.0"

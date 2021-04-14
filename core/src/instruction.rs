@@ -4,7 +4,7 @@
 pub trait Instruction {}
 
 /// Provides deamon the instruction to abort the swap, it is the daemon responsability to abort
-/// accordingly to the current state swap. By transmitting latter feedback via `state digest`, the
+/// accordingly to the current state swap. By transmitting latter feedback via datum messages, the
 /// client must be able to provide any missing signatures.
 pub struct Abort {
     /// OPTIONAL: A code conveying the reason of the abort

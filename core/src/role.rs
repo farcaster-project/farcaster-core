@@ -5,12 +5,16 @@ use std::io;
 
 use crate::blockchain::{Blockchain, Fee, Onchain};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{Commitment, Curve, Keys, PrivateViewKey, Script, Signatures};
+use crate::crypto::{Commitment, Keys, SharedPrivateKeys, Signatures};
 use strict_encoding::{StrictDecode, StrictEncode};
 
 /// Defines all possible negociation roles: maker and taker.
 pub enum NegotiationRole {
+    /// The maker role create the public offer during the negotiation phase and waits for incoming
+    /// connections.
     Maker,
+    /// The taker role parses public offers and choose to connect to a maker node to start
+    /// swapping.
     Taker,
 }
 
@@ -39,7 +43,9 @@ impl std::str::FromStr for SwapRole {
 /// Defines all possible swap roles: alice and bob.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwapRole {
+    /// Alice or the AccordantSeller
     Alice,
+    /// Bob or the ArbitratingSeller
     Bob,
 }
 
@@ -76,20 +82,35 @@ impl Role for Bob {}
 
 /// Defines all possible blockchain roles: arbitrating and accordant.
 pub enum BlockchainRole {
+    /// The arbitrating blockchain is used to conduct the swap as a decision engine and to
+    /// guarentee the refund process.
     Arbitrating,
+    /// The accordant blockchain is the blockchain with no on-chain features, such as e.g.
+    /// timelocks or hashlocks, needed to complete the swap.
     Accordant,
 }
 
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Blockchain + Keys + Commitment + Signatures + Curve + Script + Onchain + Fee + Clone + Eq
+    Blockchain + Keys + Commitment + Signatures + Onchain + Fee + Clone + Eq
 {
     /// Defines the address format for the arbitrating blockchain
-    type Address: StrictEncode + StrictDecode;
+    type Address: Clone + Debug + StrictEncode + StrictDecode;
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
+
+    /// Returns the blockchain role
+    fn role(&self) -> BlockchainRole {
+        BlockchainRole::Arbitrating
+    }
 }
+
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
-pub trait Accordant: Blockchain + Keys + Curve + Commitment + Clone + PrivateViewKey + Eq {}
+pub trait Accordant: Blockchain + Keys + Commitment + Clone + SharedPrivateKeys + Eq {
+    /// Returns the blockchain role
+    fn role(&self) -> BlockchainRole {
+        BlockchainRole::Accordant
+    }
+}

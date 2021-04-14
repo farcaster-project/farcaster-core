@@ -9,7 +9,7 @@ use crate::monero::{private_spend_from_seed, Monero};
 use bitcoin::secp256k1::key::SecretKey;
 use bitcoin::secp256k1::Secp256k1;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BtcXmr;
 
 impl Swap for BtcXmr {

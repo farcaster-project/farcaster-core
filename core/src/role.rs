@@ -4,8 +4,6 @@ use std::fmt::Debug;
 use std::io;
 use std::str::FromStr;
 
-use strict_encoding::{StrictDecode, StrictEncode};
-
 use crate::blockchain::{Asset, Fee, FeePolitic, Onchain};
 use crate::bundle::{
     AliceSessionParams, BobSessionParams, CosignedArbitratingCancel, FullySignedBuy, SignedAdaptorRefund,
@@ -14,7 +12,7 @@ use crate::bundle::{
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self, AccordantKey, ArbitratingKey, Commitment, DleqProof, FromSeed, Keys, SharedPrivateKeys,
-    Signatures,
+    Signatures, Address, Timelock,
 };
 use crate::datum;
 use crate::negotiation::PublicOffer;
@@ -105,7 +103,7 @@ impl FromStr for SwapRole {
 /// for arbitrating blockchain assets.
 pub struct Alice<Ctx: Swap> {
     /// An arbitrating address where, if successfully executed, the funds exchanged will be sent to
-    pub destination_address: <Ctx::Ar as Arbitrating>::Address,
+    pub destination_address: <Ctx::Ar as Address>::Address,
     /// The fee politic to apply during the swap fee calculation
     pub fee_politic: FeePolitic,
 }
@@ -115,7 +113,7 @@ where
     Ctx: Swap,
 {
     pub fn new(
-        destination_address: <Ctx::Ar as Arbitrating>::Address,
+        destination_address: <Ctx::Ar as Address>::Address,
         fee_politic: FeePolitic,
     ) -> Self {
         Self {
@@ -194,14 +192,14 @@ where
 pub struct Bob<Ctx: Swap> {
     /// An arbitrating address where, if unsuccessfully executed, the funds exchanged will be sent
     /// back to
-    pub refund_address: <Ctx::Ar as Arbitrating>::Address,
+    pub refund_address: <Ctx::Ar as Address>::Address,
     /// The fee politic to apply during the swap fee calculation
     pub fee_politic: FeePolitic,
 }
 
 impl<Ctx: Swap> Bob<Ctx> {
     pub fn new(
-        refund_address: <Ctx::Ar as Arbitrating>::Address,
+        refund_address: <Ctx::Ar as Address>::Address,
         fee_politic: FeePolitic,
     ) -> Self {
         Self {
@@ -260,13 +258,9 @@ impl<Ctx: Swap> Bob<Ctx> {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Asset + Keys + Commitment + Signatures + Onchain + Fee + FromSeed<Arb> + Clone + Eq
+    Asset + Keys + Commitment + Signatures + Onchain + Fee + FromSeed<Arb> + Clone + Eq + Address + Timelock
 {
-    /// Defines the address format for the arbitrating blockchain
-    type Address: Clone + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
 
-    /// Defines the type of timelock used for the arbitrating transactions
-    type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor

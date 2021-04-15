@@ -8,7 +8,8 @@ use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::role::{Arbitrating, NegotiationRole, SwapRole};
+use crate::crypto::Timelock;
+use crate::role::{NegotiationRole, SwapRole};
 use crate::swap::Swap;
 
 /// First six magic bytes of a public offer
@@ -74,9 +75,9 @@ pub struct Offer<Ctx: Swap> {
     /// Amount of accordant assets to exchanged
     pub accordant_assets: <Ctx::Ac as Asset>::AssetUnit,
     /// The cancel timelock parameter of the arbitrating blockchain
-    pub cancel_timelock: <Ctx::Ar as Arbitrating>::Timelock,
+    pub cancel_timelock: <Ctx::Ar as Timelock>::Timelock,
     /// The punish timelock parameter of the arbitrating blockchain
-    pub punish_timelock: <Ctx::Ar as Arbitrating>::Timelock,
+    pub punish_timelock: <Ctx::Ar as Timelock>::Timelock,
     /// The chosen fee strategy for the arbitrating transactions
     pub fee_strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>,
     /// The future maker swap role
@@ -179,8 +180,8 @@ where
     /// Sets the timelocks for the proposed offer
     pub fn with_timelocks(
         mut self,
-        cancel: <Ctx::Ar as Arbitrating>::Timelock,
-        punish: <Ctx::Ar as Arbitrating>::Timelock,
+        cancel: <Ctx::Ar as Timelock>::Timelock,
+        punish: <Ctx::Ar as Timelock>::Timelock,
     ) -> Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
@@ -253,8 +254,8 @@ where
     /// Sets the timelocks for the proposed offer
     pub fn with_timelocks(
         mut self,
-        cancel: <Ctx::Ar as Arbitrating>::Timelock,
-        punish: <Ctx::Ar as Arbitrating>::Timelock,
+        cancel: <Ctx::Ar as Timelock>::Timelock,
+        punish: <Ctx::Ar as Timelock>::Timelock,
     ) -> Self {
         self.0.cancel_timelock = Some(cancel);
         self.0.punish_timelock = Some(punish);
@@ -301,8 +302,8 @@ struct BuilderState<Ctx: Swap> {
     accordant: Option<Ctx::Ac>,
     arbitrating_assets: Option<<Ctx::Ar as Asset>::AssetUnit>,
     accordant_assets: Option<<Ctx::Ac as Asset>::AssetUnit>,
-    cancel_timelock: Option<<Ctx::Ar as Arbitrating>::Timelock>,
-    punish_timelock: Option<<Ctx::Ar as Arbitrating>::Timelock>,
+    cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
+    punish_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
     maker_role: Option<SwapRole>,
 }

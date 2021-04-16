@@ -159,15 +159,15 @@ where
             ),
             spend: datum::Key::new_alice_spend(spend),
             proof: datum::Proof::new_cross_group_dleq(proof),
-            cancel_timelock: datum::Parameter::new_cancel_timelock(
+            cancel_timelock: Some(datum::Parameter::new_cancel_timelock(
                 public_offer.offer.cancel_timelock,
-            ),
-            punish_timelock: datum::Parameter::new_punish_timelock(
+            )),
+            punish_timelock: Some(datum::Parameter::new_punish_timelock(
                 public_offer.offer.punish_timelock,
-            ),
-            fee_strategy: datum::Parameter::new_fee_strategy(
+            )),
+            fee_strategy: Some(datum::Parameter::new_fee_strategy(
                 public_offer.offer.fee_strategy.clone(),
-            ),
+            )),
         }
     }
 
@@ -236,15 +236,15 @@ impl<Ctx: Swap> Bob<Ctx> {
             ),
             spend: datum::Key::new_bob_spend(spend),
             proof: datum::Proof::new_cross_group_dleq(proof),
-            cancel_timelock: datum::Parameter::new_cancel_timelock(
+            cancel_timelock: Some(datum::Parameter::new_cancel_timelock(
                 public_offer.offer.cancel_timelock,
-            ),
-            punish_timelock: datum::Parameter::new_punish_timelock(
+            )),
+            punish_timelock: Some(datum::Parameter::new_punish_timelock(
                 public_offer.offer.punish_timelock,
-            ),
-            fee_strategy: datum::Parameter::new_fee_strategy(
+            )),
+            fee_strategy: Some(datum::Parameter::new_fee_strategy(
                 public_offer.offer.fee_strategy.clone(),
-            ),
+            )),
         }
     }
 

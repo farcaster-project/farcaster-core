@@ -1,11 +1,20 @@
 //! Cryptographic type definitions and primitives supported in Farcaster
 
 use std::fmt::Debug;
+
 use strict_encoding::{StrictDecode, StrictEncode};
+use thiserror::Error;
 
 use crate::consensus::{self};
 use crate::role::{Acc, Accordant, Arbitrating, Blockchain};
 use crate::swap::Swap;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    /// The zero knowledge proof does not pass the validation
+    #[error("The zero knowledge proof does not pass the validation")]
+    WrongDleqProof,
+}
 
 #[derive(Debug, Clone, PartialEq, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
@@ -137,10 +146,17 @@ pub trait Commitment: Keys {
     //fn commit_to(value: Self::PublicKey) -> Self::Commitment;
     fn commit_to<T: AsRef<[u8]>>(value: T) -> Self::Commitment;
 
-    /// Validate the equality between a value and a commitment, return yes if the value commits to
+    /// Validate the equality between a value and a commitment, return ok if the value commits to
     /// the same commitment's value.
-    fn validate<T: AsRef<[u8]>>(value: T, commitment: Self::Commitment) -> bool {
-        Self::commit_to(value) == commitment
+    fn validate<T: AsRef<[u8]>>(
+        value: T,
+        commitment: Self::Commitment,
+    ) -> Result<(), consensus::Error> {
+        if Self::commit_to(value) == commitment {
+            Ok(())
+        } else {
+            Err(consensus::Error::TypeMismatch)
+        }
     }
 }
 
@@ -163,5 +179,5 @@ where
 {
     fn generate(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> (Ac::PublicKey, Ar::PublicKey, Self);
 
-    fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> bool;
+    fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> Result<(), Error>;
 }

@@ -3,7 +3,7 @@ use farcaster_chains::pairs::btcxmr::BtcXmr;
 use farcaster_core::blockchain::FeePolitic;
 use farcaster_core::consensus::deserialize;
 use farcaster_core::negotiation::PublicOffer;
-use farcaster_core::protocol_message::CommitAliceParameters;
+use farcaster_core::protocol_message::{CommitAliceParameters, RevealAliceParameters};
 use farcaster_core::role::Alice;
 
 use bitcoin::Address;
@@ -11,7 +11,7 @@ use bitcoin::Address;
 use std::str::FromStr;
 
 #[test]
-fn create_alice_params() {
+fn create_alice_parameters() {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
                a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
                873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
@@ -36,10 +36,12 @@ fn create_alice_params() {
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
 
     let alice_params = dbg!(alice.generate_parameters(&ar_seed, &ac_seed, &pub_offer));
-    println!("{:#?}", alice_params);
 
-    let commit_alice_params: CommitAliceParameters<BtcXmr> = alice_params.into();
-    println!("{:#?}", commit_alice_params);
+    let commit_alice_params = dbg!(CommitAliceParameters::from_bundle(&alice_params));
+
+    let reveal_alice_params = dbg!(RevealAliceParameters::from_bundle(&alice_params).unwrap());
+
+    assert!(dbg!(commit_alice_params.verify_then_bundle(&reveal_alice_params)).is_ok());
 
     //assert!(false);
 }

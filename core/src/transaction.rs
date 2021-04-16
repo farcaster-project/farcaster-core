@@ -208,7 +208,7 @@ where
 {
     /// Create a new funding 'output', or equivalent depending on the blockchain and the
     /// cryptographic engine.
-    fn initialize(privkey: T::PublicKey, network: Network) -> Result<Self, Self::Error>;
+    fn initialize(pubkey: T::PublicKey, network: Network) -> Result<Self, Self::Error>;
 
     /// Return the address to use for the funding.
     fn get_address(&self) -> Result<T::Address, Self::Error>;
@@ -218,7 +218,10 @@ where
     ///
     /// This function is needed because we assume that the transaction is created outside of the
     /// system by an external wallet, the txid is not known in advance.
-    fn update(&mut self, args: T::Transaction) -> Result<(), Self::Error>;
+    fn update(&mut self, tx: T::Transaction) -> Result<(), Self::Error>;
+
+    /// Create a raw funding structure based only on the transaction seen on-chain.
+    fn raw(tx: T::Transaction) -> Result<Self, Self::Error>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {

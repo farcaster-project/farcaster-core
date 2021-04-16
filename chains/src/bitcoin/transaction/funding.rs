@@ -10,8 +10,8 @@ use crate::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug, Clone)]
 pub struct Funding {
-    pubkey: PublicKey,
-    network: Network,
+    pubkey: Option<PublicKey>,
+    network: Option<Network>,
     seen_tx: Option<Transaction>,
 }
 
@@ -37,21 +37,28 @@ impl Linkable for Funding {
                     }
                     _ => return Err(Error::MultiUTXOUnsuported),
                 }
+
+                let pubkey = match self.pubkey {
+                    Some(pubkey) => Ok(pubkey),
+                    None => Err(Error::PublicKeyNotFound),
+                }?;
+
                 // vout is always 0 because output len is 1
                 Ok(MetadataOutput {
                     out_point: OutPoint::new(t.txid(), 0),
                     tx_out: t.output[0].clone(),
                     script_pubkey: Some(
                         match self.network {
-                            Network::Mainnet => {
-                                bitcoin::Address::p2pkh(&self.pubkey, BtcNetwork::Bitcoin)
+                            Some(Network::Mainnet) => {
+                                bitcoin::Address::p2pkh(&pubkey, BtcNetwork::Bitcoin)
                             }
-                            Network::Testnet => {
-                                bitcoin::Address::p2pkh(&self.pubkey, BtcNetwork::Testnet)
+                            Some(Network::Testnet) => {
+                                bitcoin::Address::p2pkh(&pubkey, BtcNetwork::Testnet)
                             }
-                            Network::Local => {
-                                bitcoin::Address::p2pkh(&self.pubkey, BtcNetwork::Regtest)
+                            Some(Network::Local) => {
+                                bitcoin::Address::p2pkh(&pubkey, BtcNetwork::Regtest)
                             }
+                            None => Err(Error::MissingNetwork)?,
                         }
                         .script_pubkey(),
                     ),
@@ -66,31 +73,45 @@ impl Linkable for Funding {
 impl Fundable<Bitcoin> for Funding {
     fn initialize(pubkey: PublicKey, network: Network) -> Result<Self, Error> {
         Ok(Funding {
-            pubkey,
-            network,
+            pubkey: Some(pubkey),
+            network: Some(network),
             seen_tx: None,
         })
     }
 
     fn get_address(&self) -> Result<Address, Error> {
+        let pubkey = match self.pubkey {
+            Some(pubkey) => Ok(pubkey),
+            None => Err(Error::PublicKeyNotFound),
+        }?;
+
         match self.network {
-            Network::Mainnet => Ok(Address(bitcoin::Address::p2wpkh(
-                &self.pubkey,
+            Some(Network::Mainnet) => Ok(Address(bitcoin::Address::p2wpkh(
+                &pubkey,
                 BtcNetwork::Bitcoin,
             )?)),
-            Network::Testnet => Ok(Address(bitcoin::Address::p2wpkh(
-                &self.pubkey,
+            Some(Network::Testnet) => Ok(Address(bitcoin::Address::p2wpkh(
+                &pubkey,
                 BtcNetwork::Testnet,
             )?)),
-            Network::Local => Ok(Address(bitcoin::Address::p2wpkh(
-                &self.pubkey,
+            Some(Network::Local) => Ok(Address(bitcoin::Address::p2wpkh(
+                &pubkey,
                 BtcNetwork::Regtest,
             )?)),
+            None => Err(Error::MissingNetwork),
         }
     }
 
-    fn update(&mut self, args: Transaction) -> Result<(), Error> {
-        self.seen_tx = Some(args);
+    fn update(&mut self, tx: Transaction) -> Result<(), Error> {
+        self.seen_tx = Some(tx);
         Ok(())
+    }
+
+    fn raw(tx: Transaction) -> Result<Self, Error> {
+        Ok(Self {
+            pubkey: None,
+            network: None,
+            seen_tx: Some(tx),
+        })
     }
 }

@@ -12,6 +12,35 @@ use crate::transaction::TxId;
 
 use std::io;
 
+#[derive(Debug, Clone, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub enum TransactionType<T>
+where
+    T: Onchain,
+{
+    Transaction(T::Transaction),
+    PartialTransaction(T::PartialTransaction),
+}
+
+impl<T> TransactionType<T>
+where
+    T: Onchain,
+{
+    pub fn try_into_transaction(&self) -> Result<T::Transaction, consensus::Error> {
+        match self {
+            TransactionType::Transaction(tx) => Ok(tx.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_partial_transaction(&self) -> Result<T::PartialTransaction, consensus::Error> {
+        match self {
+            TransactionType::PartialTransaction(tx) => Ok(tx.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+}
+
 /// The transaction datum is used to convey a transaction between clients and daemons. The
 /// transaction is transmitted within the tx_value field in its serialized format.
 #[derive(Debug, Clone)]
@@ -22,15 +51,23 @@ where
     /// The identifier of the transaction
     pub tx_id: TxId,
     /// The transaction to serialize
-    pub tx_value: T::PartialTransaction,
+    pub tx_value: TransactionType<T>,
 }
 
 macro_rules! impl_new_tx {
+    ( seen, $fnname:ident, $type:expr ) => {
+        pub fn $fnname(tx_value: T::Transaction) -> Self {
+            Self {
+                tx_id: $type,
+                tx_value: TransactionType::Transaction(tx_value),
+            }
+        }
+    };
     ( $fnname:ident, $type:expr ) => {
         pub fn $fnname(tx_value: T::PartialTransaction) -> Self {
             Self {
                 tx_id: $type,
-                tx_value,
+                tx_value: TransactionType::PartialTransaction(tx_value),
             }
         }
     };
@@ -44,19 +81,21 @@ where
         self.tx_id
     }
 
-    pub fn partial_transaction(&self) -> &T::PartialTransaction {
+    pub fn tx(&self) -> &TransactionType<T> {
         &self.tx_value
     }
 
-    pub fn partial_transaction_mut(&mut self) -> &mut T::PartialTransaction {
-        &mut self.tx_value
-    }
-
-    pub fn to_partial_transaction(self) -> T::PartialTransaction {
+    pub fn to_tx(self) -> TransactionType<T> {
         self.tx_value
     }
 
-    impl_new_tx!(new_funding, TxId::Funding);
+    impl_new_tx!(seen, new_funding_seen, TxId::Funding);
+    impl_new_tx!(seen, new_lock_seen, TxId::Lock);
+    impl_new_tx!(seen, new_buy_seen, TxId::Buy);
+    impl_new_tx!(seen, new_cancel_seen, TxId::Cancel);
+    impl_new_tx!(seen, new_refund_seen, TxId::Refund);
+    impl_new_tx!(seen, new_punish_seen, TxId::Punish);
+
     impl_new_tx!(new_lock, TxId::Lock);
     impl_new_tx!(new_buy, TxId::Buy);
     impl_new_tx!(new_cancel, TxId::Cancel);

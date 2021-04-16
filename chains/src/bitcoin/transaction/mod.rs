@@ -44,6 +44,9 @@ pub enum Error {
     /// Missing signature
     #[error("Missing signature")]
     MissingSignature,
+    /// Missing network
+    #[error("Missing network")]
+    MissingNetwork,
     /// SigHash type is missing
     #[error("SigHash type is missing")]
     MissingSigHashType,

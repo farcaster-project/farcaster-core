@@ -1,5 +1,7 @@
 //! Farcaster Core library
 
+use thiserror::Error;
+
 #[macro_use]
 pub mod consensus;
 
@@ -15,5 +17,9 @@ pub mod script;
 pub mod swap;
 pub mod transaction;
 pub mod version;
-//pub mod interactions;
-//pub mod session;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Consensus error: {0}")]
+    Consensus(#[from] consensus::Error),
+}

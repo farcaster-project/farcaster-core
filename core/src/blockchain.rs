@@ -73,7 +73,7 @@ pub trait Onchain {
     type PartialTransaction: Clone + Debug + StrictEncode + StrictDecode;
 
     /// Defines the finalized transaction format for the arbitrating blockchain
-    type Transaction;
+    type Transaction: Clone + Debug + StrictEncode + StrictDecode;
 }
 
 /// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],

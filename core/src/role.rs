@@ -17,7 +17,10 @@ use crate::crypto::{
 };
 use crate::datum;
 use crate::negotiation::PublicOffer;
+use crate::script::{DataLock, DoubleKeys};
 use crate::swap::Swap;
+use crate::transaction::{Fundable, Lockable};
+use crate::Error;
 
 /// Defines the possible roles during the negotiation phase. Any negotiation role can transition
 /// into any swap role when negotiation is done.
@@ -250,8 +253,46 @@ impl<Ctx: Swap> Bob<Ctx> {
 
     pub fn core_arbitrating_transactions(
         &self,
-        _funding: &FundingTransaction<Ctx::Ar>,
-    ) -> CoreArbitratingTransactions<Ctx::Ar> {
+        ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        alice_parameters: &AliceParameters<Ctx>,
+        funding_bundle: &FundingTransaction<Ctx::Ar>,
+        public_offer: &PublicOffer<Ctx>,
+    ) -> Result<CoreArbitratingTransactions<Ctx::Ar>, Error> {
+        //let funding = <<Ctx::Ar as Transactions>::Funding as Fundable<Ctx::Ar>>::raw(
+        //    funding_bundle.funding.tx().try_into_transaction()?,
+        //).unwrap(); // FIXME unwrap
+
+        //let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
+        //let bob_buy = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+        //        ar_seed,
+        //        crypto::ArbitratingKey::Buy,
+        //    );
+
+        //let alice_cancel = alice_parameters.cancel.key().try_into_arbitrating_pubkey()?;
+        //let bob_cancel = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+        //        ar_seed,
+        //        crypto::ArbitratingKey::Cancel,
+        //    );
+
+        //let data_lock = DataLock {
+        //    timelock: public_offer.offer.cancel_timelock,
+        //    success: DoubleKeys::new(alice_buy, bob_buy),
+        //    failure: DoubleKeys::new(alice_cancel, bob_cancel),
+        //};
+
+        //let lock = <<Ctx::Ar as Transactions>::Lock as Lockable<Ctx::Ar>>::initialize(
+        //    &funding,
+        //    data_lock,
+        //    &public_offer.offer.fee_strategy,
+        //    self.fee_politic,
+        //).unwrap(); // FIXME unwrap
+
+        //CoreArbitratingTransactions {
+        //    lock: datum::Transaction::new_lock(),
+        //    cancel: datum::Transaction::new_cancel(),
+        //    refund: datum::Transaction::new_refund(),
+        //};
+
         todo!()
     }
 

@@ -138,7 +138,7 @@ where
 }
 
 /// This trait is required for blockchains for fixing the commitment types of the keys.
-pub trait Commitment: Keys {
+pub trait Commitment {
     /// Commitment type used in the commit/reveal scheme during swap parameters setup.
     type Commitment: Clone + PartialEq + Eq + Debug + StrictEncode + StrictDecode;
 

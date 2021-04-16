@@ -19,7 +19,7 @@ impl Failable for Funding {
     type Error = Error;
 }
 
-impl Linkable<Bitcoin> for Funding {
+impl Linkable for Funding {
     type Output = MetadataOutput;
 
     fn get_consumable_output(&self) -> Result<MetadataOutput, Error> {

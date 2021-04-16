@@ -11,10 +11,12 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Network;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::blockchain::{self, Asset, Onchain, Timelock};
+use farcaster_core::blockchain::{self, Asset, Onchain, Timelock, Transactions};
 use farcaster_core::consensus::{self, Decodable, Encodable};
 use farcaster_core::crypto::{ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
 use farcaster_core::role::{Arb, Arbitrating};
+
+use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
 
 use std::fmt::Debug;
 use std::io;
@@ -194,6 +196,15 @@ impl Onchain for Bitcoin {
 
     /// Defines the finalized transaction format for the arbitrating blockchain
     type Transaction = bitcoin::blockdata::transaction::Transaction;
+}
+
+impl Transactions for Bitcoin {
+    type Funding = Funding;
+    type Lock = Tx<Lock>;
+    type Buy = Tx<Buy>;
+    type Cancel = Tx<Cancel>;
+    type Refund = Tx<Refund>;
+    type Punish = Tx<Punish>;
 }
 
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]

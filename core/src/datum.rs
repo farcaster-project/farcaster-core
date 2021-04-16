@@ -3,7 +3,7 @@
 
 use strict_encoding::{strict_deserialize, strict_serialize, StrictDecode, StrictEncode};
 
-use crate::blockchain::{Fee, FeeStrategy};
+use crate::blockchain::{Address, Fee, FeeStrategy, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, Keys, SharedPrivateKeys, Signatures};
 use crate::role::{Acc, Arbitrating, SwapRole};
@@ -538,7 +538,7 @@ impl Decodable for ParameterId {
 #[derive(Debug, Clone)]
 pub enum ParameterType<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     Address(T::Address),
     Timelock(T::Timelock),
@@ -547,7 +547,7 @@ where
 
 impl<T> ParameterType<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     pub fn try_into_address(&self) -> Result<T::Address, consensus::Error> {
         match self {
@@ -577,7 +577,7 @@ where
 #[derive(Debug, Clone)]
 pub struct Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     /// The identifier of the parameter
     pub param_id: ParameterId,
@@ -587,7 +587,7 @@ where
 
 impl<T> Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     pub fn param_id(&self) -> ParameterId {
         self.param_id
@@ -639,7 +639,7 @@ where
 
 impl<T> Encodable for Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let len = self.param_id.consensus_encode(writer)?;
@@ -675,7 +675,7 @@ where
 
 impl<T> Decodable for Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let param_id = Decodable::consensus_decode(d)?;
@@ -711,7 +711,7 @@ where
 
 impl<T> StrictDecode for Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
         Decodable::consensus_decode(&mut d).map_err(|_| {

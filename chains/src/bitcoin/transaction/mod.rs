@@ -103,7 +103,7 @@ where
     }
 }
 
-impl<T> Finalizable<Bitcoin> for Tx<T>
+impl<T> Finalizable for Tx<T>
 where
     T: SubTransaction,
 {
@@ -121,7 +121,7 @@ where
     }
 }
 
-impl<T> Linkable<Bitcoin> for Tx<T>
+impl<T> Linkable for Tx<T>
 where
     T: SubTransaction,
 {

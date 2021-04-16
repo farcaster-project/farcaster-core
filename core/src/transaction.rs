@@ -3,21 +3,21 @@
 use std::fmt::Debug;
 use std::io;
 
-use crate::blockchain::{FeePolitic, FeeStrategy, Network};
+use crate::blockchain::{Address, Fee, FeePolitic, FeeStrategy, Network, Onchain, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::role::Arbitrating;
+use crate::crypto::{Keys, Signatures};
 use crate::script;
 
 /// Base trait for arbitrating transactions. Defines methods to generate a partial arbitrating
 /// transaction used over the network.
-pub trait Transaction<Ar>: Debug
+pub trait Transaction<T>: Debug
 where
-    Ar: Arbitrating,
+    T: Onchain,
     Self: Sized,
 {
     /// Extract the transaction in the defined partial format on the arbitrating blockchain. The
     /// partial format is used to exchange unsigned or patially signed transactions.
-    fn to_partial(&self) -> Option<Ar::PartialTransaction>;
+    fn to_partial(&self) -> Option<T::PartialTransaction>;
 }
 
 /// Defines the transaction IDs for serialization and network communication.
@@ -73,34 +73,30 @@ pub trait Failable {
 }
 
 /// Transaction that requries multiple participants to construct and finalize the transaction.
-pub trait Cooperable<Ar>: Failable
+pub trait Cooperable<T>: Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Signatures,
     Self: Sized,
 {
     /// Add a cooperation to the transaction and store it internally for later usage.
     fn add_cooperation(
         &mut self,
-        pubkey: Ar::PublicKey,
-        sig: Ar::Signature,
+        pubkey: T::PublicKey,
+        sig: T::Signature,
     ) -> Result<(), Self::Error>;
 }
 
 /// Define a transaction that must have a finalization step.
-pub trait Finalizable<Ar>: Failable
-where
-    Ar: Arbitrating,
-    Self: Sized,
-{
+pub trait Finalizable: Failable {
     /// Finalize the internal transaction and make it ready for extraction.
     fn finalize(&mut self) -> Result<(), Self::Error>;
 }
 
 /// Define a transaction broadcastable by the system. Externally managed transaction are not
 /// broadcastable.
-pub trait Broadcastable<Ar>: Failable + Finalizable<Ar>
+pub trait Broadcastable<T>: Failable + Finalizable
 where
-    Ar: Arbitrating,
+    T: Onchain,
     Self: Sized,
 {
     /// Extract the finalized transaction and return a fully signed transaction type as defined in
@@ -108,10 +104,10 @@ where
     ///
     /// This correspond to the "role" of a "finalizer" as defined in BIP 174 for dealing with
     /// partial transactions, which can be applied more generically than just Bitcoin.
-    fn extract(&self) -> Ar::Transaction;
+    fn extract(&self) -> T::Transaction;
 
     /// Finalize the internal transaction and extract it, ready to be broadcasted.
-    fn finalize_and_extract(&mut self) -> Result<Ar::Transaction, Self::Error> {
+    fn finalize_and_extract(&mut self) -> Result<T::Transaction, Self::Error> {
         // TODO maybe do more validation based on other traits
         self.finalize()?;
         Ok(self.extract())
@@ -120,9 +116,8 @@ where
 
 /// Implemented by transactions that can be link to form chains of logic. A linkable transaction
 /// can provide the data needed for other transaction to safely build on top of it.
-pub trait Linkable<Ar>: Failable
+pub trait Linkable: Failable
 where
-    Ar: Arbitrating,
     Self: Sized,
 {
     /// Returned type of the consumable output, used to reference the funds and chain other
@@ -142,88 +137,88 @@ where
 
 /// Implemented on transactions that can be signed by a normal private key and generate/validate a
 /// valid signature.
-pub trait Signable<Ar>: Failable
+pub trait Signable<T>: Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Signatures,
     Self: Sized,
 {
     /// Generate the witness to unlock the default path of the locked asset.
-    fn generate_witness(&mut self, privkey: &Ar::PrivateKey) -> Result<Ar::Signature, Self::Error>;
+    fn generate_witness(&mut self, privkey: &T::PrivateKey) -> Result<T::Signature, Self::Error>;
 
     /// Verify that the signature is valid to unlock the default path of the locked asset.
     fn verify_witness(
         &mut self,
-        pubkey: &Ar::PublicKey,
-        sig: Ar::Signature,
+        pubkey: &T::PublicKey,
+        sig: T::Signature,
     ) -> Result<(), Self::Error>;
 }
 
 /// Implemented on transactions that can be signed by a private key and an adaptor key.
-pub trait AdaptorSignable<Ar>: Failable
+pub trait AdaptorSignable<T>: Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Signatures,
     Self: Sized,
 {
     /// Generate the adaptor witness to unlock the default path of the locked asset.
     fn generate_adaptor_witness(
         &mut self,
-        privkey: &Ar::PrivateKey,
-        adaptor: &Ar::PublicKey,
-    ) -> Result<Ar::AdaptorSignature, Self::Error>;
+        privkey: &T::PrivateKey,
+        adaptor: &T::PublicKey,
+    ) -> Result<T::AdaptorSignature, Self::Error>;
 
     /// Verify that the adaptor signature is valid to unlock the default path of the locked asset.
     fn verify_adaptor_witness(
         &mut self,
-        pubkey: &Ar::PublicKey,
-        adaptor: &Ar::PublicKey,
-        sig: Ar::AdaptorSignature,
+        pubkey: &T::PublicKey,
+        adaptor: &T::PublicKey,
+        sig: T::AdaptorSignature,
     ) -> Result<(), Self::Error>;
 }
 
 /// Defines a transaction where the consumable output has two paths: a successful path and a
 /// failure path and generate witneesses for the second path.
-pub trait Forkable<Ar>: Failable
+pub trait Forkable<T>: Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Signatures,
     Self: Sized,
 {
     /// Generates the witness used to unlock the second path of the asset lock, i.e. the failure
     /// path.
     fn generate_failure_witness(
         &mut self,
-        privkey: &Ar::PrivateKey,
-    ) -> Result<Ar::Signature, Self::Error>;
+        privkey: &T::PrivateKey,
+    ) -> Result<T::Signature, Self::Error>;
 
     /// Verify that the signature is valid to unlock the second path of of the locked asset, i.e.
     /// the failure path.
     fn verify_failure_witness(
         &mut self,
-        pubkey: &Ar::PublicKey,
-        sig: Ar::Signature,
+        pubkey: &T::PublicKey,
+        sig: T::Signature,
     ) -> Result<(), Self::Error>;
 }
 
 /// Fundable is NOT a transaction generated by this library but the funds that arrived in the
 /// generated address are controlled by the system. This trait allows to inject assets in the
 /// system.
-pub trait Fundable<Ar>: Linkable<Ar> + Failable
+pub trait Fundable<T>: Linkable + Failable
 where
-    Ar: Arbitrating,
+    T: Address + Keys + Signatures + Onchain,
     Self: Sized,
 {
     /// Create a new funding 'output', or equivalent depending on the blockchain and the
     /// cryptographic engine.
-    fn initialize(privkey: Ar::PublicKey, network: Network) -> Result<Self, Self::Error>;
+    fn initialize(privkey: T::PublicKey, network: Network) -> Result<Self, Self::Error>;
 
     /// Return the address to use for the funding.
-    fn get_address(&self) -> Result<Ar::Address, Self::Error>;
+    fn get_address(&self) -> Result<T::Address, Self::Error>;
 
     /// Update the transaction, this is used to update the data when the funding transaction is
     /// seen on-chain.
     ///
     /// This function is needed because we assume that the transaction is created outside of the
     /// system by an external wallet, the txid is not known in advance.
-    fn update(&mut self, args: Ar::Transaction) -> Result<(), Self::Error>;
+    fn update(&mut self, args: T::Transaction) -> Result<(), Self::Error>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {
@@ -233,10 +228,10 @@ where
 
 /// Represent a lockable transaction such as the `lock (b)` transaction that consumes the `funding
 /// (a)` transaction and creates the scripts used by `buy (c)` and `cancel (d)` transactions.
-pub trait Lockable<Ar>:
-    Transaction<Ar> + Signable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
+pub trait Lockable<T>:
+    Transaction<T> + Signable<T> + Broadcastable<T> + Linkable + Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Address + Timelock + Signatures + Fee,
     Self: Sized,
 {
     /// Defines what type the funding transaction must return when creating an output.
@@ -249,9 +244,9 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Fundable<Ar, Output = Self::Input, Error = Self::Error>,
-        lock: script::DataLock<Ar>,
-        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
+        prev: &impl Fundable<T, Output = Self::Input, Error = Self::Error>,
+        lock: script::DataLock<T>,
+        fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 
@@ -265,16 +260,16 @@ where
 /// transaction and transfer the funds to the buyer while revealing the secret needed to the seller
 /// to take ownership of the counter-party funds. This transaction becomes available directly after
 /// `lock (b)` but should be broadcasted only when `lock (b)` is finalized on-chain.
-pub trait Buyable<Ar>:
-    Transaction<Ar>
-    + Signable<Ar>
-    + AdaptorSignable<Ar>
-    + Broadcastable<Ar>
-    + Linkable<Ar>
-    + Cooperable<Ar>
+pub trait Buyable<T>:
+    Transaction<T>
+    + Signable<T>
+    + AdaptorSignable<T>
+    + Broadcastable<T>
+    + Linkable
+    + Cooperable<T>
     + Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Address + Timelock + Fee + Signatures,
     Self: Sized,
 {
     /// Defines what type the lock transaction must return when creating an output.
@@ -287,10 +282,10 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Lockable<Ar, Output = Self::Input, Error = Self::Error>,
-        lock: script::DataLock<Ar>,
-        destination_target: Ar::Address,
-        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
+        prev: &impl Lockable<T, Output = Self::Input, Error = Self::Error>,
+        lock: script::DataLock<T>,
+        destination_target: T::Address,
+        fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 
@@ -304,10 +299,10 @@ where
 /// (b)` transaction and creates a new punishable lock, i.e. a lock with a consensus path and an
 /// unilateral path available after some defined timelaps. This transaction becomes available after
 /// the define timelock in `lock (b)`.
-pub trait Cancelable<Ar>:
-    Transaction<Ar> + Forkable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Cooperable<Ar> + Failable
+pub trait Cancelable<T>:
+    Transaction<T> + Forkable<T> + Broadcastable<T> + Linkable + Cooperable<T> + Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Address + Timelock + Fee + Signatures,
     Self: Sized,
 {
     /// Defines what type the lock transaction must return when creating an output.
@@ -320,10 +315,10 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Lockable<Ar, Output = Self::Input, Error = Self::Error>,
-        lock: script::DataLock<Ar>,
-        punish_lock: script::DataPunishableLock<Ar>,
-        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
+        prev: &impl Lockable<T, Output = Self::Input, Error = Self::Error>,
+        lock: script::DataLock<T>,
+        punish_lock: script::DataPunishableLock<T>,
+        fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 
@@ -336,16 +331,16 @@ where
 /// Represent a refundable transaction such as the `refund (e)` transaction that consumes the
 /// `cancel (d)` transaction and send the money to its original owner. This transaction is directly
 /// available but should be broadcasted only after 'finalization' of `cancel (d)` on-chain.
-pub trait Refundable<Ar>:
-    Transaction<Ar>
-    + Signable<Ar>
-    + AdaptorSignable<Ar>
-    + Broadcastable<Ar>
-    + Linkable<Ar>
-    + Cooperable<Ar>
+pub trait Refundable<T>:
+    Transaction<T>
+    + Signable<T>
+    + AdaptorSignable<T>
+    + Broadcastable<T>
+    + Linkable
+    + Cooperable<T>
     + Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Address + Timelock + Fee + Signatures,
     Self: Sized,
 {
     /// Defines what type the lock transaction must return when creating an output.
@@ -358,10 +353,10 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Cancelable<Ar, Output = Self::Input, Error = Self::Error>,
-        punish_lock: script::DataPunishableLock<Ar>,
-        refund_target: Ar::Address,
-        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
+        prev: &impl Cancelable<T, Output = Self::Input, Error = Self::Error>,
+        punish_lock: script::DataPunishableLock<T>,
+        refund_target: T::Address,
+        fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 
@@ -376,10 +371,10 @@ where
 /// not reveal the secret needed to unlock the counter-party funds, effectivelly punishing the
 /// missbehaving participant.  This transaction becomes available after the define timelock in
 /// `cancel (d)`.
-pub trait Punishable<Ar>:
-    Transaction<Ar> + Forkable<Ar> + Broadcastable<Ar> + Linkable<Ar> + Failable
+pub trait Punishable<T>:
+    Transaction<T> + Forkable<T> + Broadcastable<T> + Linkable + Failable
 where
-    Ar: Arbitrating,
+    T: Keys + Address + Timelock + Fee + Signatures,
     Self: Sized,
 {
     /// Defines what type the lock transaction must return when creating an output.
@@ -392,10 +387,10 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Cancelable<Ar, Output = Self::Input, Error = Self::Error>,
-        punish_lock: script::DataPunishableLock<Ar>,
-        destination_target: Ar::Address,
-        fee_strategy: &FeeStrategy<Ar::FeeUnit>,
+        prev: &impl Cancelable<T, Output = Self::Input, Error = Self::Error>,
+        punish_lock: script::DataPunishableLock<T>,
+        destination_target: T::Address,
+        fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
     ) -> Result<Self, Self::Error>;
 

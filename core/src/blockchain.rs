@@ -13,6 +13,8 @@ use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 
 use crate::consensus::{self, Decodable, Encodable};
+use crate::crypto::{Keys, Signatures};
+use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
 pub trait Address {
@@ -72,6 +74,23 @@ pub trait Onchain {
 
     /// Defines the finalized transaction format for the arbitrating blockchain
     type Transaction;
+}
+
+/// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
+/// [Buyable], [Cancelable], [Refundable], and [Punishable] transactions.
+pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
+    /// Defines the type for the `funding (a)` transaction
+    type Funding: Fundable<Self>;
+    /// Defines the type for the `lock (b)` transaction
+    type Lock: Lockable<Self>;
+    /// Defines the type for the `buy (c)` transaction
+    type Buy: Buyable<Self>;
+    /// Defines the type for the `cancel (d)` transaction
+    type Cancel: Cancelable<Self>;
+    /// Defines the type for the `refund (e)` transaction
+    type Refund: Refundable<Self>;
+    /// Defines the type for the `punish (f)` transaction
+    type Punish: Punishable<Self>;
 }
 
 impl<T> FromStr for FeeStrategy<T>

@@ -57,6 +57,17 @@ where
 
 impl<Ar> Bundle for CosignedArbitratingCancel<Ar> where Ar: Arbitrating {}
 
+/// Provides Bob's daemon the funding transaction for building the core arbritrating transactions.
+#[derive(Debug, Clone)]
+pub struct FundingTransaction<Ar>
+where
+    Ar: Arbitrating,
+{
+    pub funding: datum::Transaction<Ar>,
+}
+
+impl<Ar> Bundle for FundingTransaction<Ar> where Ar: Arbitrating {}
+
 /// Provides Bob's daemon or Alice's clients the core set of arbritrating transactions.
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
 pub struct CoreArbitratingTransactions<Ar>
@@ -67,6 +78,8 @@ where
     pub cancel: datum::Transaction<Ar>,
     pub refund: datum::Transaction<Ar>,
 }
+
+impl<Ar> Bundle for CoreArbitratingTransactions<Ar> where Ar: Arbitrating {}
 
 /// Provides Bob's daemon or Alice's client with an adaptor signature for the unsigned buy (c)
 /// transaction.

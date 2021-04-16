@@ -7,7 +7,7 @@ use std::str::FromStr;
 use crate::blockchain::{Address, Asset, Fee, FeePolitic, Onchain, Timelock};
 use crate::bundle::{
     AliceParameters, BobParameters, CoreArbitratingTransactions, CosignedArbitratingCancel,
-    FullySignedBuy, FullySignedRefund, SignedAdaptorBuy, SignedAdaptorRefund,
+    FullySignedBuy, FullySignedRefund, FundingTransaction, SignedAdaptorBuy, SignedAdaptorRefund,
     SignedArbitratingLock, SignedArbitratingPunish,
 };
 use crate::consensus::{self, Decodable, Encodable};
@@ -248,7 +248,10 @@ impl<Ctx: Swap> Bob<Ctx> {
         }
     }
 
-    pub fn core_arbitrating_transactions(&self) -> CoreArbitratingTransactions<Ctx::Ar> {
+    pub fn core_arbitrating_transactions(
+        &self,
+        _funding: &FundingTransaction<Ctx::Ar>,
+    ) -> CoreArbitratingTransactions<Ctx::Ar> {
         todo!()
     }
 

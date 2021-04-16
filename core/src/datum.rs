@@ -545,6 +545,32 @@ where
     FeeStrategy(FeeStrategy<T::FeeUnit>),
 }
 
+impl<T> ParameterType<T>
+where
+    T: Arbitrating + Fee,
+{
+    pub fn try_into_address(&self) -> Result<T::Address, consensus::Error> {
+        match self {
+            ParameterType::Address(add) => Ok(add.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_timelock(&self) -> Result<T::Timelock, consensus::Error> {
+        match self {
+            ParameterType::Timelock(timelock) => Ok(timelock.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_fee_strategy(&self) -> Result<FeeStrategy<T::FeeUnit>, consensus::Error> {
+        match self {
+            ParameterType::FeeStrategy(strat) => Ok(strat.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+}
+
 /// The parameter datum is used to convey parameters between clients and daemons such as addresses,
 /// timelocks, fee strategies, etc. They are mostly used by clients to instruct daemons about user
 /// parameters and offer parameters.
@@ -565,6 +591,14 @@ where
 {
     pub fn param_id(&self) -> ParameterId {
         self.param_id
+    }
+
+    pub fn param(&self) -> &ParameterType<T> {
+        &self.param_value
+    }
+
+    pub fn to_param(self) -> ParameterType<T> {
+        self.param_value
     }
 
     pub fn new_destination_address(address: T::Address) -> Self {

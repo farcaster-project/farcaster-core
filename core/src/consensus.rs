@@ -11,6 +11,7 @@ use thiserror::Error;
 use std::io;
 use std::io::prelude::*;
 
+use crate::crypto;
 use crate::negotiation;
 
 /// Encoding error
@@ -25,6 +26,9 @@ pub enum Error {
     /// Error related to Farcaster negotiation
     #[error("Negotiation error: {0}")]
     Negotiation(#[from] negotiation::Error),
+    /// Error related to Farcaster cryptography
+    #[error("Cryptography error: {0}")]
+    Crypto(#[from] crypto::Error),
     /// And I/O error
     #[error("IO error: {0}")]
     Io(#[from] io::Error),

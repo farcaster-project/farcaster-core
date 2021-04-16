@@ -1,6 +1,6 @@
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::crypto::DleqProof;
+use farcaster_core::crypto::{self, DleqProof};
 use farcaster_core::swap::Swap;
 
 use crate::bitcoin::Bitcoin;
@@ -49,9 +49,12 @@ impl DleqProof<Bitcoin, Monero> for RingProof {
         )
     }
 
-    fn verify(_spend: &monero::PublicKey, _adaptor: &bitcoin::PublicKey, _proof: Self) -> bool {
-        // TODO
-        true
+    fn verify(
+        _spend: &monero::PublicKey,
+        _adaptor: &bitcoin::PublicKey,
+        _proof: Self,
+    ) -> Result<(), crypto::Error> {
+        Ok(())
     }
 }
 

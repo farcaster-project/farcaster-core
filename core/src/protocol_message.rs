@@ -4,7 +4,9 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::crypto::{Commitment, Keys, SharedPrivateKeys, Signatures};
+use crate::consensus;
+use crate::crypto::{Commitment, DleqProof, Keys, SharedPrivateKeys, Signatures};
+use crate::datum;
 use crate::role::Acc;
 use crate::swap::Swap;
 
@@ -15,7 +17,7 @@ pub trait ProtocolMessage: StrictEncode + StrictDecode {}
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct CommitAliceSessionParams<Ctx: Swap> {
+pub struct CommitAliceParameters<Ctx: Swap> {
     /// Commitment to `Ab` curve point
     pub buy: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Ac` curve point
@@ -32,7 +34,7 @@ pub struct CommitAliceSessionParams<Ctx: Swap> {
     pub view: <Ctx::Ac as Commitment>::Commitment,
 }
 
-impl<Ctx> std::fmt::Display for CommitAliceSessionParams<Ctx>
+impl<Ctx> std::fmt::Display for CommitAliceParameters<Ctx>
 where
     Ctx: Swap,
 {
@@ -42,11 +44,11 @@ where
     }
 }
 
-impl<Ctx> From<bundle::AliceSessionParams<Ctx>> for CommitAliceSessionParams<Ctx>
+impl<Ctx> CommitAliceParameters<Ctx>
 where
     Ctx: Swap,
 {
-    fn from(bundle: bundle::AliceSessionParams<Ctx>) -> Self {
+    pub fn from_bundle(bundle: &bundle::AliceParameters<Ctx>) -> Self {
         Self {
             buy: <Ctx::Ar as Commitment>::commit_to(bundle.buy.key().as_bytes()),
             cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key().as_bytes()),
@@ -57,15 +59,76 @@ where
             view: <Ctx::Ac as Commitment>::commit_to(bundle.view.key().as_bytes()),
         }
     }
+
+    pub fn verify(&self, reveal: &RevealAliceParameters<Ctx>) -> Result<(), consensus::Error> {
+        // Check buy commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.buy),
+            self.buy.clone(),
+        )?;
+        // Check cancel commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
+            self.cancel.clone(),
+        )?;
+        // Check refund commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
+            self.refund.clone(),
+        )?;
+        // Check punish commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.punish),
+            self.punish.clone(),
+        )?;
+        // Check adaptor commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
+            self.adaptor.clone(),
+        )?;
+        // Check spend commitment
+        <Ctx::Ac as Commitment>::validate(
+            <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
+            self.spend.clone(),
+        )?;
+        // Check private view commitment
+        <Ctx::Ac as Commitment>::validate(
+            <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&reveal.view),
+            self.view.clone(),
+        )?;
+
+        // Check the Dleq proof
+        DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
+
+        // All validations passed, return ok
+        Ok(())
+    }
+
+    pub fn verify_then_bundle(
+        &self,
+        reveal: &RevealAliceParameters<Ctx>,
+    ) -> Result<bundle::AliceParameters<Ctx>, consensus::Error> {
+        self.verify(reveal)?;
+        Ok(reveal.into_bundle())
+    }
 }
 
-impl<Ctx> ProtocolMessage for CommitAliceSessionParams<Ctx> where Ctx: Swap {}
+impl<Ctx> From<bundle::AliceParameters<Ctx>> for CommitAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(bundle: bundle::AliceParameters<Ctx>) -> Self {
+        Self::from_bundle(&bundle)
+    }
+}
+
+impl<Ctx> ProtocolMessage for CommitAliceParameters<Ctx> where Ctx: Swap {}
 
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct CommitBobSessionParams<Ctx: Swap> {
+pub struct CommitBobParameters<Ctx: Swap> {
     /// Commitment to `Bb` curve point
     pub buy: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Bc` curve point
@@ -80,13 +143,85 @@ pub struct CommitBobSessionParams<Ctx: Swap> {
     pub view: <Ctx::Ac as Commitment>::Commitment,
 }
 
-impl<Ctx> ProtocolMessage for CommitBobSessionParams<Ctx> where Ctx: Swap {}
+impl<Ctx> CommitBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundle(bundle: &bundle::BobParameters<Ctx>) -> Self {
+        Self {
+            buy: <Ctx::Ar as Commitment>::commit_to(bundle.buy.key().as_bytes()),
+            cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key().as_bytes()),
+            refund: <Ctx::Ar as Commitment>::commit_to(bundle.refund.key().as_bytes()),
+            adaptor: <Ctx::Ar as Commitment>::commit_to(bundle.adaptor.key().as_bytes()),
+            spend: <Ctx::Ac as Commitment>::commit_to(bundle.spend.key().as_bytes()),
+            view: <Ctx::Ac as Commitment>::commit_to(bundle.view.key().as_bytes()),
+        }
+    }
+
+    pub fn verify(&self, reveal: &RevealBobParameters<Ctx>) -> Result<(), consensus::Error> {
+        // Check buy commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.buy),
+            self.buy.clone(),
+        )?;
+        // Check cancel commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
+            self.cancel.clone(),
+        )?;
+        // Check refund commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
+            self.refund.clone(),
+        )?;
+        // Check adaptor commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
+            self.adaptor.clone(),
+        )?;
+        // Check spend commitment
+        <Ctx::Ac as Commitment>::validate(
+            <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
+            self.spend.clone(),
+        )?;
+        // Check private view commitment
+        <Ctx::Ac as Commitment>::validate(
+            <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&reveal.view),
+            self.view.clone(),
+        )?;
+
+        // Check the Dleq proof
+        DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
+
+        // All validations passed, return ok
+        Ok(())
+    }
+
+    pub fn verify_then_bundle(
+        &self,
+        reveal: &RevealBobParameters<Ctx>,
+    ) -> Result<bundle::BobParameters<Ctx>, consensus::Error> {
+        self.verify(reveal)?;
+        Ok(reveal.into_bundle())
+    }
+}
+
+impl<Ctx> From<bundle::BobParameters<Ctx>> for CommitBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(bundle: bundle::BobParameters<Ctx>) -> Self {
+        Self::from_bundle(&bundle)
+    }
+}
+
+impl<Ctx> ProtocolMessage for CommitBobParameters<Ctx> where Ctx: Swap {}
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
 /// `commit_alice_session_params` message.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct RevealAliceSessionParams<Ctx: Swap> {
+pub struct RevealAliceParameters<Ctx: Swap> {
     /// The buy `Ab` public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
     /// The cancel `Ac` public key
@@ -107,30 +242,58 @@ pub struct RevealAliceSessionParams<Ctx: Swap> {
     pub proof: Ctx::Proof,
 }
 
-//impl<Ctx> From<bundle::AliceSessionParams<Ctx>> for RevealAliceSessionParams<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    fn from(bundle: bundle::AliceSessionParams<Ctx>) -> Self {
-//        Self {
-//            buy: bundle.buy.key,
-//            cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key.as_bytes()),
-//            refund: <Ctx::Ar as Commitment>::commit_to(bundle.refund.key.as_bytes()),
-//            punish: <Ctx::Ar as Commitment>::commit_to(bundle.punish.key.as_bytes()),
-//            adaptor: <Ctx::Ar as Commitment>::commit_to(bundle.adaptor.key.as_bytes()),
-//            spend: <Ctx::Ac as Commitment>::commit_to(bundle.spend.key.as_bytes()),
-//            view: <Ctx::Ac as Commitment>::commit_to(bundle.view.key.as_bytes()),
-//        }
-//    }
-//}
+impl<Ctx> RevealAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundle(bundle: &bundle::AliceParameters<Ctx>) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: bundle.buy.key().try_into_arbitrating_pubkey()?,
+            cancel: bundle.cancel.key().try_into_arbitrating_pubkey()?,
+            refund: bundle.refund.key().try_into_arbitrating_pubkey()?,
+            punish: bundle.punish.key().try_into_arbitrating_pubkey()?,
+            adaptor: bundle.adaptor.key().try_into_arbitrating_pubkey()?,
+            address: bundle.destination_address.param().try_into_address()?,
+            spend: bundle.spend.key().try_into_accordant_pubkey()?,
+            view: bundle.view.key().try_into_shared_private()?,
+            proof: bundle.proof.proof().clone(),
+        })
+    }
 
-impl<Ctx> ProtocolMessage for RevealAliceSessionParams<Ctx> where Ctx: Swap {}
+    pub fn into_bundle(&self) -> bundle::AliceParameters<Ctx> {
+        bundle::AliceParameters {
+            buy: datum::Key::new_alice_buy(self.buy.clone()),
+            cancel: datum::Key::new_alice_cancel(self.cancel.clone()),
+            refund: datum::Key::new_alice_refund(self.refund.clone()),
+            punish: datum::Key::new_alice_punish(self.punish.clone()),
+            adaptor: datum::Key::new_alice_adaptor(self.adaptor.clone()),
+            destination_address: datum::Parameter::new_destination_address(self.address.clone()),
+            view: datum::Key::new_alice_private_view(self.view.clone()),
+            spend: datum::Key::new_alice_spend(self.spend.clone()),
+            proof: datum::Proof::new_cross_group_dleq(self.proof.clone()),
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
+}
+
+impl<Ctx> Into<bundle::AliceParameters<Ctx>> for RevealAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn into(self) -> bundle::AliceParameters<Ctx> {
+        self.into_bundle()
+    }
+}
+
+impl<Ctx> ProtocolMessage for RevealAliceParameters<Ctx> where Ctx: Swap {}
 
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct RevealBobSessionParams<Ctx: Swap> {
+pub struct RevealBobParameters<Ctx: Swap> {
     /// The buy `Bb` public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
     /// The cancel `Bc` public key
@@ -149,7 +312,50 @@ pub struct RevealBobSessionParams<Ctx: Swap> {
     pub proof: Ctx::Proof,
 }
 
-impl<Ctx> ProtocolMessage for RevealBobSessionParams<Ctx> where Ctx: Swap {}
+impl<Ctx> RevealBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundle(bundle: &bundle::BobParameters<Ctx>) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: bundle.buy.key().try_into_arbitrating_pubkey()?,
+            cancel: bundle.cancel.key().try_into_arbitrating_pubkey()?,
+            refund: bundle.refund.key().try_into_arbitrating_pubkey()?,
+            adaptor: bundle.adaptor.key().try_into_arbitrating_pubkey()?,
+            address: bundle.refund_address.param().try_into_address()?,
+            spend: bundle.spend.key().try_into_accordant_pubkey()?,
+            view: bundle.view.key().try_into_shared_private()?,
+            proof: bundle.proof.proof().clone(),
+        })
+    }
+
+    pub fn into_bundle(&self) -> bundle::BobParameters<Ctx> {
+        bundle::BobParameters {
+            buy: datum::Key::new_bob_buy(self.buy.clone()),
+            cancel: datum::Key::new_bob_cancel(self.cancel.clone()),
+            refund: datum::Key::new_bob_refund(self.refund.clone()),
+            adaptor: datum::Key::new_bob_adaptor(self.adaptor.clone()),
+            refund_address: datum::Parameter::new_refund_address(self.address.clone()),
+            view: datum::Key::new_bob_private_view(self.view.clone()),
+            spend: datum::Key::new_bob_spend(self.spend.clone()),
+            proof: datum::Proof::new_cross_group_dleq(self.proof.clone()),
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
+}
+
+impl<Ctx> Into<bundle::BobParameters<Ctx>> for RevealBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn into(self) -> bundle::BobParameters<Ctx> {
+        self.into_bundle()
+    }
+}
+
+impl<Ctx> ProtocolMessage for RevealBobParameters<Ctx> where Ctx: Swap {}
 
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.

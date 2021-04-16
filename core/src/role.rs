@@ -6,8 +6,9 @@ use std::str::FromStr;
 
 use crate::blockchain::{Address, Asset, Fee, FeePolitic, Onchain, Timelock};
 use crate::bundle::{
-    AliceSessionParams, BobSessionParams, CosignedArbitratingCancel, FullySignedBuy,
-    SignedAdaptorRefund, SignedArbitratingPunish,
+    AliceParameters, BobParameters, CoreArbitratingTransactions, CosignedArbitratingCancel,
+    FullySignedBuy, FullySignedRefund, SignedAdaptorBuy, SignedAdaptorRefund,
+    SignedArbitratingLock, SignedArbitratingPunish,
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
@@ -122,14 +123,14 @@ where
         }
     }
 
-    pub fn session_params(
+    pub fn generate_parameters(
         &self,
         ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
         ac_seed: &<Ctx::Ac as FromSeed<Acc>>::Seed,
         public_offer: &PublicOffer<Ctx>,
-    ) -> AliceSessionParams<Ctx> {
+    ) -> AliceParameters<Ctx> {
         let (spend, adaptor, proof) = Ctx::Proof::generate(ac_seed);
-        AliceSessionParams {
+        AliceParameters {
             buy: datum::Key::new_alice_buy(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Buy,
@@ -158,19 +159,19 @@ where
             ),
             spend: datum::Key::new_alice_spend(spend),
             proof: datum::Proof::new_cross_group_dleq(proof),
-            cancel_timelock: datum::Parameter::new_cancel_timelock(
+            cancel_timelock: Some(datum::Parameter::new_cancel_timelock(
                 public_offer.offer.cancel_timelock,
-            ),
-            punish_timelock: datum::Parameter::new_punish_timelock(
+            )),
+            punish_timelock: Some(datum::Parameter::new_punish_timelock(
                 public_offer.offer.punish_timelock,
-            ),
-            fee_strategy: datum::Parameter::new_fee_strategy(
+            )),
+            fee_strategy: Some(datum::Parameter::new_fee_strategy(
                 public_offer.offer.fee_strategy.clone(),
-            ),
+            )),
         }
     }
 
-    pub fn signed_adaptor_refund(&self) -> SignedAdaptorRefund<Ctx::Ar> {
+    pub fn sign_adaptor_refund(&self) -> SignedAdaptorRefund<Ctx::Ar> {
         todo!()
     }
 
@@ -178,11 +179,11 @@ where
         todo!()
     }
 
-    pub fn fully_signed_buy(&self) -> FullySignedBuy<Ctx::Ar> {
+    pub fn fully_sign_buy(&self) -> FullySignedBuy<Ctx::Ar> {
         todo!()
     }
 
-    pub fn signed_arbitrating_punish(&self) -> SignedArbitratingPunish<Ctx::Ar> {
+    pub fn sign_arbitrating_punish(&self) -> SignedArbitratingPunish<Ctx::Ar> {
         todo!()
     }
 }
@@ -204,17 +205,15 @@ impl<Ctx: Swap> Bob<Ctx> {
             fee_politic,
         }
     }
-}
 
-impl<Ctx: Swap> Bob<Ctx> {
-    pub fn session_params(
+    pub fn generate_parameters(
         &self,
         ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
         ac_seed: &<Ctx::Ac as FromSeed<Acc>>::Seed,
         public_offer: &PublicOffer<Ctx>,
-    ) -> BobSessionParams<Ctx> {
+    ) -> BobParameters<Ctx> {
         let (spend, adaptor, proof) = Ctx::Proof::generate(ac_seed);
-        BobSessionParams {
+        BobParameters {
             buy: datum::Key::new_bob_buy(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Buy,
@@ -237,16 +236,36 @@ impl<Ctx: Swap> Bob<Ctx> {
             ),
             spend: datum::Key::new_bob_spend(spend),
             proof: datum::Proof::new_cross_group_dleq(proof),
-            cancel_timelock: datum::Parameter::new_cancel_timelock(
+            cancel_timelock: Some(datum::Parameter::new_cancel_timelock(
                 public_offer.offer.cancel_timelock,
-            ),
-            punish_timelock: datum::Parameter::new_punish_timelock(
+            )),
+            punish_timelock: Some(datum::Parameter::new_punish_timelock(
                 public_offer.offer.punish_timelock,
-            ),
-            fee_strategy: datum::Parameter::new_fee_strategy(
+            )),
+            fee_strategy: Some(datum::Parameter::new_fee_strategy(
                 public_offer.offer.fee_strategy.clone(),
-            ),
+            )),
         }
+    }
+
+    pub fn core_arbitrating_transactions(&self) -> CoreArbitratingTransactions<Ctx::Ar> {
+        todo!()
+    }
+
+    pub fn cosign_arbitrating_cancel(&self) -> CosignedArbitratingCancel<Ctx::Ar> {
+        todo!()
+    }
+
+    pub fn sign_adaptor_buy(&self) -> SignedAdaptorBuy<Ctx::Ar> {
+        todo!()
+    }
+
+    pub fn sign_arbitrating_lock(&self) -> SignedArbitratingLock<Ctx::Ar> {
+        todo!()
+    }
+
+    pub fn fully_sign_refund(&self) -> FullySignedRefund<Ctx::Ar> {
+        todo!()
     }
 }
 

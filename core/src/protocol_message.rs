@@ -2,10 +2,10 @@
 
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use crate::blockchain::Onchain;
+use crate::blockchain::{Address, Onchain};
 use crate::bundle;
 use crate::crypto::{Commitment, Keys, SharedPrivateKeys, Signatures};
-use crate::role::{Acc, Arbitrating};
+use crate::role::Acc;
 use crate::swap::Swap;
 
 /// Trait for defining inter-daemon communication messages.
@@ -98,7 +98,7 @@ pub struct RevealAliceSessionParams<Ctx: Swap> {
     /// The `Ta` adaptor public key
     pub adaptor: <Ctx::Ar as Keys>::PublicKey,
     /// The destination Bitcoin address
-    pub address: <Ctx::Ar as Arbitrating>::Address,
+    pub address: <Ctx::Ar as Address>::Address,
     /// The `K_v^a` view private key
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^a` spend public key
@@ -140,7 +140,7 @@ pub struct RevealBobSessionParams<Ctx: Swap> {
     /// The `Tb` adaptor public key
     pub adaptor: <Ctx::Ar as Keys>::PublicKey,
     /// The refund Bitcoin address
-    pub address: <Ctx::Ar as Arbitrating>::Address,
+    pub address: <Ctx::Ar as Address>::Address,
     /// The `K_v^b` view private key
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^b` spend public key

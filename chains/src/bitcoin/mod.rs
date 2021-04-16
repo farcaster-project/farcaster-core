@@ -11,7 +11,7 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Network;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::blockchain::{Asset, Onchain};
+use farcaster_core::blockchain::{self, Asset, Onchain, Timelock};
 use farcaster_core::consensus::{self, Decodable, Encodable};
 use farcaster_core::crypto::{ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
 use farcaster_core::role::{Arb, Arbitrating};
@@ -105,13 +105,17 @@ impl Decodable for Amount {
     }
 }
 
-impl Arbitrating for Bitcoin {
-    /// Defines the transaction format for the arbitrating blockchain
+impl blockchain::Address for Bitcoin {
+    /// Defines the address format for the arbitrating blockchain
     type Address = Address;
+}
 
+impl Timelock for Bitcoin {
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock = CSVTimelock;
 }
+
+impl Arbitrating for Bitcoin {}
 
 #[derive(Debug, Clone, StrictDecode, StrictEncode)]
 pub struct Address(pub bitcoin::Address);

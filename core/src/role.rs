@@ -4,12 +4,10 @@ use std::fmt::Debug;
 use std::io;
 use std::str::FromStr;
 
-use strict_encoding::{StrictDecode, StrictEncode};
-
-use crate::blockchain::{Asset, Fee, FeePolitic, Onchain};
+use crate::blockchain::{Address, Asset, Fee, FeePolitic, Onchain, Timelock};
 use crate::bundle::{
-    AliceSessionParams, BobSessionParams, CosignedArbitratingCancel, FullySignedBuy, SignedAdaptorRefund,
-    SignedArbitratingPunish,
+    AliceSessionParams, BobSessionParams, CosignedArbitratingCancel, FullySignedBuy,
+    SignedAdaptorRefund, SignedArbitratingPunish,
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
@@ -105,7 +103,7 @@ impl FromStr for SwapRole {
 /// for arbitrating blockchain assets.
 pub struct Alice<Ctx: Swap> {
     /// An arbitrating address where, if successfully executed, the funds exchanged will be sent to
-    pub destination_address: <Ctx::Ar as Arbitrating>::Address,
+    pub destination_address: <Ctx::Ar as Address>::Address,
     /// The fee politic to apply during the swap fee calculation
     pub fee_politic: FeePolitic,
 }
@@ -115,7 +113,7 @@ where
     Ctx: Swap,
 {
     pub fn new(
-        destination_address: <Ctx::Ar as Arbitrating>::Address,
+        destination_address: <Ctx::Ar as Address>::Address,
         fee_politic: FeePolitic,
     ) -> Self {
         Self {
@@ -194,16 +192,13 @@ where
 pub struct Bob<Ctx: Swap> {
     /// An arbitrating address where, if unsuccessfully executed, the funds exchanged will be sent
     /// back to
-    pub refund_address: <Ctx::Ar as Arbitrating>::Address,
+    pub refund_address: <Ctx::Ar as Address>::Address,
     /// The fee politic to apply during the swap fee calculation
     pub fee_politic: FeePolitic,
 }
 
 impl<Ctx: Swap> Bob<Ctx> {
-    pub fn new(
-        refund_address: <Ctx::Ar as Arbitrating>::Address,
-        fee_politic: FeePolitic,
-    ) -> Self {
+    pub fn new(refund_address: <Ctx::Ar as Address>::Address, fee_politic: FeePolitic) -> Self {
         Self {
             refund_address,
             fee_politic,
@@ -233,9 +228,7 @@ impl<Ctx: Swap> Bob<Ctx> {
                 crypto::ArbitratingKey::Refund,
             )),
             adaptor: datum::Key::new_bob_adaptor(adaptor),
-            refund_address: datum::Parameter::new_destination_address(
-                self.refund_address.clone(),
-            ),
+            refund_address: datum::Parameter::new_destination_address(self.refund_address.clone()),
             view: datum::Key::new_bob_private_view(
                 <Ctx::Ac as SharedPrivateKeys<Acc>>::get_shared_privkey(
                     ac_seed,
@@ -260,13 +253,18 @@ impl<Ctx: Swap> Bob<Ctx> {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Asset + Keys + Commitment + Signatures + Onchain + Fee + FromSeed<Arb> + Clone + Eq
+    Asset
+    + Address
+    + Commitment
+    + Fee
+    + FromSeed<Arb>
+    + Keys
+    + Onchain
+    + Signatures
+    + Timelock
+    + Clone
+    + Eq
 {
-    /// Defines the address format for the arbitrating blockchain
-    type Address: Clone + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
-
-    /// Defines the type of timelock used for the arbitrating transactions
-    type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor

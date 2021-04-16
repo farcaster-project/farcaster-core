@@ -12,7 +12,7 @@ pub trait Bundle {}
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
 #[derive(Debug, Clone)]
-pub struct AliceSessionParams<Ctx: Swap> {
+pub struct AliceParameters<Ctx: Swap> {
     pub buy: datum::Key<Ctx>,
     pub cancel: datum::Key<Ctx>,
     pub refund: datum::Key<Ctx>,
@@ -30,7 +30,7 @@ pub struct AliceSessionParams<Ctx: Swap> {
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
 #[derive(Debug, Clone)]
-pub struct BobSessionParams<Ctx: Swap> {
+pub struct BobParameters<Ctx: Swap> {
     pub buy: datum::Key<Ctx>,
     pub cancel: datum::Key<Ctx>,
     pub refund: datum::Key<Ctx>,

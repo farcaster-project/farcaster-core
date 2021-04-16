@@ -15,7 +15,7 @@ pub trait ProtocolMessage: StrictEncode + StrictDecode {}
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct CommitAliceSessionParams<Ctx: Swap> {
+pub struct CommitAliceParameters<Ctx: Swap> {
     /// Commitment to `Ab` curve point
     pub buy: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Ac` curve point
@@ -32,7 +32,7 @@ pub struct CommitAliceSessionParams<Ctx: Swap> {
     pub view: <Ctx::Ac as Commitment>::Commitment,
 }
 
-impl<Ctx> std::fmt::Display for CommitAliceSessionParams<Ctx>
+impl<Ctx> std::fmt::Display for CommitAliceParameters<Ctx>
 where
     Ctx: Swap,
 {
@@ -42,11 +42,11 @@ where
     }
 }
 
-impl<Ctx> From<bundle::AliceSessionParams<Ctx>> for CommitAliceSessionParams<Ctx>
+impl<Ctx> From<bundle::AliceParameters<Ctx>> for CommitAliceParameters<Ctx>
 where
     Ctx: Swap,
 {
-    fn from(bundle: bundle::AliceSessionParams<Ctx>) -> Self {
+    fn from(bundle: bundle::AliceParameters<Ctx>) -> Self {
         Self {
             buy: <Ctx::Ar as Commitment>::commit_to(bundle.buy.key().as_bytes()),
             cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key().as_bytes()),
@@ -59,13 +59,13 @@ where
     }
 }
 
-impl<Ctx> ProtocolMessage for CommitAliceSessionParams<Ctx> where Ctx: Swap {}
+impl<Ctx> ProtocolMessage for CommitAliceParameters<Ctx> where Ctx: Swap {}
 
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct CommitBobSessionParams<Ctx: Swap> {
+pub struct CommitBobParameters<Ctx: Swap> {
     /// Commitment to `Bb` curve point
     pub buy: <Ctx::Ar as Commitment>::Commitment,
     /// Commitment to `Bc` curve point
@@ -80,13 +80,13 @@ pub struct CommitBobSessionParams<Ctx: Swap> {
     pub view: <Ctx::Ac as Commitment>::Commitment,
 }
 
-impl<Ctx> ProtocolMessage for CommitBobSessionParams<Ctx> where Ctx: Swap {}
+impl<Ctx> ProtocolMessage for CommitBobParameters<Ctx> where Ctx: Swap {}
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
 /// `commit_alice_session_params` message.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct RevealAliceSessionParams<Ctx: Swap> {
+pub struct RevealAliceParameters<Ctx: Swap> {
     /// The buy `Ab` public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
     /// The cancel `Ac` public key
@@ -107,11 +107,11 @@ pub struct RevealAliceSessionParams<Ctx: Swap> {
     pub proof: Ctx::Proof,
 }
 
-//impl<Ctx> From<bundle::AliceSessionParams<Ctx>> for RevealAliceSessionParams<Ctx>
+//impl<Ctx> From<bundle::AliceParameters<Ctx>> for RevealAliceParameters<Ctx>
 //where
 //    Ctx: Swap,
 //{
-//    fn from(bundle: bundle::AliceSessionParams<Ctx>) -> Self {
+//    fn from(bundle: bundle::AliceParameters<Ctx>) -> Self {
 //        Self {
 //            buy: bundle.buy.key,
 //            cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key.as_bytes()),
@@ -124,13 +124,13 @@ pub struct RevealAliceSessionParams<Ctx: Swap> {
 //    }
 //}
 
-impl<Ctx> ProtocolMessage for RevealAliceSessionParams<Ctx> where Ctx: Swap {}
+impl<Ctx> ProtocolMessage for RevealAliceParameters<Ctx> where Ctx: Swap {}
 
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
-pub struct RevealBobSessionParams<Ctx: Swap> {
+pub struct RevealBobParameters<Ctx: Swap> {
     /// The buy `Bb` public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
     /// The cancel `Bc` public key
@@ -149,7 +149,7 @@ pub struct RevealBobSessionParams<Ctx: Swap> {
     pub proof: Ctx::Proof,
 }
 
-impl<Ctx> ProtocolMessage for RevealBobSessionParams<Ctx> where Ctx: Swap {}
+impl<Ctx> ProtocolMessage for RevealBobParameters<Ctx> where Ctx: Swap {}
 
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.

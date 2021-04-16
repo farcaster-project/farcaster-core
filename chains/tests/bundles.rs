@@ -3,7 +3,7 @@ use farcaster_chains::pairs::btcxmr::BtcXmr;
 use farcaster_core::blockchain::FeePolitic;
 use farcaster_core::consensus::deserialize;
 use farcaster_core::negotiation::PublicOffer;
-use farcaster_core::protocol_message::CommitAliceSessionParams;
+use farcaster_core::protocol_message::CommitAliceParameters;
 use farcaster_core::role::Alice;
 
 use bitcoin::Address;
@@ -35,10 +35,10 @@ fn create_alice_params() {
     let pub_offer: PublicOffer<BtcXmr> =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
 
-    let alice_params = dbg!(alice.session_params(&ar_seed, &ac_seed, &pub_offer));
+    let alice_params = dbg!(alice.generate_parameters(&ar_seed, &ac_seed, &pub_offer));
     println!("{:#?}", alice_params);
 
-    let commit_alice_params: CommitAliceSessionParams<BtcXmr> = alice_params.into();
+    let commit_alice_params: CommitAliceParameters<BtcXmr> = alice_params.into();
     println!("{:#?}", commit_alice_params);
 
     //assert!(false);

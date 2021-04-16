@@ -143,6 +143,78 @@ pub struct CommitBobParameters<Ctx: Swap> {
     pub view: <Ctx::Ac as Commitment>::Commitment,
 }
 
+impl<Ctx> CommitBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundle(bundle: &bundle::BobParameters<Ctx>) -> Self {
+        Self {
+            buy: <Ctx::Ar as Commitment>::commit_to(bundle.buy.key().as_bytes()),
+            cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key().as_bytes()),
+            refund: <Ctx::Ar as Commitment>::commit_to(bundle.refund.key().as_bytes()),
+            adaptor: <Ctx::Ar as Commitment>::commit_to(bundle.adaptor.key().as_bytes()),
+            spend: <Ctx::Ac as Commitment>::commit_to(bundle.spend.key().as_bytes()),
+            view: <Ctx::Ac as Commitment>::commit_to(bundle.view.key().as_bytes()),
+        }
+    }
+
+    pub fn verify(&self, reveal: &RevealBobParameters<Ctx>) -> Result<(), consensus::Error> {
+        // Check buy commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.buy),
+            self.buy.clone(),
+        )?;
+        // Check cancel commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
+            self.cancel.clone(),
+        )?;
+        // Check refund commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
+            self.refund.clone(),
+        )?;
+        // Check adaptor commitment
+        <Ctx::Ar as Commitment>::validate(
+            <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
+            self.adaptor.clone(),
+        )?;
+        // Check spend commitment
+        <Ctx::Ac as Commitment>::validate(
+            <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
+            self.spend.clone(),
+        )?;
+        // Check private view commitment
+        <Ctx::Ac as Commitment>::validate(
+            <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&reveal.view),
+            self.view.clone(),
+        )?;
+
+        // Check the Dleq proof
+        DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
+
+        // All validations passed, return ok
+        Ok(())
+    }
+
+    pub fn verify_then_bundle(
+        &self,
+        reveal: &RevealBobParameters<Ctx>,
+    ) -> Result<bundle::BobParameters<Ctx>, consensus::Error> {
+        self.verify(reveal)?;
+        Ok(reveal.into_bundle())
+    }
+}
+
+impl<Ctx> From<bundle::BobParameters<Ctx>> for CommitBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(bundle: bundle::BobParameters<Ctx>) -> Self {
+        Self::from_bundle(&bundle)
+    }
+}
+
 impl<Ctx> ProtocolMessage for CommitBobParameters<Ctx> where Ctx: Swap {}
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
@@ -238,6 +310,49 @@ pub struct RevealBobParameters<Ctx: Swap> {
     pub view: <Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Ctx::Proof,
+}
+
+impl<Ctx> RevealBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundle(bundle: &bundle::BobParameters<Ctx>) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: bundle.buy.key().try_into_arbitrating_pubkey()?,
+            cancel: bundle.cancel.key().try_into_arbitrating_pubkey()?,
+            refund: bundle.refund.key().try_into_arbitrating_pubkey()?,
+            adaptor: bundle.adaptor.key().try_into_arbitrating_pubkey()?,
+            address: bundle.refund_address.param().try_into_address()?,
+            spend: bundle.spend.key().try_into_accordant_pubkey()?,
+            view: bundle.view.key().try_into_shared_private()?,
+            proof: bundle.proof.proof().clone(),
+        })
+    }
+
+    pub fn into_bundle(&self) -> bundle::BobParameters<Ctx> {
+        bundle::BobParameters {
+            buy: datum::Key::new_bob_buy(self.buy.clone()),
+            cancel: datum::Key::new_bob_cancel(self.cancel.clone()),
+            refund: datum::Key::new_bob_refund(self.refund.clone()),
+            adaptor: datum::Key::new_bob_adaptor(self.adaptor.clone()),
+            refund_address: datum::Parameter::new_refund_address(self.address.clone()),
+            view: datum::Key::new_bob_private_view(self.view.clone()),
+            spend: datum::Key::new_bob_spend(self.spend.clone()),
+            proof: datum::Proof::new_cross_group_dleq(self.proof.clone()),
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
+}
+
+impl<Ctx> Into<bundle::BobParameters<Ctx>> for RevealBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn into(self) -> bundle::BobParameters<Ctx> {
+        self.into_bundle()
+    }
 }
 
 impl<Ctx> ProtocolMessage for RevealBobParameters<Ctx> where Ctx: Swap {}

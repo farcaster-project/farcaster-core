@@ -3,7 +3,7 @@
 
 use strict_encoding::{strict_deserialize, strict_serialize, StrictDecode, StrictEncode};
 
-use crate::blockchain::{Address, Fee, FeeStrategy, Timelock};
+use crate::blockchain::{Address, Fee, FeeStrategy, Onchain, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, Keys, SharedPrivateKeys, Signatures};
 use crate::role::{Acc, Arbitrating, SwapRole};
@@ -15,19 +15,19 @@ use std::io;
 /// The transaction datum is used to convey a transaction between clients and daemons. The
 /// transaction is transmitted within the tx_value field in its serialized format.
 #[derive(Debug, Clone)]
-pub struct Transaction<Ar>
+pub struct Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     /// The identifier of the transaction
     pub tx_id: TxId,
     /// The transaction to serialize
-    pub tx_value: Ar::PartialTransaction,
+    pub tx_value: T::PartialTransaction,
 }
 
 macro_rules! impl_new_tx {
     ( $fnname:ident, $type:expr ) => {
-        pub fn $fnname(tx_value: Ar::PartialTransaction) -> Self {
+        pub fn $fnname(tx_value: T::PartialTransaction) -> Self {
             Self {
                 tx_id: $type,
                 tx_value,
@@ -36,23 +36,23 @@ macro_rules! impl_new_tx {
     };
 }
 
-impl<Ar> Transaction<Ar>
+impl<T> Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     pub fn tx_id(&self) -> TxId {
         self.tx_id
     }
 
-    pub fn partial_transaction(&self) -> &Ar::PartialTransaction {
+    pub fn partial_transaction(&self) -> &T::PartialTransaction {
         &self.tx_value
     }
 
-    pub fn partial_transaction_mut(&mut self) -> &mut Ar::PartialTransaction {
+    pub fn partial_transaction_mut(&mut self) -> &mut T::PartialTransaction {
         &mut self.tx_value
     }
 
-    pub fn to_partial_transaction(self) -> Ar::PartialTransaction {
+    pub fn to_partial_transaction(self) -> T::PartialTransaction {
         self.tx_value
     }
 
@@ -64,9 +64,9 @@ where
     impl_new_tx!(new_punish, TxId::Punish);
 }
 
-impl<Ar> Encodable for Transaction<Ar>
+impl<T> Encodable for Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let len = self.tx_id.consensus_encode(writer)?;
@@ -80,9 +80,9 @@ where
     }
 }
 
-impl<Ar> Decodable for Transaction<Ar>
+impl<T> Decodable for Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let tx_id = Decodable::consensus_decode(d)?;
@@ -92,18 +92,18 @@ where
     }
 }
 
-impl<Ar> StrictEncode for Transaction<Ar>
+impl<T> StrictEncode for Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
         Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
     }
 }
 
-impl<Ar> StrictDecode for Transaction<Ar>
+impl<T> StrictDecode for Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
         Decodable::consensus_decode(&mut d).map_err(|_| {

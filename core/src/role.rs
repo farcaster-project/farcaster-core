@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::io;
 use std::str::FromStr;
 
-use crate::blockchain::{Address, Asset, Fee, FeePolitic, Onchain, Timelock};
+use crate::blockchain::{Address, Asset, Fee, FeePolitic, Onchain, Timelock, Transactions};
 use crate::bundle::{
     AliceParameters, BobParameters, CoreArbitratingTransactions, CosignedArbitratingCancel,
     FullySignedBuy, FullySignedRefund, FundingTransaction, SignedAdaptorBuy, SignedAdaptorRefund,
@@ -284,6 +284,7 @@ pub trait Arbitrating:
     + Onchain
     + Signatures
     + Timelock
+    + Transactions
     + Clone
     + Eq
 {

@@ -2,9 +2,9 @@
 
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use crate::blockchain::Onchain;
+use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::crypto::{Commitment, Keys, SharedPrivateKeys, Signatures, Address};
+use crate::crypto::{Commitment, Keys, SharedPrivateKeys, Signatures};
 use crate::role::Acc;
 use crate::swap::Swap;
 

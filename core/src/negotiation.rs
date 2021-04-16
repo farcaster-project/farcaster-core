@@ -6,9 +6,8 @@ use thiserror::Error;
 
 use std::io;
 
-use crate::blockchain::{Asset, Fee, FeeStrategy, Network};
+use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::Timelock;
 use crate::role::{NegotiationRole, SwapRole};
 use crate::swap::Swap;
 

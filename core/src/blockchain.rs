@@ -14,21 +14,35 @@ use thiserror::Error;
 
 use crate::consensus::{self, Decodable, Encodable};
 
-/// Defines the asset identifier for a blockchain and its associated asset unit type.
+/// Defines the type for a blockchain address, this type is used when manipulating transactions.
+pub trait Address {
+    /// Defines the address format for the arbitrating blockchain.
+    type Address: Clone + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
+}
+
+/// Defines the type for a blockchain timelock, this type is used when manipulating transactions
+/// and is carried in the [Offer](crate::negotiation::Offer) to fix the two timelocks.
+pub trait Timelock {
+    /// Defines the type of timelock used for the arbitrating transactions.
+    type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
+}
+
+/// Defines the asset identifier for a blockchain and its associated asset unit type, it is carried
+/// in the [Offer](crate::negotiation::Offer) to fix exchanged amounts.
 pub trait Asset: Copy + Debug + Encodable + Decodable {
-    /// Type for the traded asset unit
+    /// Type for the traded asset unit for a blockchain.
     type AssetUnit: Copy + Debug + Encodable + Decodable;
 
-    /// Create a new blockchain
+    /// Create a new blockchain.
     fn new() -> Self;
 
     /// Parse an 32 bits identifier as defined in [SLIP
     /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
-    /// and return a blockchain if existant
+    /// and return a blockchain if existant.
     fn from_u32(bytes: u32) -> Option<Self>;
 
     /// Return the 32 bits identifier for the blockchain as defined in [SLIP
-    /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
+    /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044).
     fn to_u32(&self) -> u32;
 }
 
@@ -162,8 +176,10 @@ pub enum FeePolitic {
 }
 
 /// Enable fee management for an arbitrating blockchain. This trait require implementing the
-/// Onchain role to have access to transaction associated type and to specify the concrete fee
-/// strategy type to use.
+/// [Onchain] trait to have access to transaction associated type and the [Asset] trait for
+/// returning the amount of fees set on a transaction. The fee is carried in the
+/// [Offer](crate::negotiation::Offer) through a [FeeStrategy] to fix the strategy to apply on
+/// transactions.
 pub trait Fee: Onchain + Asset {
     /// Type for describing the fees of a blockchain
     type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable + PartialEq + Eq;

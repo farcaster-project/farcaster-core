@@ -4,15 +4,15 @@ use std::fmt::Debug;
 use std::io;
 use std::str::FromStr;
 
-use crate::blockchain::{Asset, Fee, FeePolitic, Onchain};
+use crate::blockchain::{Address, Asset, Fee, FeePolitic, Onchain, Timelock};
 use crate::bundle::{
-    AliceSessionParams, BobSessionParams, CosignedArbitratingCancel, FullySignedBuy, SignedAdaptorRefund,
-    SignedArbitratingPunish,
+    AliceSessionParams, BobSessionParams, CosignedArbitratingCancel, FullySignedBuy,
+    SignedAdaptorRefund, SignedArbitratingPunish,
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self, AccordantKey, ArbitratingKey, Commitment, DleqProof, FromSeed, Keys, SharedPrivateKeys,
-    Signatures, Address, Timelock,
+    Signatures,
 };
 use crate::datum;
 use crate::negotiation::PublicOffer;
@@ -198,10 +198,7 @@ pub struct Bob<Ctx: Swap> {
 }
 
 impl<Ctx: Swap> Bob<Ctx> {
-    pub fn new(
-        refund_address: <Ctx::Ar as Address>::Address,
-        fee_politic: FeePolitic,
-    ) -> Self {
+    pub fn new(refund_address: <Ctx::Ar as Address>::Address, fee_politic: FeePolitic) -> Self {
         Self {
             refund_address,
             fee_politic,
@@ -231,9 +228,7 @@ impl<Ctx: Swap> Bob<Ctx> {
                 crypto::ArbitratingKey::Refund,
             )),
             adaptor: datum::Key::new_bob_adaptor(adaptor),
-            refund_address: datum::Parameter::new_destination_address(
-                self.refund_address.clone(),
-            ),
+            refund_address: datum::Parameter::new_destination_address(self.refund_address.clone()),
             view: datum::Key::new_bob_private_view(
                 <Ctx::Ac as SharedPrivateKeys<Acc>>::get_shared_privkey(
                     ac_seed,
@@ -258,9 +253,18 @@ impl<Ctx: Swap> Bob<Ctx> {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Asset + Keys + Commitment + Signatures + Onchain + Fee + FromSeed<Arb> + Clone + Eq + Address + Timelock
+    Asset
+    + Address
+    + Commitment
+    + Fee
+    + FromSeed<Arb>
+    + Keys
+    + Onchain
+    + Signatures
+    + Timelock
+    + Clone
+    + Eq
 {
-
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor

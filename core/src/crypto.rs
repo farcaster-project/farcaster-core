@@ -165,14 +165,3 @@ where
 
     fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> bool;
 }
-
-use crate::consensus::{Encodable, Decodable};
-pub trait Address {
-    /// Defines the address format for the arbitrating blockchain
-    type Address: Clone + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
-}
-
-pub trait Timelock {
-    /// Defines the type of timelock used for the arbitrating transactions
-    type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
-}

@@ -35,16 +35,6 @@ pub struct CommitAliceParameters<Ctx: Swap> {
     pub view: <Ctx::Ac as Commitment>::Commitment,
 }
 
-impl<Ctx> std::fmt::Display for CommitAliceParameters<Ctx>
-where
-    Ctx: Swap,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO
-        write!(f, "{}", self)
-    }
-}
-
 impl<Ctx> CommitAliceParameters<Ctx>
 where
     Ctx: Swap,

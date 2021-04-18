@@ -1,5 +1,6 @@
 //! Protocol messages exchanged between swap daemons
 
+use std::convert::TryInto;
 use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Address, Onchain};
@@ -32,16 +33,6 @@ pub struct CommitAliceParameters<Ctx: Swap> {
     pub spend: <Ctx::Ac as Commitment>::Commitment,
     /// Commitment to `K_s^a` curve point
     pub view: <Ctx::Ac as Commitment>::Commitment,
-}
-
-impl<Ctx> std::fmt::Display for CommitAliceParameters<Ctx>
-where
-    Ctx: Swap,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO
-        write!(f, "{}", self)
-    }
 }
 
 impl<Ctx> CommitAliceParameters<Ctx>
@@ -287,6 +278,17 @@ where
     }
 }
 
+impl<Ctx> TryInto<RevealAliceParameters<Ctx>> for bundle::AliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    type Error = crate::consensus::Error;
+
+    fn try_into(self) -> Result<RevealAliceParameters<Ctx>, Self::Error> {
+        RevealAliceParameters::from_bundle(&self)
+    }
+}
+
 impl<Ctx> ProtocolMessage for RevealAliceParameters<Ctx> where Ctx: Swap {}
 
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
@@ -352,6 +354,17 @@ where
 {
     fn into(self) -> bundle::BobParameters<Ctx> {
         self.into_bundle()
+    }
+}
+
+impl<Ctx> TryInto<RevealBobParameters<Ctx>> for bundle::BobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    type Error = crate::consensus::Error;
+
+    fn try_into(self) -> Result<RevealBobParameters<Ctx>, Self::Error> {
+        RevealBobParameters::from_bundle(&self)
     }
 }
 

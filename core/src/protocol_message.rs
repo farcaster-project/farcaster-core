@@ -402,7 +402,7 @@ where
         })
     }
 
-    pub fn into_core_transaction_bundle(&self) -> bundle::CoreArbitratingTransactions<Ctx::Ar> {
+    pub fn into_core_transactions(&self) -> bundle::CoreArbitratingTransactions<Ctx::Ar> {
         bundle::CoreArbitratingTransactions {
             lock: datum::Transaction::new_lock(self.lock.clone()),
             cancel: datum::Transaction::new_cancel(self.cancel.clone()),
@@ -433,6 +433,44 @@ pub struct RefundProcedureSignatures<Ctx: Swap> {
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
     /// The `Ar(Tb)` `refund (e)` adaptor signature
     pub refund_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
+}
+
+impl<Ctx> RefundProcedureSignatures<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundles(
+        sig: &bundle::CosignedArbitratingCancel<Ctx::Ar>,
+        adaptor_sig: &bundle::SignedAdaptorRefund<Ctx::Ar>,
+    ) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            cancel_sig: sig.cancel_sig.signature().try_into_regular()?,
+            refund_adaptor_sig: adaptor_sig
+                .refund_adaptor_sig
+                .signature()
+                .try_into_adaptor()?,
+        })
+    }
+
+    pub fn into_cosigned_cancel(&self) -> bundle::CosignedArbitratingCancel<Ctx::Ar> {
+        bundle::CosignedArbitratingCancel {
+            cancel_sig: datum::Signature::new(
+                TxId::Cancel,
+                SwapRole::Alice,
+                SignatureType::Regular(self.cancel_sig.clone()),
+            ),
+        }
+    }
+
+    pub fn into_adaptor_refund(&self) -> bundle::SignedAdaptorRefund<Ctx::Ar> {
+        bundle::SignedAdaptorRefund {
+            refund_adaptor_sig: datum::Signature::new(
+                TxId::Refund,
+                SwapRole::Alice,
+                SignatureType::Adaptor(self.refund_adaptor_sig.clone()),
+            ),
+        }
+    }
 }
 
 impl<Ctx> ProtocolMessage for RefundProcedureSignatures<Ctx> where Ctx: Swap {}

@@ -79,6 +79,32 @@ where
     Regular(S::Signature),
 }
 
+impl<S> SignatureType<S>
+where
+    S: Signatures,
+{
+    pub fn try_into_adaptor(&self) -> Result<S::AdaptorSignature, consensus::Error> {
+        match self {
+            SignatureType::Adaptor(sig) => Ok(sig.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_adapted(&self) -> Result<S::Signature, consensus::Error> {
+        match self {
+            SignatureType::Adapted(sig) => Ok(sig.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_regular(&self) -> Result<S::Signature, consensus::Error> {
+        match self {
+            SignatureType::Regular(sig) => Ok(sig.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ArbitratingKey {
     Fund,

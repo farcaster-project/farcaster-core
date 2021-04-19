@@ -264,7 +264,7 @@ impl Signatures for Bitcoin {
 impl FromSeed<Arb> for Bitcoin {
     type Seed = [u8; 32];
 
-    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PublicKey {
+    fn get_privkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PrivateKey {
         let secp = Secp256k1::new();
         let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref()).unwrap();
         let key = match key_type {
@@ -284,6 +284,11 @@ impl FromSeed<Arb> for Bitcoin {
                 .derive_priv(&secp, &DerivationPath::from_str("m/0/1/5").unwrap())
                 .unwrap(),
         };
-        key.private_key.public_key(&secp)
+        key.private_key
+    }
+
+    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PublicKey {
+        let secp = Secp256k1::new();
+        Self::get_privkey(&seed, key_type).public_key(&secp)
     }
 }

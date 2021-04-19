@@ -18,6 +18,9 @@ where
     /// Extract the transaction in the defined partial format on the arbitrating blockchain. The
     /// partial format is used to exchange unsigned or patially signed transactions.
     fn to_partial(&self) -> T::PartialTransaction;
+
+    /// Construct the transaction type from a deserialized partial transaction.
+    fn from_partial(partial: &T::PartialTransaction) -> Self;
 }
 
 /// Defines the transaction IDs for serialization and network communication.
@@ -161,7 +164,7 @@ where
 }
 
 /// Defines a transaction where the consumable output has two paths: a successful path and a
-/// failure path and generate witneesses for the second path.
+/// failure path and generate witnesses for the second path.
 pub trait Forkable<T, E>
 where
     T: Keys + Signatures,

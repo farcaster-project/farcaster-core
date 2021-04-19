@@ -97,6 +97,13 @@ where
     fn to_partial(&self) -> PartiallySignedTransaction {
         self.psbt.clone()
     }
+
+    fn from_partial(partial: &PartiallySignedTransaction) -> Self {
+        Self {
+            psbt: partial.clone(),
+            _t: PhantomData,
+        }
+    }
 }
 
 impl<T> Finalizable<Error> for Tx<T>

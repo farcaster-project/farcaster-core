@@ -13,13 +13,13 @@ use crate::bundle::{
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self, AccordantKey, ArbitratingKey, Commitment, DleqProof, FromSeed, Keys, SharedPrivateKeys,
-    Signatures,
+    SignatureType, Signatures,
 };
 use crate::datum;
 use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys};
 use crate::swap::Swap;
-use crate::transaction::{Cancelable, Fundable, Lockable, Refundable, Transaction};
+use crate::transaction::{Cancelable, Forkable, Fundable, Lockable, Refundable, Transaction, TxId};
 use crate::Error;
 
 /// Defines the possible roles during the negotiation phase. Any negotiation role can transition
@@ -370,8 +370,28 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    pub fn cosign_arbitrating_cancel(&self) -> CosignedArbitratingCancel<Ctx::Ar> {
-        todo!()
+    pub fn cosign_arbitrating_cancel(
+        &self,
+        ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        core_arbitrating: &CoreArbitratingTransactions<Ctx::Ar>,
+    ) -> Result<CosignedArbitratingCancel<Ctx::Ar>, Error> {
+        let partial_cancel = core_arbitrating
+            .cancel
+            .tx()
+            .try_into_partial_transaction()?;
+        let mut cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(&partial_cancel);
+
+        let privkey =
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Cancel);
+        let sig = cancel.generate_failure_witness(&privkey).unwrap(); // FIXME unwrap
+
+        Ok(CosignedArbitratingCancel {
+            cancel_sig: datum::Signature::new(
+                TxId::Cancel,
+                SwapRole::Bob,
+                SignatureType::Regular(sig),
+            ),
+        })
     }
 
     pub fn sign_adaptor_buy(&self) -> SignedAdaptorBuy<Ctx::Ar> {

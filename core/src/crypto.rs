@@ -119,6 +119,8 @@ where
     /// Type of seed received as input
     type Seed;
 
+    fn get_privkey(seed: &Self::Seed, key_type: T::KeyList) -> Self::PrivateKey;
+
     fn get_pubkey(seed: &Self::Seed, key_type: T::KeyList) -> Self::PublicKey;
 }
 

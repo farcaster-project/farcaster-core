@@ -19,7 +19,9 @@ use crate::datum;
 use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys};
 use crate::swap::Swap;
-use crate::transaction::{Cancelable, Forkable, Fundable, Lockable, Refundable, Transaction, TxId};
+use crate::transaction::{
+    AdaptorSignable, Cancelable, Forkable, Fundable, Lockable, Refundable, Transaction, TxId,
+};
 use crate::Error;
 
 /// Defines the possible roles during the negotiation phase. Any negotiation role can transition
@@ -174,8 +176,33 @@ where
         }
     }
 
-    pub fn sign_adaptor_refund(&self) -> SignedAdaptorRefund<Ctx::Ar> {
-        todo!()
+    pub fn sign_adaptor_refund(
+        &self,
+        ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        bob_parameters: &BobParameters<Ctx>,
+        core_arbitrating: &CoreArbitratingTransactions<Ctx::Ar>,
+    ) -> Result<SignedAdaptorRefund<Ctx::Ar>, Error> {
+        let partial_refund = core_arbitrating
+            .refund
+            .tx()
+            .try_into_partial_transaction()?;
+        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
+        let mut refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(&partial_refund);
+
+        // TODO verify transaction before signing
+
+        let adaptor = bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?;
+        let privkey =
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Refund);
+        let sig = refund.generate_adaptor_witness(&privkey, &adaptor).unwrap(); // FIXME unwrap
+
+        Ok(SignedAdaptorRefund {
+            refund_adaptor_sig: datum::Signature::new(
+                TxId::Refund,
+                SwapRole::Alice,
+                SignatureType::Adaptor(sig),
+            ),
+        })
     }
 
     pub fn cosign_arbitrating_cancel(&self) -> CosignedArbitratingCancel<Ctx::Ar> {

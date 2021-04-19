@@ -564,8 +564,44 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    pub fn fully_sign_refund(&self) -> Result<FullySignedRefund<Ctx::Ar>, Error> {
-        todo!()
+    pub fn fully_sign_refund(
+        &self,
+        ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        ac_seed: &<Ctx::Ac as FromSeed<Acc>>::Seed,
+        core: CoreArbitratingTransactions<Ctx::Ar>,
+        signed_adaptor_refund: &SignedAdaptorRefund<Ctx::Ar>,
+    ) -> Result<FullySignedRefund<Ctx::Ar>, Error> {
+        let partial_refund = core.refund.tx().try_into_partial_transaction()?;
+        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
+        let mut refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(&partial_refund);
+
+        // TODO verify adaptor sig (probably before here)
+
+        let privkey =
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Refund);
+        let sig = refund.generate_witness(&privkey).unwrap(); // FIXME unwrap
+
+        let priv_adaptor = <Ctx::Proof as DleqProof<Ctx::Ar, Ctx::Ac>>::project_over(ac_seed);
+        let adapted_sig = <Ctx::Ar as Signatures>::adapt(
+            &priv_adaptor,
+            signed_adaptor_refund
+                .refund_adaptor_sig
+                .signature()
+                .try_into_adaptor()?,
+        )?;
+
+        Ok(FullySignedRefund {
+            refund_sig: datum::Signature::new(
+                TxId::Refund,
+                SwapRole::Bob,
+                SignatureType::Regular(sig),
+            ),
+            refund_adapted_sig: datum::Signature::new(
+                TxId::Refund,
+                SwapRole::Alice,
+                SignatureType::Adapted(adapted_sig),
+            ),
+        })
     }
 
     pub fn recover_accordant_assets(&self) -> Result<(), Error> {

@@ -84,14 +84,15 @@ impl<T> Bundle for CoreArbitratingTransactions<T> where T: Onchain {}
 /// Provides Bob's daemon or Alice's client with an adaptor signature for the unsigned buy (c)
 /// transaction.
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
-pub struct SignedAdaptorBuy<S>
+pub struct SignedAdaptorBuy<T>
 where
-    S: Signatures,
+    T: Signatures + Onchain,
 {
-    pub buy_adaptor_sig: datum::Signature<S>,
+    pub buy: datum::Transaction<T>,
+    pub buy_adaptor_sig: datum::Signature<T>,
 }
 
-impl<S> Bundle for SignedAdaptorBuy<S> where S: Signatures {}
+impl<T> Bundle for SignedAdaptorBuy<T> where T: Signatures + Onchain {}
 
 /// Provides Alice's daemon or Bob's clients with the two signatures on the unsigned buy (c)
 /// transaction.

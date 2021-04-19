@@ -205,8 +205,31 @@ where
         })
     }
 
-    pub fn cosign_arbitrating_cancel(&self) -> CosignedArbitratingCancel<Ctx::Ar> {
-        todo!()
+    pub fn cosign_arbitrating_cancel(
+        &self,
+        ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        core_arbitrating: &CoreArbitratingTransactions<Ctx::Ar>,
+    ) -> Result<CosignedArbitratingCancel<Ctx::Ar>, Error> {
+        let partial_cancel = core_arbitrating
+            .cancel
+            .tx()
+            .try_into_partial_transaction()?;
+        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
+        let mut cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(&partial_cancel);
+
+        // TODO verify transaction before signing
+
+        let privkey =
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Cancel);
+        let sig = cancel.generate_failure_witness(&privkey).unwrap(); // FIXME unwrap
+
+        Ok(CosignedArbitratingCancel {
+            cancel_sig: datum::Signature::new(
+                TxId::Cancel,
+                SwapRole::Alice,
+                SignatureType::Regular(sig),
+            ),
+        })
     }
 
     pub fn fully_sign_buy(&self) -> FullySignedBuy<Ctx::Ar> {
@@ -406,6 +429,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             .cancel
             .tx()
             .try_into_partial_transaction()?;
+        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
         let mut cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(&partial_cancel);
 
         let privkey =

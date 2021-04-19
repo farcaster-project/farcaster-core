@@ -20,8 +20,8 @@ use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys};
 use crate::swap::Swap;
 use crate::transaction::{
-    AdaptorSignable, Buyable, Cancelable, Forkable, Fundable, Lockable, Refundable, Transaction,
-    TxId,
+    AdaptorSignable, Buyable, Cancelable, Forkable, Fundable, Lockable, Refundable, Signable,
+    Transaction, TxId,
 };
 use crate::Error;
 
@@ -233,11 +233,11 @@ where
         })
     }
 
-    pub fn fully_sign_buy(&self) -> FullySignedBuy<Ctx::Ar> {
+    pub fn fully_sign_buy(&self) -> Result<FullySignedBuy<Ctx::Ar>, Error> {
         todo!()
     }
 
-    pub fn sign_arbitrating_punish(&self) -> SignedArbitratingPunish<Ctx::Ar> {
+    pub fn fully_sign_punish(&self) -> Result<SignedArbitratingPunish<Ctx::Ar>, Error> {
         todo!()
     }
 }
@@ -513,11 +513,24 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    pub fn sign_arbitrating_lock(&self) -> SignedArbitratingLock<Ctx::Ar> {
-        todo!()
+    pub fn sign_arbitrating_lock(
+        &self,
+        ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        core_arbitrating: &CoreArbitratingTransactions<Ctx::Ar>,
+    ) -> Result<SignedArbitratingLock<Ctx::Ar>, Error> {
+        let partial_lock = core_arbitrating.lock.tx().try_into_partial_transaction()?;
+        let mut lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(&partial_lock);
+
+        let privkey =
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Fund);
+        let sig = lock.generate_witness(&privkey).unwrap(); // FIXME unwrap
+
+        Ok(SignedArbitratingLock {
+            lock_sig: datum::Signature::new(TxId::Lock, SwapRole::Bob, SignatureType::Regular(sig)),
+        })
     }
 
-    pub fn fully_sign_refund(&self) -> FullySignedRefund<Ctx::Ar> {
+    pub fn fully_sign_refund(&self) -> Result<FullySignedRefund<Ctx::Ar>, Error> {
         todo!()
     }
 }

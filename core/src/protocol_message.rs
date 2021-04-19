@@ -487,6 +487,51 @@ pub struct BuyProcedureSignature<Ctx: Swap> {
     pub buy_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
 }
 
+impl<Ctx> BuyProcedureSignature<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundle(
+        bundle: &bundle::SignedAdaptorBuy<Ctx::Ar>,
+    ) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: bundle.buy.tx().try_into_partial_transaction()?,
+            buy_adaptor_sig: bundle.buy_adaptor_sig.signature().try_into_adaptor()?,
+        })
+    }
+
+    pub fn into_bundle(&self) -> bundle::SignedAdaptorBuy<Ctx::Ar> {
+        bundle::SignedAdaptorBuy {
+            buy: datum::Transaction::new_buy(self.buy.clone()),
+            buy_adaptor_sig: datum::Signature::new(
+                TxId::Buy,
+                SwapRole::Bob,
+                SignatureType::Adaptor(self.buy_adaptor_sig.clone()),
+            ),
+        }
+    }
+}
+
+impl<Ctx> Into<bundle::SignedAdaptorBuy<Ctx::Ar>> for BuyProcedureSignature<Ctx>
+where
+    Ctx: Swap,
+{
+    fn into(self) -> bundle::SignedAdaptorBuy<Ctx::Ar> {
+        self.into_bundle()
+    }
+}
+
+impl<Ctx> TryInto<BuyProcedureSignature<Ctx>> for bundle::SignedAdaptorBuy<Ctx::Ar>
+where
+    Ctx: Swap,
+{
+    type Error = consensus::Error;
+
+    fn try_into(self) -> Result<BuyProcedureSignature<Ctx>, consensus::Error> {
+        BuyProcedureSignature::from_bundle(&self)
+    }
+}
+
 impl<Ctx> ProtocolMessage for BuyProcedureSignature<Ctx> where Ctx: Swap {}
 
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty

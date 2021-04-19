@@ -190,13 +190,18 @@ pub trait Commitment {
 
 /// This trait is required for arbitrating blockchains for fixing the types of signatures and
 /// adaptor signatures.
-pub trait Signatures {
+pub trait Signatures: Keys {
     /// Defines the signature format for the arbitrating blockchain
     type Signature: Clone + Debug + StrictEncode + StrictDecode;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic primitives used.
     type AdaptorSignature: Clone + Debug + StrictEncode + StrictDecode;
+
+    /// Finalize an adaptor signature into an adapted signature following the regular signature
+    /// format.
+    fn adapt(key: &Self::PrivateKey, sig: Self::AdaptorSignature)
+        -> Result<Self::Signature, Error>;
 }
 
 /// Define a proving system to link two different blockchain cryptographic group parameters.
@@ -205,6 +210,8 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
+    fn project_over(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> Ar::PrivateKey;
+
     fn generate(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> (Ac::PublicKey, Ar::PublicKey, Self);
 
     fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> Result<(), Error>;

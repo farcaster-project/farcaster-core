@@ -22,4 +22,6 @@ pub mod version;
 pub enum Error {
     #[error("Consensus error: {0}")]
     Consensus(#[from] consensus::Error),
+    #[error("Cryptographic error: {0}")]
+    Crypto(#[from] crypto::Error),
 }

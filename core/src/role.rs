@@ -233,8 +233,38 @@ where
         })
     }
 
-    pub fn fully_sign_buy(&self) -> Result<FullySignedBuy<Ctx::Ar>, Error> {
-        todo!()
+    pub fn fully_sign_buy(
+        &self,
+        ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        ac_seed: &<Ctx::Ac as FromSeed<Acc>>::Seed,
+        signed_adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
+    ) -> Result<FullySignedBuy<Ctx::Ar>, Error> {
+        let partial_buy = signed_adaptor_buy.buy.tx().try_into_partial_transaction()?;
+        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
+        let mut buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(&partial_buy);
+
+        // TODO verify transaction before signing
+
+        let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Buy);
+        let sig = buy.generate_witness(&privkey).unwrap(); // FIXME unwrap
+
+        let priv_adaptor = <Ctx::Proof as DleqProof<Ctx::Ar, Ctx::Ac>>::project_over(ac_seed);
+        let adapted_sig = <Ctx::Ar as Signatures>::adapt(
+            &priv_adaptor,
+            signed_adaptor_buy
+                .buy_adaptor_sig
+                .signature()
+                .try_into_adaptor()?,
+        )?;
+
+        Ok(FullySignedBuy {
+            buy_sig: datum::Signature::new(TxId::Buy, SwapRole::Alice, SignatureType::Regular(sig)),
+            buy_adapted_sig: datum::Signature::new(
+                TxId::Buy,
+                SwapRole::Bob,
+                SignatureType::Adapted(adapted_sig),
+            ),
+        })
     }
 
     pub fn fully_sign_punish(&self) -> Result<SignedArbitratingPunish<Ctx::Ar>, Error> {

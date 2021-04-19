@@ -259,6 +259,13 @@ impl Commitment for Bitcoin {
 impl Signatures for Bitcoin {
     type Signature = Signature;
     type AdaptorSignature = ECDSAAdaptorSig;
+
+    fn adapt(
+        _key: &PrivateKey,
+        _sig: ECDSAAdaptorSig,
+    ) -> Result<Signature, farcaster_core::crypto::Error> {
+        todo!()
+    }
 }
 
 impl FromSeed<Arb> for Bitcoin {

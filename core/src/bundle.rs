@@ -145,11 +145,12 @@ impl<S> Bundle for SignedArbitratingLock<S> where S: Signatures {}
 
 /// Provides Alice's daemon with the signature on the unsigned punish (f) transaction.
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
-pub struct SignedArbitratingPunish<S>
+pub struct FullySignedPunish<T>
 where
-    S: Signatures,
+    T: Signatures + Onchain,
 {
-    pub punish_sig: datum::Signature<S>,
+    pub punish: datum::Transaction<T>,
+    pub punish_sig: datum::Signature<T>,
 }
 
-impl<S> Bundle for SignedArbitratingPunish<S> where S: Signatures {}
+impl<T> Bundle for FullySignedPunish<T> where T: Signatures + Onchain {}

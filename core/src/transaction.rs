@@ -66,35 +66,25 @@ impl Decodable for TxId {
     }
 }
 
-/// Must be implemented on transactions with failable opperations.
-pub trait Failable {
-    /// Errors returned by the failable methods.
-    type Error: Debug;
-}
-
 /// Transaction that requries multiple participants to construct and finalize the transaction.
-pub trait Cooperable<T>: Failable
+pub trait Cooperable<T, E>
 where
     T: Keys + Signatures,
     Self: Sized,
 {
     /// Add a cooperation to the transaction and store it internally for later usage.
-    fn add_cooperation(
-        &mut self,
-        pubkey: T::PublicKey,
-        sig: T::Signature,
-    ) -> Result<(), Self::Error>;
+    fn add_cooperation(&mut self, pubkey: T::PublicKey, sig: T::Signature) -> Result<(), E>;
 }
 
 /// Define a transaction that must have a finalization step.
-pub trait Finalizable: Failable {
+pub trait Finalizable<E> {
     /// Finalize the internal transaction and make it ready for extraction.
-    fn finalize(&mut self) -> Result<(), Self::Error>;
+    fn finalize(&mut self) -> Result<(), E>;
 }
 
 /// Define a transaction broadcastable by the system. Externally managed transaction are not
 /// broadcastable.
-pub trait Broadcastable<T>: Failable + Finalizable
+pub trait Broadcastable<T, E>: Finalizable<E>
 where
     T: Onchain,
     Self: Sized,
@@ -107,7 +97,7 @@ where
     fn extract(&self) -> T::Transaction;
 
     /// Finalize the internal transaction and extract it, ready to be broadcasted.
-    fn finalize_and_extract(&mut self) -> Result<T::Transaction, Self::Error> {
+    fn finalize_and_extract(&mut self) -> Result<T::Transaction, E> {
         // TODO maybe do more validation based on other traits
         self.finalize()?;
         Ok(self.extract())
@@ -116,15 +106,14 @@ where
 
 /// Implemented by transactions that can be link to form chains of logic. A linkable transaction
 /// can provide the data needed for other transaction to safely build on top of it.
-pub trait Linkable: Failable
+///
+/// `O`, the returned type of the consumable output, used to reference the funds and chain other
+/// transactions on it. This must contain all necessary data to latter create a valid unlocking
+/// witness for the output.
+pub trait Linkable<O, E>
 where
     Self: Sized,
 {
-    /// Returned type of the consumable output, used to reference the funds and chain other
-    /// transactions on it. This must contain all necessary data to latter create a valid unlocking
-    /// witness for the output.
-    type Output;
-
     /// Return the consumable output of this transaction. The output does not contain the witness
     /// data allowing spending the output, only the data that points to the consumable output and
     /// the data necessary to produce a valid unlocking witness.
@@ -132,29 +121,25 @@ where
     /// This correspond to data an "updater" such as defined in BIP 174 can use to update a
     /// partial transaction. This is used to get all data needed to describe this output as an
     /// input in another transaction.
-    fn get_consumable_output(&self) -> Result<Self::Output, Self::Error>;
+    fn get_consumable_output(&self) -> Result<O, E>;
 }
 
 /// Implemented on transactions that can be signed by a normal private key and generate/validate a
 /// valid signature.
-pub trait Signable<T>: Failable
+pub trait Signable<T, E>
 where
     T: Keys + Signatures,
     Self: Sized,
 {
     /// Generate the witness to unlock the default path of the locked asset.
-    fn generate_witness(&mut self, privkey: &T::PrivateKey) -> Result<T::Signature, Self::Error>;
+    fn generate_witness(&mut self, privkey: &T::PrivateKey) -> Result<T::Signature, E>;
 
     /// Verify that the signature is valid to unlock the default path of the locked asset.
-    fn verify_witness(
-        &mut self,
-        pubkey: &T::PublicKey,
-        sig: T::Signature,
-    ) -> Result<(), Self::Error>;
+    fn verify_witness(&mut self, pubkey: &T::PublicKey, sig: T::Signature) -> Result<(), E>;
 }
 
 /// Implemented on transactions that can be signed by a private key and an adaptor key.
-pub trait AdaptorSignable<T>: Failable
+pub trait AdaptorSignable<T, E>
 where
     T: Keys + Signatures,
     Self: Sized,
@@ -164,7 +149,7 @@ where
         &mut self,
         privkey: &T::PrivateKey,
         adaptor: &T::PublicKey,
-    ) -> Result<T::AdaptorSignature, Self::Error>;
+    ) -> Result<T::AdaptorSignature, E>;
 
     /// Verify that the adaptor signature is valid to unlock the default path of the locked asset.
     fn verify_adaptor_witness(
@@ -172,56 +157,50 @@ where
         pubkey: &T::PublicKey,
         adaptor: &T::PublicKey,
         sig: T::AdaptorSignature,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), E>;
 }
 
 /// Defines a transaction where the consumable output has two paths: a successful path and a
 /// failure path and generate witneesses for the second path.
-pub trait Forkable<T>: Failable
+pub trait Forkable<T, E>
 where
     T: Keys + Signatures,
     Self: Sized,
 {
     /// Generates the witness used to unlock the second path of the asset lock, i.e. the failure
     /// path.
-    fn generate_failure_witness(
-        &mut self,
-        privkey: &T::PrivateKey,
-    ) -> Result<T::Signature, Self::Error>;
+    fn generate_failure_witness(&mut self, privkey: &T::PrivateKey) -> Result<T::Signature, E>;
 
     /// Verify that the signature is valid to unlock the second path of of the locked asset, i.e.
     /// the failure path.
-    fn verify_failure_witness(
-        &mut self,
-        pubkey: &T::PublicKey,
-        sig: T::Signature,
-    ) -> Result<(), Self::Error>;
+    fn verify_failure_witness(&mut self, pubkey: &T::PublicKey, sig: T::Signature)
+        -> Result<(), E>;
 }
 
 /// Fundable is NOT a transaction generated by this library but the funds that arrived in the
 /// generated address are controlled by the system. This trait allows to inject assets in the
 /// system.
-pub trait Fundable<T>: Linkable + Failable
+pub trait Fundable<T, O, E>: Linkable<O, E>
 where
     T: Address + Keys + Signatures + Onchain,
     Self: Sized,
 {
     /// Create a new funding 'output', or equivalent depending on the blockchain and the
     /// cryptographic engine.
-    fn initialize(pubkey: T::PublicKey, network: Network) -> Result<Self, Self::Error>;
+    fn initialize(pubkey: T::PublicKey, network: Network) -> Result<Self, E>;
 
     /// Return the address to use for the funding.
-    fn get_address(&self) -> Result<T::Address, Self::Error>;
+    fn get_address(&self) -> Result<T::Address, E>;
 
     /// Update the transaction, this is used to update the data when the funding transaction is
     /// seen on-chain.
     ///
     /// This function is needed because we assume that the transaction is created outside of the
     /// system by an external wallet, the txid is not known in advance.
-    fn update(&mut self, tx: T::Transaction) -> Result<(), Self::Error>;
+    fn update(&mut self, tx: T::Transaction) -> Result<(), E>;
 
     /// Create a raw funding structure based only on the transaction seen on-chain.
-    fn raw(tx: T::Transaction) -> Result<Self, Self::Error>;
+    fn raw(tx: T::Transaction) -> Result<Self, E>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {
@@ -231,15 +210,12 @@ where
 
 /// Represent a lockable transaction such as the `lock (b)` transaction that consumes the `funding
 /// (a)` transaction and creates the scripts used by `buy (c)` and `cancel (d)` transactions.
-pub trait Lockable<T>:
-    Transaction<T> + Signable<T> + Broadcastable<T> + Linkable + Failable
+pub trait Lockable<T, O, E>:
+    Transaction<T> + Signable<T, E> + Broadcastable<T, E> + Linkable<O, E>
 where
     T: Keys + Address + Timelock + Signatures + Fee,
     Self: Sized,
 {
-    /// Defines what type the funding transaction must return when creating an output.
-    type Input;
-
     /// Creates a new `lock (b)` transaction based on the `funding (a)` transaction and the data
     /// needed for creating the lock primitive (i.e. the timelock and the keys). Return a new `lock
     /// (b)` transaction.
@@ -247,11 +223,11 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Fundable<T, Output = Self::Input, Error = Self::Error>,
+        prev: &impl Fundable<T, O, E>,
         lock: script::DataLock<T>,
         fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, E>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {
@@ -263,21 +239,17 @@ where
 /// transaction and transfer the funds to the buyer while revealing the secret needed to the seller
 /// to take ownership of the counter-party funds. This transaction becomes available directly after
 /// `lock (b)` but should be broadcasted only when `lock (b)` is finalized on-chain.
-pub trait Buyable<T>:
+pub trait Buyable<T, O, E>:
     Transaction<T>
-    + Signable<T>
-    + AdaptorSignable<T>
-    + Broadcastable<T>
-    + Linkable
-    + Cooperable<T>
-    + Failable
+    + Signable<T, E>
+    + AdaptorSignable<T, E>
+    + Broadcastable<T, E>
+    + Linkable<O, E>
+    + Cooperable<T, E>
 where
     T: Keys + Address + Timelock + Fee + Signatures,
     Self: Sized,
 {
-    /// Defines what type the lock transaction must return when creating an output.
-    type Input;
-
     /// Creates a new `buy (c)` transaction based on the `lock (b)` transaction and the data needed
     /// for sending the funds to the buyer (i.e. the destination address). Return a new `buy (c)`
     /// transaction.
@@ -285,12 +257,12 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Lockable<T, Output = Self::Input, Error = Self::Error>,
+        prev: &impl Lockable<T, O, E>,
         lock: script::DataLock<T>,
         destination_target: T::Address,
         fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, E>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {
@@ -302,15 +274,12 @@ where
 /// (b)` transaction and creates a new punishable lock, i.e. a lock with a consensus path and an
 /// unilateral path available after some defined timelaps. This transaction becomes available after
 /// the define timelock in `lock (b)`.
-pub trait Cancelable<T>:
-    Transaction<T> + Forkable<T> + Broadcastable<T> + Linkable + Cooperable<T> + Failable
+pub trait Cancelable<T, O, E>:
+    Transaction<T> + Forkable<T, E> + Broadcastable<T, E> + Linkable<O, E> + Cooperable<T, E>
 where
     T: Keys + Address + Timelock + Fee + Signatures,
     Self: Sized,
 {
-    /// Defines what type the lock transaction must return when creating an output.
-    type Input;
-
     /// Creates a new `cancel (d)` transaction based on the `lock (b)` transaction and the data
     /// needed for creating the lock primitive (i.e. the timelock and the keys). Return a new
     /// `cancel (d)` transaction.
@@ -318,12 +287,12 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Lockable<T, Output = Self::Input, Error = Self::Error>,
+        prev: &impl Lockable<T, O, E>,
         lock: script::DataLock<T>,
         punish_lock: script::DataPunishableLock<T>,
         fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, E>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {
@@ -334,21 +303,17 @@ where
 /// Represent a refundable transaction such as the `refund (e)` transaction that consumes the
 /// `cancel (d)` transaction and send the money to its original owner. This transaction is directly
 /// available but should be broadcasted only after 'finalization' of `cancel (d)` on-chain.
-pub trait Refundable<T>:
+pub trait Refundable<T, O, E>:
     Transaction<T>
-    + Signable<T>
-    + AdaptorSignable<T>
-    + Broadcastable<T>
-    + Linkable
-    + Cooperable<T>
-    + Failable
+    + Signable<T, E>
+    + AdaptorSignable<T, E>
+    + Broadcastable<T, E>
+    + Linkable<O, E>
+    + Cooperable<T, E>
 where
     T: Keys + Address + Timelock + Fee + Signatures,
     Self: Sized,
 {
-    /// Defines what type the lock transaction must return when creating an output.
-    type Input;
-
     /// Creates a new `refund (e)` transaction based on the `cancel (d)` transaction and the data
     /// needed for refunding the funds (i.e. the refund address). Return a new `refund (e)`
     /// transaction.
@@ -356,12 +321,12 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Cancelable<T, Output = Self::Input, Error = Self::Error>,
+        prev: &impl Cancelable<T, O, E>,
         punish_lock: script::DataPunishableLock<T>,
         refund_target: T::Address,
         fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, E>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {
@@ -374,15 +339,12 @@ where
 /// not reveal the secret needed to unlock the counter-party funds, effectivelly punishing the
 /// missbehaving participant.  This transaction becomes available after the define timelock in
 /// `cancel (d)`.
-pub trait Punishable<T>:
-    Transaction<T> + Forkable<T> + Broadcastable<T> + Linkable + Failable
+pub trait Punishable<T, O, E>:
+    Transaction<T> + Forkable<T, E> + Broadcastable<T, E> + Linkable<O, E>
 where
     T: Keys + Address + Timelock + Fee + Signatures,
     Self: Sized,
 {
-    /// Defines what type the lock transaction must return when creating an output.
-    type Input;
-
     /// Creates a new `punish (f)` transaction based on the `cancel (d)` transaction and the data
     /// needed for punishing the counter-party (i.e. the same address as the buyer). Return a new
     /// `punish (f)` transaction.
@@ -390,12 +352,12 @@ where
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
     fn initialize(
-        prev: &impl Cancelable<T, Output = Self::Input, Error = Self::Error>,
+        prev: &impl Cancelable<T, O, E>,
         punish_lock: script::DataPunishableLock<T>,
         destination_target: T::Address,
         fee_strategy: &FeeStrategy<T::FeeUnit>,
         fee_politic: FeePolitic,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, E>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {

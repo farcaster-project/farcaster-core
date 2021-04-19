@@ -3,7 +3,7 @@ use bitcoin::network::constants::Network as BtcNetwork;
 use bitcoin::util::key::PublicKey;
 
 use farcaster_core::blockchain::Network;
-use farcaster_core::transaction::{Failable, Fundable, Linkable};
+use farcaster_core::transaction::{Fundable, Linkable};
 
 use crate::bitcoin::transaction::{Error, MetadataOutput};
 use crate::bitcoin::{Address, Bitcoin};
@@ -15,13 +15,7 @@ pub struct Funding {
     seen_tx: Option<Transaction>,
 }
 
-impl Failable for Funding {
-    type Error = Error;
-}
-
-impl Linkable for Funding {
-    type Output = MetadataOutput;
-
+impl Linkable<MetadataOutput, Error> for Funding {
     fn get_consumable_output(&self) -> Result<MetadataOutput, Error> {
         match &self.seen_tx {
             Some(t) => {
@@ -70,7 +64,7 @@ impl Linkable for Funding {
     }
 }
 
-impl Fundable<Bitcoin> for Funding {
+impl Fundable<Bitcoin, MetadataOutput, Error> for Funding {
     fn initialize(pubkey: PublicKey, network: Network) -> Result<Self, Error> {
         Ok(Funding {
             pubkey: Some(pubkey),

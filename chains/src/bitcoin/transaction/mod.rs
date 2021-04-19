@@ -12,7 +12,7 @@ use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 use thiserror::Error;
 
 use farcaster_core::blockchain::FeeStrategyError;
-use farcaster_core::transaction::{Broadcastable, Failable, Finalizable, Linkable, Transaction};
+use farcaster_core::transaction::{Broadcastable, Finalizable, Linkable, Transaction};
 
 use crate::bitcoin::Bitcoin;
 
@@ -90,13 +90,6 @@ pub struct Tx<T: SubTransaction> {
     _t: PhantomData<T>,
 }
 
-impl<T> Failable for Tx<T>
-where
-    T: SubTransaction,
-{
-    type Error = Error;
-}
-
 impl<T> Transaction<Bitcoin> for Tx<T>
 where
     T: SubTransaction,
@@ -106,7 +99,7 @@ where
     }
 }
 
-impl<T> Finalizable for Tx<T>
+impl<T> Finalizable<Error> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -115,7 +108,7 @@ where
     }
 }
 
-impl<T> Broadcastable<Bitcoin> for Tx<T>
+impl<T> Broadcastable<Bitcoin, Error> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -124,12 +117,10 @@ where
     }
 }
 
-impl<T> Linkable for Tx<T>
+impl<T> Linkable<MetadataOutput, Error> for Tx<T>
 where
     T: SubTransaction,
 {
-    type Output = MetadataOutput;
-
     fn get_consumable_output(&self) -> Result<MetadataOutput, Error> {
         match self.psbt.global.unsigned_tx.output.len() {
             1 => (),

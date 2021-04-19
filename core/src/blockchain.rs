@@ -79,18 +79,26 @@ pub trait Onchain {
 /// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
 /// [Buyable], [Cancelable], [Refundable], and [Punishable] transactions.
 pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
+    /// The returned type of the consumable output, used to reference the funds and chain other
+    /// transactions on it. This must contain all necessary data to latter create a valid unlocking
+    /// witness for the output.
+    type Metadata;
+
+    /// Errors returned by any failable methods when manipulating transactions.
+    type Error;
+
     /// Defines the type for the `funding (a)` transaction
-    type Funding: Fundable<Self>;
+    type Funding: Fundable<Self, Self::Metadata, Self::Error>;
     /// Defines the type for the `lock (b)` transaction
-    type Lock: Lockable<Self>;
+    type Lock: Lockable<Self, Self::Metadata, Self::Error>;
     /// Defines the type for the `buy (c)` transaction
-    type Buy: Buyable<Self>;
+    type Buy: Buyable<Self, Self::Metadata, Self::Error>;
     /// Defines the type for the `cancel (d)` transaction
-    type Cancel: Cancelable<Self>;
+    type Cancel: Cancelable<Self, Self::Metadata, Self::Error>;
     /// Defines the type for the `refund (e)` transaction
-    type Refund: Refundable<Self>;
+    type Refund: Refundable<Self, Self::Metadata, Self::Error>;
     /// Defines the type for the `punish (f)` transaction
-    type Punish: Punishable<Self>;
+    type Punish: Punishable<Self, Self::Metadata, Self::Error>;
 }
 
 impl<T> FromStr for FeeStrategy<T>

@@ -19,12 +19,9 @@ impl SubTransaction for Punish {
     }
 }
 
-impl Punishable<Bitcoin> for Tx<Punish> {
-    /// Type returned by the impl of a Lock tx
-    type Input = MetadataOutput;
-
+impl Punishable<Bitcoin, MetadataOutput, Error> for Tx<Punish> {
     fn initialize(
-        _prev: &impl Cancelable<Bitcoin, Output = MetadataOutput>,
+        _prev: &impl Cancelable<Bitcoin, MetadataOutput, Error>,
         _punish_lock: script::DataPunishableLock<Bitcoin>,
         _destination_target: Address,
         _fee_strategy: &FeeStrategy<SatPerVByte>,
@@ -34,7 +31,7 @@ impl Punishable<Bitcoin> for Tx<Punish> {
     }
 }
 
-impl Forkable<Bitcoin> for Tx<Punish> {
+impl Forkable<Bitcoin, Error> for Tx<Punish> {
     fn generate_failure_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }

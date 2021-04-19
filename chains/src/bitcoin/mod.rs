@@ -199,6 +199,10 @@ impl Onchain for Bitcoin {
 }
 
 impl Transactions for Bitcoin {
+    type Metadata = transaction::MetadataOutput;
+
+    type Error = transaction::Error;
+
     type Funding = Funding;
     type Lock = Tx<Lock>;
     type Buy = Tx<Buy>;

@@ -63,7 +63,9 @@ fn create_transaction_datum() {
 
     funding.update(funding_tx_seen.clone()).unwrap();
 
-    let _funding_datum = dbg!(datum::Transaction::<Bitcoin>::new_funding_seen(funding_tx_seen));
+    let _funding_datum = dbg!(datum::Transaction::<Bitcoin>::new_funding_seen(
+        funding_tx_seen
+    ));
 
     let datalock = DataLock {
         timelock: CSVTimelock::new(10),

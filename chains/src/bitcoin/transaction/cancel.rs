@@ -64,12 +64,9 @@ impl SubTransaction for Cancel {
     }
 }
 
-impl Cancelable<Bitcoin> for Tx<Cancel> {
-    /// Type returned by the impl of a Lock tx
-    type Input = MetadataOutput;
-
+impl Cancelable<Bitcoin, MetadataOutput, Error> for Tx<Cancel> {
     fn initialize(
-        prev: &impl Lockable<Bitcoin, Output = MetadataOutput, Error = Error>,
+        prev: &impl Lockable<Bitcoin, MetadataOutput, Error>,
         lock: script::DataLock<Bitcoin>,
         punish_lock: script::DataPunishableLock<Bitcoin>,
         fee_strategy: &FeeStrategy<SatPerVByte>,
@@ -128,7 +125,7 @@ impl Cancelable<Bitcoin> for Tx<Cancel> {
     }
 }
 
-impl Forkable<Bitcoin> for Tx<Cancel> {
+impl Forkable<Bitcoin, Error> for Tx<Cancel> {
     fn generate_failure_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, Error> {
         let mut secp = Secp256k1::new();
 
@@ -167,7 +164,7 @@ impl Forkable<Bitcoin> for Tx<Cancel> {
     }
 }
 
-impl Cooperable<Bitcoin> for Tx<Cancel> {
+impl Cooperable<Bitcoin, Error> for Tx<Cancel> {
     fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), Error> {
         let sighash_type = self.psbt.inputs[0]
             .sighash_type

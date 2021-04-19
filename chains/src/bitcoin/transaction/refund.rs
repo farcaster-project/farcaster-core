@@ -22,12 +22,9 @@ impl SubTransaction for Refund {
     }
 }
 
-impl Refundable<Bitcoin> for Tx<Refund> {
-    /// Type returned by the impl of a Lock tx
-    type Input = MetadataOutput;
-
+impl Refundable<Bitcoin, MetadataOutput, Error> for Tx<Refund> {
     fn initialize(
-        prev: &impl Cancelable<Bitcoin, Output = MetadataOutput, Error = Error>,
+        prev: &impl Cancelable<Bitcoin, MetadataOutput, Error>,
         punish_lock: script::DataPunishableLock<Bitcoin>,
         refund_target: Address,
         fee_strategy: &FeeStrategy<SatPerVByte>,
@@ -66,7 +63,7 @@ impl Refundable<Bitcoin> for Tx<Refund> {
     }
 }
 
-impl Signable<Bitcoin> for Tx<Refund> {
+impl Signable<Bitcoin, Error> for Tx<Refund> {
     fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }
@@ -76,7 +73,7 @@ impl Signable<Bitcoin> for Tx<Refund> {
     }
 }
 
-impl AdaptorSignable<Bitcoin> for Tx<Refund> {
+impl AdaptorSignable<Bitcoin, Error> for Tx<Refund> {
     fn generate_adaptor_witness(
         &mut self,
         _privkey: &PrivateKey,
@@ -95,7 +92,7 @@ impl AdaptorSignable<Bitcoin> for Tx<Refund> {
     }
 }
 
-impl Cooperable<Bitcoin> for Tx<Refund> {
+impl Cooperable<Bitcoin, Error> for Tx<Refund> {
     fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), Error> {
         let sighash_type = self.psbt.inputs[0]
             .sighash_type

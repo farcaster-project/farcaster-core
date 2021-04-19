@@ -94,8 +94,8 @@ impl<T> Transaction<Bitcoin> for Tx<T>
 where
     T: SubTransaction,
 {
-    fn to_partial(&self) -> Option<PartiallySignedTransaction> {
-        Some(self.psbt.clone())
+    fn to_partial(&self) -> PartiallySignedTransaction {
+        self.psbt.clone()
     }
 }
 

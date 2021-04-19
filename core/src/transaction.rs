@@ -17,7 +17,7 @@ where
 {
     /// Extract the transaction in the defined partial format on the arbitrating blockchain. The
     /// partial format is used to exchange unsigned or patially signed transactions.
-    fn to_partial(&self) -> Option<T::PartialTransaction>;
+    fn to_partial(&self) -> T::PartialTransaction;
 }
 
 /// Defines the transaction IDs for serialization and network communication.

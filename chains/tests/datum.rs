@@ -78,7 +78,7 @@ fn create_transaction_datum() {
 
     let lock = Tx::<Lock>::initialize(&funding, datalock.clone(), &fee, politic).unwrap();
 
-    let tx = lock.to_partial().unwrap();
+    let tx = lock.to_partial();
 
     let transaction_datum = dbg!(datum::Transaction::<Bitcoin>::new_lock(tx));
 

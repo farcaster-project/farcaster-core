@@ -85,7 +85,7 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
     type Metadata;
 
     /// Errors returned by any failable methods when manipulating transactions.
-    type Error;
+    type Error: Debug;
 
     /// Defines the type for the `funding (a)` transaction
     type Funding: Fundable<Self, Self::Metadata, Self::Error>;

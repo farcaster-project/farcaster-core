@@ -202,6 +202,9 @@ pub trait Signatures: Keys {
     /// format.
     fn adapt(key: &Self::PrivateKey, sig: Self::AdaptorSignature)
         -> Result<Self::Signature, Error>;
+
+    /// Recover the encryption key based on the adaptor signature and the decrypted signature.
+    fn recover_key(sig: Self::Signature, adapted_sig: Self::AdaptorSignature) -> Self::PrivateKey;
 }
 
 /// Define a proving system to link two different blockchain cryptographic group parameters.

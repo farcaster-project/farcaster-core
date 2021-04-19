@@ -270,6 +270,10 @@ where
     pub fn fully_sign_punish(&self) -> Result<SignedArbitratingPunish<Ctx::Ar>, Error> {
         todo!()
     }
+
+    pub fn recover_accordant_assets(&self) -> Result<(), Error> {
+        todo!()
+    }
 }
 
 /// Bob, the swap role, is the role starting with arbitrating blockchain assets and exchange them
@@ -561,6 +565,10 @@ impl<Ctx: Swap> Bob<Ctx> {
     }
 
     pub fn fully_sign_refund(&self) -> Result<FullySignedRefund<Ctx::Ar>, Error> {
+        todo!()
+    }
+
+    pub fn recover_accordant_assets(&self) -> Result<(), Error> {
         todo!()
     }
 }

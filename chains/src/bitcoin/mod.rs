@@ -266,6 +266,10 @@ impl Signatures for Bitcoin {
     ) -> Result<Signature, farcaster_core::crypto::Error> {
         todo!()
     }
+
+    fn recover_key(_sig: Signature, _adapted_sig: ECDSAAdaptorSig) -> PrivateKey {
+        todo!()
+    }
 }
 
 impl FromSeed<Arb> for Bitcoin {

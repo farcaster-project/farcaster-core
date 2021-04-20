@@ -8,11 +8,9 @@ use bitcoin::secp256k1::{Secp256k1, Signature};
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
 use farcaster_core::transaction::{Cancelable, Error as FError, Forkable, Lockable};
 
-use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{sign_input, Error, MetadataOutput, SubTransaction, Tx, TxInRef};
 use crate::bitcoin::Bitcoin;
 
@@ -75,8 +73,6 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
         prev: &impl Lockable<Bitcoin, MetadataOutput>,
         lock: script::DataLock<Bitcoin>,
         punish_lock: script::DataPunishableLock<Bitcoin>,
-        _fee_strategy: &FeeStrategy<SatPerVByte>,
-        _fee_politic: FeePolitic,
     ) -> Result<Self, FError> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)

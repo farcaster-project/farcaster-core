@@ -6,10 +6,10 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::blockchain::{Address, Fee, FeePolitic, FeeStrategy, Network, Onchain, Timelock};
+use crate::blockchain::{Address, Asset, Fee, Network, Onchain, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{Keys, Signatures};
-use crate::script;
+use crate::script::{DataLock, DataPunishableLock};
 
 /// A list specifying general categories of transaction error.
 #[derive(Error, Debug)]
@@ -29,6 +29,15 @@ pub enum Error {
     /// The transaction has not been seen on-chain yet.
     #[error("The transaction has not been seen on-chain yet")]
     MissingOnchainTransaction,
+    /// The arbitrating targeted amount is invalid.
+    #[error("The targeted amount is invalid")]
+    InvalidTargetAmount,
+    /// Not enough assets to create the transaction.
+    #[error("Not enough assets to create the transaction")]
+    NotEnoughAssets,
+    /// Wrong transaction template.
+    #[error("Wrong transaction template")]
+    WrongTemplate,
     /// Any transaction error not part of this list.
     #[error("Transaction error: {0}")]
     Other(Box<dyn error::Error + Send + Sync>),
@@ -65,6 +74,9 @@ where
     T: Onchain,
     Self: Sized,
 {
+    /// Returns a reference to the inner partial transaction data.
+    fn partial(&self) -> &T::PartialTransaction;
+
     /// Returns a mutable reference to the inner partial transaction data.
     fn partial_mut(&mut self) -> &mut T::PartialTransaction;
 
@@ -154,7 +166,6 @@ where
 
     /// Finalize the internal transaction and extract it, ready to be broadcasted.
     fn finalize_and_extract(&mut self) -> Result<T::Transaction, Error> {
-        // TODO maybe do more validation based on other traits
         self.finalize()?;
         Ok(self.extract())
     }
@@ -271,7 +282,7 @@ where
 pub trait Lockable<T, O>:
     Transaction<T> + Signable<T> + Broadcastable<T> + Linkable<O> + Witnessable<T>
 where
-    T: Keys + Address + Timelock + Signatures + Fee,
+    T: Keys + Address + Timelock + Signatures + Asset + Onchain,
     Self: Sized,
 {
     /// Creates a new `lock (b)` transaction based on the `funding (a)` transaction and the data
@@ -280,12 +291,25 @@ where
     ///
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
+    ///
+    /// # Target Amount
+    ///
+    /// The target amount is used to set the value of the output, the fee strategy is latter
+    /// validated against the freshly created transaction to ensure that fee is valid for the
+    /// transaction. The initialization must return an error if the amount is insufficient.
+    ///
     fn initialize(
         prev: &impl Fundable<T, O>,
-        lock: script::DataLock<T>,
-        fee_strategy: &FeeStrategy<T::FeeUnit>,
-        fee_politic: FeePolitic,
+        lock: DataLock<T>,
+        target_amount: T::AssetUnit,
     ) -> Result<Self, Error>;
+
+    /// Verifies that the transaction is compliant with the protocol requirements and implements
+    /// the correct conditions of the [`DataLock`].
+    fn verify_template(&self, lock: DataLock<T>) -> Result<(), Error>;
+
+    /// Verifies that the available output amount in lock is equal to the target amount.
+    fn verify_target_amount(&self, target_amount: T::AssetUnit) -> Result<(), Error>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxId {
@@ -311,10 +335,8 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Lockable<T, O>,
-        lock: script::DataLock<T>,
+        lock: DataLock<T>,
         destination_target: T::Address,
-        fee_strategy: &FeeStrategy<T::FeeUnit>,
-        fee_politic: FeePolitic,
     ) -> Result<Self, Error>;
 
     /// Return the Farcaster transaction identifier.
@@ -341,10 +363,8 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Lockable<T, O>,
-        lock: script::DataLock<T>,
-        punish_lock: script::DataPunishableLock<T>,
-        fee_strategy: &FeeStrategy<T::FeeUnit>,
-        fee_politic: FeePolitic,
+        lock: DataLock<T>,
+        punish_lock: DataPunishableLock<T>,
     ) -> Result<Self, Error>;
 
     /// Return the Farcaster transaction identifier.
@@ -370,10 +390,8 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Cancelable<T, O>,
-        punish_lock: script::DataPunishableLock<T>,
+        punish_lock: DataPunishableLock<T>,
         refund_target: T::Address,
-        fee_strategy: &FeeStrategy<T::FeeUnit>,
-        fee_politic: FeePolitic,
     ) -> Result<Self, Error>;
 
     /// Return the Farcaster transaction identifier.
@@ -401,10 +419,8 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Cancelable<T, O>,
-        punish_lock: script::DataPunishableLock<T>,
+        punish_lock: DataPunishableLock<T>,
         destination_target: T::Address,
-        fee_strategy: &FeeStrategy<T::FeeUnit>,
-        fee_politic: FeePolitic,
     ) -> Result<Self, Error>;
 
     /// Return the Farcaster transaction identifier.

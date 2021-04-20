@@ -25,6 +25,8 @@ macro_rules! setup_txs {
         let address = funding.get_address().unwrap();
 
         let funding_tx_seen = fund_address!(address.as_ref());
+        // Minimum of fee of 122 sat
+        let target_amount = Amount::from_sat(funding_tx_seen.output[0].value - 122);
 
         funding.update(funding_tx_seen).unwrap();
 
@@ -37,10 +39,10 @@ macro_rules! setup_txs {
         let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
         let politic = FeePolitic::Aggressive;
 
-        let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), &fee, politic).unwrap();
+        let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), target_amount).unwrap();
 
-        // Set the fees according to the given strategy
-        Bitcoin::set_fees(lock.partial_mut(), &fee, politic).unwrap();
+        // Validate that the fee follows the strategy
+        // TODO Bitcoin::validate_fee(lock.partial(), &fee).unwrap();
 
         //
         // Create cancel tx
@@ -52,27 +54,20 @@ macro_rules! setup_txs {
         };
 
         let mut cancel =
-            Tx::<Cancel>::initialize(&lock, datalock, datapunishablelock.clone(), &fee, politic)
-                .unwrap();
+            Tx::<Cancel>::initialize(&lock, datalock, datapunishablelock.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fees(cancel.partial_mut(), &fee, politic).unwrap();
+        Bitcoin::set_fee(cancel.partial_mut(), &fee, politic).unwrap();
 
         //
         // Create refund tx
         //
         let (new_address, _, _) = new_address!();
-        let mut refund = Tx::<Refund>::initialize(
-            &cancel,
-            datapunishablelock,
-            new_address.into(),
-            &fee,
-            politic,
-        )
-        .unwrap();
+        let mut refund =
+            Tx::<Refund>::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fees(refund.partial_mut(), &fee, politic).unwrap();
+        Bitcoin::set_fee(refund.partial_mut(), &fee, politic).unwrap();
 
         //
         // Co-Sign cancel

@@ -5,13 +5,11 @@ use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
 use farcaster_core::transaction::{
     AdaptorSignable, Cancelable, Error as FError, Refundable, Signable,
 };
 
-use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::{Address, Bitcoin, ECDSAAdaptorSig};
 
@@ -29,8 +27,6 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
         prev: &impl Cancelable<Bitcoin, MetadataOutput>,
         punish_lock: script::DataPunishableLock<Bitcoin>,
         refund_target: Address,
-        _fee_strategy: &FeeStrategy<SatPerVByte>,
-        _fee_politic: FeePolitic,
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;
 

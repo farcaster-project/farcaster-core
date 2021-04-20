@@ -115,6 +115,12 @@ pub struct Alice<Ctx: Swap> {
     pub fee_politic: FeePolitic,
 }
 
+struct ValidatedCoreTransactions<Ctx: Swap> {
+    lock: <Ctx::Ar as Transactions>::Lock,
+    cancel: <Ctx::Ar as Transactions>::Cancel,
+    refund: <Ctx::Ar as Transactions>::Refund,
+}
+
 impl<Ctx> Alice<Ctx>
 where
     Ctx: Swap,
@@ -211,6 +217,8 @@ where
     ///
     /// _Trusted data_:
     ///  * `ar_seed`: Alice's arbitrating seed
+    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `public_offer`: The public offer
     ///
     /// _Verified data_:
     ///  * `core`: Core arbitrating transactions bundle
@@ -231,19 +239,14 @@ where
     pub fn sign_adaptor_refund(
         &self,
         ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
+        public_offer: &PublicOffer<Ctx>,
     ) -> Result<SignedAdaptorRefund<Ctx::Ar>, Error> {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
-        let partial_refund = core.refund.tx().try_into_partial_transaction()?;
-
-        // Initialize the refund transaction based on the extracted partial transaction format.
-        let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
-
-        // TODO verify transaction before signing
-        //  - transaction
-        //  - fee
+        // Verifies the core arbitrating transactions.
+        let ValidatedCoreTransactions { refund, .. } =
+            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
 
         // Extracts the adaptor public key from counter-party parameters.
         let adaptor = bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?;
@@ -268,8 +271,13 @@ where
     ///
     /// [`CoreArbitratingTransactions`] bundle is created by Bob and requries extra validation.
     ///
+    /// _Previously verified data_:
+    ///  * `bob_parameters`: Bob's parameters bundle
+    ///
     /// _Trusted data_:
     ///  * `ar_seed`: Alice's arbitrating seed
+    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `public_offer`: The public offer
     ///
     /// _Verified data_:
     ///  * `core`: Core arbitrating transactions bundle
@@ -289,18 +297,14 @@ where
     pub fn cosign_arbitrating_cancel(
         &self,
         ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
+        alice_parameters: &AliceParameters<Ctx>,
+        bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
+        public_offer: &PublicOffer<Ctx>,
     ) -> Result<CosignedArbitratingCancel<Ctx::Ar>, Error> {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
-        let partial_cancel = core.cancel.tx().try_into_partial_transaction()?;
-
-        // Initialize the cancel transaction based on the extracted partial transaction format.
-        let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
-
-        // TODO verify transaction before signing
-        //  - transaction
-        //  - fee
+        // Verifies the core arbitrating transactions.
+        let ValidatedCoreTransactions { cancel, .. } =
+            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
 
         // Derive the private cancel key and generate the cancel witness.
         let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, ArbitratingKey::Cancel)?;
@@ -327,8 +331,10 @@ where
     ///
     /// _Trusted data_:
     ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `public_offer`: The public offer
     ///
     /// _Verified data_:
+    ///  * `core`: Core arbitrating transactions bundle
     ///  * `adaptor_buy`: The adaptor witness to verify
     ///
     /// # Execution
@@ -343,8 +349,14 @@ where
         &self,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
+        core: &CoreArbitratingTransactions<Ctx::Ar>,
+        public_offer: &PublicOffer<Ctx>,
         adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
     ) -> Result<(), Error> {
+        // Verifies the core arbitrating transactions.
+        let ValidatedCoreTransactions { .. } =
+            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+
         // Extract the partial transaction from the adaptor buy bundle, this operation should not
         // error if the bundle is well formed.
         let partial_buy = adaptor_buy.buy.tx().try_into_partial_transaction()?;
@@ -352,7 +364,7 @@ where
         // Initialize the buy transaction based on the extracted partial transaction format.
         let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
 
-        // TODO verify transaction before signing
+        // TODO verify buy transaction
         //  - transaction
         //  - fee
 
@@ -387,6 +399,11 @@ where
     ///
     /// _Trusted data_:
     ///  * `ar_seed`, `ac_seed`: Bob's arbitrating and accordant seeds
+    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `public_offer`: The public offer
+    ///
+    /// _Verified data_:
+    ///  * `core`: Core arbitrating transactions bundle
     ///
     /// # Execution
     ///
@@ -406,8 +423,16 @@ where
         &self,
         ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
         ac_seed: &<Ctx::Ac as FromSeed<Acc>>::Seed,
+        alice_parameters: &AliceParameters<Ctx>,
+        bob_parameters: &BobParameters<Ctx>,
+        core: &CoreArbitratingTransactions<Ctx::Ar>,
+        public_offer: &PublicOffer<Ctx>,
         adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
     ) -> Result<FullySignedBuy<Ctx::Ar>, Error> {
+        // Verifies the core arbitrating transactions.
+        let ValidatedCoreTransactions { .. } =
+            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+
         // Extract the partial transaction from the adaptor buy bundle, this operation should not
         // error if the bundle is well formed.
         let partial_buy = adaptor_buy.buy.tx().try_into_partial_transaction()?;
@@ -483,16 +508,11 @@ where
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<FullySignedPunish<Ctx::Ar>, Error> {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
-        let partial_cancel = core.cancel.tx().try_into_partial_transaction()?;
+        // Verifies the core arbitrating transactions.
+        let ValidatedCoreTransactions { cancel, .. } =
+            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
 
-        // Initialize the cancel transaction based on the partial transaction format.
-        let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
-
-        // TODO verify transaction before signing
-        //  - transaction
-        //  - fee
+        let fee_strategy = &public_offer.offer.fee_strategy;
 
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
@@ -516,20 +536,14 @@ where
         };
 
         // Initialize the punish transaction based on the cancel transaction.
-        let mut punish = <<Ctx::Ar as Transactions>::Punish as Punishable<
-            Ctx::Ar,
-            <Ctx::Ar as Transactions>::Metadata,
-        >>::initialize(
-            &cancel,
-            punish_lock,
-            self.destination_address.clone(),
-            &public_offer.offer.fee_strategy,
-            self.fee_politic,
-        )?;
+        let mut punish =
+            <<Ctx::Ar as Transactions>::Punish as Punishable<
+                Ctx::Ar,
+                <Ctx::Ar as Transactions>::Metadata,
+            >>::initialize(&cancel, punish_lock, self.destination_address.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::set_fees(punish.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(punish.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Derive the punish private key and generate the witness data for the punish transaction.
         let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, ArbitratingKey::Punish)?;
@@ -547,6 +561,74 @@ where
 
     pub fn recover_accordant_assets(&self) -> Result<(), Error> {
         todo!()
+    }
+
+    fn validate_core(
+        &self,
+        alice_parameters: &AliceParameters<Ctx>,
+        bob_parameters: &BobParameters<Ctx>,
+        core: &CoreArbitratingTransactions<Ctx::Ar>,
+        public_offer: &PublicOffer<Ctx>,
+    ) -> Result<ValidatedCoreTransactions<Ctx>, Error> {
+        // Extract the partial transaction from the core arbitrating bundle, this operation should
+        // not error if the bundle is well formed.
+        let partial_lock = core.lock.tx().try_into_partial_transaction()?;
+
+        // Initialize the lock transaction based on the extracted partial transaction format.
+        let lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(partial_lock);
+
+        // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
+        // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
+        // blockchain.
+        let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
+        let bob_buy = bob_parameters.buy.key().try_into_arbitrating_pubkey()?;
+        let alice_cancel = alice_parameters
+            .cancel
+            .key()
+            .try_into_arbitrating_pubkey()?;
+        let bob_cancel = bob_parameters.cancel.key().try_into_arbitrating_pubkey()?;
+
+        // Create the data structure that represents an on-chain cancelable contract for the
+        // arbitrating blockchain.
+        let cancel_lock = DataLock {
+            timelock: public_offer.offer.cancel_timelock,
+            success: DoubleKeys::new(alice_buy, bob_buy),
+            failure: DoubleKeys::new(alice_cancel, bob_cancel),
+        };
+
+        // Verify the lock transaction template.
+        lock.verify_template(cancel_lock)?;
+        // The target amount is dictated from the public offer.
+        let target_amount = public_offer.offer.arbitrating_assets;
+        // Verify the target amount
+        lock.verify_target_amount(target_amount)?;
+        // Validate that the transaction follows the strategy.
+        let fee_strategy = &public_offer.offer.fee_strategy;
+        <Ctx::Ar as Fee>::validate_fee(lock.partial(), &fee_strategy)?;
+
+        // Extract the partial transaction from the core arbitrating bundle, this operation should
+        // not error if the bundle is well formed.
+        let partial_cancel = core.lock.tx().try_into_partial_transaction()?;
+
+        // Initialize the lock transaction based on the extracted partial transaction format.
+        let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
+        // TODO verify cancel tx
+        <Ctx::Ar as Fee>::validate_fee(cancel.partial(), &fee_strategy)?;
+
+        // Extract the partial transaction from the core arbitrating bundle, this operation should
+        // not error if the bundle is well formed.
+        let partial_refund = core.refund.tx().try_into_partial_transaction()?;
+
+        // Initialize the refund transaction based on the extracted partial transaction format.
+        let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
+        // TODO verify refund tx
+        <Ctx::Ar as Fee>::validate_fee(refund.partial(), &fee_strategy)?;
+
+        Ok(ValidatedCoreTransactions {
+            lock,
+            cancel,
+            refund,
+        })
     }
 }
 
@@ -684,9 +766,6 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        //
-        // Alice's keys are shared over the network by Alice and end-up in Alice parameters bundle,
-        // Bob's keys are generated by Bob through the seed.
         let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
         let bob_buy = bob_parameters.buy.key().try_into_arbitrating_pubkey()?;
         let alice_cancel = alice_parameters
@@ -703,28 +782,24 @@ impl<Ctx: Swap> Bob<Ctx> {
             failure: DoubleKeys::new(alice_cancel, bob_cancel),
         };
 
+        // The target amount is dictated from the public offer.
+        let target_amount = public_offer.offer.arbitrating_assets;
+
         // Initialize the lockable transaction based on the fundable structure. The lockable
-        // transaction prepare the on-chain contract for a buy or a cancel.
-        let mut lock = <<Ctx::Ar as Transactions>::Lock as Lockable<
+        // transaction prepare the on-chain contract for a buy or a cancel. The amount of available
+        // assets is defined as the target by the public offer.
+        let lock = <<Ctx::Ar as Transactions>::Lock as Lockable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-        >>::initialize(
-            &funding,
-            cancel_lock.clone(),
-            &public_offer.offer.fee_strategy,
-            self.fee_politic,
-        )?;
+        >>::initialize(&funding, cancel_lock.clone(), target_amount)?;
 
-        // Set the fees according to the strategy in the offer and the local politic.
+        // Ensure that the transaction contains enough assets to pass the fee validation latter.
         let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::set_fees(lock.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::validate_fee(lock.partial(), &fee_strategy)?;
 
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
         // contract on the arbitrating blockchain.
-        //
-        // Alice's keys are shared over the network by Alice and end-up in Alice parameters bundle,
-        // Bob's keys are generated by Bob through the seed.
         let alice_refund = alice_parameters
             .refund
             .key()
@@ -748,32 +823,20 @@ impl<Ctx: Swap> Bob<Ctx> {
         let mut cancel = <<Ctx::Ar as Transactions>::Cancel as Cancelable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-        >>::initialize(
-            &lock,
-            cancel_lock,
-            punish_lock.clone(),
-            &public_offer.offer.fee_strategy,
-            self.fee_politic,
-        )?;
+        >>::initialize(&lock, cancel_lock, punish_lock.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        <Ctx::Ar as Fee>::set_fees(cancel.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(cancel.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Initialize the refund transaction for the cancel transaction, moving the funds out of
         // the punishable lock to Bob's refund address.
         let mut refund = <<Ctx::Ar as Transactions>::Refund as Refundable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-        >>::initialize(
-            &cancel,
-            punish_lock,
-            self.refund_address.clone(),
-            &public_offer.offer.fee_strategy,
-            self.fee_politic,
-        )?;
+        >>::initialize(&cancel, punish_lock, self.refund_address.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        <Ctx::Ar as Fee>::set_fees(refund.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(refund.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         Ok(CoreArbitratingTransactions {
             lock: datum::Transaction::new_lock(lock.to_partial()),
@@ -944,10 +1007,6 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        //
-        // Alice's keys are shared over the network by Alice and end-up in Alice parameters bundle,
-        // Bob's keys have previously been generated from the seed and put in the Bob parameters
-        // bundle.
         let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
         let bob_buy = bob_parameters.buy.key().try_into_arbitrating_pubkey()?;
         let alice_cancel = alice_parameters
@@ -977,13 +1036,11 @@ impl<Ctx: Swap> Bob<Ctx> {
                 .destination_address
                 .param()
                 .try_into_address()?,
-            &public_offer.offer.fee_strategy,
-            self.fee_politic,
         )?;
 
         // Set the fees according to the strategy in the offer and the local politic.
         let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::set_fees(buy.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(buy.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Retrieve Alice's public adaptor key from the Alice parameters bundle, the key is used to
         // generate Bob's encrypted signature over the buy transaction.

@@ -57,7 +57,7 @@ impl Fee for Bitcoin {
     type FeeUnit = SatPerVByte;
 
     /// Calculates and sets the fees on the given transaction and return the fees set
-    fn set_fees(
+    fn set_fee(
         tx: &mut PartiallySignedTransaction,
         strategy: &FeeStrategy<SatPerVByte>,
         politic: FeePolitic,

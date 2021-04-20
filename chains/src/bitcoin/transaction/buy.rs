@@ -3,11 +3,9 @@ use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
 use farcaster_core::transaction::{AdaptorSignable, Buyable, Error as FError, Lockable, Signable};
 
-use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::{Address, Bitcoin, ECDSAAdaptorSig};
 
@@ -70,8 +68,6 @@ impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
         _prev: &impl Lockable<Bitcoin, MetadataOutput>,
         _lock: script::DataLock<Bitcoin>,
         _destination_target: Address,
-        _fee_strategy: &FeeStrategy<SatPerVByte>,
-        _fee_politic: FeePolitic,
     ) -> Result<Self, FError> {
         todo!()
     }

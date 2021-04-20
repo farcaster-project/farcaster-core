@@ -7,13 +7,11 @@ use bitcoin::secp256k1::{Secp256k1, Signature};
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
 use farcaster_core::transaction::{Error as FError, Fundable, Lockable, Signable};
 
-use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{sign_input, Error, MetadataOutput, SubTransaction, Tx, TxInRef};
-use crate::bitcoin::Bitcoin;
+use crate::bitcoin::{Amount, Bitcoin};
 
 #[derive(Debug)]
 pub struct Lock;
@@ -34,8 +32,7 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
     fn initialize(
         prev: &impl Fundable<Bitcoin, MetadataOutput>,
         lock: script::DataLock<Bitcoin>,
-        _fee_strategy: &FeeStrategy<SatPerVByte>,
-        _fee_politic: FeePolitic,
+        target_amount: Amount,
     ) -> Result<Self, FError> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
@@ -58,6 +55,11 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
 
         let output_metadata = prev.get_consumable_output()?;
 
+        match output_metadata.tx_out.value < target_amount.as_sat() {
+            true => Err(FError::NotEnoughAssets)?,
+            false => (),
+        }
+
         let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
             version: 2,
             lock_time: 0,
@@ -68,7 +70,7 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
                 witness: vec![],
             }],
             output: vec![TxOut {
-                value: output_metadata.tx_out.value,
+                value: target_amount.as_sat(),
                 script_pubkey: script.to_v0_p2wsh(),
             }],
         };
@@ -92,6 +94,58 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
             psbt,
             _t: PhantomData,
         })
+    }
+
+    fn verify_template(&self, lock: script::DataLock<Bitcoin>) -> Result<(), FError> {
+        (self.psbt.global.unsigned_tx.version == 2)
+            .then(|| 0)
+            .ok_or_else(|| FError::WrongTemplate)?;
+        (self.psbt.global.unsigned_tx.lock_time == 0)
+            .then(|| 0)
+            .ok_or_else(|| FError::WrongTemplate)?;
+        (self.psbt.global.unsigned_tx.input.len() == 1)
+            .then(|| 0)
+            .ok_or_else(|| FError::WrongTemplate)?;
+        (self.psbt.global.unsigned_tx.output.len() == 1)
+            .then(|| 0)
+            .ok_or_else(|| FError::WrongTemplate)?;
+
+        let txin = &self.psbt.global.unsigned_tx.input[0];
+        (txin.sequence == (1 << 31) as u32)
+            .then(|| 0)
+            .ok_or_else(|| FError::WrongTemplate)?;
+
+        let txout = &self.psbt.global.unsigned_tx.output[0];
+        let script = Builder::new()
+            .push_opcode(opcodes::all::OP_IF)
+            .push_opcode(opcodes::all::OP_PUSHNUM_2)
+            .push_key(&lock.success.alice)
+            .push_key(&lock.success.bob)
+            .push_opcode(opcodes::all::OP_PUSHNUM_2)
+            .push_opcode(opcodes::all::OP_CHECKMULTISIG)
+            .push_opcode(opcodes::all::OP_ELSE)
+            .push_int(lock.timelock.as_u32().into())
+            .push_opcode(opcodes::all::OP_CSV)
+            .push_opcode(opcodes::all::OP_DROP)
+            .push_opcode(opcodes::all::OP_PUSHNUM_2)
+            .push_key(&lock.failure.alice)
+            .push_key(&lock.failure.bob)
+            .push_opcode(opcodes::all::OP_PUSHNUM_2)
+            .push_opcode(opcodes::all::OP_CHECKMULTISIG)
+            .push_opcode(opcodes::all::OP_ENDIF)
+            .into_script();
+        (txout.script_pubkey == script.to_v0_p2wsh())
+            .then(|| 0)
+            .ok_or_else(|| FError::WrongTemplate)?;
+
+        Ok(())
+    }
+
+    fn verify_target_amount(&self, target_amount: Amount) -> Result<(), FError> {
+        match self.psbt.global.unsigned_tx.output[0].value == target_amount.as_sat() {
+            true => Ok(()),
+            false => Err(FError::InvalidTargetAmount),
+        }
     }
 }
 

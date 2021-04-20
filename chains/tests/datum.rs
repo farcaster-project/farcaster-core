@@ -61,7 +61,11 @@ fn create_transaction_datum() {
         }],
     };
 
-    funding.update(funding_tx_seen).unwrap();
+    funding.update(funding_tx_seen.clone()).unwrap();
+
+    let _funding_datum = dbg!(datum::Transaction::<Bitcoin>::new_funding_seen(
+        funding_tx_seen
+    ));
 
     let datalock = DataLock {
         timelock: CSVTimelock::new(10),
@@ -74,9 +78,9 @@ fn create_transaction_datum() {
 
     let lock = Tx::<Lock>::initialize(&funding, datalock.clone(), &fee, politic).unwrap();
 
-    let tx = lock.to_partial().unwrap();
+    let tx = lock.to_partial();
 
-    let transaction_datum = dbg!(datum::Transaction::<Bitcoin>::new_funding(tx));
+    let transaction_datum = dbg!(datum::Transaction::<Bitcoin>::new_lock(tx));
 
     dbg!(serialize_hex(&transaction_datum));
     let bytes = dbg!(serialize(&transaction_datum));
@@ -84,8 +88,14 @@ fn create_transaction_datum() {
 
     assert_eq!(transaction_datum.tx_id(), transaction_datum_2.tx_id());
     assert_eq!(
-        transaction_datum.to_partial_transaction(),
-        transaction_datum_2.to_partial_transaction()
+        transaction_datum
+            .tx()
+            .try_into_partial_transaction()
+            .unwrap(),
+        transaction_datum_2
+            .tx()
+            .try_into_partial_transaction()
+            .unwrap()
     );
 
     //assert!(false);

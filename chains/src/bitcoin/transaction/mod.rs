@@ -12,7 +12,7 @@ use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 use thiserror::Error;
 
 use farcaster_core::blockchain::FeeStrategyError;
-use farcaster_core::transaction::{Broadcastable, Failable, Finalizable, Linkable, Transaction};
+use farcaster_core::transaction::{Broadcastable, Finalizable, Linkable, Transaction};
 
 use crate::bitcoin::Bitcoin;
 
@@ -44,6 +44,9 @@ pub enum Error {
     /// Missing signature
     #[error("Missing signature")]
     MissingSignature,
+    /// Missing network
+    #[error("Missing network")]
+    MissingNetwork,
     /// SigHash type is missing
     #[error("SigHash type is missing")]
     MissingSigHashType,
@@ -87,23 +90,23 @@ pub struct Tx<T: SubTransaction> {
     _t: PhantomData<T>,
 }
 
-impl<T> Failable for Tx<T>
-where
-    T: SubTransaction,
-{
-    type Error = Error;
-}
-
 impl<T> Transaction<Bitcoin> for Tx<T>
 where
     T: SubTransaction,
 {
-    fn to_partial(&self) -> Option<PartiallySignedTransaction> {
-        Some(self.psbt.clone())
+    fn to_partial(&self) -> PartiallySignedTransaction {
+        self.psbt.clone()
+    }
+
+    fn from_partial(partial: &PartiallySignedTransaction) -> Self {
+        Self {
+            psbt: partial.clone(),
+            _t: PhantomData,
+        }
     }
 }
 
-impl<T> Finalizable<Bitcoin> for Tx<T>
+impl<T> Finalizable<Error> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -112,7 +115,7 @@ where
     }
 }
 
-impl<T> Broadcastable<Bitcoin> for Tx<T>
+impl<T> Broadcastable<Bitcoin, Error> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -121,12 +124,10 @@ where
     }
 }
 
-impl<T> Linkable<Bitcoin> for Tx<T>
+impl<T> Linkable<MetadataOutput, Error> for Tx<T>
 where
     T: SubTransaction,
 {
-    type Output = MetadataOutput;
-
     fn get_consumable_output(&self) -> Result<MetadataOutput, Error> {
         match self.psbt.global.unsigned_tx.output.len() {
             1 => (),

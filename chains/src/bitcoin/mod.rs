@@ -11,10 +11,12 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Network;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::blockchain::{self, Asset, Onchain, Timelock};
+use farcaster_core::blockchain::{self, Asset, Onchain, Timelock, Transactions};
 use farcaster_core::consensus::{self, Decodable, Encodable};
 use farcaster_core::crypto::{ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
 use farcaster_core::role::{Arb, Arbitrating};
+
+use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
 
 use std::fmt::Debug;
 use std::io;
@@ -196,6 +198,19 @@ impl Onchain for Bitcoin {
     type Transaction = bitcoin::blockdata::transaction::Transaction;
 }
 
+impl Transactions for Bitcoin {
+    type Metadata = transaction::MetadataOutput;
+
+    type Error = transaction::Error;
+
+    type Funding = Funding;
+    type Lock = Tx<Lock>;
+    type Buy = Tx<Buy>;
+    type Cancel = Tx<Cancel>;
+    type Refund = Tx<Refund>;
+    type Punish = Tx<Punish>;
+}
+
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
 #[strict_encoding_crate(strict_encoding)]
 pub struct ECDSAAdaptorSig {
@@ -244,12 +259,23 @@ impl Commitment for Bitcoin {
 impl Signatures for Bitcoin {
     type Signature = Signature;
     type AdaptorSignature = ECDSAAdaptorSig;
+
+    fn adapt(
+        _key: &PrivateKey,
+        _sig: ECDSAAdaptorSig,
+    ) -> Result<Signature, farcaster_core::crypto::Error> {
+        todo!()
+    }
+
+    fn recover_key(_sig: Signature, _adapted_sig: ECDSAAdaptorSig) -> PrivateKey {
+        todo!()
+    }
 }
 
 impl FromSeed<Arb> for Bitcoin {
     type Seed = [u8; 32];
 
-    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PublicKey {
+    fn get_privkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PrivateKey {
         let secp = Secp256k1::new();
         let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref()).unwrap();
         let key = match key_type {
@@ -269,6 +295,11 @@ impl FromSeed<Arb> for Bitcoin {
                 .derive_priv(&secp, &DerivationPath::from_str("m/0/1/5").unwrap())
                 .unwrap(),
         };
-        key.private_key.public_key(&secp)
+        key.private_key
+    }
+
+    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PublicKey {
+        let secp = Secp256k1::new();
+        Self::get_privkey(&seed, key_type).public_key(&secp)
     }
 }

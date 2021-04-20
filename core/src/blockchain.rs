@@ -13,6 +13,8 @@ use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 
 use crate::consensus::{self, Decodable, Encodable};
+use crate::crypto::{Keys, Signatures};
+use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
 pub trait Address {
@@ -71,7 +73,32 @@ pub trait Onchain {
     type PartialTransaction: Clone + Debug + StrictEncode + StrictDecode;
 
     /// Defines the finalized transaction format for the arbitrating blockchain
-    type Transaction;
+    type Transaction: Clone + Debug + StrictEncode + StrictDecode;
+}
+
+/// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
+/// [Buyable], [Cancelable], [Refundable], and [Punishable] transactions.
+pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
+    /// The returned type of the consumable output, used to reference the funds and chain other
+    /// transactions on it. This must contain all necessary data to latter create a valid unlocking
+    /// witness for the output.
+    type Metadata;
+
+    /// Errors returned by any failable methods when manipulating transactions.
+    type Error: Debug;
+
+    /// Defines the type for the `funding (a)` transaction
+    type Funding: Fundable<Self, Self::Metadata, Self::Error>;
+    /// Defines the type for the `lock (b)` transaction
+    type Lock: Lockable<Self, Self::Metadata, Self::Error>;
+    /// Defines the type for the `buy (c)` transaction
+    type Buy: Buyable<Self, Self::Metadata, Self::Error>;
+    /// Defines the type for the `cancel (d)` transaction
+    type Cancel: Cancelable<Self, Self::Metadata, Self::Error>;
+    /// Defines the type for the `refund (e)` transaction
+    type Refund: Refundable<Self, Self::Metadata, Self::Error>;
+    /// Defines the type for the `punish (f)` transaction
+    type Punish: Punishable<Self, Self::Metadata, Self::Error>;
 }
 
 impl<T> FromStr for FeeStrategy<T>

@@ -6,10 +6,11 @@ use strict_encoding::{StrictDecode, StrictEncode};
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
 use crate::consensus;
-use crate::crypto::{Commitment, DleqProof, Keys, SharedPrivateKeys, Signatures};
+use crate::crypto::{Commitment, DleqProof, Keys, SharedPrivateKeys, SignatureType, Signatures};
 use crate::datum;
-use crate::role::Acc;
+use crate::role::{Acc, SwapRole};
 use crate::swap::Swap;
+use crate::transaction::TxId;
 
 /// Trait for defining inter-daemon communication messages.
 pub trait ProtocolMessage: StrictEncode + StrictDecode {}
@@ -385,6 +386,41 @@ pub struct CoreArbitratingSetup<Ctx: Swap> {
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
 }
 
+impl<Ctx> CoreArbitratingSetup<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundles(
+        txs: &bundle::CoreArbitratingTransactions<Ctx::Ar>,
+        sig: &bundle::CosignedArbitratingCancel<Ctx::Ar>,
+    ) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            lock: txs.lock.tx().try_into_partial_transaction()?,
+            cancel: txs.cancel.tx().try_into_partial_transaction()?,
+            refund: txs.refund.tx().try_into_partial_transaction()?,
+            cancel_sig: sig.cancel_sig.signature().try_into_regular()?,
+        })
+    }
+
+    pub fn into_core_transactions(&self) -> bundle::CoreArbitratingTransactions<Ctx::Ar> {
+        bundle::CoreArbitratingTransactions {
+            lock: datum::Transaction::new_lock(self.lock.clone()),
+            cancel: datum::Transaction::new_cancel(self.cancel.clone()),
+            refund: datum::Transaction::new_refund(self.refund.clone()),
+        }
+    }
+
+    pub fn into_cosigned_cancel(&self) -> bundle::CosignedArbitratingCancel<Ctx::Ar> {
+        bundle::CosignedArbitratingCancel {
+            cancel_sig: datum::Signature::new(
+                TxId::Cancel,
+                SwapRole::Bob,
+                SignatureType::Regular(self.cancel_sig.clone()),
+            ),
+        }
+    }
+}
+
 impl<Ctx> ProtocolMessage for CoreArbitratingSetup<Ctx> where Ctx: Swap {}
 
 /// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
@@ -399,6 +435,44 @@ pub struct RefundProcedureSignatures<Ctx: Swap> {
     pub refund_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
 }
 
+impl<Ctx> RefundProcedureSignatures<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundles(
+        sig: &bundle::CosignedArbitratingCancel<Ctx::Ar>,
+        adaptor_sig: &bundle::SignedAdaptorRefund<Ctx::Ar>,
+    ) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            cancel_sig: sig.cancel_sig.signature().try_into_regular()?,
+            refund_adaptor_sig: adaptor_sig
+                .refund_adaptor_sig
+                .signature()
+                .try_into_adaptor()?,
+        })
+    }
+
+    pub fn into_cosigned_cancel(&self) -> bundle::CosignedArbitratingCancel<Ctx::Ar> {
+        bundle::CosignedArbitratingCancel {
+            cancel_sig: datum::Signature::new(
+                TxId::Cancel,
+                SwapRole::Alice,
+                SignatureType::Regular(self.cancel_sig.clone()),
+            ),
+        }
+    }
+
+    pub fn into_adaptor_refund(&self) -> bundle::SignedAdaptorRefund<Ctx::Ar> {
+        bundle::SignedAdaptorRefund {
+            refund_adaptor_sig: datum::Signature::new(
+                TxId::Refund,
+                SwapRole::Alice,
+                SignatureType::Adaptor(self.refund_adaptor_sig.clone()),
+            ),
+        }
+    }
+}
+
 impl<Ctx> ProtocolMessage for RefundProcedureSignatures<Ctx> where Ctx: Swap {}
 
 /// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
@@ -411,6 +485,51 @@ pub struct BuyProcedureSignature<Ctx: Swap> {
     pub buy: <Ctx::Ar as Onchain>::PartialTransaction,
     /// The `Bb(Ta)` `buy (c)` adaptor signature
     pub buy_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
+}
+
+impl<Ctx> BuyProcedureSignature<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn from_bundle(
+        bundle: &bundle::SignedAdaptorBuy<Ctx::Ar>,
+    ) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: bundle.buy.tx().try_into_partial_transaction()?,
+            buy_adaptor_sig: bundle.buy_adaptor_sig.signature().try_into_adaptor()?,
+        })
+    }
+
+    pub fn into_bundle(&self) -> bundle::SignedAdaptorBuy<Ctx::Ar> {
+        bundle::SignedAdaptorBuy {
+            buy: datum::Transaction::new_buy(self.buy.clone()),
+            buy_adaptor_sig: datum::Signature::new(
+                TxId::Buy,
+                SwapRole::Bob,
+                SignatureType::Adaptor(self.buy_adaptor_sig.clone()),
+            ),
+        }
+    }
+}
+
+impl<Ctx> Into<bundle::SignedAdaptorBuy<Ctx::Ar>> for BuyProcedureSignature<Ctx>
+where
+    Ctx: Swap,
+{
+    fn into(self) -> bundle::SignedAdaptorBuy<Ctx::Ar> {
+        self.into_bundle()
+    }
+}
+
+impl<Ctx> TryInto<BuyProcedureSignature<Ctx>> for bundle::SignedAdaptorBuy<Ctx::Ar>
+where
+    Ctx: Swap,
+{
+    type Error = consensus::Error;
+
+    fn try_into(self) -> Result<BuyProcedureSignature<Ctx>, consensus::Error> {
+        BuyProcedureSignature::from_bundle(&self)
+    }
 }
 
 impl<Ctx> ProtocolMessage for BuyProcedureSignature<Ctx> where Ctx: Swap {}

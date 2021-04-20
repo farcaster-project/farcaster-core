@@ -108,9 +108,13 @@ pub fn private_spend_from_seed<T: AsRef<[u8]>>(seed: T) -> PrivateKey {
 impl FromSeed<Acc> for Monero {
     type Seed = [u8; 32];
 
-    fn get_pubkey(seed: &[u8; 32], key_type: AccordantKey) -> PublicKey {
+    fn get_privkey(seed: &[u8; 32], key_type: AccordantKey) -> PrivateKey {
         match key_type {
-            AccordantKey::Spend => PublicKey::from_private_key(&private_spend_from_seed(&seed)),
+            AccordantKey::Spend => private_spend_from_seed(&seed),
         }
+    }
+
+    fn get_pubkey(seed: &[u8; 32], key_type: AccordantKey) -> PublicKey {
+        PublicKey::from_private_key(&Self::get_privkey(&seed, key_type))
     }
 }

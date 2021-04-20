@@ -79,6 +79,32 @@ where
     Regular(S::Signature),
 }
 
+impl<S> SignatureType<S>
+where
+    S: Signatures,
+{
+    pub fn try_into_adaptor(&self) -> Result<S::AdaptorSignature, consensus::Error> {
+        match self {
+            SignatureType::Adaptor(sig) => Ok(sig.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_adapted(&self) -> Result<S::Signature, consensus::Error> {
+        match self {
+            SignatureType::Adapted(sig) => Ok(sig.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_regular(&self) -> Result<S::Signature, consensus::Error> {
+        match self {
+            SignatureType::Regular(sig) => Ok(sig.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ArbitratingKey {
     Fund,
@@ -119,6 +145,8 @@ where
     /// Type of seed received as input
     type Seed;
 
+    fn get_privkey(seed: &Self::Seed, key_type: T::KeyList) -> Self::PrivateKey;
+
     fn get_pubkey(seed: &Self::Seed, key_type: T::KeyList) -> Self::PublicKey;
 }
 
@@ -138,7 +166,7 @@ where
 }
 
 /// This trait is required for blockchains for fixing the commitment types of the keys.
-pub trait Commitment: Keys {
+pub trait Commitment {
     /// Commitment type used in the commit/reveal scheme during swap parameters setup.
     type Commitment: Clone + PartialEq + Eq + Debug + StrictEncode + StrictDecode;
 
@@ -162,13 +190,21 @@ pub trait Commitment: Keys {
 
 /// This trait is required for arbitrating blockchains for fixing the types of signatures and
 /// adaptor signatures.
-pub trait Signatures {
+pub trait Signatures: Keys {
     /// Defines the signature format for the arbitrating blockchain
     type Signature: Clone + Debug + StrictEncode + StrictDecode;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic primitives used.
     type AdaptorSignature: Clone + Debug + StrictEncode + StrictDecode;
+
+    /// Finalize an adaptor signature into an adapted signature following the regular signature
+    /// format.
+    fn adapt(key: &Self::PrivateKey, sig: Self::AdaptorSignature)
+        -> Result<Self::Signature, Error>;
+
+    /// Recover the encryption key based on the adaptor signature and the decrypted signature.
+    fn recover_key(sig: Self::Signature, adapted_sig: Self::AdaptorSignature) -> Self::PrivateKey;
 }
 
 /// Define a proving system to link two different blockchain cryptographic group parameters.
@@ -177,6 +213,8 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
+    fn project_over(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> Ar::PrivateKey;
+
     fn generate(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> (Ac::PublicKey, Ar::PublicKey, Self);
 
     fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> Result<(), Error>;

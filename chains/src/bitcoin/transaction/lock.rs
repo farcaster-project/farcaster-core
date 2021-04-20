@@ -30,12 +30,9 @@ impl SubTransaction for Lock {
     }
 }
 
-impl Lockable<Bitcoin> for Tx<Lock> {
-    /// Type returned by the impl of a Funding tx
-    type Input = MetadataOutput;
-
+impl Lockable<Bitcoin, MetadataOutput, Error> for Tx<Lock> {
     fn initialize(
-        prev: &impl Fundable<Bitcoin, Output = MetadataOutput, Error = Error>,
+        prev: &impl Fundable<Bitcoin, MetadataOutput, Error>,
         lock: script::DataLock<Bitcoin>,
         fee_strategy: &FeeStrategy<SatPerVByte>,
         fee_politic: FeePolitic,
@@ -96,7 +93,7 @@ impl Lockable<Bitcoin> for Tx<Lock> {
     }
 }
 
-impl Signable<Bitcoin> for Tx<Lock> {
+impl Signable<Bitcoin, Error> for Tx<Lock> {
     fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, Error> {
         {
             // TODO validate the transaction before signing

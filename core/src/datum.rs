@@ -3,7 +3,7 @@
 
 use strict_encoding::{strict_deserialize, strict_serialize, StrictDecode, StrictEncode};
 
-use crate::blockchain::{Fee, FeeStrategy};
+use crate::blockchain::{Address, Fee, FeeStrategy, Onchain, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, Keys, SharedPrivateKeys, Signatures};
 use crate::role::{Acc, Arbitrating, SwapRole};
@@ -12,51 +12,90 @@ use crate::transaction::TxId;
 
 use std::io;
 
+#[derive(Debug, Clone, StrictDecode, StrictEncode)]
+#[strict_encoding_crate(strict_encoding)]
+pub enum TransactionType<T>
+where
+    T: Onchain,
+{
+    Transaction(T::Transaction),
+    PartialTransaction(T::PartialTransaction),
+}
+
+impl<T> TransactionType<T>
+where
+    T: Onchain,
+{
+    pub fn try_into_transaction(&self) -> Result<T::Transaction, consensus::Error> {
+        match self {
+            TransactionType::Transaction(tx) => Ok(tx.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+
+    pub fn try_into_partial_transaction(&self) -> Result<T::PartialTransaction, consensus::Error> {
+        match self {
+            TransactionType::PartialTransaction(tx) => Ok(tx.clone()),
+            _ => Err(consensus::Error::TypeMismatch),
+        }
+    }
+}
+
 /// The transaction datum is used to convey a transaction between clients and daemons. The
 /// transaction is transmitted within the tx_value field in its serialized format.
 #[derive(Debug, Clone)]
-pub struct Transaction<Ar>
+pub struct Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     /// The identifier of the transaction
     pub tx_id: TxId,
     /// The transaction to serialize
-    pub tx_value: Ar::PartialTransaction,
+    pub tx_value: TransactionType<T>,
 }
 
 macro_rules! impl_new_tx {
-    ( $fnname:ident, $type:expr ) => {
-        pub fn $fnname(tx_value: Ar::PartialTransaction) -> Self {
+    ( seen, $fnname:ident, $type:expr ) => {
+        pub fn $fnname(tx_value: T::Transaction) -> Self {
             Self {
                 tx_id: $type,
-                tx_value,
+                tx_value: TransactionType::Transaction(tx_value),
+            }
+        }
+    };
+    ( $fnname:ident, $type:expr ) => {
+        pub fn $fnname(tx_value: T::PartialTransaction) -> Self {
+            Self {
+                tx_id: $type,
+                tx_value: TransactionType::PartialTransaction(tx_value),
             }
         }
     };
 }
 
-impl<Ar> Transaction<Ar>
+impl<T> Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     pub fn tx_id(&self) -> TxId {
         self.tx_id
     }
 
-    pub fn partial_transaction(&self) -> &Ar::PartialTransaction {
+    pub fn tx(&self) -> &TransactionType<T> {
         &self.tx_value
     }
 
-    pub fn partial_transaction_mut(&mut self) -> &mut Ar::PartialTransaction {
-        &mut self.tx_value
-    }
-
-    pub fn to_partial_transaction(self) -> Ar::PartialTransaction {
+    pub fn to_tx(self) -> TransactionType<T> {
         self.tx_value
     }
 
-    impl_new_tx!(new_funding, TxId::Funding);
+    impl_new_tx!(seen, new_funding_seen, TxId::Funding);
+    impl_new_tx!(seen, new_lock_seen, TxId::Lock);
+    impl_new_tx!(seen, new_buy_seen, TxId::Buy);
+    impl_new_tx!(seen, new_cancel_seen, TxId::Cancel);
+    impl_new_tx!(seen, new_refund_seen, TxId::Refund);
+    impl_new_tx!(seen, new_punish_seen, TxId::Punish);
+
     impl_new_tx!(new_lock, TxId::Lock);
     impl_new_tx!(new_buy, TxId::Buy);
     impl_new_tx!(new_cancel, TxId::Cancel);
@@ -64,9 +103,9 @@ where
     impl_new_tx!(new_punish, TxId::Punish);
 }
 
-impl<Ar> Encodable for Transaction<Ar>
+impl<T> Encodable for Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let len = self.tx_id.consensus_encode(writer)?;
@@ -80,9 +119,9 @@ where
     }
 }
 
-impl<Ar> Decodable for Transaction<Ar>
+impl<T> Decodable for Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let tx_id = Decodable::consensus_decode(d)?;
@@ -92,18 +131,18 @@ where
     }
 }
 
-impl<Ar> StrictEncode for Transaction<Ar>
+impl<T> StrictEncode for Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
         Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
     }
 }
 
-impl<Ar> StrictDecode for Transaction<Ar>
+impl<T> StrictDecode for Transaction<T>
 where
-    Ar: Arbitrating,
+    T: Onchain,
 {
     fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
         Decodable::consensus_decode(&mut d).map_err(|_| {
@@ -538,7 +577,7 @@ impl Decodable for ParameterId {
 #[derive(Debug, Clone)]
 pub enum ParameterType<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     Address(T::Address),
     Timelock(T::Timelock),
@@ -547,7 +586,7 @@ where
 
 impl<T> ParameterType<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     pub fn try_into_address(&self) -> Result<T::Address, consensus::Error> {
         match self {
@@ -577,7 +616,7 @@ where
 #[derive(Debug, Clone)]
 pub struct Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     /// The identifier of the parameter
     pub param_id: ParameterId,
@@ -587,7 +626,7 @@ where
 
 impl<T> Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     pub fn param_id(&self) -> ParameterId {
         self.param_id
@@ -639,7 +678,7 @@ where
 
 impl<T> Encodable for Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let len = self.param_id.consensus_encode(writer)?;
@@ -675,7 +714,7 @@ where
 
 impl<T> Decodable for Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let param_id = Decodable::consensus_decode(d)?;
@@ -711,7 +750,7 @@ where
 
 impl<T> StrictDecode for Parameter<T>
 where
-    T: Arbitrating + Fee,
+    T: Address + Timelock + Fee,
 {
     fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
         Decodable::consensus_decode(&mut d).map_err(|_| {

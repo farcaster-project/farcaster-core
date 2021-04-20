@@ -59,12 +59,9 @@ impl SubTransaction for Buy {
     }
 }
 
-impl Buyable<Bitcoin> for Tx<Buy> {
-    /// Type returned by the impl of a Lock tx
-    type Input = MetadataOutput;
-
+impl Buyable<Bitcoin, MetadataOutput, Error> for Tx<Buy> {
     fn initialize(
-        _prev: &impl Lockable<Bitcoin, Output = MetadataOutput>,
+        _prev: &impl Lockable<Bitcoin, MetadataOutput, Error>,
         _lock: script::DataLock<Bitcoin>,
         _destination_target: Address,
         _fee_strategy: &FeeStrategy<SatPerVByte>,
@@ -74,7 +71,7 @@ impl Buyable<Bitcoin> for Tx<Buy> {
     }
 }
 
-impl Signable<Bitcoin> for Tx<Buy> {
+impl Signable<Bitcoin, Error> for Tx<Buy> {
     fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         {
             // TODO validate the transaction before signing
@@ -87,7 +84,7 @@ impl Signable<Bitcoin> for Tx<Buy> {
     }
 }
 
-impl AdaptorSignable<Bitcoin> for Tx<Buy> {
+impl AdaptorSignable<Bitcoin, Error> for Tx<Buy> {
     fn generate_adaptor_witness(
         &mut self,
         _privkey: &PrivateKey,
@@ -106,7 +103,7 @@ impl AdaptorSignable<Bitcoin> for Tx<Buy> {
     }
 }
 
-impl Cooperable<Bitcoin> for Tx<Buy> {
+impl Cooperable<Bitcoin, Error> for Tx<Buy> {
     fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), Error> {
         let sighash_type = self.psbt.inputs[0]
             .sighash_type

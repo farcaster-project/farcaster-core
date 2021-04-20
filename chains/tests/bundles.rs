@@ -37,7 +37,9 @@ fn create_alice_parameters() {
     let pub_offer: PublicOffer<BtcXmr> =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
 
-    let alice_params = dbg!(alice.generate_parameters(&ar_seed, &ac_seed, &pub_offer));
+    let alice_params = dbg!(alice
+        .generate_parameters(&ar_seed, &ac_seed, &pub_offer)
+        .unwrap());
 
     let commit_alice_params = dbg!(CommitAliceParameters::from_bundle(&alice_params));
 
@@ -73,7 +75,9 @@ fn create_bob_parameters() {
     let pub_offer: PublicOffer<BtcXmr> =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
 
-    let bob_params = dbg!(bob.generate_parameters(&ar_seed, &ac_seed, &pub_offer));
+    let bob_params = dbg!(bob
+        .generate_parameters(&ar_seed, &ac_seed, &pub_offer)
+        .unwrap());
 
     let commit_bob_params = dbg!(CommitBobParameters::from_bundle(&bob_params));
 

@@ -4,10 +4,10 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Forkable, Punishable};
+use farcaster_core::transaction::{Cancelable, Error, Forkable, Punishable};
 
 use crate::bitcoin::fee::SatPerVByte;
-use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
+use crate::bitcoin::transaction::{MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug)]
@@ -19,9 +19,9 @@ impl SubTransaction for Punish {
     }
 }
 
-impl Punishable<Bitcoin, MetadataOutput, Error> for Tx<Punish> {
+impl Punishable<Bitcoin, MetadataOutput> for Tx<Punish> {
     fn initialize(
-        _prev: &impl Cancelable<Bitcoin, MetadataOutput, Error>,
+        _prev: &impl Cancelable<Bitcoin, MetadataOutput>,
         _punish_lock: script::DataPunishableLock<Bitcoin>,
         _destination_target: Address,
         _fee_strategy: &FeeStrategy<SatPerVByte>,
@@ -31,7 +31,7 @@ impl Punishable<Bitcoin, MetadataOutput, Error> for Tx<Punish> {
     }
 }
 
-impl Forkable<Bitcoin, Error> for Tx<Punish> {
+impl Forkable<Bitcoin> for Tx<Punish> {
     fn generate_failure_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }

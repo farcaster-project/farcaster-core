@@ -3,7 +3,7 @@ use bitcoin::network::constants::Network as BtcNetwork;
 use bitcoin::util::key::PublicKey;
 
 use farcaster_core::blockchain::Network;
-use farcaster_core::transaction::{Fundable, Linkable};
+use farcaster_core::transaction::{Error as FError, Fundable, Linkable};
 
 use crate::bitcoin::transaction::{Error, MetadataOutput};
 use crate::bitcoin::{Address, Bitcoin};
@@ -15,8 +15,8 @@ pub struct Funding {
     seen_tx: Option<Transaction>,
 }
 
-impl Linkable<MetadataOutput, Error> for Funding {
-    fn get_consumable_output(&self) -> Result<MetadataOutput, Error> {
+impl Linkable<MetadataOutput> for Funding {
+    fn get_consumable_output(&self) -> Result<MetadataOutput, FError> {
         match &self.seen_tx {
             Some(t) => {
                 // More than one UTXO is not supported
@@ -26,15 +26,15 @@ impl Linkable<MetadataOutput, Error> for Funding {
                     // Check if coinbase transaction
                     {
                         if !t.is_coin_base() {
-                            return Err(Error::MultiUTXOUnsuported);
+                            return Err(FError::new(Error::MultiUTXOUnsuported));
                         }
                     }
-                    _ => return Err(Error::MultiUTXOUnsuported),
+                    _ => return Err(FError::new(Error::MultiUTXOUnsuported)),
                 }
 
                 let pubkey = match self.pubkey {
                     Some(pubkey) => Ok(pubkey),
-                    None => Err(Error::PublicKeyNotFound),
+                    None => Err(FError::MissingPublicKey),
                 }?;
 
                 // vout is always 0 because output len is 1
@@ -52,20 +52,20 @@ impl Linkable<MetadataOutput, Error> for Funding {
                             Some(Network::Local) => {
                                 bitcoin::Address::p2pkh(&pubkey, BtcNetwork::Regtest)
                             }
-                            None => Err(Error::MissingNetwork)?,
+                            None => Err(FError::MissingNetwork)?,
                         }
                         .script_pubkey(),
                     ),
                 })
             }
             // The transaction has not been see yet, cannot infer the UTXO
-            None => Err(Error::TransactionNotSeen),
+            None => Err(FError::MissingOnchainTransaction),
         }
     }
 }
 
-impl Fundable<Bitcoin, MetadataOutput, Error> for Funding {
-    fn initialize(pubkey: PublicKey, network: Network) -> Result<Self, Error> {
+impl Fundable<Bitcoin, MetadataOutput> for Funding {
+    fn initialize(pubkey: PublicKey, network: Network) -> Result<Self, FError> {
         Ok(Funding {
             pubkey: Some(pubkey),
             network: Some(network),
@@ -73,35 +73,32 @@ impl Fundable<Bitcoin, MetadataOutput, Error> for Funding {
         })
     }
 
-    fn get_address(&self) -> Result<Address, Error> {
+    fn get_address(&self) -> Result<Address, FError> {
         let pubkey = match self.pubkey {
             Some(pubkey) => Ok(pubkey),
-            None => Err(Error::PublicKeyNotFound),
+            None => Err(FError::MissingPublicKey),
         }?;
 
         match self.network {
-            Some(Network::Mainnet) => Ok(Address(bitcoin::Address::p2wpkh(
-                &pubkey,
-                BtcNetwork::Bitcoin,
-            )?)),
-            Some(Network::Testnet) => Ok(Address(bitcoin::Address::p2wpkh(
-                &pubkey,
-                BtcNetwork::Testnet,
-            )?)),
-            Some(Network::Local) => Ok(Address(bitcoin::Address::p2wpkh(
-                &pubkey,
-                BtcNetwork::Regtest,
-            )?)),
-            None => Err(Error::MissingNetwork),
+            Some(Network::Mainnet) => Ok(Address(
+                bitcoin::Address::p2wpkh(&pubkey, BtcNetwork::Bitcoin).map_err(Error::from)?,
+            )),
+            Some(Network::Testnet) => Ok(Address(
+                bitcoin::Address::p2wpkh(&pubkey, BtcNetwork::Testnet).map_err(Error::from)?,
+            )),
+            Some(Network::Local) => Ok(Address(
+                bitcoin::Address::p2wpkh(&pubkey, BtcNetwork::Regtest).map_err(Error::from)?,
+            )),
+            None => Err(FError::MissingNetwork),
         }
     }
 
-    fn update(&mut self, tx: Transaction) -> Result<(), Error> {
+    fn update(&mut self, tx: Transaction) -> Result<(), FError> {
         self.seen_tx = Some(tx);
         Ok(())
     }
 
-    fn raw(tx: Transaction) -> Result<Self, Error> {
+    fn raw(tx: Transaction) -> Result<Self, FError> {
         Ok(Self {
             pubkey: None,
             network: None,

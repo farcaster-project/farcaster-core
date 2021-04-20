@@ -3,6 +3,7 @@
 //! A blockchain must identify the block chain (or equivalent), e.g. with the genesis hash, and the
 //! asset, e.g. for Etherum blockchain assets can be eth or dai.
 
+use std::error;
 use std::fmt::Debug;
 use std::io;
 use std::ops::Range;
@@ -84,21 +85,18 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
     /// witness for the output.
     type Metadata;
 
-    /// Errors returned by any failable methods when manipulating transactions.
-    type Error: Debug;
-
     /// Defines the type for the `funding (a)` transaction
-    type Funding: Fundable<Self, Self::Metadata, Self::Error>;
+    type Funding: Fundable<Self, Self::Metadata>;
     /// Defines the type for the `lock (b)` transaction
-    type Lock: Lockable<Self, Self::Metadata, Self::Error>;
+    type Lock: Lockable<Self, Self::Metadata>;
     /// Defines the type for the `buy (c)` transaction
-    type Buy: Buyable<Self, Self::Metadata, Self::Error>;
+    type Buy: Buyable<Self, Self::Metadata>;
     /// Defines the type for the `cancel (d)` transaction
-    type Cancel: Cancelable<Self, Self::Metadata, Self::Error>;
+    type Cancel: Cancelable<Self, Self::Metadata>;
     /// Defines the type for the `refund (e)` transaction
-    type Refund: Refundable<Self, Self::Metadata, Self::Error>;
+    type Refund: Refundable<Self, Self::Metadata>;
     /// Defines the type for the `punish (f)` transaction
-    type Punish: Punishable<Self, Self::Metadata, Self::Error>;
+    type Punish: Punishable<Self, Self::Metadata>;
 }
 
 impl<T> FromStr for FeeStrategy<T>
@@ -177,20 +175,47 @@ where
 
 /// Define the type of errors a fee strategy can encounter during calculation, application, and
 /// validation of fees on a partial transaction.
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum FeeStrategyError {
-    /// Missing metadata inputs
-    #[error("Missing metadata inputs")]
+    /// Missing metadata on inputs to retreive the amount of asset available.
+    #[error("Missing metadata inputs to retreive available amount")]
     MissingInputsMetadata,
-    /// Fee amount is too high
+    /// Fee amount is too low and does not match the fee strategy requirements.
+    #[error("Fee amount is too low")]
+    AmountOfFeeTooLow,
+    /// Fee amount is too high and does not match the fee strategy requirements.
     #[error("Fee amount is too high")]
     AmountOfFeeTooHigh,
-    /// Not enough assets to cover the fees
+    /// Not enough assets to cover the fees.
     #[error("Not enough assets to cover the fees")]
     NotEnoughAssets,
-    /// Multi-input transaction is not supported
-    #[error("Multi-input transaction is not supported")]
-    MultiOutputUnsupported,
+    /// Any fee strategy error not part of this list.
+    #[error("Other: {0}")]
+    Other(Box<dyn error::Error + Sync + Send>),
+}
+
+impl FeeStrategyError {
+    /// Creates a new fee strategy error of type other with an arbitrary payload.
+    pub fn new<E>(error: E) -> Self
+    where
+        E: Into<Box<dyn error::Error + Send + Sync>>,
+    {
+        Self::Other(error.into())
+    }
+
+    /// Consumes the `FeeStrategyError`, returning its inner error (if any).
+    ///
+    /// If this [`FeeStrategyError`] was constructed via [`new`] then this function will return [`Some`],
+    /// otherwise it will return [`None`].
+    ///
+    /// [`new`]: FeeStrategyError::new
+    ///
+    pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
+        match self {
+            Self::Other(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
 /// Defines how to set the fees when a strategy allows multiple possibilities.
@@ -219,11 +244,10 @@ pub trait Fee: Onchain + Asset {
         politic: FeePolitic,
     ) -> Result<Self::AssetUnit, FeeStrategyError>;
 
-    /// Validates that the fees for the given transaction are set accordingly to the strategy
+    /// Validates that the fees for the given transaction are set accordingly to the strategy.
     fn validate_fee(
         tx: &Self::PartialTransaction,
         strategy: &FeeStrategy<Self::FeeUnit>,
-        politic: FeePolitic,
     ) -> Result<bool, FeeStrategyError>;
 }
 

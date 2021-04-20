@@ -11,31 +11,26 @@ use thiserror::Error;
 use std::io;
 use std::io::prelude::*;
 
-use crate::crypto;
-use crate::negotiation;
-
-/// Encoding error
+/// Encoding and decoding errors and data transformation errors (when converting data from protocol
+/// messages into datum messages).
 #[derive(Error, Debug)]
 pub enum Error {
-    /// The type is not defined in the consensus
+    /// The type is not defined in the consensus.
     #[error("Unknown consensus type")]
     UnknownType,
-    /// The type is not the one expected
-    #[error("Type mismatch, not the one expected")]
+    /// The type is not the one expected.
+    #[error("Type mismatch, the given type does not match the expected one")]
     TypeMismatch,
-    /// Error related to Farcaster negotiation
-    #[error("Negotiation error: {0}")]
-    Negotiation(#[from] negotiation::Error),
-    /// Error related to Farcaster cryptography
-    #[error("Cryptography error: {0}")]
-    Crypto(#[from] crypto::Error),
-    /// And I/O error
+    /// The magic bytes expected does not match.
+    #[error("Incorrect magic bytes")]
+    IncorrectMagicBytes,
+    /// And I/O error.
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
-    /// Parsing error
+    /// A generic parsing error.
     #[error("Parsing error: {0}")]
     ParseFailed(&'static str),
-    /// Strict encoding wrapping error
+    /// Strict encoding error.
     #[error("Strict encoding error: {0}")]
     StrictEncoding(#[from] strict_encoding::Error),
 }

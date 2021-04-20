@@ -134,25 +134,26 @@ where
         ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
         ac_seed: &<Ctx::Ac as FromSeed<Acc>>::Seed,
         public_offer: &PublicOffer<Ctx>,
-    ) -> AliceParameters<Ctx> {
-        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_seed);
-        AliceParameters {
+    ) -> Result<AliceParameters<Ctx>, Error> {
+        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_seed)?;
+
+        Ok(AliceParameters {
             buy: datum::Key::new_alice_buy(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Buy,
-            )),
+            )?),
             cancel: datum::Key::new_alice_cancel(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Cancel,
-            )),
+            )?),
             refund: datum::Key::new_alice_refund(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Refund,
-            )),
+            )?),
             punish: datum::Key::new_alice_punish(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Punish,
-            )),
+            )?),
             adaptor: datum::Key::new_alice_adaptor(adaptor),
             destination_address: datum::Parameter::new_destination_address(
                 self.destination_address.clone(),
@@ -161,7 +162,7 @@ where
                 <Ctx::Ac as SharedPrivateKeys<Acc>>::get_shared_privkey(
                     ac_seed,
                     crypto::SharedPrivateKey::View,
-                ),
+                )?,
             ),
             spend: datum::Key::new_alice_spend(spend),
             proof: datum::Proof::new_cross_group_dleq(proof),
@@ -174,7 +175,7 @@ where
             fee_strategy: Some(datum::Parameter::new_fee_strategy(
                 public_offer.offer.fee_strategy.clone(),
             )),
-        }
+        })
     }
 
     pub fn sign_adaptor_refund(
@@ -194,8 +195,8 @@ where
 
         let adaptor = bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?;
         let privkey =
-            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Refund);
-        let sig = refund.generate_adaptor_witness(&privkey, &adaptor).unwrap(); // FIXME unwrap
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Refund)?;
+        let sig = refund.generate_adaptor_witness(&privkey, &adaptor)?;
 
         Ok(SignedAdaptorRefund {
             refund_adaptor_sig: datum::Signature::new(
@@ -221,8 +222,8 @@ where
         // TODO verify transaction before signing
 
         let privkey =
-            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Cancel);
-        let sig = cancel.generate_failure_witness(&privkey).unwrap(); // FIXME unwrap
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Cancel)?;
+        let sig = cancel.generate_failure_witness(&privkey)?;
 
         Ok(CosignedArbitratingCancel {
             cancel_sig: datum::Signature::new(
@@ -245,10 +246,11 @@ where
 
         // TODO verify transaction before signing
 
-        let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Buy);
-        let sig = buy.generate_witness(&privkey).unwrap(); // FIXME unwrap
+        let privkey =
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Buy)?;
+        let sig = buy.generate_witness(&privkey)?;
 
-        let priv_adaptor = <Ctx::Proof as DleqProof<Ctx::Ar, Ctx::Ac>>::project_over(ac_seed);
+        let priv_adaptor = <Ctx::Proof as DleqProof<Ctx::Ar, Ctx::Ac>>::project_over(ac_seed)?;
         let adapted_sig = <Ctx::Ar as Signatures>::adapt(
             &priv_adaptor,
             signed_adaptor_buy
@@ -285,10 +287,10 @@ where
         // needed, along with the timelock for the punish, to create the punishable on-chain
         // contract on the arbitrating blockchain.
         let alice_refund =
-            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Refund);
+            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Refund)?;
         let bob_refund = bob_parameters.refund.key().try_into_arbitrating_pubkey()?;
         let alice_punish =
-            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Punish);
+            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Punish)?;
 
         // Create the data structure that represents an on-chain punishable contract for the
         // arbitrating blockchain.
@@ -302,19 +304,17 @@ where
         let mut punish = <<Ctx::Ar as Transactions>::Punish as Punishable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-            <Ctx::Ar as Transactions>::Error,
         >>::initialize(
             &cancel,
             punish_lock,
             self.destination_address.clone(),
             &public_offer.offer.fee_strategy,
             self.fee_politic,
-        )
-        .unwrap(); // FIXME unwrap
+        )?;
 
         let privkey =
-            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Punish);
-        let punish_sig = punish.generate_failure_witness(&privkey).unwrap(); // FIXME unwrap
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Punish)?;
+        let punish_sig = punish.generate_failure_witness(&privkey)?;
 
         Ok(FullySignedPunish {
             punish: datum::Transaction::new_punish(punish.to_partial()),
@@ -354,28 +354,29 @@ impl<Ctx: Swap> Bob<Ctx> {
         ar_seed: &<Ctx::Ar as FromSeed<Arb>>::Seed,
         ac_seed: &<Ctx::Ac as FromSeed<Acc>>::Seed,
         public_offer: &PublicOffer<Ctx>,
-    ) -> BobParameters<Ctx> {
-        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_seed);
-        BobParameters {
+    ) -> Result<BobParameters<Ctx>, Error> {
+        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_seed)?;
+
+        Ok(BobParameters {
             buy: datum::Key::new_bob_buy(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Buy,
-            )),
+            )?),
             cancel: datum::Key::new_bob_cancel(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Cancel,
-            )),
+            )?),
             refund: datum::Key::new_bob_refund(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
                 ar_seed,
                 crypto::ArbitratingKey::Refund,
-            )),
+            )?),
             adaptor: datum::Key::new_bob_adaptor(adaptor),
             refund_address: datum::Parameter::new_destination_address(self.refund_address.clone()),
             view: datum::Key::new_bob_private_view(
                 <Ctx::Ac as SharedPrivateKeys<Acc>>::get_shared_privkey(
                     ac_seed,
                     crypto::SharedPrivateKey::View,
-                ),
+                )?,
             ),
             spend: datum::Key::new_bob_spend(spend),
             proof: datum::Proof::new_cross_group_dleq(proof),
@@ -388,7 +389,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             fee_strategy: Some(datum::Parameter::new_fee_strategy(
                 public_offer.offer.fee_strategy.clone(),
             )),
-        }
+        })
     }
 
     // FIXME: take bob parameters instead of requerying the public keys
@@ -407,9 +408,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let funding = <<Ctx::Ar as Transactions>::Funding as Fundable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-            <Ctx::Ar as Transactions>::Error,
-        >>::raw(funding_bundle.funding.tx().try_into_transaction()?)
-        .unwrap(); // FIXME unwrap
+        >>::raw(funding_bundle.funding.tx().try_into_transaction()?)?;
 
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
@@ -418,13 +417,13 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Alice's keys are shared over the network by Alice and end-up in Alice parameters bundle,
         // Bob's keys are generated by Bob through the seed.
         let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let bob_buy = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Buy);
+        let bob_buy = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Buy)?;
         let alice_cancel = alice_parameters
             .cancel
             .key()
             .try_into_arbitrating_pubkey()?;
         let bob_cancel =
-            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Cancel);
+            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Cancel)?;
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -439,14 +438,12 @@ impl<Ctx: Swap> Bob<Ctx> {
         let lock = <<Ctx::Ar as Transactions>::Lock as Lockable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-            <Ctx::Ar as Transactions>::Error,
         >>::initialize(
             &funding,
             cancel_lock.clone(),
             &public_offer.offer.fee_strategy,
             self.fee_politic,
-        )
-        .unwrap(); // FIXME unwrap
+        )?;
 
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
@@ -459,7 +456,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             .key()
             .try_into_arbitrating_pubkey()?;
         let bob_refund =
-            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Refund);
+            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Refund)?;
         let alice_punish = alice_parameters
             .punish
             .key()
@@ -478,30 +475,26 @@ impl<Ctx: Swap> Bob<Ctx> {
         let cancel = <<Ctx::Ar as Transactions>::Cancel as Cancelable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-            <Ctx::Ar as Transactions>::Error,
         >>::initialize(
             &lock,
             cancel_lock,
             punish_lock.clone(),
             &public_offer.offer.fee_strategy,
             self.fee_politic,
-        )
-        .unwrap(); // FIXME unwrap
+        )?;
 
         // Initialize the refund transaction for the cancel transaction, moving the funds out of
         // the punishable lock to Bob's refund address.
         let refund = <<Ctx::Ar as Transactions>::Refund as Refundable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-            <Ctx::Ar as Transactions>::Error,
         >>::initialize(
             &cancel,
             punish_lock,
             self.refund_address.clone(),
             &public_offer.offer.fee_strategy,
             self.fee_politic,
-        )
-        .unwrap(); // FIXME unwrap
+        )?;
 
         Ok(CoreArbitratingTransactions {
             lock: datum::Transaction::new_lock(lock.to_partial()),
@@ -523,8 +516,8 @@ impl<Ctx: Swap> Bob<Ctx> {
         let mut cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(&partial_cancel);
 
         let privkey =
-            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Cancel);
-        let sig = cancel.generate_failure_witness(&privkey).unwrap(); // FIXME unwrap
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Cancel)?;
+        let sig = cancel.generate_failure_witness(&privkey)?;
 
         Ok(CosignedArbitratingCancel {
             cancel_sig: datum::Signature::new(
@@ -552,13 +545,13 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Alice's keys are shared over the network by Alice and end-up in Alice parameters bundle,
         // Bob's keys are generated by Bob through the seed.
         let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let bob_buy = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Buy);
+        let bob_buy = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Buy)?;
         let alice_cancel = alice_parameters
             .cancel
             .key()
             .try_into_arbitrating_pubkey()?;
         let bob_cancel =
-            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Cancel);
+            <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_seed, crypto::ArbitratingKey::Cancel)?;
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -572,7 +565,6 @@ impl<Ctx: Swap> Bob<Ctx> {
         let mut buy = <<Ctx::Ar as Transactions>::Buy as Buyable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-            <Ctx::Ar as Transactions>::Error,
         >>::initialize(
             &lock,
             cancel_lock,
@@ -582,15 +574,15 @@ impl<Ctx: Swap> Bob<Ctx> {
                 .try_into_address()?,
             &public_offer.offer.fee_strategy,
             self.fee_politic,
-        )
-        .unwrap(); // FIXME unwrap
+        )?;
 
         let adaptor = alice_parameters
             .adaptor
             .key()
             .try_into_arbitrating_pubkey()?;
-        let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Buy);
-        let sig = buy.generate_adaptor_witness(&privkey, &adaptor).unwrap(); // FIXME unwrap
+        let privkey =
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Buy)?;
+        let sig = buy.generate_adaptor_witness(&privkey, &adaptor)?;
 
         Ok(SignedAdaptorBuy {
             buy: datum::Transaction::new_buy(buy.to_partial()),
@@ -611,8 +603,8 @@ impl<Ctx: Swap> Bob<Ctx> {
         let mut lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(&partial_lock);
 
         let privkey =
-            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Fund);
-        let sig = lock.generate_witness(&privkey).unwrap(); // FIXME unwrap
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Fund)?;
+        let sig = lock.generate_witness(&privkey)?;
 
         Ok(SignedArbitratingLock {
             lock_sig: datum::Signature::new(TxId::Lock, SwapRole::Bob, SignatureType::Regular(sig)),
@@ -633,10 +625,10 @@ impl<Ctx: Swap> Bob<Ctx> {
         // TODO verify adaptor sig (probably before here)
 
         let privkey =
-            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Refund);
-        let sig = refund.generate_witness(&privkey).unwrap(); // FIXME unwrap
+            <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, crypto::ArbitratingKey::Refund)?;
+        let sig = refund.generate_witness(&privkey)?;
 
-        let priv_adaptor = <Ctx::Proof as DleqProof<Ctx::Ar, Ctx::Ac>>::project_over(ac_seed);
+        let priv_adaptor = <Ctx::Proof as DleqProof<Ctx::Ar, Ctx::Ac>>::project_over(ac_seed)?;
         let adapted_sig = <Ctx::Ar as Signatures>::adapt(
             &priv_adaptor,
             signed_adaptor_refund

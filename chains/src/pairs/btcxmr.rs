@@ -27,30 +27,32 @@ impl Swap for BtcXmr {
 pub struct RingProof;
 
 impl DleqProof<Bitcoin, Monero> for RingProof {
-    fn project_over(ac_seed: &[u8; 32]) -> bitcoin::PrivateKey {
-        let spend = private_spend_from_seed(&ac_seed);
+    fn project_over(ac_seed: &[u8; 32]) -> Result<bitcoin::PrivateKey, crypto::Error> {
+        let spend = private_spend_from_seed(&ac_seed)?;
         let bytes = spend.to_bytes(); // FIXME warn this copy the priv key
-        let adaptor = SecretKey::from_slice(&bytes).unwrap();
+        let adaptor = SecretKey::from_slice(&bytes).map_err(|e| crypto::Error::new(e))?;
 
-        bitcoin::PrivateKey {
+        Ok(bitcoin::PrivateKey {
             compressed: true,
             network: bitcoin::Network::Bitcoin,
             key: adaptor,
-        }
+        })
     }
 
-    fn generate(ac_seed: &[u8; 32]) -> (monero::PublicKey, bitcoin::PublicKey, Self) {
+    fn generate(
+        ac_seed: &[u8; 32],
+    ) -> Result<(monero::PublicKey, bitcoin::PublicKey, Self), crypto::Error> {
         let secp = Secp256k1::new();
 
-        let spend = private_spend_from_seed(&ac_seed);
-        let adaptor = Self::project_over(&ac_seed);
+        let spend = private_spend_from_seed(&ac_seed)?;
+        let adaptor = Self::project_over(&ac_seed)?;
 
-        (
+        Ok((
             monero::PublicKey::from_private_key(&spend),
             bitcoin::PublicKey::from_private_key(&secp, &adaptor),
             // TODO
             Self,
-        )
+        ))
     }
 
     fn verify(

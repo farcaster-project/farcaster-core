@@ -13,7 +13,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use farcaster_core::blockchain::{self, Asset, Onchain, Timelock, Transactions};
 use farcaster_core::consensus::{self, Decodable, Encodable};
-use farcaster_core::crypto::{ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
+use farcaster_core::crypto::{self, ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
 use farcaster_core::role::{Arb, Arbitrating};
 
 use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
@@ -201,8 +201,6 @@ impl Onchain for Bitcoin {
 impl Transactions for Bitcoin {
     type Metadata = transaction::MetadataOutput;
 
-    type Error = transaction::Error;
-
     type Funding = Funding;
     type Lock = Tx<Lock>;
     type Buy = Tx<Buy>;
@@ -275,31 +273,32 @@ impl Signatures for Bitcoin {
 impl FromSeed<Arb> for Bitcoin {
     type Seed = [u8; 32];
 
-    fn get_privkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PrivateKey {
+    fn get_privkey(seed: &[u8; 32], key_type: ArbitratingKey) -> Result<PrivateKey, crypto::Error> {
         let secp = Secp256k1::new();
-        let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref()).unwrap();
+        let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref())
+            .map_err(|e| crypto::Error::new(e))?;
         let key = match key_type {
-            ArbitratingKey::Fund => master_key
-                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/1").unwrap())
-                .unwrap(),
-            ArbitratingKey::Buy => master_key
-                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/2").unwrap())
-                .unwrap(),
-            ArbitratingKey::Cancel => master_key
-                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/3").unwrap())
-                .unwrap(),
-            ArbitratingKey::Refund => master_key
-                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/4").unwrap())
-                .unwrap(),
-            ArbitratingKey::Punish => master_key
-                .derive_priv(&secp, &DerivationPath::from_str("m/0/1/5").unwrap())
-                .unwrap(),
+            ArbitratingKey::Fund => {
+                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/1").unwrap())
+            }
+            ArbitratingKey::Buy => {
+                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/2").unwrap())
+            }
+            ArbitratingKey::Cancel => {
+                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/3").unwrap())
+            }
+            ArbitratingKey::Refund => {
+                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/4").unwrap())
+            }
+            ArbitratingKey::Punish => {
+                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/5").unwrap())
+            }
         };
-        key.private_key
+        Ok(key.map_err(|e| crypto::Error::new(e))?.private_key)
     }
 
-    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> PublicKey {
+    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
-        Self::get_privkey(&seed, key_type).public_key(&secp)
+        Ok(Self::get_privkey(&seed, key_type)?.public_key(&secp))
     }
 }

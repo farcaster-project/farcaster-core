@@ -8,9 +8,9 @@ use bitcoin::secp256k1::{Secp256k1, Signature};
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::blockchain::{Fee, FeePolitic, FeeStrategy};
+use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Cooperable, Forkable, Lockable};
+use farcaster_core::transaction::{Cancelable, Cooperable, Error as FError, Forkable, Lockable};
 
 use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{sign_input, Error, MetadataOutput, SubTransaction, Tx, TxInRef};
@@ -20,11 +20,11 @@ use crate::bitcoin::Bitcoin;
 pub struct Cancel;
 
 impl SubTransaction for Cancel {
-    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), Error> {
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), FError> {
         let script = psbt.inputs[0]
             .witness_script
             .clone()
-            .ok_or(Error::MissingWitnessScript)?;
+            .ok_or(FError::MissingWitness)?;
 
         let mut keys = script.instructions().skip(11).take(2);
 
@@ -33,28 +33,34 @@ impl SubTransaction for Cancel {
             psbt.inputs[0]
                 .partial_sigs
                 .get(
-                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
-                        |i| match i {
-                            Instruction::PushBytes(b) => Ok(b),
-                            _ => Err(Error::PublicKeyNotFound),
-                        },
-                    )??)
-                    .map_err(|_| Error::PublicKeyNotFound)?,
+                    &PublicKey::from_slice(
+                        keys.next()
+                            .ok_or(FError::MissingPublicKey)?
+                            .map(|i| match i {
+                                Instruction::PushBytes(b) => Ok(b),
+                                _ => Err(FError::MissingPublicKey),
+                            })
+                            .map_err(Error::from)??,
+                    )
+                    .map_err(|_| FError::MissingPublicKey)?,
                 )
-                .ok_or(Error::MissingSignature)?
+                .ok_or(FError::MissingSignature)?
                 .clone(),
             psbt.inputs[0]
                 .partial_sigs
                 .get(
-                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
-                        |i| match i {
-                            Instruction::PushBytes(b) => Ok(b),
-                            _ => Err(Error::PublicKeyNotFound),
-                        },
-                    )??)
-                    .map_err(|_| Error::PublicKeyNotFound)?,
+                    &PublicKey::from_slice(
+                        keys.next()
+                            .ok_or(FError::MissingPublicKey)?
+                            .map(|i| match i {
+                                Instruction::PushBytes(b) => Ok(b),
+                                _ => Err(FError::MissingPublicKey),
+                            })
+                            .map_err(Error::from)??,
+                    )
+                    .map_err(|_| FError::MissingPublicKey)?,
                 )
-                .ok_or(Error::MissingSignature)?
+                .ok_or(FError::MissingSignature)?
                 .clone(),
             vec![],              // OP_FALSE
             script.into_bytes(), // swaplock script
@@ -64,14 +70,14 @@ impl SubTransaction for Cancel {
     }
 }
 
-impl Cancelable<Bitcoin, MetadataOutput, Error> for Tx<Cancel> {
+impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
     fn initialize(
-        prev: &impl Lockable<Bitcoin, MetadataOutput, Error>,
+        prev: &impl Lockable<Bitcoin, MetadataOutput>,
         lock: script::DataLock<Bitcoin>,
         punish_lock: script::DataPunishableLock<Bitcoin>,
-        fee_strategy: &FeeStrategy<SatPerVByte>,
-        fee_politic: FeePolitic,
-    ) -> Result<Self, Error> {
+        _fee_strategy: &FeeStrategy<SatPerVByte>,
+        _fee_politic: FeePolitic,
+    ) -> Result<Self, FError> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
@@ -105,7 +111,8 @@ impl Cancelable<Bitcoin, MetadataOutput, Error> for Tx<Cancel> {
             }],
         };
 
-        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx)?;
+        let mut psbt =
+            PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(Error::from)?;
 
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
@@ -115,8 +122,9 @@ impl Cancelable<Bitcoin, MetadataOutput, Error> for Tx<Cancel> {
         // Set the script witness of the output
         psbt.outputs[0].witness_script = Some(script);
 
-        // Set the fees according to the given strategy
-        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
+        // TODO move the logic inside core
+        //// Set the fees according to the given strategy
+        //Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
 
         Ok(Tx {
             psbt,
@@ -125,8 +133,8 @@ impl Cancelable<Bitcoin, MetadataOutput, Error> for Tx<Cancel> {
     }
 }
 
-impl Forkable<Bitcoin, Error> for Tx<Cancel> {
-    fn generate_failure_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, Error> {
+impl Forkable<Bitcoin> for Tx<Cancel> {
+    fn generate_failure_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, FError> {
         let mut secp = Secp256k1::new();
 
         let unsigned_tx = self.psbt.global.unsigned_tx.clone();
@@ -135,20 +143,21 @@ impl Forkable<Bitcoin, Error> for Tx<Cancel> {
         let witness_utxo = self.psbt.inputs[0]
             .witness_utxo
             .clone()
-            .ok_or(Error::MissingWitnessUTXO)?;
+            .ok_or(FError::MissingWitness)?;
 
         let script = self.psbt.inputs[0]
             .witness_script
             .clone()
-            .ok_or(Error::MissingWitnessScript)?;
+            .ok_or(FError::MissingWitness)?;
 
         let value = witness_utxo.value;
 
         let sighash_type = self.psbt.inputs[0]
             .sighash_type
-            .ok_or(Error::MissingSigHashType)?;
+            .ok_or(FError::new(Error::MissingSigHashType))?;
 
-        let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)?;
+        let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)
+            .map_err(Error::from)?;
         let pubkey = PublicKey::from_private_key(&secp, &privkey);
         self.add_cooperation(pubkey, sig)?;
 
@@ -159,16 +168,16 @@ impl Forkable<Bitcoin, Error> for Tx<Cancel> {
         &mut self,
         _pubkey: &PublicKey,
         _sig: Signature,
-    ) -> Result<(), Error> {
+    ) -> Result<(), FError> {
         todo!()
     }
 }
 
-impl Cooperable<Bitcoin, Error> for Tx<Cancel> {
-    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), Error> {
+impl Cooperable<Bitcoin> for Tx<Cancel> {
+    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
         let sighash_type = self.psbt.inputs[0]
             .sighash_type
-            .ok_or(Error::MissingSigHashType)?;
+            .ok_or(FError::new(Error::MissingSigHashType))?;
         let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
         self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);

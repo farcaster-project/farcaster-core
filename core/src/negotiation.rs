@@ -48,13 +48,15 @@ impl Decodable for Version {
     }
 }
 
-/// Negotiation errors used when manipulating offers, public offers and its
-/// version.
-#[derive(Error, Debug, Clone, PartialEq)]
+/// Negotiation errors used when manipulating offers, public offers and its version.
+#[derive(Error, Debug)]
 pub enum Error {
-    /// The magic bytes of the offer does not match
-    #[error("Incorrect magic bytes")]
-    IncorrectMagicBytes,
+    /// The public offer version is not supported.
+    #[error("Unsupported version")]
+    UnsupportedVersion,
+    /// The public offer signature does not pass the validation tests.
+    #[error("Invalid signature")]
+    InvalidSignature,
 }
 
 /// An offer is created by a Maker before the start of his daemon, it references all the data
@@ -408,7 +410,7 @@ where
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let magic_bytes: [u8; 6] = Decodable::consensus_decode(d)?;
         if magic_bytes != *OFFER_MAGIC_BYTES {
-            return Err(consensus::Error::Negotiation(Error::IncorrectMagicBytes));
+            return Err(consensus::Error::IncorrectMagicBytes);
         }
         Ok(PublicOffer {
             version: Decodable::consensus_decode(d)?,

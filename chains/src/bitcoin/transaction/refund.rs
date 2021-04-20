@@ -5,9 +5,11 @@ use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::blockchain::{Fee, FeePolitic, FeeStrategy};
+use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
-use farcaster_core::transaction::{AdaptorSignable, Cancelable, Cooperable, Refundable, Signable};
+use farcaster_core::transaction::{
+    AdaptorSignable, Cancelable, Cooperable, Error as FError, Refundable, Signable,
+};
 
 use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
@@ -17,19 +19,19 @@ use crate::bitcoin::{Address, Bitcoin, ECDSAAdaptorSig};
 pub struct Refund;
 
 impl SubTransaction for Refund {
-    fn finalize(_psbt: &mut PartiallySignedTransaction) -> Result<(), Error> {
+    fn finalize(_psbt: &mut PartiallySignedTransaction) -> Result<(), FError> {
         todo!()
     }
 }
 
-impl Refundable<Bitcoin, MetadataOutput, Error> for Tx<Refund> {
+impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
     fn initialize(
-        prev: &impl Cancelable<Bitcoin, MetadataOutput, Error>,
+        prev: &impl Cancelable<Bitcoin, MetadataOutput>,
         punish_lock: script::DataPunishableLock<Bitcoin>,
         refund_target: Address,
-        fee_strategy: &FeeStrategy<SatPerVByte>,
-        fee_politic: FeePolitic,
-    ) -> Result<Self, Error> {
+        _fee_strategy: &FeeStrategy<SatPerVByte>,
+        _fee_politic: FeePolitic,
+    ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;
 
         let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
@@ -47,14 +49,16 @@ impl Refundable<Bitcoin, MetadataOutput, Error> for Tx<Refund> {
             }],
         };
 
-        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx)?;
+        let mut psbt =
+            PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(Error::from)?;
 
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
         psbt.inputs[0].sighash_type = Some(SigHashType::All);
 
-        // Set the fees according to the given strategy
-        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
+        // TODO move the logic inside core
+        //// Set the fees according to the given strategy
+        //Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
 
         Ok(Tx {
             psbt,
@@ -63,22 +67,22 @@ impl Refundable<Bitcoin, MetadataOutput, Error> for Tx<Refund> {
     }
 }
 
-impl Signable<Bitcoin, Error> for Tx<Refund> {
-    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
+impl Signable<Bitcoin> for Tx<Refund> {
+    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, FError> {
         todo!()
     }
 
-    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
         todo!()
     }
 }
 
-impl AdaptorSignable<Bitcoin, Error> for Tx<Refund> {
+impl AdaptorSignable<Bitcoin> for Tx<Refund> {
     fn generate_adaptor_witness(
         &mut self,
         _privkey: &PrivateKey,
         _adaptor: &PublicKey,
-    ) -> Result<ECDSAAdaptorSig, Error> {
+    ) -> Result<ECDSAAdaptorSig, FError> {
         todo!()
     }
 
@@ -87,16 +91,16 @@ impl AdaptorSignable<Bitcoin, Error> for Tx<Refund> {
         _pubkey: &PublicKey,
         _adaptor: &PublicKey,
         _sig: ECDSAAdaptorSig,
-    ) -> Result<(), Error> {
+    ) -> Result<(), FError> {
         todo!()
     }
 }
 
-impl Cooperable<Bitcoin, Error> for Tx<Refund> {
-    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), Error> {
+impl Cooperable<Bitcoin> for Tx<Refund> {
+    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
         let sighash_type = self.psbt.inputs[0]
             .sighash_type
-            .ok_or(Error::MissingSigHashType)?;
+            .ok_or(FError::new(Error::MissingSigHashType))?;
         let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
         self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);

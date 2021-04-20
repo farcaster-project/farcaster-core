@@ -5,12 +5,12 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::consensus;
 use crate::crypto::{Commitment, DleqProof, Keys, SharedPrivateKeys, SignatureType, Signatures};
 use crate::datum;
 use crate::role::{Acc, SwapRole};
 use crate::swap::Swap;
 use crate::transaction::TxId;
+use crate::Error;
 
 /// Trait for defining inter-daemon communication messages.
 pub trait ProtocolMessage: StrictEncode + StrictDecode {}
@@ -52,7 +52,7 @@ where
         }
     }
 
-    pub fn verify(&self, reveal: &RevealAliceParameters<Ctx>) -> Result<(), consensus::Error> {
+    pub fn verify(&self, reveal: &RevealAliceParameters<Ctx>) -> Result<(), Error> {
         // Check buy commitment
         <Ctx::Ar as Commitment>::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.buy),
@@ -99,7 +99,7 @@ where
     pub fn verify_then_bundle(
         &self,
         reveal: &RevealAliceParameters<Ctx>,
-    ) -> Result<bundle::AliceParameters<Ctx>, consensus::Error> {
+    ) -> Result<bundle::AliceParameters<Ctx>, Error> {
         self.verify(reveal)?;
         Ok(reveal.into_bundle())
     }
@@ -150,7 +150,7 @@ where
         }
     }
 
-    pub fn verify(&self, reveal: &RevealBobParameters<Ctx>) -> Result<(), consensus::Error> {
+    pub fn verify(&self, reveal: &RevealBobParameters<Ctx>) -> Result<(), Error> {
         // Check buy commitment
         <Ctx::Ar as Commitment>::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.buy),
@@ -192,7 +192,7 @@ where
     pub fn verify_then_bundle(
         &self,
         reveal: &RevealBobParameters<Ctx>,
-    ) -> Result<bundle::BobParameters<Ctx>, consensus::Error> {
+    ) -> Result<bundle::BobParameters<Ctx>, Error> {
         self.verify(reveal)?;
         Ok(reveal.into_bundle())
     }
@@ -238,7 +238,7 @@ impl<Ctx> RevealAliceParameters<Ctx>
 where
     Ctx: Swap,
 {
-    pub fn from_bundle(bundle: &bundle::AliceParameters<Ctx>) -> Result<Self, consensus::Error> {
+    pub fn from_bundle(bundle: &bundle::AliceParameters<Ctx>) -> Result<Self, Error> {
         Ok(Self {
             buy: bundle.buy.key().try_into_arbitrating_pubkey()?,
             cancel: bundle.cancel.key().try_into_arbitrating_pubkey()?,
@@ -283,7 +283,7 @@ impl<Ctx> TryInto<RevealAliceParameters<Ctx>> for bundle::AliceParameters<Ctx>
 where
     Ctx: Swap,
 {
-    type Error = crate::consensus::Error;
+    type Error = crate::Error;
 
     fn try_into(self) -> Result<RevealAliceParameters<Ctx>, Self::Error> {
         RevealAliceParameters::from_bundle(&self)
@@ -319,7 +319,7 @@ impl<Ctx> RevealBobParameters<Ctx>
 where
     Ctx: Swap,
 {
-    pub fn from_bundle(bundle: &bundle::BobParameters<Ctx>) -> Result<Self, consensus::Error> {
+    pub fn from_bundle(bundle: &bundle::BobParameters<Ctx>) -> Result<Self, Error> {
         Ok(Self {
             buy: bundle.buy.key().try_into_arbitrating_pubkey()?,
             cancel: bundle.cancel.key().try_into_arbitrating_pubkey()?,
@@ -362,7 +362,7 @@ impl<Ctx> TryInto<RevealBobParameters<Ctx>> for bundle::BobParameters<Ctx>
 where
     Ctx: Swap,
 {
-    type Error = crate::consensus::Error;
+    type Error = crate::Error;
 
     fn try_into(self) -> Result<RevealBobParameters<Ctx>, Self::Error> {
         RevealBobParameters::from_bundle(&self)
@@ -393,7 +393,7 @@ where
     pub fn from_bundles(
         txs: &bundle::CoreArbitratingTransactions<Ctx::Ar>,
         sig: &bundle::CosignedArbitratingCancel<Ctx::Ar>,
-    ) -> Result<Self, consensus::Error> {
+    ) -> Result<Self, Error> {
         Ok(Self {
             lock: txs.lock.tx().try_into_partial_transaction()?,
             cancel: txs.cancel.tx().try_into_partial_transaction()?,
@@ -442,7 +442,7 @@ where
     pub fn from_bundles(
         sig: &bundle::CosignedArbitratingCancel<Ctx::Ar>,
         adaptor_sig: &bundle::SignedAdaptorRefund<Ctx::Ar>,
-    ) -> Result<Self, consensus::Error> {
+    ) -> Result<Self, Error> {
         Ok(Self {
             cancel_sig: sig.cancel_sig.signature().try_into_regular()?,
             refund_adaptor_sig: adaptor_sig
@@ -491,9 +491,7 @@ impl<Ctx> BuyProcedureSignature<Ctx>
 where
     Ctx: Swap,
 {
-    pub fn from_bundle(
-        bundle: &bundle::SignedAdaptorBuy<Ctx::Ar>,
-    ) -> Result<Self, consensus::Error> {
+    pub fn from_bundle(bundle: &bundle::SignedAdaptorBuy<Ctx::Ar>) -> Result<Self, Error> {
         Ok(Self {
             buy: bundle.buy.tx().try_into_partial_transaction()?,
             buy_adaptor_sig: bundle.buy_adaptor_sig.signature().try_into_adaptor()?,
@@ -525,9 +523,9 @@ impl<Ctx> TryInto<BuyProcedureSignature<Ctx>> for bundle::SignedAdaptorBuy<Ctx::
 where
     Ctx: Swap,
 {
-    type Error = consensus::Error;
+    type Error = crate::Error;
 
-    fn try_into(self) -> Result<BuyProcedureSignature<Ctx>, consensus::Error> {
+    fn try_into(self) -> Result<BuyProcedureSignature<Ctx>, Error> {
         BuyProcedureSignature::from_bundle(&self)
     }
 }

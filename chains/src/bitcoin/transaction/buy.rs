@@ -5,7 +5,9 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
-use farcaster_core::transaction::{AdaptorSignable, Buyable, Cooperable, Lockable, Signable};
+use farcaster_core::transaction::{
+    AdaptorSignable, Buyable, Cooperable, Error as FError, Lockable, Signable,
+};
 
 use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
@@ -15,11 +17,11 @@ use crate::bitcoin::{Address, Bitcoin, ECDSAAdaptorSig};
 pub struct Buy;
 
 impl SubTransaction for Buy {
-    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), Error> {
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), FError> {
         let script = psbt.inputs[0]
             .witness_script
             .clone()
-            .ok_or(Error::MissingWitnessScript)?;
+            .ok_or(FError::MissingWitness)?;
 
         let mut keys = script.instructions().skip(2).take(2);
 
@@ -28,28 +30,34 @@ impl SubTransaction for Buy {
             psbt.inputs[0]
                 .partial_sigs
                 .get(
-                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
-                        |i| match i {
-                            Instruction::PushBytes(b) => Ok(b),
-                            _ => Err(Error::PublicKeyNotFound),
-                        },
-                    )??)
-                    .map_err(|_| Error::PublicKeyNotFound)?,
+                    &PublicKey::from_slice(
+                        keys.next()
+                            .ok_or(FError::MissingPublicKey)?
+                            .map(|i| match i {
+                                Instruction::PushBytes(b) => Ok(b),
+                                _ => Err(FError::MissingPublicKey),
+                            })
+                            .map_err(Error::from)??,
+                    )
+                    .map_err(|_| FError::MissingPublicKey)?,
                 )
-                .ok_or(Error::MissingSignature)?
+                .ok_or(FError::MissingSignature)?
                 .clone(),
             psbt.inputs[0]
                 .partial_sigs
                 .get(
-                    &PublicKey::from_slice(keys.next().ok_or(Error::PublicKeyNotFound)?.map(
-                        |i| match i {
-                            Instruction::PushBytes(b) => Ok(b),
-                            _ => Err(Error::PublicKeyNotFound),
-                        },
-                    )??)
-                    .map_err(|_| Error::PublicKeyNotFound)?,
+                    &PublicKey::from_slice(
+                        keys.next()
+                            .ok_or(FError::MissingPublicKey)?
+                            .map(|i| match i {
+                                Instruction::PushBytes(b) => Ok(b),
+                                _ => Err(FError::MissingPublicKey),
+                            })
+                            .map_err(Error::from)??,
+                    )
+                    .map_err(|_| FError::MissingPublicKey)?,
                 )
-                .ok_or(Error::MissingSignature)?
+                .ok_or(FError::MissingSignature)?
                 .clone(),
             vec![1],             // OP_TRUE
             script.into_bytes(), // swaplock script
@@ -59,37 +67,37 @@ impl SubTransaction for Buy {
     }
 }
 
-impl Buyable<Bitcoin, MetadataOutput, Error> for Tx<Buy> {
+impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
     fn initialize(
-        _prev: &impl Lockable<Bitcoin, MetadataOutput, Error>,
+        _prev: &impl Lockable<Bitcoin, MetadataOutput>,
         _lock: script::DataLock<Bitcoin>,
         _destination_target: Address,
         _fee_strategy: &FeeStrategy<SatPerVByte>,
         _fee_politic: FeePolitic,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, FError> {
         todo!()
     }
 }
 
-impl Signable<Bitcoin, Error> for Tx<Buy> {
-    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
+impl Signable<Bitcoin> for Tx<Buy> {
+    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, FError> {
         {
             // TODO validate the transaction before signing
         }
         todo!()
     }
 
-    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
         todo!()
     }
 }
 
-impl AdaptorSignable<Bitcoin, Error> for Tx<Buy> {
+impl AdaptorSignable<Bitcoin> for Tx<Buy> {
     fn generate_adaptor_witness(
         &mut self,
         _privkey: &PrivateKey,
         _adaptor: &PublicKey,
-    ) -> Result<ECDSAAdaptorSig, Error> {
+    ) -> Result<ECDSAAdaptorSig, FError> {
         todo!()
     }
 
@@ -98,16 +106,16 @@ impl AdaptorSignable<Bitcoin, Error> for Tx<Buy> {
         _pubkey: &PublicKey,
         _adaptor: &PublicKey,
         _sig: ECDSAAdaptorSig,
-    ) -> Result<(), Error> {
+    ) -> Result<(), FError> {
         todo!()
     }
 }
 
-impl Cooperable<Bitcoin, Error> for Tx<Buy> {
-    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), Error> {
+impl Cooperable<Bitcoin> for Tx<Buy> {
+    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
         let sighash_type = self.psbt.inputs[0]
             .sighash_type
-            .ok_or(Error::MissingSigHashType)?;
+            .ok_or(FError::new(Error::MissingSigHashType))?;
         let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
         self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);

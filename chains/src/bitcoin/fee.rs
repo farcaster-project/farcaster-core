@@ -6,6 +6,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 use farcaster_core::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
 use farcaster_core::consensus::{self, Decodable, Encodable};
 
+use crate::bitcoin::transaction;
 use crate::bitcoin::{Amount, Bitcoin};
 
 use std::io;
@@ -90,7 +91,9 @@ impl Fee for Bitcoin {
         .ok_or_else(|| FeeStrategyError::AmountOfFeeTooHigh)?;
 
         if tx.global.unsigned_tx.output.len() != 1 {
-            return Err(FeeStrategyError::MultiOutputUnsupported);
+            return Err(FeeStrategyError::new(
+                transaction::Error::MultiUTXOUnsuported,
+            ));
         }
 
         // Apply the fee on the first output
@@ -107,7 +110,6 @@ impl Fee for Bitcoin {
     fn validate_fee(
         _tx: &PartiallySignedTransaction,
         _strategy: &FeeStrategy<SatPerVByte>,
-        _politic: FeePolitic,
     ) -> Result<bool, FeeStrategyError> {
         todo!()
     }

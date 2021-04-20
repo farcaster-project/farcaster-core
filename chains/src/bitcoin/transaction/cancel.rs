@@ -10,7 +10,7 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Cooperable, Error as FError, Forkable, Lockable};
+use farcaster_core::transaction::{Cancelable, Error as FError, Forkable, Lockable};
 
 use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{sign_input, Error, MetadataOutput, SubTransaction, Tx, TxInRef};
@@ -134,7 +134,7 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
 }
 
 impl Forkable<Bitcoin> for Tx<Cancel> {
-    fn generate_failure_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, FError> {
+    fn generate_failure_witness(&self, privkey: &PrivateKey) -> Result<Signature, FError> {
         let mut secp = Secp256k1::new();
 
         let unsigned_tx = self.psbt.global.unsigned_tx.clone();
@@ -158,29 +158,14 @@ impl Forkable<Bitcoin> for Tx<Cancel> {
 
         let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)
             .map_err(Error::from)?;
-        let pubkey = PublicKey::from_private_key(&secp, &privkey);
-        self.add_cooperation(pubkey, sig)?;
+        // TODO
+        //let pubkey = PublicKey::from_private_key(&secp, &privkey);
+        //self.add_cooperation(pubkey, sig)?;
 
         Ok(sig)
     }
 
-    fn verify_failure_witness(
-        &mut self,
-        _pubkey: &PublicKey,
-        _sig: Signature,
-    ) -> Result<(), FError> {
+    fn verify_failure_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
         todo!()
-    }
-}
-
-impl Cooperable<Bitcoin> for Tx<Cancel> {
-    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
-        let sighash_type = self.psbt.inputs[0]
-            .sighash_type
-            .ok_or(FError::new(Error::MissingSigHashType))?;
-        let mut full_sig = sig.serialize_der().to_vec();
-        full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
-        self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
-        Ok(())
     }
 }

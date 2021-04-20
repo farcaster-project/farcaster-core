@@ -238,10 +238,8 @@ where
         // not error if the bundle is well formed.
         let partial_refund = core.refund.tx().try_into_partial_transaction()?;
 
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
-
         // Initialize the refund transaction based on the extracted partial transaction format.
-        let mut refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(&partial_refund);
+        let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
 
         // TODO verify transaction before signing
         //  - transaction
@@ -297,10 +295,8 @@ where
         // not error if the bundle is well formed.
         let partial_cancel = core.cancel.tx().try_into_partial_transaction()?;
 
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
-
         // Initialize the cancel transaction based on the extracted partial transaction format.
-        let mut cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(&partial_cancel);
+        let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
 
         // TODO verify transaction before signing
         //  - transaction
@@ -353,10 +349,8 @@ where
         // error if the bundle is well formed.
         let partial_buy = adaptor_buy.buy.tx().try_into_partial_transaction()?;
 
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
-
         // Initialize the buy transaction based on the extracted partial transaction format.
-        let mut buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(&partial_buy);
+        let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
 
         // TODO verify transaction before signing
         //  - transaction
@@ -418,10 +412,8 @@ where
         // error if the bundle is well formed.
         let partial_buy = adaptor_buy.buy.tx().try_into_partial_transaction()?;
 
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
-
         // Initialize the buy transaction based on the extracted partial transaction format.
-        let mut buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(&partial_buy);
+        let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
 
         // TODO verify transaction before signing
         //  - transaction
@@ -496,7 +488,7 @@ where
         let partial_cancel = core.cancel.tx().try_into_partial_transaction()?;
 
         // Initialize the cancel transaction based on the partial transaction format.
-        let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(&partial_cancel);
+        let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
 
         // TODO verify transaction before signing
         //  - transaction
@@ -523,8 +515,6 @@ where
             failure: alice_punish,
         };
 
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
-
         // Initialize the punish transaction based on the cancel transaction.
         let mut punish = <<Ctx::Ar as Transactions>::Punish as Punishable<
             Ctx::Ar,
@@ -537,7 +527,9 @@ where
             self.fee_politic,
         )?;
 
-        // TODO set the fees on punish
+        // Set the fees according to the strategy in the offer and the local politic.
+        let fee_strategy = &public_offer.offer.fee_strategy;
+        <Ctx::Ar as Fee>::set_fees(punish.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Derive the punish private key and generate the witness data for the punish transaction.
         let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, ArbitratingKey::Punish)?;
@@ -670,6 +662,8 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// The fee on each transactions are set according to the [`FeeStrategy`] specified in the
     /// public offer and the [`FeePolitic`] in `self`.
     ///
+    /// [`FeeStrategy`]: crate::blockchain::FeeStrategy
+    ///
     pub fn core_arbitrating_transactions(
         &self,
         alice_parameters: &AliceParameters<Ctx>,
@@ -711,7 +705,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Initialize the lockable transaction based on the fundable structure. The lockable
         // transaction prepare the on-chain contract for a buy or a cancel.
-        let lock = <<Ctx::Ar as Transactions>::Lock as Lockable<
+        let mut lock = <<Ctx::Ar as Transactions>::Lock as Lockable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
         >>::initialize(
@@ -721,7 +715,9 @@ impl<Ctx: Swap> Bob<Ctx> {
             self.fee_politic,
         )?;
 
-        // TODO set the fees on lock
+        // Set the fees according to the strategy in the offer and the local politic.
+        let fee_strategy = &public_offer.offer.fee_strategy;
+        <Ctx::Ar as Fee>::set_fees(lock.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
@@ -749,7 +745,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Initialize the cancel transaction for the lock transaction, removing the funds from the
         // buy and moving them into a punisable on-chain contract.
-        let cancel = <<Ctx::Ar as Transactions>::Cancel as Cancelable<
+        let mut cancel = <<Ctx::Ar as Transactions>::Cancel as Cancelable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
         >>::initialize(
@@ -760,11 +756,12 @@ impl<Ctx: Swap> Bob<Ctx> {
             self.fee_politic,
         )?;
 
-        // TODO set the fees on cancel
+        // Set the fees according to the strategy in the offer and the local politic.
+        <Ctx::Ar as Fee>::set_fees(cancel.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Initialize the refund transaction for the cancel transaction, moving the funds out of
         // the punishable lock to Bob's refund address.
-        let refund = <<Ctx::Ar as Transactions>::Refund as Refundable<
+        let mut refund = <<Ctx::Ar as Transactions>::Refund as Refundable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
         >>::initialize(
@@ -775,7 +772,8 @@ impl<Ctx: Swap> Bob<Ctx> {
             self.fee_politic,
         )?;
 
-        // TODO set the fees on refund
+        // Set the fees according to the strategy in the offer and the local politic.
+        <Ctx::Ar as Fee>::set_fees(refund.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         Ok(CoreArbitratingTransactions {
             lock: datum::Transaction::new_lock(lock.to_partial()),
@@ -813,10 +811,8 @@ impl<Ctx: Swap> Bob<Ctx> {
         // not error if the bundle is well formed.
         let partial_cancel = core.cancel.tx().try_into_partial_transaction()?;
 
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
-
         // Initialize the cancel transaction based on the partial transaction format.
-        let mut cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(&partial_cancel);
+        let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
 
         // Derive the private key from the seed and generate the failure witness.
         let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, ArbitratingKey::Cancel)?;
@@ -871,9 +867,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let partial_refund = core.refund.tx().try_into_partial_transaction()?;
 
         // Initialize the refund transaction based on the partial transaction format.
-        let mut refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(&partial_refund);
-
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
+        let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
 
         // Verify the adaptor refund witness
         refund.verify_adaptor_witness(
@@ -945,7 +939,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let partial_lock = core.lock.tx().try_into_partial_transaction()?;
 
         // Initialize the lock transaction based on the partial transaction format.
-        let lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(&partial_lock);
+        let lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(partial_lock);
 
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
@@ -970,8 +964,6 @@ impl<Ctx: Swap> Bob<Ctx> {
             failure: DoubleKeys::new(alice_cancel, bob_cancel),
         };
 
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
-
         // Initialize the buy transaction based on the lock and the data lock. The buy transaction
         // consumes the success path of the lock and send the funds into Alice's destination
         // address.
@@ -989,7 +981,9 @@ impl<Ctx: Swap> Bob<Ctx> {
             self.fee_politic,
         )?;
 
-        // TODO set the fees on buy
+        // Set the fees according to the strategy in the offer and the local politic.
+        let fee_strategy = &public_offer.offer.fee_strategy;
+        <Ctx::Ar as Fee>::set_fees(buy.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Retrieve Alice's public adaptor key from the Alice parameters bundle, the key is used to
         // generate Bob's encrypted signature over the buy transaction.
@@ -1042,9 +1036,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let partial_lock = core.lock.tx().try_into_partial_transaction()?;
 
         // Initialize the lock transaction based on the partial transaction format.
-        let mut lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(&partial_lock);
-
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
+        let lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(partial_lock);
 
         // Derive Bob's funding private key and generate the witness to unlock the fundable
         // transaction.
@@ -1106,9 +1098,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let partial_refund = core.refund.tx().try_into_partial_transaction()?;
 
         // Initialize the refund transaction based on the partial transaction format.
-        let mut refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(&partial_refund);
-
-        // FIXME: the mutation is on a cloned value and is dropped at the end of the scope
+        let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
 
         // Derive the refund private key from the arbitrating and generate Bob's refund witness.
         let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, ArbitratingKey::Refund)?;

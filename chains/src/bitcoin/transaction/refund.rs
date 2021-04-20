@@ -8,7 +8,7 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
 use farcaster_core::transaction::{
-    AdaptorSignable, Cancelable, Cooperable, Error as FError, Refundable, Signable,
+    AdaptorSignable, Cancelable, Error as FError, Refundable, Signable,
 };
 
 use crate::bitcoin::fee::SatPerVByte;
@@ -68,18 +68,18 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
 }
 
 impl Signable<Bitcoin> for Tx<Refund> {
-    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, FError> {
+    fn generate_witness(&self, _privkey: &PrivateKey) -> Result<Signature, FError> {
         todo!()
     }
 
-    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
+    fn verify_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
         todo!()
     }
 }
 
 impl AdaptorSignable<Bitcoin> for Tx<Refund> {
     fn generate_adaptor_witness(
-        &mut self,
+        &self,
         _privkey: &PrivateKey,
         _adaptor: &PublicKey,
     ) -> Result<ECDSAAdaptorSig, FError> {
@@ -87,23 +87,11 @@ impl AdaptorSignable<Bitcoin> for Tx<Refund> {
     }
 
     fn verify_adaptor_witness(
-        &mut self,
+        &self,
         _pubkey: &PublicKey,
         _adaptor: &PublicKey,
         _sig: ECDSAAdaptorSig,
     ) -> Result<(), FError> {
         todo!()
-    }
-}
-
-impl Cooperable<Bitcoin> for Tx<Refund> {
-    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
-        let sighash_type = self.psbt.inputs[0]
-            .sighash_type
-            .ok_or(FError::new(Error::MissingSigHashType))?;
-        let mut full_sig = sig.serialize_der().to_vec();
-        full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
-        self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
-        Ok(())
     }
 }

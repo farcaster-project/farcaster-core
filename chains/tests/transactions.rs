@@ -39,6 +39,9 @@ macro_rules! setup_txs {
 
         let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), &fee, politic).unwrap();
 
+        // Set the fees according to the given strategy
+        Bitcoin::set_fees(lock.partial_mut(), &fee, politic).unwrap();
+
         //
         // Create cancel tx
         //
@@ -52,11 +55,14 @@ macro_rules! setup_txs {
             Tx::<Cancel>::initialize(&lock, datalock, datapunishablelock.clone(), &fee, politic)
                 .unwrap();
 
+        // Set the fees according to the given strategy
+        Bitcoin::set_fees(cancel.partial_mut(), &fee, politic).unwrap();
+
         //
         // Create refund tx
         //
         let (new_address, _, _) = new_address!();
-        let refund = Tx::<Refund>::initialize(
+        let mut refund = Tx::<Refund>::initialize(
             &cancel,
             datapunishablelock,
             new_address.into(),
@@ -65,21 +71,27 @@ macro_rules! setup_txs {
         )
         .unwrap();
 
-        //
-        // Co-Sign refund
-        //
-        let _sig = cancel.generate_failure_witness(&secret_a2).unwrap();
-        let _sig = cancel.generate_failure_witness(&secret_b2).unwrap();
+        // Set the fees according to the given strategy
+        Bitcoin::set_fees(refund.partial_mut(), &fee, politic).unwrap();
 
         //
-        // Finalize for failure path
+        // Co-Sign cancel
+        //
+        let sig = cancel.generate_failure_witness(&secret_a2).unwrap();
+        cancel.add_witness(pubkey_a2, sig).unwrap();
+        let sig = cancel.generate_failure_witness(&secret_b2).unwrap();
+        cancel.add_witness(pubkey_b2, sig).unwrap();
+
+        //
+        // Finalize cancel
         //
         let cancel_finalized = cancel.finalize_and_extract().unwrap();
 
         //
         // Sign lock tx
         //
-        let _sig = lock.generate_witness(&secret_a1).unwrap();
+        let sig = lock.generate_witness(&secret_a1).unwrap();
+        lock.add_witness(pubkey_a1, sig).unwrap();
         let lock_finalized = lock.finalize_and_extract().unwrap();
 
         (lock_finalized, cancel_finalized, refund)

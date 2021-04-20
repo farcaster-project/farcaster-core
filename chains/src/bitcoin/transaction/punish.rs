@@ -32,15 +32,11 @@ impl Punishable<Bitcoin, MetadataOutput> for Tx<Punish> {
 }
 
 impl Forkable<Bitcoin> for Tx<Punish> {
-    fn generate_failure_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, Error> {
+    fn generate_failure_witness(&self, _privkey: &PrivateKey) -> Result<Signature, Error> {
         todo!()
     }
 
-    fn verify_failure_witness(
-        &mut self,
-        _pubkey: &PublicKey,
-        _sig: Signature,
-    ) -> Result<(), Error> {
+    fn verify_failure_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
         todo!()
     }
 }

@@ -96,7 +96,7 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
 }
 
 impl Signable<Bitcoin> for Tx<Lock> {
-    fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, FError> {
+    fn generate_witness(&self, privkey: &PrivateKey) -> Result<Signature, FError> {
         {
             // TODO validate the transaction before signing
         }
@@ -128,13 +128,14 @@ impl Signable<Bitcoin> for Tx<Lock> {
         let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
 
-        let pubkey = PublicKey::from_private_key(&secp, &privkey);
-        self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
+        // TODO
+        //let pubkey = PublicKey::from_private_key(&secp, &privkey);
+        //self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
 
         Ok(sig)
     }
 
-    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
+    fn verify_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
         todo!()
     }
 }

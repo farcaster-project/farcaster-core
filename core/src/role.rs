@@ -682,10 +682,31 @@ pub trait Arbitrating:
 {
 }
 
+impl<T> Arbitrating for T where
+    T: Asset
+        + Address
+        + Commitment
+        + Fee
+        + FromSeed<Arb>
+        + Keys
+        + Onchain
+        + Signatures
+        + Timelock
+        + Transactions
+        + Clone
+        + Eq
+{
+}
+
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
 pub trait Accordant:
     Asset + Keys + Commitment + SharedPrivateKeys<Acc> + FromSeed<Acc> + Clone + Eq
+{
+}
+
+impl<T> Accordant for T where
+    T: Asset + Keys + Commitment + SharedPrivateKeys<Acc> + FromSeed<Acc> + Clone + Eq
 {
 }
 

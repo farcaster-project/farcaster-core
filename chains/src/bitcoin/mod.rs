@@ -14,7 +14,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 use farcaster_core::blockchain::{self, Asset, Onchain, Timelock, Transactions};
 use farcaster_core::consensus::{self, Decodable, Encodable};
 use farcaster_core::crypto::{ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
-use farcaster_core::role::{Arb, Arbitrating};
+use farcaster_core::role::Arb;
 
 use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
 
@@ -116,8 +116,6 @@ impl Timelock for Bitcoin {
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock = CSVTimelock;
 }
-
-impl Arbitrating for Bitcoin {}
 
 #[derive(Debug, Clone, StrictDecode, StrictEncode)]
 pub struct Address(pub bitcoin::Address);

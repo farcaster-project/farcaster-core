@@ -4,7 +4,7 @@ use farcaster_core::blockchain::Asset;
 use farcaster_core::crypto::{
     AccordantKey, Commitment, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys,
 };
-use farcaster_core::role::{Acc, Accordant};
+use farcaster_core::role::Acc;
 
 use monero::cryptonote::hash::Hash;
 use monero::util::key::{PrivateKey, PublicKey};
@@ -54,8 +54,6 @@ impl Asset for Monero {
         0x80000080
     }
 }
-
-impl Accordant for Monero {}
 
 impl Keys for Monero {
     /// Private key type for the blockchain

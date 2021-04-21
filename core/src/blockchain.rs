@@ -34,7 +34,7 @@ pub trait Timelock {
 /// in the [Offer](crate::negotiation::Offer) to fix exchanged amounts.
 pub trait Asset: Copy + Debug + Encodable + Decodable {
     /// Type for the traded asset unit for a blockchain.
-    type AssetUnit: Copy + Debug + Encodable + Decodable;
+    type AssetUnit: Copy + Eq + Debug + Encodable + Decodable;
 
     /// Create a new blockchain.
     fn new() -> Self;
@@ -80,10 +80,10 @@ pub trait Onchain {
 /// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
 /// [Buyable], [Cancelable], [Refundable], and [Punishable] transactions.
 pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
-    /// The returned type of the consumable output, used to reference the funds and chain other
-    /// transactions on it. This must contain all necessary data to latter create a valid unlocking
-    /// witness for the output.
-    type Metadata;
+    /// The returned type of the consumable output and the `base_on` transaction method, used to
+    /// reference the funds and chain other transactions on it. This must contain all necessary
+    /// data to latter create a valid unlocking witness for the output and identify the funds.
+    type Metadata: Eq;
 
     /// Defines the type for the `funding (a)` transaction
     type Funding: Fundable<Self, Self::Metadata>;

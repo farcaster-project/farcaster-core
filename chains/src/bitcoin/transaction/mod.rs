@@ -16,7 +16,7 @@ use farcaster_core::transaction::{
     Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
 };
 
-use crate::bitcoin::Bitcoin;
+use crate::bitcoin::{Amount, Bitcoin};
 
 pub mod buy;
 pub mod cancel;
@@ -60,7 +60,7 @@ impl From<Error> for FError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetadataOutput {
     pub out_point: OutPoint,
     pub tx_out: TxOut,
@@ -77,7 +77,7 @@ pub struct Tx<T: SubTransaction> {
     _t: PhantomData<T>,
 }
 
-impl<T> Transaction<Bitcoin> for Tx<T>
+impl<T> Transaction<Bitcoin, MetadataOutput> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -98,6 +98,20 @@ where
             psbt: partial,
             _t: PhantomData,
         }
+    }
+
+    fn based_on(&self) -> MetadataOutput {
+        MetadataOutput {
+            out_point: self.psbt.global.unsigned_tx.input[0]
+                .previous_output
+                .clone(),
+            tx_out: self.psbt.inputs[0].witness_utxo.clone().unwrap(), // FIXME
+            script_pubkey: self.psbt.inputs[0].witness_script.clone(),
+        }
+    }
+
+    fn output_amount(&self) -> Amount {
+        Amount::from_sat(self.psbt.global.unsigned_tx.output[0].value)
     }
 }
 

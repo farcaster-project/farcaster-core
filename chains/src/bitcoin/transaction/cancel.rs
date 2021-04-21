@@ -127,6 +127,14 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
             _t: PhantomData,
         })
     }
+
+    fn verify_template(
+        &self,
+        _lock: script::DataLock<Bitcoin>,
+        _punish_lock: script::DataPunishableLock<Bitcoin>,
+    ) -> Result<(), FError> {
+        todo!()
+    }
 }
 
 impl Forkable<Bitcoin> for Tx<Cancel> {

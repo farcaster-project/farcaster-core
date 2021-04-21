@@ -140,13 +140,6 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
 
         Ok(())
     }
-
-    fn verify_target_amount(&self, target_amount: Amount) -> Result<(), FError> {
-        match self.psbt.global.unsigned_tx.output[0].value == target_amount.as_sat() {
-            true => Ok(()),
-            false => Err(FError::InvalidTargetAmount),
-        }
-    }
 }
 
 impl Signable<Bitcoin> for Tx<Lock> {

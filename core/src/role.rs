@@ -20,8 +20,8 @@ use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys};
 use crate::swap::Swap;
 use crate::transaction::{
-    AdaptorSignable, Buyable, Cancelable, Forkable, Fundable, Lockable, Punishable, Refundable,
-    Signable, Transaction, TxId,
+    AdaptorSignable, Buyable, Cancelable, Chainable, Forkable, Fundable, Lockable, Punishable,
+    Refundable, Signable, Transaction, TxId,
 };
 use crate::Error;
 
@@ -119,6 +119,8 @@ struct ValidatedCoreTransactions<Ctx: Swap> {
     lock: <Ctx::Ar as Transactions>::Lock,
     cancel: <Ctx::Ar as Transactions>::Cancel,
     refund: <Ctx::Ar as Transactions>::Refund,
+    data_lock: DataLock<Ctx::Ar>,
+    punish_lock: DataPunishableLock<Ctx::Ar>,
 }
 
 impl<Ctx> Alice<Ctx>
@@ -354,8 +356,11 @@ where
         adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
     ) -> Result<(), Error> {
         // Verifies the core arbitrating transactions.
-        let ValidatedCoreTransactions { .. } =
-            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+        let ValidatedCoreTransactions {
+            lock, data_lock, ..
+        } = self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+
+        let fee_strategy = &public_offer.offer.fee_strategy;
 
         // Extract the partial transaction from the adaptor buy bundle, this operation should not
         // error if the bundle is well formed.
@@ -364,9 +369,9 @@ where
         // Initialize the buy transaction based on the extracted partial transaction format.
         let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
 
-        // TODO verify buy transaction
-        //  - transaction
-        //  - fee
+        buy.is_build_on_top_of(&lock)?;
+        buy.verify_template(data_lock, self.destination_address.clone())?;
+        <Ctx::Ar as Fee>::validate_fee(buy.partial(), &fee_strategy)?;
 
         // Verify the adaptor refund witness
         buy.verify_adaptor_witness(
@@ -430,8 +435,11 @@ where
         adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
     ) -> Result<FullySignedBuy<Ctx::Ar>, Error> {
         // Verifies the core arbitrating transactions.
-        let ValidatedCoreTransactions { .. } =
-            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+        let ValidatedCoreTransactions {
+            lock, data_lock, ..
+        } = self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+
+        let fee_strategy = &public_offer.offer.fee_strategy;
 
         // Extract the partial transaction from the adaptor buy bundle, this operation should not
         // error if the bundle is well formed.
@@ -440,9 +448,9 @@ where
         // Initialize the buy transaction based on the extracted partial transaction format.
         let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
 
-        // TODO verify transaction before signing
-        //  - transaction
-        //  - fee
+        buy.is_build_on_top_of(&lock)?;
+        buy.verify_template(data_lock, self.destination_address.clone())?;
+        <Ctx::Ar as Fee>::validate_fee(buy.partial(), &fee_strategy)?;
 
         // Derive the buy private key and generate the witness for this key.
         let privkey = <Ctx::Ar as FromSeed<Arb>>::get_privkey(ar_seed, ArbitratingKey::Buy)?;
@@ -509,31 +517,13 @@ where
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<FullySignedPunish<Ctx::Ar>, Error> {
         // Verifies the core arbitrating transactions.
-        let ValidatedCoreTransactions { cancel, .. } =
-            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+        let ValidatedCoreTransactions {
+            cancel,
+            punish_lock,
+            ..
+        } = self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
 
         let fee_strategy = &public_offer.offer.fee_strategy;
-
-        // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
-        // needed, along with the timelock for the punish, to create the punishable on-chain
-        // contract on the arbitrating blockchain.
-        let alice_refund = alice_parameters
-            .refund
-            .key()
-            .try_into_arbitrating_pubkey()?;
-        let bob_refund = bob_parameters.refund.key().try_into_arbitrating_pubkey()?;
-        let alice_punish = alice_parameters
-            .punish
-            .key()
-            .try_into_arbitrating_pubkey()?;
-
-        // Create the data structure that represents an on-chain punishable contract for the
-        // arbitrating blockchain.
-        let punish_lock = DataPunishableLock {
-            timelock: public_offer.offer.punish_timelock,
-            success: DoubleKeys::new(alice_refund, bob_refund),
-            failure: alice_punish,
-        };
 
         // Initialize the punish transaction based on the cancel transaction.
         let mut punish =
@@ -563,6 +553,17 @@ where
         todo!()
     }
 
+    // Internal method to parse and validate the core arbitratring transactions received by Alice
+    // from Bob.
+    //
+    // Each transaction is parsed from the bundle and initialized from its partial transaction
+    // format. After initialization validation tests are performed to ensure:
+    //
+    //  * the transaction template is valid (transaction is well formed, contract and keys are used
+    //  correctly)
+    //  * the target amount from the offer is correct (for the lock transaction)
+    //  * the fee strategy validation passes
+    //
     fn validate_core(
         &self,
         alice_parameters: &AliceParameters<Ctx>,
@@ -590,14 +591,14 @@ where
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
-        let cancel_lock = DataLock {
+        let data_lock = DataLock {
             timelock: public_offer.offer.cancel_timelock,
             success: DoubleKeys::new(alice_buy, bob_buy),
             failure: DoubleKeys::new(alice_cancel, bob_cancel),
         };
 
         // Verify the lock transaction template.
-        lock.verify_template(cancel_lock)?;
+        lock.verify_template(data_lock.clone())?;
         // The target amount is dictated from the public offer.
         let target_amount = public_offer.offer.arbitrating_assets;
         // Verify the target amount
@@ -606,13 +607,37 @@ where
         let fee_strategy = &public_offer.offer.fee_strategy;
         <Ctx::Ar as Fee>::validate_fee(lock.partial(), &fee_strategy)?;
 
+        // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
+        // needed, along with the timelock for the punish, to create the punishable on-chain
+        // contract on the arbitrating blockchain.
+        let alice_refund = alice_parameters
+            .refund
+            .key()
+            .try_into_arbitrating_pubkey()?;
+        let bob_refund = bob_parameters.refund.key().try_into_arbitrating_pubkey()?;
+        let alice_punish = alice_parameters
+            .punish
+            .key()
+            .try_into_arbitrating_pubkey()?;
+
+        // Create the data structure that represents an on-chain punishable contract for the
+        // arbitrating blockchain.
+        let punish_lock = DataPunishableLock {
+            timelock: public_offer.offer.punish_timelock,
+            success: DoubleKeys::new(alice_refund, bob_refund),
+            failure: alice_punish,
+        };
+
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_cancel = core.lock.tx().try_into_partial_transaction()?;
 
         // Initialize the lock transaction based on the extracted partial transaction format.
         let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
-        // TODO verify cancel tx
+        // Check that the cancel transaction is build on top of the lock.
+        cancel.is_build_on_top_of(&lock)?;
+        cancel.verify_template(data_lock.clone(), punish_lock.clone())?;
+        // Validate the fee strategy
         <Ctx::Ar as Fee>::validate_fee(cancel.partial(), &fee_strategy)?;
 
         // Extract the partial transaction from the core arbitrating bundle, this operation should
@@ -621,13 +646,19 @@ where
 
         // Initialize the refund transaction based on the extracted partial transaction format.
         let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
-        // TODO verify refund tx
+        // Check that the refund transaction is build on top of the cancel transaction.
+        refund.is_build_on_top_of(&cancel)?;
+        let refund_address = bob_parameters.refund_address.param().try_into_address()?;
+        refund.verify_template(punish_lock.clone(), refund_address)?;
+        // Validate the fee strategy
         <Ctx::Ar as Fee>::validate_fee(refund.partial(), &fee_strategy)?;
 
         Ok(ValidatedCoreTransactions {
             lock,
             cancel,
             refund,
+            data_lock,
+            punish_lock,
         })
     }
 }

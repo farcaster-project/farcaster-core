@@ -50,6 +50,7 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
 
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
+        psbt.inputs[0].witness_script = output_metadata.script_pubkey;
         psbt.inputs[0].sighash_type = Some(SigHashType::All);
 
         // TODO move the logic inside core
@@ -60,6 +61,14 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
             psbt,
             _t: PhantomData,
         })
+    }
+
+    fn verify_template(
+        &self,
+        _punish_lock: script::DataPunishableLock<Bitcoin>,
+        _refund_target: Address,
+    ) -> Result<(), FError> {
+        todo!()
     }
 }
 

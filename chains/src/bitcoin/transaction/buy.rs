@@ -71,6 +71,14 @@ impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
     ) -> Result<Self, FError> {
         todo!()
     }
+
+    fn verify_template(
+        &self,
+        _lock: script::DataLock<Bitcoin>,
+        _destination_target: Address,
+    ) -> Result<(), FError> {
+        todo!()
+    }
 }
 
 impl Signable<Bitcoin> for Tx<Buy> {

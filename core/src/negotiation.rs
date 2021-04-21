@@ -66,13 +66,13 @@ pub struct Offer<Ctx: Swap> {
     /// Type of offer and network to use
     pub network: Network,
     /// The chosen arbitrating blockchain
-    pub arbitrating: Ctx::Ar,
+    pub arbitrating_blockchain: Ctx::Ar,
     /// The chosen accordant blockchain
-    pub accordant: Ctx::Ac,
+    pub accordant_blockchain: Ctx::Ac,
     /// Amount of arbitrating assets to exchanged
-    pub arbitrating_assets: <Ctx::Ar as Asset>::AssetUnit,
+    pub arbitrating_amount: <Ctx::Ar as Asset>::AssetUnit,
     /// Amount of accordant assets to exchanged
-    pub accordant_assets: <Ctx::Ac as Asset>::AssetUnit,
+    pub accordant_amount: <Ctx::Ac as Asset>::AssetUnit,
     /// The cancel timelock parameter of the arbitrating blockchain
     pub cancel_timelock: <Ctx::Ar as Timelock>::Timelock,
     /// The punish timelock parameter of the arbitrating blockchain
@@ -116,10 +116,16 @@ where
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let mut len = self.network.consensus_encode(writer)?;
-        len += self.arbitrating.to_u32().consensus_encode(writer)?;
-        len += self.accordant.to_u32().consensus_encode(writer)?;
-        len += wrap_in_vec!(wrap arbitrating_assets for self in writer);
-        len += wrap_in_vec!(wrap accordant_assets for self in writer);
+        len += self
+            .arbitrating_blockchain
+            .to_u32()
+            .consensus_encode(writer)?;
+        len += self
+            .accordant_blockchain
+            .to_u32()
+            .consensus_encode(writer)?;
+        len += wrap_in_vec!(wrap arbitrating_amount for self in writer);
+        len += wrap_in_vec!(wrap accordant_amount for self in writer);
         len += wrap_in_vec!(wrap cancel_timelock for self in writer);
         len += wrap_in_vec!(wrap punish_timelock for self in writer);
         len += self.fee_strategy.consensus_encode(writer)?;
@@ -134,12 +140,12 @@ where
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Offer {
             network: Decodable::consensus_decode(d)?,
-            arbitrating: Ctx::Ar::from_u32(Decodable::consensus_decode(d)?)
+            arbitrating_blockchain: Ctx::Ar::from_u32(Decodable::consensus_decode(d)?)
                 .ok_or(consensus::Error::UnknownType)?,
-            accordant: Ctx::Ac::from_u32(Decodable::consensus_decode(d)?)
+            accordant_blockchain: Ctx::Ac::from_u32(Decodable::consensus_decode(d)?)
                 .ok_or(consensus::Error::UnknownType)?,
-            arbitrating_assets: unwrap_from_vec!(d),
-            accordant_assets: unwrap_from_vec!(d),
+            arbitrating_amount: unwrap_from_vec!(d),
+            accordant_amount: unwrap_from_vec!(d),
             cancel_timelock: unwrap_from_vec!(d),
             punish_timelock: unwrap_from_vec!(d),
             fee_strategy: Decodable::consensus_decode(d)?,
@@ -165,16 +171,16 @@ where
     /// the asset and amount defined in the `with` method.
     pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Asset>::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
-        buy.0.arbitrating = Some(asset);
-        buy.0.arbitrating_assets = Some(amount);
+        buy.0.arbitrating_blockchain = Some(asset);
+        buy.0.arbitrating_amount = Some(amount);
         buy
     }
 
     /// Defines the asset and its amount the maker will send to get the assets
     /// defined in the `some` method.
     pub fn with(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Asset>::AssetUnit) -> Self {
-        self.0.accordant = Some(asset);
-        self.0.accordant_assets = Some(amount);
+        self.0.accordant_blockchain = Some(asset);
+        self.0.accordant_amount = Some(amount);
         self
     }
 
@@ -210,10 +216,10 @@ where
         self.0.maker_role = Some(SwapRole::Alice);
         Some(Offer {
             network: self.0.network?,
-            arbitrating: self.0.arbitrating?,
-            accordant: self.0.accordant?,
-            arbitrating_assets: self.0.arbitrating_assets?,
-            accordant_assets: self.0.accordant_assets?,
+            arbitrating_blockchain: self.0.arbitrating_blockchain?,
+            accordant_blockchain: self.0.accordant_blockchain?,
+            arbitrating_amount: self.0.arbitrating_amount?,
+            accordant_amount: self.0.accordant_amount?,
             cancel_timelock: self.0.cancel_timelock?,
             punish_timelock: self.0.punish_timelock?,
             fee_strategy: self.0.fee_strategy?,
@@ -239,16 +245,16 @@ where
     /// defined in the `for_some` method.
     pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Asset>::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
-        buy.0.arbitrating = Some(asset);
-        buy.0.arbitrating_assets = Some(amount);
+        buy.0.arbitrating_blockchain = Some(asset);
+        buy.0.arbitrating_amount = Some(amount);
         buy
     }
 
     /// Defines the asset and its amount the maker will receive in exchange of
     /// the asset and amount defined in the `some` method.
     pub fn for_some(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Asset>::AssetUnit) -> Self {
-        self.0.accordant = Some(asset);
-        self.0.accordant_assets = Some(amount);
+        self.0.accordant_blockchain = Some(asset);
+        self.0.accordant_amount = Some(amount);
         self
     }
 
@@ -284,10 +290,10 @@ where
         self.0.maker_role = Some(SwapRole::Bob);
         Some(Offer {
             network: self.0.network?,
-            arbitrating: self.0.arbitrating?,
-            accordant: self.0.accordant?,
-            arbitrating_assets: self.0.arbitrating_assets?,
-            accordant_assets: self.0.accordant_assets?,
+            arbitrating_blockchain: self.0.arbitrating_blockchain?,
+            accordant_blockchain: self.0.accordant_blockchain?,
+            arbitrating_amount: self.0.arbitrating_amount?,
+            accordant_amount: self.0.accordant_amount?,
             cancel_timelock: self.0.cancel_timelock?,
             punish_timelock: self.0.punish_timelock?,
             fee_strategy: self.0.fee_strategy?,
@@ -299,10 +305,10 @@ where
 // Internal state of an offer builder
 struct BuilderState<Ctx: Swap> {
     network: Option<Network>,
-    arbitrating: Option<Ctx::Ar>,
-    accordant: Option<Ctx::Ac>,
-    arbitrating_assets: Option<<Ctx::Ar as Asset>::AssetUnit>,
-    accordant_assets: Option<<Ctx::Ac as Asset>::AssetUnit>,
+    arbitrating_blockchain: Option<Ctx::Ar>,
+    accordant_blockchain: Option<Ctx::Ac>,
+    arbitrating_amount: Option<<Ctx::Ar as Asset>::AssetUnit>,
+    accordant_amount: Option<<Ctx::Ac as Asset>::AssetUnit>,
     cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     punish_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
@@ -316,10 +322,10 @@ where
     fn default() -> BuilderState<Ctx> {
         BuilderState {
             network: None,
-            arbitrating: None,
-            accordant: None,
-            arbitrating_assets: None,
-            accordant_assets: None,
+            arbitrating_blockchain: None,
+            accordant_blockchain: None,
+            arbitrating_amount: None,
+            accordant_amount: None,
             cancel_timelock: None,
             punish_timelock: None,
             fee_strategy: None,

@@ -18,10 +18,10 @@ fn create_offer() {
                10800090000000000000002";
     let offer: Offer<BtcXmr> = Offer {
         network: Network::Testnet,
-        arbitrating: Bitcoin::new(),
-        accordant: Monero::new(),
-        arbitrating_assets: Amount::from_sat(5),
-        accordant_assets: 6,
+        arbitrating_blockchain: Bitcoin::new(),
+        accordant_blockchain: Monero::new(),
+        arbitrating_amount: Amount::from_sat(5),
+        accordant_amount: 6,
         cancel_timelock: CSVTimelock::new(7),
         punish_timelock: CSVTimelock::new(8),
         fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),

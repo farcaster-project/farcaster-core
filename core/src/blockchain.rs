@@ -31,7 +31,7 @@ pub trait Timelock {
 
 /// Defines the asset identifier for a blockchain and its associated asset unit type, it is carried
 /// in the [Offer](crate::negotiation::Offer) to fix exchanged amounts.
-pub trait Asset: Copy + Debug + Encodable + Decodable {
+pub trait Asset: Copy + Debug {
     /// Type for the traded asset unit for a blockchain.
     type AssetUnit: Copy + Debug + Encodable + Decodable;
 
@@ -46,24 +46,6 @@ pub trait Asset: Copy + Debug + Encodable + Decodable {
     /// Return the 32 bits identifier for the blockchain as defined in [SLIP
     /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044).
     fn to_u32(&self) -> u32;
-}
-
-// FIXME this is too large and produce bad error messages
-impl<T: Asset> Encodable for T {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        self.to_u32().consensus_encode(writer)
-    }
-}
-
-impl<T: Asset> Decodable for T {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let identifier: u32 = Decodable::consensus_decode(d)?;
-        // Follows Farcaster RFC 10
-        if identifier == 0x80000001 {
-            return Err(consensus::Error::UnknownType);
-        }
-        Self::from_u32(identifier).ok_or(consensus::Error::UnknownType)
-    }
 }
 
 /// Defines the types a blockchain needs to interact onchain, i.e. the transaction types.

@@ -116,8 +116,8 @@ where
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let mut len = self.network.consensus_encode(writer)?;
-        len += self.arbitrating.consensus_encode(writer)?;
-        len += self.accordant.consensus_encode(writer)?;
+        len += self.arbitrating.to_u32().consensus_encode(writer)?;
+        len += self.accordant.to_u32().consensus_encode(writer)?;
         len += wrap_in_vec!(wrap arbitrating_assets for self in writer);
         len += wrap_in_vec!(wrap accordant_assets for self in writer);
         len += wrap_in_vec!(wrap cancel_timelock for self in writer);
@@ -134,8 +134,10 @@ where
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Offer {
             network: Decodable::consensus_decode(d)?,
-            arbitrating: Decodable::consensus_decode(d)?,
-            accordant: Decodable::consensus_decode(d)?,
+            arbitrating: Ctx::Ar::from_u32(Decodable::consensus_decode(d)?)
+                .ok_or(consensus::Error::UnknownType)?,
+            accordant: Ctx::Ac::from_u32(Decodable::consensus_decode(d)?)
+                .ok_or(consensus::Error::UnknownType)?,
             arbitrating_assets: unwrap_from_vec!(d),
             accordant_assets: unwrap_from_vec!(d),
             cancel_timelock: unwrap_from_vec!(d),

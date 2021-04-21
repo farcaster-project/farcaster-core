@@ -1,7 +1,5 @@
 //! Defines and implements all the traits for Bitcoin
 
-use bitcoin::hash_types::PubkeyHash;
-use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::amount;
@@ -13,7 +11,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use farcaster_core::blockchain::{self, Asset, Onchain, Timelock, Transactions};
 use farcaster_core::consensus::{self, Decodable, Encodable};
-use farcaster_core::crypto::{self, ArbitratingKey, Commitment, FromSeed, Keys, Signatures};
+use farcaster_core::crypto::{self, ArbitratingKey, FromSeed, Keys, Signatures};
 use farcaster_core::role::{Arb, Arbitrating};
 
 use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
@@ -243,14 +241,6 @@ impl Keys for Bitcoin {
 
     fn as_bytes(pubkey: &PublicKey) -> Vec<u8> {
         pubkey.to_bytes()
-    }
-}
-
-impl Commitment for Bitcoin {
-    type Commitment = PubkeyHash;
-
-    fn commit_to<T: AsRef<[u8]>>(value: T) -> PubkeyHash {
-        PubkeyHash::hash(value.as_ref())
     }
 }
 

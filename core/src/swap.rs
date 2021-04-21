@@ -2,12 +2,12 @@
 
 use std::fmt::Debug;
 
-use crate::crypto::DleqProof;
+use crate::crypto::{Commitment, DleqProof};
 use crate::role::{Accordant, Arbitrating};
 
 /// Specifie the context of a swap, fixing the arbitrating blockchain, the accordant blockchain and
 /// the link between them.
-pub trait Swap: Debug + Clone {
+pub trait Swap: Debug + Clone + Commitment {
     /// The arbitrating blockchain concrete implementation used for the swap.
     type Ar: Arbitrating;
 

@@ -2,7 +2,7 @@
 
 use farcaster_core::blockchain::Asset;
 use farcaster_core::crypto::{
-    self, AccordantKey, Commitment, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys,
+    self, AccordantKey, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys,
 };
 use farcaster_core::role::{Acc, Accordant};
 
@@ -87,14 +87,6 @@ impl SharedPrivateKeys<Acc> for Monero {
 
     fn as_bytes(privkey: &PrivateKey) -> Vec<u8> {
         privkey.as_bytes().into()
-    }
-}
-
-impl Commitment for Monero {
-    type Commitment = Hash;
-
-    fn commit_to<T: AsRef<[u8]>>(value: T) -> Hash {
-        Hash::hash(value.as_ref())
     }
 }
 

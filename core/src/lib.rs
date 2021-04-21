@@ -16,7 +16,6 @@ pub mod role;
 pub mod script;
 pub mod swap;
 pub mod transaction;
-pub mod version;
 
 #[derive(Error, Debug)]
 pub enum Error {

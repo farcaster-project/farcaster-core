@@ -34,7 +34,7 @@ pub trait Timelock {
 /// in the [Offer](crate::negotiation::Offer) to fix exchanged amounts.
 pub trait Asset: Copy + Debug + Encodable + Decodable {
     /// Type for the traded asset unit for a blockchain.
-    type AssetUnit: Copy + Debug + Encodable + Decodable;
+    type AssetUnit: Copy + Eq + Debug + Encodable + Decodable;
 
     /// Create a new blockchain.
     fn new() -> Self;
@@ -80,10 +80,10 @@ pub trait Onchain {
 /// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
 /// [Buyable], [Cancelable], [Refundable], and [Punishable] transactions.
 pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
-    /// The returned type of the consumable output, used to reference the funds and chain other
-    /// transactions on it. This must contain all necessary data to latter create a valid unlocking
-    /// witness for the output.
-    type Metadata;
+    /// The returned type of the consumable output and the `base_on` transaction method, used to
+    /// reference the funds and chain other transactions on it. This must contain all necessary
+    /// data to latter create a valid unlocking witness for the output and identify the funds.
+    type Metadata: Eq;
 
     /// Defines the type for the `funding (a)` transaction
     type Funding: Fundable<Self, Self::Metadata>;
@@ -218,33 +218,33 @@ impl FeeStrategyError {
     }
 }
 
-/// Defines how to set the fees when a strategy allows multiple possibilities.
+/// Defines how to set the fee when a strategy allows multiple possibilities.
 #[derive(Debug, Clone, Copy)]
 pub enum FeePolitic {
-    /// Set the fees at the minimum allowed by the strategy
+    /// Set the fee at the minimum allowed by the strategy
     Aggressive,
-    /// Set the fees at the maximum allowed by the strategy
+    /// Set the fee at the maximum allowed by the strategy
     Conservative,
 }
 
 /// Enable fee management for an arbitrating blockchain. This trait require implementing the
 /// [Onchain] trait to have access to transaction associated type and the [Asset] trait for
-/// returning the amount of fees set on a transaction. The fee is carried in the
+/// returning the amount of fee set on a transaction. The fee is carried in the
 /// [Offer](crate::negotiation::Offer) through a [FeeStrategy] to fix the strategy to apply on
 /// transactions.
 pub trait Fee: Onchain + Asset {
-    /// Type for describing the fees of a blockchain
+    /// Type for describing the fee of a blockchain
     type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable + PartialEq + Eq;
 
-    /// Calculates and sets the fees on the given transaction and return the amount of fees set in
+    /// Calculates and sets the fee on the given transaction and return the amount of fee set in
     /// the blockchain native amount format.
-    fn set_fees(
+    fn set_fee(
         tx: &mut Self::PartialTransaction,
         strategy: &FeeStrategy<Self::FeeUnit>,
         politic: FeePolitic,
     ) -> Result<Self::AssetUnit, FeeStrategyError>;
 
-    /// Validates that the fees for the given transaction are set accordingly to the strategy.
+    /// Validates that the fee for the given transaction are set accordingly to the strategy.
     fn validate_fee(
         tx: &Self::PartialTransaction,
         strategy: &FeeStrategy<Self::FeeUnit>,

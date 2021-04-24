@@ -7,15 +7,16 @@ use bitcoin::hashes::sha256d::Hash;
 use bitcoin::secp256k1::{Message, Secp256k1, Signature, Signing};
 use bitcoin::util::address;
 use bitcoin::util::bip143::SigHashCache;
+use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 use thiserror::Error;
 
 use farcaster_core::transaction::{
-    Broadcastable, Error as FError, Finalizable, Linkable, Transaction,
+    Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
 };
 
-use crate::bitcoin::Bitcoin;
+use crate::bitcoin::{Amount, Bitcoin};
 
 pub mod buy;
 pub mod cancel;
@@ -59,7 +60,7 @@ impl From<Error> for FError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetadataOutput {
     pub out_point: OutPoint,
     pub tx_out: TxOut,
@@ -76,19 +77,41 @@ pub struct Tx<T: SubTransaction> {
     _t: PhantomData<T>,
 }
 
-impl<T> Transaction<Bitcoin> for Tx<T>
+impl<T> Transaction<Bitcoin, MetadataOutput> for Tx<T>
 where
     T: SubTransaction,
 {
-    fn to_partial(&self) -> PartiallySignedTransaction {
-        self.psbt.clone()
+    fn partial(&self) -> &PartiallySignedTransaction {
+        &self.psbt
     }
 
-    fn from_partial(partial: &PartiallySignedTransaction) -> Self {
+    fn partial_mut(&mut self) -> &mut PartiallySignedTransaction {
+        &mut self.psbt
+    }
+
+    fn to_partial(self) -> PartiallySignedTransaction {
+        self.psbt
+    }
+
+    fn from_partial(partial: PartiallySignedTransaction) -> Self {
         Self {
-            psbt: partial.clone(),
+            psbt: partial,
             _t: PhantomData,
         }
+    }
+
+    fn based_on(&self) -> MetadataOutput {
+        MetadataOutput {
+            out_point: self.psbt.global.unsigned_tx.input[0]
+                .previous_output
+                .clone(),
+            tx_out: self.psbt.inputs[0].witness_utxo.clone().unwrap(), // FIXME
+            script_pubkey: self.psbt.inputs[0].witness_script.clone(),
+        }
+    }
+
+    fn output_amount(&self) -> Amount {
+        Amount::from_sat(self.psbt.global.unsigned_tx.output[0].value)
     }
 }
 
@@ -130,6 +153,21 @@ where
             tx_out: self.psbt.global.unsigned_tx.output[0].clone(),
             script_pubkey: self.psbt.outputs[0].witness_script.clone(),
         })
+    }
+}
+
+impl<T> Witnessable<Bitcoin> for Tx<T>
+where
+    T: SubTransaction,
+{
+    fn add_witness(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
+        let sighash_type = self.psbt.inputs[0]
+            .sighash_type
+            .ok_or(FError::new(Error::MissingSigHashType))?;
+        let mut full_sig = sig.serialize_der().to_vec();
+        full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
+        self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
+        Ok(())
     }
 }
 

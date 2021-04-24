@@ -2,12 +2,11 @@ use bitcoin::blockdata::transaction::{TxIn, TxOut};
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 
-use farcaster_chains::bitcoin::fee::SatPerVByte;
 use farcaster_chains::bitcoin::transaction::{Funding, Lock, Tx};
-use farcaster_chains::bitcoin::{Bitcoin, CSVTimelock};
+use farcaster_chains::bitcoin::{Amount, Bitcoin, CSVTimelock};
 use farcaster_chains::pairs::btcxmr::BtcXmr;
 
-use farcaster_core::blockchain::{FeePolitic, FeeStrategy, Network};
+use farcaster_core::blockchain::Network;
 use farcaster_core::consensus::{deserialize, serialize, serialize_hex};
 use farcaster_core::datum::{self, Key};
 use farcaster_core::script::{DataLock, DoubleKeys};
@@ -73,10 +72,7 @@ fn create_transaction_datum() {
         failure: DoubleKeys::new(pubkey, pubkey),
     };
 
-    let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
-    let politic = FeePolitic::Aggressive;
-
-    let lock = Tx::<Lock>::initialize(&funding, datalock.clone(), &fee, politic).unwrap();
+    let lock = Tx::<Lock>::initialize(&funding, datalock.clone(), Amount::from_sat(99000)).unwrap();
 
     let tx = lock.to_partial();
 

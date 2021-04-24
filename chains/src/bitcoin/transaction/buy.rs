@@ -3,13 +3,9 @@ use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
-use farcaster_core::transaction::{
-    AdaptorSignable, Buyable, Cooperable, Error as FError, Lockable, Signable,
-};
+use farcaster_core::transaction::{AdaptorSignable, Buyable, Error as FError, Lockable, Signable};
 
-use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::{Address, Bitcoin, ECDSAAdaptorSig};
 
@@ -72,29 +68,35 @@ impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
         _prev: &impl Lockable<Bitcoin, MetadataOutput>,
         _lock: script::DataLock<Bitcoin>,
         _destination_target: Address,
-        _fee_strategy: &FeeStrategy<SatPerVByte>,
-        _fee_politic: FeePolitic,
     ) -> Result<Self, FError> {
+        todo!()
+    }
+
+    fn verify_template(
+        &self,
+        _lock: script::DataLock<Bitcoin>,
+        _destination_target: Address,
+    ) -> Result<(), FError> {
         todo!()
     }
 }
 
 impl Signable<Bitcoin> for Tx<Buy> {
-    fn generate_witness(&mut self, _privkey: &PrivateKey) -> Result<Signature, FError> {
+    fn generate_witness(&self, _privkey: &PrivateKey) -> Result<Signature, FError> {
         {
             // TODO validate the transaction before signing
         }
         todo!()
     }
 
-    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
+    fn verify_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
         todo!()
     }
 }
 
 impl AdaptorSignable<Bitcoin> for Tx<Buy> {
     fn generate_adaptor_witness(
-        &mut self,
+        &self,
         _privkey: &PrivateKey,
         _adaptor: &PublicKey,
     ) -> Result<ECDSAAdaptorSig, FError> {
@@ -102,23 +104,11 @@ impl AdaptorSignable<Bitcoin> for Tx<Buy> {
     }
 
     fn verify_adaptor_witness(
-        &mut self,
+        &self,
         _pubkey: &PublicKey,
         _adaptor: &PublicKey,
         _sig: ECDSAAdaptorSig,
     ) -> Result<(), FError> {
         todo!()
-    }
-}
-
-impl Cooperable<Bitcoin> for Tx<Buy> {
-    fn add_cooperation(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
-        let sighash_type = self.psbt.inputs[0]
-            .sighash_type
-            .ok_or(FError::new(Error::MissingSigHashType))?;
-        let mut full_sig = sig.serialize_der().to_vec();
-        full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
-        self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
-        Ok(())
     }
 }

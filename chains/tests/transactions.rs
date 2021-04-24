@@ -25,6 +25,8 @@ macro_rules! setup_txs {
         let address = funding.get_address().unwrap();
 
         let funding_tx_seen = fund_address!(address.as_ref());
+        // Minimum of fee of 122 sat
+        let target_amount = Amount::from_sat(funding_tx_seen.output[0].value - 122);
 
         funding.update(funding_tx_seen).unwrap();
 
@@ -37,7 +39,10 @@ macro_rules! setup_txs {
         let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
         let politic = FeePolitic::Aggressive;
 
-        let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), &fee, politic).unwrap();
+        let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), target_amount).unwrap();
+
+        // Validate that the fee follows the strategy
+        // TODO Bitcoin::validate_fee(lock.partial(), &fee).unwrap();
 
         //
         // Create cancel tx
@@ -49,37 +54,39 @@ macro_rules! setup_txs {
         };
 
         let mut cancel =
-            Tx::<Cancel>::initialize(&lock, datalock, datapunishablelock.clone(), &fee, politic)
-                .unwrap();
+            Tx::<Cancel>::initialize(&lock, datalock, datapunishablelock.clone()).unwrap();
+
+        // Set the fees according to the given strategy
+        Bitcoin::set_fee(cancel.partial_mut(), &fee, politic).unwrap();
 
         //
         // Create refund tx
         //
         let (new_address, _, _) = new_address!();
-        let refund = Tx::<Refund>::initialize(
-            &cancel,
-            datapunishablelock,
-            new_address.into(),
-            &fee,
-            politic,
-        )
-        .unwrap();
+        let mut refund =
+            Tx::<Refund>::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
+
+        // Set the fees according to the given strategy
+        Bitcoin::set_fee(refund.partial_mut(), &fee, politic).unwrap();
 
         //
-        // Co-Sign refund
+        // Co-Sign cancel
         //
-        let _sig = cancel.generate_failure_witness(&secret_a2).unwrap();
-        let _sig = cancel.generate_failure_witness(&secret_b2).unwrap();
+        let sig = cancel.generate_failure_witness(&secret_a2).unwrap();
+        cancel.add_witness(pubkey_a2, sig).unwrap();
+        let sig = cancel.generate_failure_witness(&secret_b2).unwrap();
+        cancel.add_witness(pubkey_b2, sig).unwrap();
 
         //
-        // Finalize for failure path
+        // Finalize cancel
         //
         let cancel_finalized = cancel.finalize_and_extract().unwrap();
 
         //
         // Sign lock tx
         //
-        let _sig = lock.generate_witness(&secret_a1).unwrap();
+        let sig = lock.generate_witness(&secret_a1).unwrap();
+        lock.add_witness(pubkey_a1, sig).unwrap();
         let lock_finalized = lock.finalize_and_extract().unwrap();
 
         (lock_finalized, cancel_finalized, refund)

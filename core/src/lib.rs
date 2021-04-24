@@ -16,7 +16,6 @@ pub mod role;
 pub mod script;
 pub mod swap;
 pub mod transaction;
-pub mod version;
 
 /// A list of possible errors when performing a cross-chain atomic swap with the **Farcaster**
 /// software stack. Each error can have multiple level down to the blockchain implementation.

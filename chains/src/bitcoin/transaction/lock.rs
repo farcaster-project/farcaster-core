@@ -7,9 +7,9 @@ use bitcoin::secp256k1::{Secp256k1, Signature};
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::blockchain::{Fee, FeePolitic, FeeStrategy};
+use farcaster_core::blockchain::{FeePolitic, FeeStrategy};
 use farcaster_core::script;
-use farcaster_core::transaction::{Fundable, Lockable, Signable};
+use farcaster_core::transaction::{Error as FError, Fundable, Lockable, Signable};
 
 use crate::bitcoin::fee::SatPerVByte;
 use crate::bitcoin::transaction::{sign_input, Error, MetadataOutput, SubTransaction, Tx, TxInRef};
@@ -19,24 +19,24 @@ use crate::bitcoin::Bitcoin;
 pub struct Lock;
 
 impl SubTransaction for Lock {
-    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), Error> {
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), FError> {
         let (pubkey, full_sig) = psbt.inputs[0]
             .partial_sigs
             .iter()
             .next()
-            .ok_or(Error::MissingSignature)?;
+            .ok_or(FError::MissingSignature)?;
         psbt.inputs[0].final_script_witness = Some(vec![full_sig.clone(), pubkey.to_bytes()]);
         Ok(())
     }
 }
 
-impl Lockable<Bitcoin, MetadataOutput, Error> for Tx<Lock> {
+impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
     fn initialize(
-        prev: &impl Fundable<Bitcoin, MetadataOutput, Error>,
+        prev: &impl Fundable<Bitcoin, MetadataOutput>,
         lock: script::DataLock<Bitcoin>,
-        fee_strategy: &FeeStrategy<SatPerVByte>,
-        fee_politic: FeePolitic,
-    ) -> Result<Self, Error> {
+        _fee_strategy: &FeeStrategy<SatPerVByte>,
+        _fee_politic: FeePolitic,
+    ) -> Result<Self, FError> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
@@ -73,7 +73,8 @@ impl Lockable<Bitcoin, MetadataOutput, Error> for Tx<Lock> {
             }],
         };
 
-        let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx)?;
+        let mut psbt =
+            PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(Error::from)?;
 
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
@@ -83,8 +84,9 @@ impl Lockable<Bitcoin, MetadataOutput, Error> for Tx<Lock> {
         // Set the script witness of the output
         psbt.outputs[0].witness_script = Some(script);
 
-        // Set the fees according to the given strategy
-        Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
+        // TODO move the logic inside core
+        //// Set the fees according to the given strategy
+        //Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
 
         Ok(Tx {
             psbt,
@@ -93,8 +95,8 @@ impl Lockable<Bitcoin, MetadataOutput, Error> for Tx<Lock> {
     }
 }
 
-impl Signable<Bitcoin, Error> for Tx<Lock> {
-    fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, Error> {
+impl Signable<Bitcoin> for Tx<Lock> {
+    fn generate_witness(&mut self, privkey: &PrivateKey) -> Result<Signature, FError> {
         {
             // TODO validate the transaction before signing
         }
@@ -107,19 +109,20 @@ impl Signable<Bitcoin, Error> for Tx<Lock> {
         let witness_utxo = self.psbt.inputs[0]
             .witness_utxo
             .clone()
-            .ok_or(Error::MissingWitnessUTXO)?;
+            .ok_or(FError::MissingWitness)?;
 
         let script = self.psbt.inputs[0]
             .witness_script
             .clone()
-            .ok_or(Error::MissingWitnessScript)?;
+            .ok_or(FError::MissingWitness)?;
         let value = witness_utxo.value;
 
         let sighash_type = self.psbt.inputs[0]
             .sighash_type
-            .ok_or(Error::MissingSigHashType)?;
+            .ok_or(FError::new(Error::MissingSigHashType))?;
 
-        let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)?;
+        let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)
+            .map_err(Error::from)?;
 
         // Finalize the witness
         let mut full_sig = sig.serialize_der().to_vec();
@@ -131,7 +134,7 @@ impl Signable<Bitcoin, Error> for Tx<Lock> {
         Ok(sig)
     }
 
-    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
+    fn verify_witness(&mut self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
         todo!()
     }
 }

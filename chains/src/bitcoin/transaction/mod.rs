@@ -11,8 +11,9 @@ use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 use thiserror::Error;
 
-use farcaster_core::blockchain::FeeStrategyError;
-use farcaster_core::transaction::{Broadcastable, Finalizable, Linkable, Transaction};
+use farcaster_core::transaction::{
+    Broadcastable, Error as FError, Finalizable, Linkable, Transaction,
+};
 
 use crate::bitcoin::Bitcoin;
 
@@ -30,47 +31,32 @@ pub use lock::Lock;
 pub use punish::Punish;
 pub use refund::Refund;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum Error {
     /// Multi-input transaction is not supported
     #[error("Multi-input transaction is not supported")]
     MultiUTXOUnsuported,
-    /// Witness script is missing for some UTXO
-    #[error("Witness script is missing for some UTXO")]
-    MissingWitnessScript,
-    /// Witness data is missing for some UTXO
-    #[error("Witness data is missing for some UTXO")]
-    MissingWitnessUTXO,
-    /// Missing signature
-    #[error("Missing signature")]
-    MissingSignature,
-    /// Missing network
-    #[error("Missing network")]
-    MissingNetwork,
     /// SigHash type is missing
     #[error("SigHash type is missing")]
     MissingSigHashType,
-    /// The transaction has not been seen yet
-    #[error("The transaction has not been seen yet")]
-    TransactionNotSeen,
-    /// Public key not found in the script
-    #[error("Public key not found in the script")]
-    PublicKeyNotFound,
     /// Partially signed transaction error
     #[error("Partially signed transaction error: `{0}`")]
     PSBT(#[from] psbt::Error),
     /// Bitcoin address error
     #[error("Bitcoin address error: `{0}`")]
     Address(#[from] address::Error),
-    /// Fee strategy error
-    #[error("Fee strategy error: `{0}`")]
-    Fee(#[from] FeeStrategyError),
     /// Secp256k1 error
     #[error("Secp256k1 error: `{0}`")]
     Secp256k1(#[from] bitcoin::secp256k1::Error),
     /// Bitcoin script error
     #[error("Bitcoin script error: `{0}`")]
     BitcoinScript(#[from] bitcoin::blockdata::script::Error),
+}
+
+impl From<Error> for FError {
+    fn from(e: Error) -> FError {
+        FError::new(e)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -81,7 +67,7 @@ pub struct MetadataOutput {
 }
 
 pub trait SubTransaction: Debug {
-    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), Error>;
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), FError>;
 }
 
 #[derive(Debug)]
@@ -106,16 +92,16 @@ where
     }
 }
 
-impl<T> Finalizable<Error> for Tx<T>
+impl<T> Finalizable for Tx<T>
 where
     T: SubTransaction,
 {
-    fn finalize(&mut self) -> Result<(), Error> {
+    fn finalize(&mut self) -> Result<(), FError> {
         T::finalize(&mut self.psbt)
     }
 }
 
-impl<T> Broadcastable<Bitcoin, Error> for Tx<T>
+impl<T> Broadcastable<Bitcoin> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -124,19 +110,19 @@ where
     }
 }
 
-impl<T> Linkable<MetadataOutput, Error> for Tx<T>
+impl<T> Linkable<MetadataOutput> for Tx<T>
 where
     T: SubTransaction,
 {
-    fn get_consumable_output(&self) -> Result<MetadataOutput, Error> {
+    fn get_consumable_output(&self) -> Result<MetadataOutput, FError> {
         match self.psbt.global.unsigned_tx.output.len() {
             1 => (),
             2 => {
                 if !self.psbt.global.unsigned_tx.is_coin_base() {
-                    return Err(Error::MultiUTXOUnsuported);
+                    return Err(FError::new(Error::MultiUTXOUnsuported));
                 }
             }
-            _ => return Err(Error::MultiUTXOUnsuported),
+            _ => return Err(FError::new(Error::MultiUTXOUnsuported)),
         }
 
         Ok(MetadataOutput {

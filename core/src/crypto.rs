@@ -1,5 +1,6 @@
 //! Cryptographic type definitions and primitives supported in Farcaster
 
+use std::error;
 use std::fmt::Debug;
 
 use strict_encoding::{StrictDecode, StrictEncode};
@@ -9,11 +10,49 @@ use crate::consensus::{self};
 use crate::role::{Acc, Accordant, Arbitrating, Blockchain};
 use crate::swap::Swap;
 
+/// List of cryptographic errors that can be encountered when processing cryptographic operation
+/// such as signatures, proofs, key derivation, or commitments.
 #[derive(Error, Debug)]
 pub enum Error {
-    /// The zero knowledge proof does not pass the validation
-    #[error("The zero knowledge proof does not pass the validation")]
-    WrongDleqProof,
+    /// The signature does not pass the validation tests.
+    #[error("The signature does not pass the validation")]
+    InvalidSignature,
+    /// The adaptor signature does not pass the validation tests.
+    #[error("The adaptor signature does not pass the validation")]
+    InvalidAdaptorSignature,
+    /// The proof does not pass the validation tests.
+    #[error("The proof does not pass the validation")]
+    InvalidProof,
+    /// The commitment does not match the given value.
+    #[error("The commitment does not match the given value")]
+    InvalidCommitment,
+    /// Any cryptographic error not part of this list.
+    #[error("Cryptographic error: {0}")]
+    Other(Box<dyn error::Error + Send + Sync>),
+}
+
+impl Error {
+    /// Creates a new cryptographic error of type other with an arbitrary payload.
+    pub fn new<E>(error: E) -> Self
+    where
+        E: Into<Box<dyn error::Error + Send + Sync>>,
+    {
+        Self::Other(error.into())
+    }
+
+    /// Consumes the `Error`, returning its inner error (if any).
+    ///
+    /// If this [`enum@Error`] was constructed via [`new`] then this function will return [`Some`],
+    /// otherwise it will return [`None`].
+    ///
+    /// [`new`]: Error::new
+    ///
+    pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
+        match self {
+            Self::Other(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, StrictDecode, StrictEncode)]
@@ -145,9 +184,9 @@ where
     /// Type of seed received as input
     type Seed;
 
-    fn get_privkey(seed: &Self::Seed, key_type: T::KeyList) -> Self::PrivateKey;
+    fn get_privkey(seed: &Self::Seed, key_type: T::KeyList) -> Result<Self::PrivateKey, Error>;
 
-    fn get_pubkey(seed: &Self::Seed, key_type: T::KeyList) -> Self::PublicKey;
+    fn get_pubkey(seed: &Self::Seed, key_type: T::KeyList) -> Result<Self::PublicKey, Error>;
 }
 
 /// This trait is required for blockchains for fixing the potential shared private key send over
@@ -159,7 +198,10 @@ where
     /// A shareable private key type used to parse non-transparent blockchain
     type SharedPrivateKey: Clone + PartialEq + Debug + StrictEncode + StrictDecode;
 
-    fn get_shared_privkey(seed: &Self::Seed, key_type: SharedPrivateKey) -> Self::SharedPrivateKey;
+    fn get_shared_privkey(
+        seed: &Self::Seed,
+        key_type: SharedPrivateKey,
+    ) -> Result<Self::SharedPrivateKey, Error>;
 
     /// Get the bytes from the shared private key.
     fn as_bytes(privkey: &Self::SharedPrivateKey) -> Vec<u8>;
@@ -176,14 +218,11 @@ pub trait Commitment {
 
     /// Validate the equality between a value and a commitment, return ok if the value commits to
     /// the same commitment's value.
-    fn validate<T: AsRef<[u8]>>(
-        value: T,
-        commitment: Self::Commitment,
-    ) -> Result<(), consensus::Error> {
+    fn validate<T: AsRef<[u8]>>(value: T, commitment: Self::Commitment) -> Result<(), Error> {
         if Self::commit_to(value) == commitment {
             Ok(())
         } else {
-            Err(consensus::Error::TypeMismatch)
+            Err(Error::InvalidCommitment)
         }
     }
 }
@@ -213,9 +252,11 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn project_over(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> Ar::PrivateKey;
+    fn project_over(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> Result<Ar::PrivateKey, Error>;
 
-    fn generate(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> (Ac::PublicKey, Ar::PublicKey, Self);
+    fn generate(
+        ac_seed: &<Ac as FromSeed<Acc>>::Seed,
+    ) -> Result<(Ac::PublicKey, Ar::PublicKey, Self), Error>;
 
     fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> Result<(), Error>;
 }

@@ -2,7 +2,7 @@
 
 use farcaster_core::blockchain::Asset;
 use farcaster_core::crypto::{
-    AccordantKey, Commitment, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys,
+    self, AccordantKey, Commitment, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys,
 };
 use farcaster_core::role::{Acc, Accordant};
 
@@ -72,12 +72,15 @@ impl Keys for Monero {
 impl SharedPrivateKeys<Acc> for Monero {
     type SharedPrivateKey = PrivateKey;
 
-    fn get_shared_privkey(seed: &[u8; 32], key_type: SharedPrivateKey) -> PrivateKey {
+    fn get_shared_privkey(
+        seed: &[u8; 32],
+        key_type: SharedPrivateKey,
+    ) -> Result<PrivateKey, crypto::Error> {
         match key_type {
             SharedPrivateKey::View => {
                 let mut bytes = Vec::from(b"farcaster_priv_view".as_ref());
                 bytes.extend_from_slice(&seed.as_ref());
-                Hash::hash(&bytes).as_scalar()
+                Ok(Hash::hash(&bytes).as_scalar())
             }
         }
     }
@@ -95,26 +98,28 @@ impl Commitment for Monero {
     }
 }
 
-pub fn private_spend_from_seed<T: AsRef<[u8]>>(seed: T) -> PrivateKey {
+pub fn private_spend_from_seed<T: AsRef<[u8]>>(seed: T) -> Result<PrivateKey, crypto::Error> {
     let mut bytes = Vec::from(b"farcaster_priv_spend".as_ref());
     bytes.extend_from_slice(&seed.as_ref());
 
     let mut key = Hash::hash(&bytes).to_fixed_bytes();
     key[31] &= 0b0000_1111; // Chop off bits that might be greater than the curve modulus
 
-    PrivateKey::from_slice(&key).unwrap()
+    PrivateKey::from_slice(&key).map_err(|e| crypto::Error::new(e))
 }
 
 impl FromSeed<Acc> for Monero {
     type Seed = [u8; 32];
 
-    fn get_privkey(seed: &[u8; 32], key_type: AccordantKey) -> PrivateKey {
+    fn get_privkey(seed: &[u8; 32], key_type: AccordantKey) -> Result<PrivateKey, crypto::Error> {
         match key_type {
             AccordantKey::Spend => private_spend_from_seed(&seed),
         }
     }
 
-    fn get_pubkey(seed: &[u8; 32], key_type: AccordantKey) -> PublicKey {
-        PublicKey::from_private_key(&Self::get_privkey(&seed, key_type))
+    fn get_pubkey(seed: &[u8; 32], key_type: AccordantKey) -> Result<PublicKey, crypto::Error> {
+        Ok(PublicKey::from_private_key(&Self::get_privkey(
+            &seed, key_type,
+        )?))
     }
 }

@@ -600,7 +600,7 @@ where
         // Verify the lock transaction template.
         lock.verify_template(data_lock.clone())?;
         // The target amount is dictated from the public offer.
-        let target_amount = public_offer.offer.arbitrating_assets;
+        let target_amount = public_offer.offer.arbitrating_amount;
         // Verify the target amount
         lock.verify_target_amount(target_amount)?;
         // Validate that the transaction follows the strategy.
@@ -814,7 +814,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         };
 
         // The target amount is dictated from the public offer.
-        let target_amount = public_offer.offer.arbitrating_assets;
+        let target_amount = public_offer.offer.arbitrating_amount;
 
         // Initialize the lockable transaction based on the fundable structure. The lockable
         // transaction prepare the on-chain contract for a buy or a cancel. The amount of available

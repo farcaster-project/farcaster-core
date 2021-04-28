@@ -3,14 +3,15 @@ use std::marker::PhantomData;
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::secp256k1::{Secp256k1, Signature};
-use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoin::hashes::sha256d::Hash;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::script;
 use farcaster_core::transaction::{Error as FError, Fundable, Lockable, Signable};
 
-use crate::bitcoin::transaction::{sign_input, Error, MetadataOutput, SubTransaction, Tx, TxInRef};
+use crate::bitcoin::transaction::{
+    signature_hash, Error, MetadataOutput, SubTransaction, Tx, TxInRef,
+};
 use crate::bitcoin::{Amount, Bitcoin};
 
 #[derive(Debug)]
@@ -143,13 +144,7 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
 }
 
 impl Signable<Bitcoin> for Tx<Lock> {
-    fn generate_witness(&self, privkey: &PrivateKey) -> Result<Signature, FError> {
-        {
-            // TODO validate the transaction before signing
-        }
-
-        let mut secp = Secp256k1::new();
-
+    fn generate_witness_message(&self) -> Result<Hash, FError> {
         let unsigned_tx = self.psbt.global.unsigned_tx.clone();
         let txin = TxInRef::new(&unsigned_tx, 0);
 
@@ -168,21 +163,6 @@ impl Signable<Bitcoin> for Tx<Lock> {
             .sighash_type
             .ok_or(FError::new(Error::MissingSigHashType))?;
 
-        let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)
-            .map_err(Error::from)?;
-
-        // Finalize the witness
-        let mut full_sig = sig.serialize_der().to_vec();
-        full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
-
-        // TODO
-        //let pubkey = PublicKey::from_private_key(&secp, &privkey);
-        //self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
-
-        Ok(sig)
-    }
-
-    fn verify_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
-        todo!()
+        Ok(signature_hash(txin, &script, value, sighash_type))
     }
 }

@@ -1,10 +1,10 @@
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::crypto::{self, Commitment, DleqProof};
+use farcaster_core::crypto::{self, AccordantKey, Commitment, DleqProof};
 use farcaster_core::swap::Swap;
 
 use crate::bitcoin::Bitcoin;
-use crate::monero::{private_spend_from_seed, Monero};
+use crate::monero::{self as xmr, Monero};
 
 use monero::cryptonote::hash::Hash;
 
@@ -37,8 +37,9 @@ impl Commitment for BtcXmr {
 pub struct RingProof;
 
 impl DleqProof<Bitcoin, Monero> for RingProof {
-    fn project_over(ac_seed: &[u8; 32]) -> Result<bitcoin::PrivateKey, crypto::Error> {
-        let spend = private_spend_from_seed(&ac_seed)?;
+    fn project_over(ac_engine: &xmr::Wallet) -> Result<bitcoin::PublicKey, crypto::Error> {
+        let secp = Secp256k1::new();
+        let spend = ac_engine.get_privkey(AccordantKey::Spend)?;
         let bytes = spend.to_bytes(); // FIXME warn this copy the priv key
         let adaptor = SecretKey::from_slice(&bytes).map_err(|e| crypto::Error::new(e))?;
 
@@ -46,20 +47,19 @@ impl DleqProof<Bitcoin, Monero> for RingProof {
             compressed: true,
             network: bitcoin::Network::Bitcoin,
             key: adaptor,
-        })
+        }
+        .public_key(&secp))
     }
 
     fn generate(
-        ac_seed: &[u8; 32],
+        ac_engine: &xmr::Wallet,
     ) -> Result<(monero::PublicKey, bitcoin::PublicKey, Self), crypto::Error> {
-        let secp = Secp256k1::new();
-
-        let spend = private_spend_from_seed(&ac_seed)?;
-        let adaptor = Self::project_over(&ac_seed)?;
+        let spend = ac_engine.get_privkey(AccordantKey::Spend)?;
+        let adaptor = Self::project_over(&ac_engine)?;
 
         Ok((
             monero::PublicKey::from_private_key(&spend),
-            bitcoin::PublicKey::from_private_key(&secp, &adaptor),
+            adaptor,
             // TODO
             Self,
         ))

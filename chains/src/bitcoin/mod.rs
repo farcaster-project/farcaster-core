@@ -1,5 +1,6 @@
 //! Defines and implements all the traits for Bitcoin
 
+use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::amount;
@@ -244,28 +245,19 @@ impl Keys for Bitcoin {
     }
 }
 
-impl Signatures for Bitcoin {
-    type Signature = Signature;
-    type AdaptorSignature = ECDSAAdaptorSig;
-
-    fn adapt(
-        _key: &PrivateKey,
-        _sig: ECDSAAdaptorSig,
-    ) -> Result<Signature, farcaster_core::crypto::Error> {
-        todo!()
-    }
-
-    fn recover_key(_sig: Signature, _adapted_sig: ECDSAAdaptorSig) -> PrivateKey {
-        todo!()
-    }
+#[derive(Clone, Debug)]
+pub struct Wallet {
+    seed: [u8; 32],
 }
 
-impl FromSeed<Arb> for Bitcoin {
-    type Seed = [u8; 32];
+impl Wallet {
+    pub fn new(seed: [u8; 32]) -> Self {
+        Self { seed }
+    }
 
-    fn get_privkey(seed: &[u8; 32], key_type: ArbitratingKey) -> Result<PrivateKey, crypto::Error> {
+    pub fn get_privkey(&self, key_type: ArbitratingKey) -> Result<PrivateKey, crypto::Error> {
         let secp = Secp256k1::new();
-        let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref())
+        let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, self.seed.as_ref())
             .map_err(|e| crypto::Error::new(e))?;
         let key = match key_type {
             ArbitratingKey::Fund => {
@@ -287,8 +279,83 @@ impl FromSeed<Arb> for Bitcoin {
         Ok(key.map_err(|e| crypto::Error::new(e))?.private_key)
     }
 
-    fn get_pubkey(seed: &[u8; 32], key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
+    pub fn get_pubkey(&self, key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
-        Ok(Self::get_privkey(&seed, key_type)?.public_key(&secp))
+        Ok(self.get_privkey(key_type)?.public_key(&secp))
+    }
+}
+
+impl FromSeed<Arb> for Bitcoin {
+    type Engine = Wallet;
+
+    fn get_pubkey(engine: &Wallet, key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
+        engine.get_pubkey(key_type)
+    }
+}
+
+impl Signatures for Bitcoin {
+    type Context = Wallet;
+    type Message = Sha256dHash;
+    type Signature = Signature;
+    type AdaptorSignature = ECDSAAdaptorSig;
+
+    fn sign_with_key(
+        _context: &Wallet,
+        _key: &PublicKey,
+        _msg: Sha256dHash,
+    ) -> Result<Signature, crypto::Error> {
+        todo!()
+    }
+
+    /// Verify a signature for a given message with the provided public key.
+    fn verify_signature(
+        _context: &Wallet,
+        _key: &PublicKey,
+        _msg: Sha256dHash,
+        _sig: &Signature,
+    ) -> Result<(), crypto::Error> {
+        todo!()
+    }
+
+    /// Sign the message with the corresponding private key identified by the provided public key
+    /// and encrypt it (create an adaptor signature) with the provided adaptor public key.
+    fn adaptor_sign_with_key(
+        _context: &Wallet,
+        _key: &PublicKey,
+        _adaptor: &PublicKey,
+        _msg: Sha256dHash,
+    ) -> Result<ECDSAAdaptorSig, crypto::Error> {
+        todo!()
+    }
+
+    /// Verify a adaptor signature for a given message with the provided public key and the public
+    /// adaptor key.
+    fn verify_adaptor_signature(
+        _context: &Wallet,
+        _key: &PublicKey,
+        _adaptor: &PublicKey,
+        _msg: Sha256dHash,
+        _sig: &ECDSAAdaptorSig,
+    ) -> Result<(), crypto::Error> {
+        todo!()
+    }
+
+    /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
+    /// signatures) with the corresponding private key identified by the provided public key.
+    fn adapt_signature(
+        _context: &Wallet,
+        _key: &PublicKey,
+        _sig: ECDSAAdaptorSig,
+    ) -> Result<Signature, crypto::Error> {
+        todo!()
+    }
+
+    /// Recover the encryption key based on the adaptor signature and the decrypted signature.
+    fn recover_key(
+        _context: &Wallet,
+        _sig: Signature,
+        _adapted_sig: ECDSAAdaptorSig,
+    ) -> PrivateKey {
+        todo!()
     }
 }

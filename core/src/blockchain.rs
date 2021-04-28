@@ -81,6 +81,10 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
     type Punish: Punishable<Self, Self::Metadata>;
 }
 
+//pub trait Signatures {
+//    type CryptoEngine: Keys + Signatures;
+//}
+
 impl<T> FromStr for FeeStrategy<T>
 where
     T: Clone

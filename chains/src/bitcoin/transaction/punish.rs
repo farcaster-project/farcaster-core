@@ -1,5 +1,4 @@
-use bitcoin::secp256k1::Signature;
-use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoin::hashes::sha256d::Hash;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::script;
@@ -28,11 +27,7 @@ impl Punishable<Bitcoin, MetadataOutput> for Tx<Punish> {
 }
 
 impl Forkable<Bitcoin> for Tx<Punish> {
-    fn generate_failure_witness(&self, _privkey: &PrivateKey) -> Result<Signature, Error> {
-        todo!()
-    }
-
-    fn verify_failure_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), Error> {
+    fn generate_failure_witness_message(&self) -> Result<Hash, Error> {
         todo!()
     }
 }

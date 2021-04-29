@@ -59,6 +59,15 @@ impl FromStr for NegotiationRole {
     }
 }
 
+impl ToString for NegotiationRole {
+    fn to_string(&self) -> String {
+        match self {
+            NegotiationRole::Maker => "Maker".to_string(),
+            NegotiationRole::Taker => "Taker".to_string(),
+        }
+    }
+}
+
 /// A maker is one that creates and share a public offer and start his daemon in listening mode so
 /// one taker can connect and start interacting with him.
 pub struct Maker;

@@ -253,7 +253,7 @@ where
 /// system.
 pub trait Fundable<T, O>: Linkable<O>
 where
-    T: Address + Keys + Signatures + Onchain,
+    T: Address + Keys + Onchain,
     Self: Sized,
 {
     /// Create a new funding 'output', or equivalent depending on the blockchain and the

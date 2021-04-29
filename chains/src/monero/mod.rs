@@ -100,6 +100,10 @@ pub struct Wallet {
 }
 
 impl Wallet {
+    pub fn new(seed: [u8; 32]) -> Self {
+        Self { seed }
+    }
+
     pub fn get_privkey(&self, key_type: AccordantKey) -> Result<PrivateKey, crypto::Error> {
         match key_type {
             AccordantKey::Spend => private_spend_from_seed(&self.seed),

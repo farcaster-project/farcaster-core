@@ -1,3 +1,5 @@
+use farcaster_chains::bitcoin as btc;
+use farcaster_chains::monero as xmr;
 use farcaster_chains::pairs::btcxmr::BtcXmr;
 
 use farcaster_core::blockchain::FeePolitic;
@@ -25,14 +27,14 @@ fn create_alice_parameters() {
     let fee_politic = FeePolitic::Aggressive;
     let alice: Alice<BtcXmr> = Alice::new(destination_address, fee_politic);
 
-    let ar_seed = [
+    let ar_seed = btc::Wallet::new([
         32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10,
         9, 8, 7, 6, 5, 4, 3, 2, 1,
-    ];
-    let ac_seed = [
+    ]);
+    let ac_seed = xmr::Wallet::new([
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32,
-    ];
+    ]);
 
     let pub_offer: PublicOffer<BtcXmr> =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
@@ -63,14 +65,14 @@ fn create_bob_parameters() {
     let fee_politic = FeePolitic::Aggressive;
     let bob: Bob<BtcXmr> = Bob::new(refund_address, fee_politic);
 
-    let ar_seed = [
+    let ar_seed = btc::Wallet::new([
         32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10,
         9, 8, 7, 6, 5, 4, 3, 2, 1,
-    ];
-    let ac_seed = [
+    ]);
+    let ac_seed = xmr::Wallet::new([
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32,
-    ];
+    ]);
 
     let pub_offer: PublicOffer<BtcXmr> =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");

@@ -232,8 +232,7 @@ where
         })
     }
 
-    /// Generates the adaptor witness with [`generate_adaptor_witness`] on the [`Refundable`]
-    /// transaction.
+    /// Generates the witness on the [`Refundable`] transaction and adaptor sign it.
     ///
     /// # Safety
     ///
@@ -262,12 +261,10 @@ where
     ///  * Validate the [`Lockable`], [`Cancelable`], [`Refundable`] partial transactions in
     ///  [`CoreArbitratingTransactions`]
     ///  * Retrieve Bob's adaptor public key from [`BobParameters`] bundle
-    ///  * Derive the refund private key from the arbitrating seed: `ar_engine`
-    ///  * Generate the adaptor witness data for success path with [`generate_adaptor_witness`]
+    ///  * Retrieve Alice's refund public key from [`AliceParameters`] bundle
+    ///  * Generate the witness data and adaptor sign it
     ///
     /// Returns the adaptor signature inside the [`SignedAdaptorRefund`] bundle.
-    ///
-    /// [`generate_adaptor_witness`]: AdaptorSignable::generate_adaptor_witness
     ///
     pub fn sign_adaptor_refund(
         &self,
@@ -300,7 +297,7 @@ where
         })
     }
 
-    /// Generates the witness with [`generate_failure_witness`] on the [`Cancelable`] transaction.
+    /// Generates the witness on the [`Cancelable`] transaction and sign it.
     ///
     /// # Safety
     ///
@@ -322,12 +319,10 @@ where
     ///  * Parse the [`Cancelable`] partial transaction in [`CoreArbitratingTransactions`]
     ///  * Validate the [`Lockable`], [`Cancelable`], [`Refundable`] partial transactions in
     ///  [`CoreArbitratingTransactions`]
-    ///  * Derive the cancel private key from the arbitrating seed: `ar_engine`
-    ///  * Generate the adaptor witness data for success path with [`generate_failure_witness`]
+    ///  * Retreive Alice's cancel public key from the parameters
+    ///  * Generate the witness data and sign it
     ///
     /// Returns the witness inside the [`CosignedArbitratingCancel`] bundle.
-    ///
-    /// [`generate_failure_witness`]: Forkable::generate_failure_witness
     ///
     pub fn cosign_arbitrating_cancel(
         &self,
@@ -354,8 +349,8 @@ where
         })
     }
 
-    /// Validates the adaptor buy witness with [`verify_adaptor_witness`] based on the parameters
-    /// and the buy arbitrating transactions.
+    /// Validates the adaptor buy witness with based on the parameters and the buy arbitrating
+    /// transactions.
     ///
     /// # Safety
     ///
@@ -381,8 +376,6 @@ where
     ///  * Parse the [`Buyable`] partial transaction in [`SignedAdaptorBuy`]
     ///  * Verify the adaptor witness in [`SignedAdaptorBuy`] with the public keys from the
     ///  parameters bundles
-    ///
-    /// [`verify_adaptor_witness`]: AdaptorSignable::verify_adaptor_witness
     ///
     pub fn validate_adaptor_buy(
         &self,
@@ -454,15 +447,13 @@ where
     /// # Execution
     ///
     ///  * Parse the [`Buyable`] partial transaction in [`SignedAdaptorBuy`]
-    ///  * Derive the buy private key from the arbitrating seed: `ar_engine`
-    ///  * Generate the buy witness data with [`generate_witness`]
-    ///  * Derive the adaptor private key from the accordant seed: `ac_engine`
-    ///  * Adaprt the signature with [`adapt`]
+    ///  * Retreive the buy public key from the paramters
+    ///  * Generate the buy witness data and sign it
+    ///  * Retreive the adaptor public key from the parameters
+    ///  * Adapt the signature
     ///
     /// Returns the signatures inside a [`FullySignedBuy`] bundle.
     ///
-    /// [`adapt`]: Signatures::adapt
-    /// [`generate_witness`]: Signable::generate_witness
     /// [`validate_adaptor_buy`]: Alice::validate_adaptor_buy
     ///
     pub fn fully_sign_buy(
@@ -497,8 +488,7 @@ where
         let key = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
         let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
-        // Derive the adaptor private key and adaptor the counter-party witness with the private
-        // key.
+        // Retreive the adaptor public key and the counter-party adaptor witness.
         let key = alice_parameters
             .adaptor
             .key()
@@ -542,15 +532,13 @@ where
     /// # Execution
     ///
     ///  * Parse the [`Buyable`] partial transaction in [`SignedAdaptorBuy`]
-    ///  * Derive the buy private key from the arbitrating seed: `ar_engine`
-    ///  * Generate the buy witness data with [`generate_witness`]
-    ///  * Derive the adaptor private key from the accordant seed: `ac_engine`
-    ///  * Adaprt the signature with [`adapt`]
+    ///  * Retreive the buy public key from the parameters
+    ///  * Generate the buy witness data
+    ///  * Retreive the adaptor public key from the parameters
+    ///  * Adapt the signature
     ///
     /// Returns the signatures inside a [`FullySignedBuy`] bundle.
     ///
-    /// [`adapt`]: Signatures::adapt
-    /// [`generate_witness`]: Signable::generate_witness
     /// [`validate_adaptor_buy`]: Alice::validate_adaptor_buy
     ///
     pub fn fully_sign_punish(
@@ -937,13 +925,12 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// # Execution
     ///
     ///  * Parse the [`Cancelable`] partial transaction in [`CoreArbitratingTransactions`]
-    ///  * Derive the cancel private key from the arbitrating seed: `ar_engine`
-    ///  * Generate the witness data for cancel path with [`generate_failure_witness`]
+    ///  * Retreive the cancel public key from the paramters
+    ///  * Generate the witness data and sign it
     ///
     /// Returns the signature inside [`CosignedArbitratingCancel`] bundle.
     ///
     /// [`cosign_arbitrating_cancel`]: Bob::cosign_arbitrating_cancel
-    /// [`generate_failure_witness`]: Forkable::generate_failure_witness
     ///
     pub fn cosign_arbitrating_cancel(
         &self,
@@ -968,8 +955,8 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    /// Validates the adaptor refund witness with [`verify_adaptor_witness`] based on the parameters
-    /// and the core arbitrating transactions.
+    /// Validates the adaptor refund witness based on the parameters and the core arbitrating
+    /// transactions.
     ///
     /// # Safety
     ///
@@ -997,8 +984,6 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///  * Parse the [`Refundable`] partial transaction in [`CoreArbitratingTransactions`]
     ///  * Verify the adaptor witness in [`SignedAdaptorRefund`] with the public keys from the
     ///  parameters bundles
-    ///
-    /// [`verify_adaptor_witness`]: AdaptorSignable::verify_adaptor_witness
     ///
     pub fn validate_adaptor_refund(
         &self,
@@ -1034,8 +1019,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         Ok(())
     }
 
-    /// Creates the [`Buyable`] transaction and generate the adaptor witness with
-    /// [`generate_adaptor_witness`]
+    /// Creates the [`Buyable`] transaction and generate the adaptor witness
     ///
     /// # Safety
     ///
@@ -1066,13 +1050,12 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///  * Parse the [`Lockable`] partial transaction in [`CoreArbitratingTransactions`]
     ///  * Generate the [`DataLock`] structure from Alice and Bob parameters and the public offer
     ///  * Retrieve Alice's adaptor public key from [`AliceParameters`] bundle
-    ///  * Derive the buy private key from the arbitrating seed: `ar_engine`
-    ///  * Generate the adaptor witness data for success path with [`generate_adaptor_witness`]
+    ///  * Retreive the buy public key from the paramters
+    ///  * Generate the adaptor witness data and sign it
     ///
     /// Returns the partial transaction and the signature inside the [`SignedAdaptorBuy`] bundle.
     ///
     /// [`sign_adaptor_buy`]: Bob::sign_adaptor_buy
-    /// [`generate_adaptor_witness`]: AdaptorSignable::generate_adaptor_witness
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
     pub fn sign_adaptor_buy(
@@ -1158,13 +1141,12 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// # Execution
     ///
     ///  * Parse the [`Lockable`] partial transaction in [`CoreArbitratingTransactions`]
-    ///  * Derive the funding private key from the arbitrating seed: `ar_engine`
-    ///  * Generate the witness data with [`generate_witness`]
+    ///  * Retreive the funding public key from the paramters
+    ///  * Generate the witness data and sign it
     ///
     /// Returns the signature inside a [`SignedArbitratingLock`] bundle.
     ///
     /// [`sign_arbitrating_lock`]: Bob::sign_arbitrating_lock
-    /// [`generate_witness`]: Signable::generate_witness
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
     pub fn sign_arbitrating_lock(
@@ -1217,15 +1199,13 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// # Execution
     ///
     ///  * Parse the [`Refundable`] partial transaction in [`CoreArbitratingTransactions`]
-    ///  * Derive the refund private key from the arbitrating seed: `ar_engine`
-    ///  * Generate the refund witness data with [`generate_witness`]
-    ///  * Derive the adaptor private key from the accordant seed: `ac_engine`
-    ///  * Adaprt the signature with [`adapt`]
+    ///  * Retreive the refund public key from the paramters
+    ///  * Generate the refund witness data
+    ///  * Retreive the adaptor public key from the pamaters
+    ///  * Adapt the signature
     ///
     /// Returns the signatures inside a [`SignedArbitratingLock`] bundle.
     ///
-    /// [`adapt`]: Signatures::adapt
-    /// [`generate_witness`]: Signable::generate_witness
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
     pub fn fully_sign_refund(

@@ -27,6 +27,7 @@ use crate::Error;
 
 /// Defines the possible roles during the negotiation phase. Any negotiation role can transition
 /// into any swap role when negotiation is done.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NegotiationRole {
     /// The maker role create the public offer during the negotiation phase and waits for incoming
     /// connections.
@@ -42,6 +43,27 @@ impl NegotiationRole {
         match self {
             Self::Maker => Self::Taker,
             Self::Taker => Self::Maker,
+        }
+    }
+}
+
+impl FromStr for NegotiationRole {
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Maker" | "maker" => Ok(NegotiationRole::Maker),
+            "Taker" | "taker" => Ok(NegotiationRole::Taker),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl ToString for NegotiationRole {
+    fn to_string(&self) -> String {
+        match self {
+            NegotiationRole::Maker => "Maker".to_string(),
+            NegotiationRole::Taker => "Taker".to_string(),
         }
     }
 }
@@ -99,9 +121,18 @@ impl FromStr for SwapRole {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Alice" => Ok(SwapRole::Alice),
-            "Bob" => Ok(SwapRole::Bob),
-            _ => Err(consensus::Error::ParseFailed("Bob or Alice valid")),
+            "Alice" | "alice" => Ok(SwapRole::Alice),
+            "Bob" | "bob" => Ok(SwapRole::Bob),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl ToString for SwapRole {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Alice => "Alice".to_string(),
+            Self::Bob => "Bob".to_string(),
         }
     }
 }

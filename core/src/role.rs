@@ -27,6 +27,7 @@ use crate::Error;
 
 /// Defines the possible roles during the negotiation phase. Any negotiation role can transition
 /// into any swap role when negotiation is done.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NegotiationRole {
     /// The maker role create the public offer during the negotiation phase and waits for incoming
     /// connections.

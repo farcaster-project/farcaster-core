@@ -128,6 +128,15 @@ impl FromStr for SwapRole {
     }
 }
 
+impl ToString for SwapRole {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Alice => "Alice".to_string(),
+            Self::Bob => "Bob".to_string(),
+        }
+    }
+}
+
 /// Alice, the swap role, is the role starting with accordant blockchain assets and exchange them
 /// for arbitrating blockchain assets.
 pub struct Alice<Ctx: Swap> {

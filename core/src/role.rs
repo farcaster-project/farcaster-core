@@ -54,7 +54,7 @@ impl FromStr for NegotiationRole {
         match s {
             "Maker" | "maker" => Ok(NegotiationRole::Maker),
             "Taker" | "taker" => Ok(NegotiationRole::Taker),
-            _ => Err(consensus::Error::ParseFailed("Maker or Taker valid")),
+            _ => Err(consensus::Error::UnknownType),
         }
     }
 }
@@ -123,7 +123,7 @@ impl FromStr for SwapRole {
         match s {
             "Alice" | "alice" => Ok(SwapRole::Alice),
             "Bob" | "bob" => Ok(SwapRole::Bob),
-            _ => Err(consensus::Error::ParseFailed("Bob or Alice valid")),
+            _ => Err(consensus::Error::UnknownType),
         }
     }
 }

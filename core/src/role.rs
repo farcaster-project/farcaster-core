@@ -111,8 +111,8 @@ impl FromStr for SwapRole {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Alice" => Ok(SwapRole::Alice),
-            "Bob" => Ok(SwapRole::Bob),
+            "Alice" | "alice" => Ok(SwapRole::Alice),
+            "Bob" | "bob" => Ok(SwapRole::Bob),
             _ => Err(consensus::Error::ParseFailed("Bob or Alice valid")),
         }
     }

@@ -11,6 +11,7 @@ rpc = []
 
 [dependencies]
 farcaster_core = { path = "../core" }
+async-trait = "0.1.50"
 strict_encoding = "1.2.1"
 hex = "0.4.3"
 thiserror = "1.0.24"
@@ -26,3 +27,5 @@ rand_core = { version = "^0.5.0", features = ["getrandom"] }
 secp256k1 = { version = "0.20.1", features = ["rand-std"] }
 internet2 = "0.3.10"
 lazy_static = "1.4.0"
+tokio = { version = "1", features = ["full"] }
+tokio-test = "0.4.1"

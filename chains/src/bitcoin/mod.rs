@@ -1,5 +1,7 @@
 //! Defines and implements all the traits for Bitcoin
 
+use async_trait::async_trait;
+
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Signature;
@@ -285,21 +287,26 @@ impl Wallet {
     }
 }
 
+#[async_trait]
 impl FromSeed<Arb> for Bitcoin {
     type Engine = Wallet;
 
-    fn get_pubkey(engine: &Wallet, key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
+    async fn get_pubkey(
+        engine: &Wallet,
+        key_type: ArbitratingKey,
+    ) -> Result<PublicKey, crypto::Error> {
         engine.get_pubkey(key_type)
     }
 }
 
+#[async_trait]
 impl Signatures for Bitcoin {
     type Context = Wallet;
     type Message = Sha256dHash;
     type Signature = Signature;
     type AdaptorSignature = ECDSAAdaptorSig;
 
-    fn sign_with_key(
+    async fn sign_with_key(
         _context: &Wallet,
         _key: &PublicKey,
         _msg: Sha256dHash,
@@ -319,7 +326,7 @@ impl Signatures for Bitcoin {
 
     /// Sign the message with the corresponding private key identified by the provided public key
     /// and encrypt it (create an adaptor signature) with the provided adaptor public key.
-    fn adaptor_sign_with_key(
+    async fn adaptor_sign_with_key(
         _context: &Wallet,
         _key: &PublicKey,
         _adaptor: &PublicKey,
@@ -342,7 +349,7 @@ impl Signatures for Bitcoin {
 
     /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
     /// signatures) with the corresponding private key identified by the provided public key.
-    fn adapt_signature(
+    async fn adapt_signature(
         _context: &Wallet,
         _key: &PublicKey,
         _sig: ECDSAAdaptorSig,

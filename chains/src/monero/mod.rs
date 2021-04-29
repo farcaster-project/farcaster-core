@@ -9,6 +9,8 @@ use farcaster_core::role::{Acc, Accordant};
 use monero::cryptonote::hash::Hash;
 use monero::util::key::{PrivateKey, PublicKey};
 
+use async_trait::async_trait;
+
 use std::fmt::{self, Debug, Display, Formatter};
 
 pub const SHARED_KEY_BITS: usize = 252;
@@ -69,10 +71,11 @@ impl Keys for Monero {
     }
 }
 
+#[async_trait]
 impl SharedPrivateKeys<Acc> for Monero {
     type SharedPrivateKey = PrivateKey;
 
-    fn get_shared_privkey(
+    async fn get_shared_privkey(
         engine: &Wallet,
         key_type: SharedPrivateKey,
     ) -> Result<PrivateKey, crypto::Error> {
@@ -128,10 +131,14 @@ impl Wallet {
     }
 }
 
+#[async_trait]
 impl FromSeed<Acc> for Monero {
     type Engine = Wallet;
 
-    fn get_pubkey(engine: &Wallet, key_type: AccordantKey) -> Result<PublicKey, crypto::Error> {
+    async fn get_pubkey(
+        engine: &Wallet,
+        key_type: AccordantKey,
+    ) -> Result<PublicKey, crypto::Error> {
         engine.get_pubkey(key_type)
     }
 }

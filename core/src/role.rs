@@ -46,6 +46,18 @@ impl NegotiationRole {
     }
 }
 
+impl FromStr for NegotiationRole {
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Maker" | "maker" => Ok(NegotiationRole::Maker),
+            "Taker" | "taker" => Ok(NegotiationRole::Taker),
+            _ => Err(consensus::Error::ParseFailed("Maker or Taker valid")),
+        }
+    }
+}
+
 /// A maker is one that creates and share a public offer and start his daemon in listening mode so
 /// one taker can connect and start interacting with him.
 pub struct Maker;

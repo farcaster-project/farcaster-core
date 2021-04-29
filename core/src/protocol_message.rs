@@ -5,7 +5,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::crypto::{Commitment, DleqProof, Keys, SharedPrivateKeys, SignatureType, Signatures};
+use crate::crypto::{DleqProof, Keys, SharedPrivateKeys, SignatureType, Signatures};
 use crate::datum;
 use crate::role::{Acc, SwapRole};
 use crate::swap::Swap;
@@ -21,19 +21,19 @@ pub trait ProtocolMessage: StrictEncode + StrictDecode {}
 #[strict_encoding_crate(strict_encoding)]
 pub struct CommitAliceParameters<Ctx: Swap> {
     /// Commitment to `Ab` curve point
-    pub buy: <Ctx::Ar as Commitment>::Commitment,
+    pub buy: Ctx::Commitment,
     /// Commitment to `Ac` curve point
-    pub cancel: <Ctx::Ar as Commitment>::Commitment,
+    pub cancel: Ctx::Commitment,
     /// Commitment to `Ar` curve point
-    pub refund: <Ctx::Ar as Commitment>::Commitment,
+    pub refund: Ctx::Commitment,
     /// Commitment to `Ap` curve point
-    pub punish: <Ctx::Ar as Commitment>::Commitment,
+    pub punish: Ctx::Commitment,
     /// Commitment to `Ta` curve point
-    pub adaptor: <Ctx::Ar as Commitment>::Commitment,
+    pub adaptor: Ctx::Commitment,
     /// Commitment to `k_v^a` scalar
-    pub spend: <Ctx::Ac as Commitment>::Commitment,
+    pub spend: Ctx::Commitment,
     /// Commitment to `K_s^a` curve point
-    pub view: <Ctx::Ac as Commitment>::Commitment,
+    pub view: Ctx::Commitment,
 }
 
 impl<Ctx> CommitAliceParameters<Ctx>
@@ -42,49 +42,46 @@ where
 {
     pub fn from_bundle(bundle: &bundle::AliceParameters<Ctx>) -> Self {
         Self {
-            buy: <Ctx::Ar as Commitment>::commit_to(bundle.buy.key().as_bytes()),
-            cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key().as_bytes()),
-            refund: <Ctx::Ar as Commitment>::commit_to(bundle.refund.key().as_bytes()),
-            punish: <Ctx::Ar as Commitment>::commit_to(bundle.punish.key().as_bytes()),
-            adaptor: <Ctx::Ar as Commitment>::commit_to(bundle.adaptor.key().as_bytes()),
-            spend: <Ctx::Ac as Commitment>::commit_to(bundle.spend.key().as_bytes()),
-            view: <Ctx::Ac as Commitment>::commit_to(bundle.view.key().as_bytes()),
+            buy: Ctx::commit_to(bundle.buy.key().as_bytes()),
+            cancel: Ctx::commit_to(bundle.cancel.key().as_bytes()),
+            refund: Ctx::commit_to(bundle.refund.key().as_bytes()),
+            punish: Ctx::commit_to(bundle.punish.key().as_bytes()),
+            adaptor: Ctx::commit_to(bundle.adaptor.key().as_bytes()),
+            spend: Ctx::commit_to(bundle.spend.key().as_bytes()),
+            view: Ctx::commit_to(bundle.view.key().as_bytes()),
         }
     }
 
     pub fn verify(&self, reveal: &RevealAliceParameters<Ctx>) -> Result<(), Error> {
         // Check buy commitment
-        <Ctx::Ar as Commitment>::validate(
-            <Ctx::Ar as Keys>::as_bytes(&reveal.buy),
-            self.buy.clone(),
-        )?;
+        Ctx::validate(<Ctx::Ar as Keys>::as_bytes(&reveal.buy), self.buy.clone())?;
         // Check cancel commitment
-        <Ctx::Ar as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
             self.cancel.clone(),
         )?;
         // Check refund commitment
-        <Ctx::Ar as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
             self.refund.clone(),
         )?;
         // Check punish commitment
-        <Ctx::Ar as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.punish),
             self.punish.clone(),
         )?;
         // Check adaptor commitment
-        <Ctx::Ar as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
             self.adaptor.clone(),
         )?;
         // Check spend commitment
-        <Ctx::Ac as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
             self.spend.clone(),
         )?;
         // Check private view commitment
-        <Ctx::Ac as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&reveal.view),
             self.view.clone(),
         )?;
@@ -122,17 +119,17 @@ impl<Ctx> ProtocolMessage for CommitAliceParameters<Ctx> where Ctx: Swap {}
 #[strict_encoding_crate(strict_encoding)]
 pub struct CommitBobParameters<Ctx: Swap> {
     /// Commitment to `Bb` curve point
-    pub buy: <Ctx::Ar as Commitment>::Commitment,
+    pub buy: Ctx::Commitment,
     /// Commitment to `Bc` curve point
-    pub cancel: <Ctx::Ar as Commitment>::Commitment,
+    pub cancel: Ctx::Commitment,
     /// Commitment to `Br` curve point
-    pub refund: <Ctx::Ar as Commitment>::Commitment,
+    pub refund: Ctx::Commitment,
     /// Commitment to `Tb` curve point
-    pub adaptor: <Ctx::Ar as Commitment>::Commitment,
+    pub adaptor: Ctx::Commitment,
     /// Commitment to `k_v^b` scalar
-    pub spend: <Ctx::Ac as Commitment>::Commitment,
+    pub spend: Ctx::Commitment,
     /// Commitment to `K_s^b` curve point
-    pub view: <Ctx::Ac as Commitment>::Commitment,
+    pub view: Ctx::Commitment,
 }
 
 impl<Ctx> CommitBobParameters<Ctx>
@@ -141,43 +138,40 @@ where
 {
     pub fn from_bundle(bundle: &bundle::BobParameters<Ctx>) -> Self {
         Self {
-            buy: <Ctx::Ar as Commitment>::commit_to(bundle.buy.key().as_bytes()),
-            cancel: <Ctx::Ar as Commitment>::commit_to(bundle.cancel.key().as_bytes()),
-            refund: <Ctx::Ar as Commitment>::commit_to(bundle.refund.key().as_bytes()),
-            adaptor: <Ctx::Ar as Commitment>::commit_to(bundle.adaptor.key().as_bytes()),
-            spend: <Ctx::Ac as Commitment>::commit_to(bundle.spend.key().as_bytes()),
-            view: <Ctx::Ac as Commitment>::commit_to(bundle.view.key().as_bytes()),
+            buy: Ctx::commit_to(bundle.buy.key().as_bytes()),
+            cancel: Ctx::commit_to(bundle.cancel.key().as_bytes()),
+            refund: Ctx::commit_to(bundle.refund.key().as_bytes()),
+            adaptor: Ctx::commit_to(bundle.adaptor.key().as_bytes()),
+            spend: Ctx::commit_to(bundle.spend.key().as_bytes()),
+            view: Ctx::commit_to(bundle.view.key().as_bytes()),
         }
     }
 
     pub fn verify(&self, reveal: &RevealBobParameters<Ctx>) -> Result<(), Error> {
         // Check buy commitment
-        <Ctx::Ar as Commitment>::validate(
-            <Ctx::Ar as Keys>::as_bytes(&reveal.buy),
-            self.buy.clone(),
-        )?;
+        Ctx::validate(<Ctx::Ar as Keys>::as_bytes(&reveal.buy), self.buy.clone())?;
         // Check cancel commitment
-        <Ctx::Ar as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
             self.cancel.clone(),
         )?;
         // Check refund commitment
-        <Ctx::Ar as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
             self.refund.clone(),
         )?;
         // Check adaptor commitment
-        <Ctx::Ar as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
             self.adaptor.clone(),
         )?;
         // Check spend commitment
-        <Ctx::Ac as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
             self.spend.clone(),
         )?;
         // Check private view commitment
-        <Ctx::Ac as Commitment>::validate(
+        Ctx::validate(
             <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&reveal.view),
             self.view.clone(),
         )?;

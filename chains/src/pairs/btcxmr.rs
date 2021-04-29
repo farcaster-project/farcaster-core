@@ -1,10 +1,12 @@
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::crypto::{self, DleqProof};
+use farcaster_core::crypto::{self, Commitment, DleqProof};
 use farcaster_core::swap::Swap;
 
 use crate::bitcoin::Bitcoin;
 use crate::monero::{private_spend_from_seed, Monero};
+
+use monero::cryptonote::hash::Hash;
 
 use bitcoin::secp256k1::key::SecretKey;
 use bitcoin::secp256k1::Secp256k1;
@@ -21,6 +23,14 @@ impl Swap for BtcXmr {
 
     /// The proof system to link both cryptographic groups
     type Proof = RingProof;
+}
+
+impl Commitment for BtcXmr {
+    type Commitment = Hash;
+
+    fn commit_to<T: AsRef<[u8]>>(value: T) -> Hash {
+        Hash::hash(value.as_ref())
+    }
 }
 
 #[derive(Clone, Debug)]

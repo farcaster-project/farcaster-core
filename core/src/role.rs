@@ -12,8 +12,8 @@ use crate::bundle::{
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
-    AccordantKey, ArbitratingKey, Commitment, DleqProof, FromSeed, Keys, SharedPrivateKey,
-    SharedPrivateKeys, SignatureType, Signatures,
+    AccordantKey, ArbitratingKey, DleqProof, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys,
+    SignatureType, Signatures,
 };
 use crate::datum::{self, Key, Parameter, Proof, Signature};
 use crate::negotiation::PublicOffer;
@@ -1222,7 +1222,6 @@ impl<Ctx: Swap> Bob<Ctx> {
 pub trait Arbitrating:
     Asset
     + Address
-    + Commitment
     + Fee
     + FromSeed<Arb>
     + Keys
@@ -1237,10 +1236,7 @@ pub trait Arbitrating:
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
-pub trait Accordant:
-    Asset + Keys + Commitment + SharedPrivateKeys<Acc> + FromSeed<Acc> + Clone + Eq
-{
-}
+pub trait Accordant: Asset + Keys + SharedPrivateKeys<Acc> + FromSeed<Acc> + Clone + Eq {}
 
 /// Defines the role of a blockchain. Farcaster uses two blockchain roles (1) [Arbitrating] and (2)
 /// [Accordant].

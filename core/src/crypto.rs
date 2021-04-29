@@ -207,13 +207,13 @@ where
     fn as_bytes(privkey: &Self::SharedPrivateKey) -> Vec<u8>;
 }
 
-/// This trait is required for blockchains for fixing the commitment types of the keys.
+/// This trait is required for blockchains for fixing the commitment types of the keys and
+/// parameters that must go through the commit/reveal scheme at the beginning of the protocol.
 pub trait Commitment {
     /// Commitment type used in the commit/reveal scheme during swap parameters setup.
     type Commitment: Clone + PartialEq + Eq + Debug + StrictEncode + StrictDecode;
 
     /// Provides a generic method to commit to any value referencable as stream of bytes.
-    //fn commit_to(value: Self::PublicKey) -> Self::Commitment;
     fn commit_to<T: AsRef<[u8]>>(value: T) -> Self::Commitment;
 
     /// Validate the equality between a value and a commitment, return ok if the value commits to

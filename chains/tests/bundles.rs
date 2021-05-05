@@ -14,8 +14,8 @@ use bitcoin::Address;
 
 use std::str::FromStr;
 
-#[tokio::test(flavor = "multi_thread")]
-async fn create_alice_parameters() {
+#[test]
+fn create_alice_parameters() {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
                a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
                873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
@@ -41,7 +41,6 @@ async fn create_alice_parameters() {
 
     let alice_params = dbg!(alice
         .generate_parameters(&ar_seed, &ac_seed, &pub_offer)
-        .await
         .unwrap());
 
     let commit_alice_params = dbg!(CommitAliceParameters::from_bundle(&alice_params));
@@ -53,8 +52,8 @@ async fn create_alice_parameters() {
     //assert!(false);
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn create_bob_parameters() {
+#[test]
+fn create_bob_parameters() {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
                a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
                873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
@@ -80,7 +79,6 @@ async fn create_bob_parameters() {
 
     let bob_params = dbg!(bob
         .generate_parameters(&ar_seed, &ac_seed, &pub_offer)
-        .await
         .unwrap());
 
     let commit_bob_params = dbg!(CommitBobParameters::from_bundle(&bob_params));

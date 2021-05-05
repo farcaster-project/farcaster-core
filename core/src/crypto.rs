@@ -3,7 +3,6 @@
 use std::error;
 use std::fmt::Debug;
 
-use async_trait::async_trait;
 use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 
@@ -179,7 +178,6 @@ pub trait Keys {
 
 /// Generate the public keys for a blockchain type (arbitrating or accordant) from a key generator
 /// engine.
-#[async_trait]
 pub trait FromSeed<T>: Keys
 where
     T: Blockchain,
@@ -188,15 +186,11 @@ where
     type Engine;
 
     /// Retreive a specific public key from the key generator engine.
-    async fn get_pubkey(
-        engine: &Self::Engine,
-        key_type: T::KeyList,
-    ) -> Result<Self::PublicKey, Error>;
+    fn get_pubkey(engine: &Self::Engine, key_type: T::KeyList) -> Result<Self::PublicKey, Error>;
 }
 
 /// This trait is required for blockchains for fixing the potential shared private key send over
 /// the network.
-#[async_trait]
 pub trait SharedPrivateKeys<T>: FromSeed<T>
 where
     T: Blockchain,
@@ -204,7 +198,7 @@ where
     /// A shareable private key type used to parse non-transparent blockchain
     type SharedPrivateKey: Clone + PartialEq + Debug + StrictEncode + StrictDecode;
 
-    async fn get_shared_privkey(
+    fn get_shared_privkey(
         engine: &Self::Engine,
         key_type: SharedPrivateKey,
     ) -> Result<Self::SharedPrivateKey, Error>;
@@ -236,7 +230,6 @@ pub trait Commitment {
 /// This trait is required for arbitrating blockchains for defining the types of messages,
 /// signatures and adaptor signatures used in the cryptographic operation such as signing/verifying
 /// signatures and adaptor signatures.
-#[async_trait]
 pub trait Signatures: Keys {
     /// A context passed to methods.
     type Context: Clone + Debug;
@@ -253,7 +246,7 @@ pub trait Signatures: Keys {
     type AdaptorSignature: Clone + Debug + StrictEncode + StrictDecode;
 
     /// Sign the message with the corresponding private key identified by the provided public key.
-    async fn sign_with_key(
+    fn sign_with_key(
         context: &Self::Context,
         key: &Self::PublicKey,
         msg: Self::Message,
@@ -269,7 +262,7 @@ pub trait Signatures: Keys {
 
     /// Sign the message with the corresponding private key identified by the provided public key
     /// and encrypt it (create an adaptor signature) with the provided adaptor public key.
-    async fn adaptor_sign_with_key(
+    fn adaptor_sign_with_key(
         context: &Self::Context,
         key: &Self::PublicKey,
         adaptor: &Self::PublicKey,
@@ -288,7 +281,7 @@ pub trait Signatures: Keys {
 
     /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
     /// signatures) with the corresponding private key identified by the provided public key.
-    async fn adapt_signature(
+    fn adapt_signature(
         context: &Self::Context,
         key: &Self::PublicKey,
         sig: Self::AdaptorSignature,
@@ -303,17 +296,14 @@ pub trait Signatures: Keys {
 }
 
 /// Define a proving system to link two different cryptographic groups.
-#[async_trait]
 pub trait DleqProof<Ar, Ac>: Clone + Debug + StrictEncode + StrictDecode
 where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    async fn project_over(
-        ac_engine: &<Ac as FromSeed<Acc>>::Engine,
-    ) -> Result<Ar::PublicKey, Error>;
+    fn project_over(ac_engine: &<Ac as FromSeed<Acc>>::Engine) -> Result<Ar::PublicKey, Error>;
 
-    async fn generate(
+    fn generate(
         ac_engine: &<Ac as FromSeed<Acc>>::Engine,
     ) -> Result<(Ac::PublicKey, Ar::PublicKey, Self), Error>;
 

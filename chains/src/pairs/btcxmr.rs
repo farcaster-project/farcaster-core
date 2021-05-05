@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use strict_encoding::{StrictDecode, StrictEncode};
 
 use farcaster_core::crypto::{self, AccordantKey, Commitment, DleqProof};
@@ -37,9 +36,8 @@ impl Commitment for BtcXmr {
 #[derive(Clone, Debug)]
 pub struct RingProof;
 
-#[async_trait]
 impl DleqProof<Bitcoin, Monero> for RingProof {
-    async fn project_over(ac_engine: &xmr::Wallet) -> Result<bitcoin::PublicKey, crypto::Error> {
+    fn project_over(ac_engine: &xmr::Wallet) -> Result<bitcoin::PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
         let spend = ac_engine.get_privkey(AccordantKey::Spend)?;
         let bytes = spend.to_bytes(); // FIXME warn this copy the priv key
@@ -53,11 +51,11 @@ impl DleqProof<Bitcoin, Monero> for RingProof {
         .public_key(&secp))
     }
 
-    async fn generate(
+    fn generate(
         ac_engine: &xmr::Wallet,
     ) -> Result<(monero::PublicKey, bitcoin::PublicKey, Self), crypto::Error> {
         let spend = ac_engine.get_privkey(AccordantKey::Spend)?;
-        let adaptor = Self::project_over(&ac_engine).await?;
+        let adaptor = Self::project_over(&ac_engine)?;
 
         Ok((
             monero::PublicKey::from_private_key(&spend),

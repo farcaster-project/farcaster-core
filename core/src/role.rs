@@ -184,26 +184,30 @@ where
     ///  * The timelock parameters from the public offer
     ///  * The target arbitrating address used by Alice
     ///
-    pub async fn generate_parameters(
+    pub fn generate_parameters(
         &self,
         ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Engine,
         ac_engine: &<Ctx::Ac as FromSeed<Acc>>::Engine,
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<AliceParameters<Ctx>, Error> {
-        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_engine).await?;
+        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_engine)?;
         Ok(AliceParameters {
-            buy: Key::new_alice_buy(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Buy).await?,
-            ),
-            cancel: Key::new_alice_cancel(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Cancel).await?,
-            ),
-            refund: Key::new_alice_refund(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Refund).await?,
-            ),
-            punish: Key::new_alice_punish(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Punish).await?,
-            ),
+            buy: Key::new_alice_buy(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_engine,
+                ArbitratingKey::Buy,
+            )?),
+            cancel: Key::new_alice_cancel(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_engine,
+                ArbitratingKey::Cancel,
+            )?),
+            refund: Key::new_alice_refund(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_engine,
+                ArbitratingKey::Refund,
+            )?),
+            punish: Key::new_alice_punish(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_engine,
+                ArbitratingKey::Punish,
+            )?),
             adaptor: Key::new_alice_adaptor(adaptor),
             destination_address: Parameter::new_destination_address(
                 self.destination_address.clone(),
@@ -212,8 +216,7 @@ where
                 <Ctx::Ac as SharedPrivateKeys<Acc>>::get_shared_privkey(
                     ac_engine,
                     SharedPrivateKey::View,
-                )
-                .await?,
+                )?,
             ),
             spend: Key::new_alice_spend(spend),
             proof: Proof::new_cross_group_dleq(proof),
@@ -263,7 +266,7 @@ where
     ///
     /// Returns the adaptor signature inside the [`SignedAdaptorRefund`] bundle.
     ///
-    pub async fn sign_adaptor_refund(
+    pub fn sign_adaptor_refund(
         &self,
         ctx: &<Ctx::Ar as Signatures>::Context,
         alice_parameters: &AliceParameters<Ctx>,
@@ -283,7 +286,7 @@ where
             .try_into_arbitrating_pubkey()?;
         let adaptor = bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?;
         let msg = refund.generate_witness_message()?;
-        let sig = <Ctx::Ar as Signatures>::adaptor_sign_with_key(&ctx, &key, &adaptor, msg).await?;
+        let sig = <Ctx::Ar as Signatures>::adaptor_sign_with_key(&ctx, &key, &adaptor, msg)?;
 
         Ok(SignedAdaptorRefund {
             refund_adaptor_sig: Signature::new(
@@ -321,7 +324,7 @@ where
     ///
     /// Returns the witness inside the [`CosignedArbitratingCancel`] bundle.
     ///
-    pub async fn cosign_arbitrating_cancel(
+    pub fn cosign_arbitrating_cancel(
         &self,
         ctx: &<Ctx::Ar as Signatures>::Context,
         alice_parameters: &AliceParameters<Ctx>,
@@ -339,7 +342,7 @@ where
             .cancel
             .key()
             .try_into_arbitrating_pubkey()?;
-        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg).await?;
+        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
         Ok(CosignedArbitratingCancel {
             cancel_sig: Signature::new(TxId::Cancel, SwapRole::Alice, SignatureType::Regular(sig)),
@@ -453,7 +456,7 @@ where
     ///
     /// [`validate_adaptor_buy`]: Alice::validate_adaptor_buy
     ///
-    pub async fn fully_sign_buy(
+    pub fn fully_sign_buy(
         &self,
         ctx: &<Ctx::Ar as Signatures>::Context,
         alice_parameters: &AliceParameters<Ctx>,
@@ -483,7 +486,7 @@ where
         // Generate the witness message to sign and sign with the buy key.
         let msg = buy.generate_witness_message()?;
         let key = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg).await?;
+        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
         // Retreive the adaptor public key and the counter-party adaptor witness.
         let key = alice_parameters
@@ -494,8 +497,7 @@ where
             &ctx,
             &key,
             adaptor_buy.buy_adaptor_sig.signature().try_into_adaptor()?,
-        )
-        .await?;
+        )?;
 
         Ok(FullySignedBuy {
             buy_sig: Signature::new(TxId::Buy, SwapRole::Alice, SignatureType::Regular(sig)),
@@ -539,7 +541,7 @@ where
     ///
     /// [`validate_adaptor_buy`]: Alice::validate_adaptor_buy
     ///
-    pub async fn fully_sign_punish(
+    pub fn fully_sign_punish(
         &self,
         ctx: &<Ctx::Ar as Signatures>::Context,
         alice_parameters: &AliceParameters<Ctx>,
@@ -572,7 +574,7 @@ where
             .punish
             .key()
             .try_into_arbitrating_pubkey()?;
-        let punish_sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg).await?;
+        let punish_sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
         Ok(FullySignedPunish {
             punish: datum::Transaction::new_punish(punish.to_partial()),
@@ -584,7 +586,7 @@ where
         })
     }
 
-    pub async fn recover_accordant_assets(&self) -> Result<(), Error> {
+    pub fn recover_accordant_assets(&self) -> Result<(), Error> {
         todo!()
     }
 
@@ -732,31 +734,33 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///  * The timelock parameters from the public offer
     ///  * The target arbitrating address used by Bob
     ///
-    pub async fn generate_parameters(
+    pub fn generate_parameters(
         &self,
         ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Engine,
         ac_engine: &<Ctx::Ac as FromSeed<Acc>>::Engine,
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<BobParameters<Ctx>, Error> {
-        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_engine).await?;
+        let (spend, adaptor, proof) = Ctx::Proof::generate(ac_engine)?;
         Ok(BobParameters {
-            buy: Key::new_bob_buy(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Buy).await?,
-            ),
-            cancel: Key::new_bob_cancel(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Cancel).await?,
-            ),
-            refund: Key::new_bob_refund(
-                <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Refund).await?,
-            ),
+            buy: Key::new_bob_buy(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_engine,
+                ArbitratingKey::Buy,
+            )?),
+            cancel: Key::new_bob_cancel(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_engine,
+                ArbitratingKey::Cancel,
+            )?),
+            refund: Key::new_bob_refund(<Ctx::Ar as FromSeed<Arb>>::get_pubkey(
+                ar_engine,
+                ArbitratingKey::Refund,
+            )?),
             adaptor: Key::new_bob_adaptor(adaptor),
             refund_address: Parameter::new_destination_address(self.refund_address.clone()),
             view: Key::new_bob_private_view(
                 <Ctx::Ac as SharedPrivateKeys<Acc>>::get_shared_privkey(
                     ac_engine,
                     SharedPrivateKey::View,
-                )
-                .await?,
+                )?,
             ),
             spend: Key::new_bob_spend(spend),
             proof: Proof::new_cross_group_dleq(proof),
@@ -810,7 +814,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     /// [`FeeStrategy`]: crate::blockchain::FeeStrategy
     ///
-    pub async fn core_arbitrating_transactions(
+    pub fn core_arbitrating_transactions(
         &self,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
@@ -928,7 +932,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     /// [`cosign_arbitrating_cancel`]: Bob::cosign_arbitrating_cancel
     ///
-    pub async fn cosign_arbitrating_cancel(
+    pub fn cosign_arbitrating_cancel(
         &self,
         ctx: &<Ctx::Ar as Signatures>::Context,
         bob_parameters: &BobParameters<Ctx>,
@@ -944,7 +948,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_failure_witness_message()?;
         let key = bob_parameters.cancel.key().try_into_arbitrating_pubkey()?;
-        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg).await?;
+        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
         Ok(CosignedArbitratingCancel {
             cancel_sig: Signature::new(TxId::Cancel, SwapRole::Bob, SignatureType::Regular(sig)),
@@ -1054,7 +1058,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// [`sign_adaptor_buy`]: Bob::sign_adaptor_buy
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
-    pub async fn sign_adaptor_buy(
+    pub fn sign_adaptor_buy(
         &self,
         ctx: &<Ctx::Ar as Signatures>::Context,
         alice_parameters: &AliceParameters<Ctx>,
@@ -1115,7 +1119,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             .key()
             .try_into_arbitrating_pubkey()?;
         let msg = buy.generate_witness_message()?;
-        let sig = <Ctx::Ar as Signatures>::adaptor_sign_with_key(&ctx, &key, &adaptor, msg).await?;
+        let sig = <Ctx::Ar as Signatures>::adaptor_sign_with_key(&ctx, &key, &adaptor, msg)?;
 
         Ok(SignedAdaptorBuy {
             buy: datum::Transaction::new_buy(buy.to_partial()),
@@ -1145,7 +1149,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// [`sign_arbitrating_lock`]: Bob::sign_arbitrating_lock
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
-    pub async fn sign_arbitrating_lock(
+    pub fn sign_arbitrating_lock(
         &self,
         ctx: &<Ctx::Ar as Signatures>::Context,
         ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Engine,
@@ -1160,8 +1164,8 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the fund key.
         let msg = lock.generate_witness_message()?;
-        let key = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Fund).await?;
-        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg).await?;
+        let key = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Fund)?;
+        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
         Ok(SignedArbitratingLock {
             lock_sig: Signature::new(TxId::Lock, SwapRole::Bob, SignatureType::Regular(sig)),
@@ -1204,7 +1208,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
-    pub async fn fully_sign_refund(
+    pub fn fully_sign_refund(
         &self,
         ctx: &<Ctx::Ar as Signatures>::Context,
         bob_parameters: &BobParameters<Ctx>,
@@ -1221,7 +1225,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Generate the witness message to sign and sign with the refund key.
         let msg = refund.generate_witness_message()?;
         let key = bob_parameters.refund.key().try_into_arbitrating_pubkey()?;
-        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg).await?;
+        let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
         let key = bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?;
         let adapted_sig = <Ctx::Ar as Signatures>::adapt_signature(
@@ -1231,8 +1235,7 @@ impl<Ctx: Swap> Bob<Ctx> {
                 .refund_adaptor_sig
                 .signature()
                 .try_into_adaptor()?,
-        )
-        .await?;
+        )?;
 
         Ok(FullySignedRefund {
             refund_sig: Signature::new(TxId::Refund, SwapRole::Bob, SignatureType::Regular(sig)),
@@ -1244,7 +1247,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    pub async fn recover_accordant_assets(&self) -> Result<(), Error> {
+    pub fn recover_accordant_assets(&self) -> Result<(), Error> {
         todo!()
     }
 }

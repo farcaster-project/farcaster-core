@@ -17,11 +17,11 @@ use crate::crypto::{
 };
 use crate::datum::{self, Key, Parameter, Proof, Signature};
 use crate::negotiation::PublicOffer;
-use crate::script::{DataLock, DataPunishableLock, DoubleKeys};
+use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 use crate::swap::Swap;
 use crate::transaction::{
-    Buyable, Cancelable, Chainable, Forkable, Fundable, Lockable, Punishable, Refundable, Signable,
-    Transaction, TxId,
+    Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction, TxId,
+    Witnessable,
 };
 use crate::Error;
 
@@ -285,7 +285,7 @@ where
             .key()
             .try_into_arbitrating_pubkey()?;
         let adaptor = bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?;
-        let msg = refund.generate_witness_message()?;
+        let msg = refund.generate_witness_message(ScriptPath::Success)?;
         let sig = <Ctx::Ar as Signatures>::adaptor_sign_with_key(&ctx, &key, &adaptor, msg)?;
 
         Ok(SignedAdaptorRefund {
@@ -337,7 +337,7 @@ where
             self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
 
         // Generate the witness message to sign and sign with the cancel key.
-        let msg = cancel.generate_failure_witness_message()?;
+        let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
         let key = alice_parameters
             .cancel
             .key()
@@ -405,7 +405,7 @@ where
         <Ctx::Ar as Fee>::validate_fee(buy.partial(), &fee_strategy)?;
 
         // Verify the adaptor buy witness
-        let msg = buy.generate_witness_message()?;
+        let msg = buy.generate_witness_message(ScriptPath::Success)?;
         <Ctx::Ar as Signatures>::verify_adaptor_signature(
             &ctx,
             &bob_parameters.buy.key().try_into_arbitrating_pubkey()?,
@@ -484,7 +484,7 @@ where
         <Ctx::Ar as Fee>::validate_fee(buy.partial(), &fee_strategy)?;
 
         // Generate the witness message to sign and sign with the buy key.
-        let msg = buy.generate_witness_message()?;
+        let msg = buy.generate_witness_message(ScriptPath::Success)?;
         let key = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
         let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
@@ -569,7 +569,7 @@ where
         <Ctx::Ar as Fee>::set_fee(punish.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Generate the witness message to sign and sign with the punish key.
-        let msg = punish.generate_failure_witness_message()?;
+        let msg = punish.generate_witness_message(ScriptPath::Failure)?;
         let key = alice_parameters
             .punish
             .key()
@@ -946,7 +946,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
 
         // Generate the witness message to sign and sign with the cancel key.
-        let msg = cancel.generate_failure_witness_message()?;
+        let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
         let key = bob_parameters.cancel.key().try_into_arbitrating_pubkey()?;
         let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
@@ -1001,7 +1001,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
 
         // Verify the adaptor refund witness
-        let msg = refund.generate_witness_message()?;
+        let msg = refund.generate_witness_message(ScriptPath::Success)?;
         <Ctx::Ar as Signatures>::verify_adaptor_signature(
             &ctx,
             &alice_parameters
@@ -1118,7 +1118,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             .adaptor
             .key()
             .try_into_arbitrating_pubkey()?;
-        let msg = buy.generate_witness_message()?;
+        let msg = buy.generate_witness_message(ScriptPath::Success)?;
         let sig = <Ctx::Ar as Signatures>::adaptor_sign_with_key(&ctx, &key, &adaptor, msg)?;
 
         Ok(SignedAdaptorBuy {
@@ -1163,7 +1163,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(partial_lock);
 
         // Generate the witness message to sign and sign with the fund key.
-        let msg = lock.generate_witness_message()?;
+        let msg = lock.generate_witness_message(ScriptPath::Success)?;
         let key = <Ctx::Ar as FromSeed<Arb>>::get_pubkey(ar_engine, ArbitratingKey::Fund)?;
         let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 
@@ -1223,7 +1223,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
 
         // Generate the witness message to sign and sign with the refund key.
-        let msg = refund.generate_witness_message()?;
+        let msg = refund.generate_witness_message(ScriptPath::Success)?;
         let key = bob_parameters.refund.key().try_into_arbitrating_pubkey()?;
         let sig = <Ctx::Ar as Signatures>::sign_with_key(&ctx, &key, msg)?;
 

@@ -3,15 +3,12 @@ use std::marker::PhantomData;
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::hashes::sha256d::Hash;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::script;
-use farcaster_core::transaction::{Error as FError, Fundable, Lockable, Signable};
+use farcaster_core::transaction::{Error as FError, Fundable, Lockable};
 
-use crate::bitcoin::transaction::{
-    signature_hash, Error, MetadataOutput, SubTransaction, Tx, TxInRef,
-};
+use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::{Amount, Bitcoin};
 
 #[derive(Debug)]
@@ -140,29 +137,5 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
             .ok_or_else(|| FError::WrongTemplate)?;
 
         Ok(())
-    }
-}
-
-impl Signable<Bitcoin> for Tx<Lock> {
-    fn generate_witness_message(&self) -> Result<Hash, FError> {
-        let unsigned_tx = self.psbt.global.unsigned_tx.clone();
-        let txin = TxInRef::new(&unsigned_tx, 0);
-
-        let witness_utxo = self.psbt.inputs[0]
-            .witness_utxo
-            .clone()
-            .ok_or(FError::MissingWitness)?;
-
-        let script = self.psbt.inputs[0]
-            .witness_script
-            .clone()
-            .ok_or(FError::MissingWitness)?;
-        let value = witness_utxo.value;
-
-        let sighash_type = self.psbt.inputs[0]
-            .sighash_type
-            .ok_or(FError::new(Error::MissingSigHashType))?;
-
-        Ok(signature_hash(txin, &script, value, sighash_type))
     }
 }

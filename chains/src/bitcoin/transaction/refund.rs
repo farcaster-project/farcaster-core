@@ -1,11 +1,10 @@
 use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::hashes::sha256d::Hash;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Error as FError, Refundable, Signable};
+use farcaster_core::transaction::{Cancelable, Error as FError, Refundable};
 
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::{Address, Bitcoin};
@@ -65,12 +64,6 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
         _punish_lock: script::DataPunishableLock<Bitcoin>,
         _refund_target: Address,
     ) -> Result<(), FError> {
-        todo!()
-    }
-}
-
-impl Signable<Bitcoin> for Tx<Refund> {
-    fn generate_witness_message(&self) -> Result<Hash, FError> {
         todo!()
     }
 }

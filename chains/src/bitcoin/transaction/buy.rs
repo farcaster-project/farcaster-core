@@ -1,10 +1,9 @@
 use bitcoin::blockdata::script::Instruction;
-use bitcoin::hashes::sha256d::Hash;
 use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::script;
-use farcaster_core::transaction::{Buyable, Error as FError, Lockable, Signable};
+use farcaster_core::transaction::{Buyable, Error as FError, Lockable};
 
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::{Address, Bitcoin};
@@ -77,12 +76,6 @@ impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
         _lock: script::DataLock<Bitcoin>,
         _destination_target: Address,
     ) -> Result<(), FError> {
-        todo!()
-    }
-}
-
-impl Signable<Bitcoin> for Tx<Buy> {
-    fn generate_witness_message(&self) -> Result<Hash, FError> {
         todo!()
     }
 }

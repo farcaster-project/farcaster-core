@@ -4,16 +4,13 @@ use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::script::Instruction;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::hashes::sha256d::Hash;
 use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Error as FError, Forkable, Lockable};
+use farcaster_core::transaction::{Cancelable, Error as FError, Lockable};
 
-use crate::bitcoin::transaction::{
-    signature_hash, Error, MetadataOutput, SubTransaction, Tx, TxInRef,
-};
+use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
@@ -136,30 +133,5 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
         _punish_lock: script::DataPunishableLock<Bitcoin>,
     ) -> Result<(), FError> {
         todo!()
-    }
-}
-
-impl Forkable<Bitcoin> for Tx<Cancel> {
-    fn generate_failure_witness_message(&self) -> Result<Hash, FError> {
-        let unsigned_tx = self.psbt.global.unsigned_tx.clone();
-        let txin = TxInRef::new(&unsigned_tx, 0);
-
-        let witness_utxo = self.psbt.inputs[0]
-            .witness_utxo
-            .clone()
-            .ok_or(FError::MissingWitness)?;
-
-        let script = self.psbt.inputs[0]
-            .witness_script
-            .clone()
-            .ok_or(FError::MissingWitness)?;
-
-        let value = witness_utxo.value;
-
-        let sighash_type = self.psbt.inputs[0]
-            .sighash_type
-            .ok_or(FError::new(Error::MissingSigHashType))?;
-
-        Ok(signature_hash(txin, &script, value, sighash_type))
     }
 }

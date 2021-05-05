@@ -4,7 +4,7 @@ use crate::blockchain::Timelock;
 use crate::crypto::Keys;
 
 /// Represent a public key-pair, one key per swap role in the system.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DoubleKeys<T>
 where
     T: Keys,
@@ -24,15 +24,17 @@ where
 }
 
 /// Define the path in a script with its associated data.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ScriptPath {
+    /// The success path in the script.
     Success,
+    /// The success path in the script.
     Failure,
 }
 
 /// The data used to create a lock and remove the double spending problem and create a mutually
 /// agreed refundable path.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DataLock<T>
 where
     T: Timelock + Keys,
@@ -44,7 +46,7 @@ where
 
 /// The data used to create a lock and remove the double spending problem and create an unilateral
 /// punishment mechanism.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DataPunishableLock<T>
 where
     T: Timelock + Keys,

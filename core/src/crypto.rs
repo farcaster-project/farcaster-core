@@ -183,10 +183,10 @@ where
     T: Blockchain,
 {
     /// The key generator engine.
-    type Engine;
+    type Wallet;
 
     /// Retreive a specific public key from the key generator engine.
-    fn get_pubkey(engine: &Self::Engine, key_type: T::KeyList) -> Result<Self::PublicKey, Error>;
+    fn get_pubkey(engine: &Self::Wallet, key_type: T::KeyList) -> Result<Self::PublicKey, Error>;
 }
 
 /// This trait is required for blockchains for fixing the potential shared private key send over
@@ -199,7 +199,7 @@ where
     type SharedPrivateKey: Clone + PartialEq + Debug + StrictEncode + StrictDecode;
 
     fn get_shared_privkey(
-        engine: &Self::Engine,
+        engine: &Self::Wallet,
         key_type: SharedPrivateKey,
     ) -> Result<Self::SharedPrivateKey, Error>;
 
@@ -232,7 +232,7 @@ pub trait Commitment {
 /// signatures and adaptor signatures.
 pub trait Signatures: Keys {
     /// A context passed to methods.
-    type Context: Clone + Debug;
+    type Wallet: Clone + Debug;
 
     /// Type of the message passed to sign or adaptor sign methods, transactions will produce
     /// messages that will be passed to these methods.
@@ -247,14 +247,14 @@ pub trait Signatures: Keys {
 
     /// Sign the message with the corresponding private key identified by the provided public key.
     fn sign_with_key(
-        context: &Self::Context,
+        context: &Self::Wallet,
         key: &Self::PublicKey,
         msg: Self::Message,
     ) -> Result<Self::Signature, Error>;
 
     /// Verify a signature for a given message with the provided public key.
     fn verify_signature(
-        context: &Self::Context,
+        context: &Self::Wallet,
         key: &Self::PublicKey,
         msg: Self::Message,
         sig: &Self::Signature,
@@ -263,7 +263,7 @@ pub trait Signatures: Keys {
     /// Sign the message with the corresponding private key identified by the provided public key
     /// and encrypt it (create an adaptor signature) with the provided adaptor public key.
     fn adaptor_sign_with_key(
-        context: &Self::Context,
+        context: &Self::Wallet,
         key: &Self::PublicKey,
         adaptor: &Self::PublicKey,
         msg: Self::Message,
@@ -272,7 +272,7 @@ pub trait Signatures: Keys {
     /// Verify a adaptor signature for a given message with the provided public key and the public
     /// adaptor key.
     fn verify_adaptor_signature(
-        context: &Self::Context,
+        context: &Self::Wallet,
         key: &Self::PublicKey,
         adaptor: &Self::PublicKey,
         msg: Self::Message,
@@ -282,14 +282,14 @@ pub trait Signatures: Keys {
     /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
     /// signatures) with the corresponding private key identified by the provided public key.
     fn adapt_signature(
-        context: &Self::Context,
+        context: &Self::Wallet,
         key: &Self::PublicKey,
         sig: Self::AdaptorSignature,
     ) -> Result<Self::Signature, Error>;
 
     /// Recover the encryption key based on the adaptor signature and the decrypted signature.
     fn recover_key(
-        context: &Self::Context,
+        context: &Self::Wallet,
         sig: Self::Signature,
         adapted_sig: Self::AdaptorSignature,
     ) -> Self::PrivateKey;
@@ -301,10 +301,10 @@ where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn project_over(ac_engine: &<Ac as FromSeed<Acc>>::Engine) -> Result<Ar::PublicKey, Error>;
+    fn project_over(ac_engine: &<Ac as FromSeed<Acc>>::Wallet) -> Result<Ar::PublicKey, Error>;
 
     fn generate(
-        ac_engine: &<Ac as FromSeed<Acc>>::Engine,
+        ac_engine: &<Ac as FromSeed<Acc>>::Wallet,
     ) -> Result<(Ac::PublicKey, Ar::PublicKey, Self), Error>;
 
     fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> Result<(), Error>;

@@ -286,7 +286,7 @@ impl Wallet {
 }
 
 impl FromSeed<Arb> for Bitcoin {
-    type Engine = Wallet;
+    type Wallet = Wallet;
 
     fn get_pubkey(engine: &Wallet, key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
         engine.get_pubkey(key_type)
@@ -294,7 +294,7 @@ impl FromSeed<Arb> for Bitcoin {
 }
 
 impl Signatures for Bitcoin {
-    type Context = Wallet;
+    type Wallet = Wallet;
     type Message = Sha256dHash;
     type Signature = Signature;
     type AdaptorSignature = ECDSAAdaptorSig;

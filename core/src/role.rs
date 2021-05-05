@@ -186,8 +186,8 @@ where
     ///
     pub fn generate_parameters(
         &self,
-        ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Engine,
-        ac_engine: &<Ctx::Ac as FromSeed<Acc>>::Engine,
+        ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Wallet,
+        ac_engine: &<Ctx::Ac as FromSeed<Acc>>::Wallet,
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<AliceParameters<Ctx>, Error> {
         let (spend, adaptor, proof) = Ctx::Proof::generate(ac_engine)?;
@@ -268,7 +268,7 @@ where
     ///
     pub fn sign_adaptor_refund(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
@@ -326,7 +326,7 @@ where
     ///
     pub fn cosign_arbitrating_cancel(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
@@ -379,7 +379,7 @@ where
     ///
     pub fn validate_adaptor_buy(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
@@ -458,7 +458,7 @@ where
     ///
     pub fn fully_sign_buy(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
@@ -543,7 +543,7 @@ where
     ///
     pub fn fully_sign_punish(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
@@ -736,8 +736,8 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn generate_parameters(
         &self,
-        ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Engine,
-        ac_engine: &<Ctx::Ac as FromSeed<Acc>>::Engine,
+        ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Wallet,
+        ac_engine: &<Ctx::Ac as FromSeed<Acc>>::Wallet,
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<BobParameters<Ctx>, Error> {
         let (spend, adaptor, proof) = Ctx::Proof::generate(ac_engine)?;
@@ -934,7 +934,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn cosign_arbitrating_cancel(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
     ) -> Result<CosignedArbitratingCancel<Ctx::Ar>, Error> {
@@ -987,7 +987,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn validate_adaptor_refund(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
@@ -1060,7 +1060,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn sign_adaptor_buy(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
@@ -1151,8 +1151,8 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn sign_arbitrating_lock(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
-        ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Engine,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
+        ar_engine: &<Ctx::Ar as FromSeed<Arb>>::Wallet,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
     ) -> Result<SignedArbitratingLock<Ctx::Ar>, Error> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
@@ -1210,7 +1210,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn fully_sign_refund(
         &self,
-        ctx: &<Ctx::Ar as Signatures>::Context,
+        ctx: &<Ctx::Ar as Signatures>::Wallet,
         bob_parameters: &BobParameters<Ctx>,
         core: CoreArbitratingTransactions<Ctx::Ar>,
         signed_adaptor_refund: &SignedAdaptorRefund<Ctx::Ar>,

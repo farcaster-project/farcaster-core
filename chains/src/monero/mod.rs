@@ -129,7 +129,7 @@ impl Wallet {
 }
 
 impl FromSeed<Acc> for Monero {
-    type Engine = Wallet;
+    type Wallet = Wallet;
 
     fn get_pubkey(engine: &Wallet, key_type: AccordantKey) -> Result<PublicKey, crypto::Error> {
         engine.get_pubkey(key_type)

@@ -12,6 +12,7 @@ use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 use thiserror::Error;
 
+use farcaster_core::script::ScriptPath;
 use farcaster_core::transaction::{
     Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
 };
@@ -160,6 +161,29 @@ impl<T> Witnessable<Bitcoin> for Tx<T>
 where
     T: SubTransaction,
 {
+    // FIXME this assume only one input
+    fn generate_witness_message(&self, _path: ScriptPath) -> Result<Hash, FError> {
+        let unsigned_tx = self.psbt.global.unsigned_tx.clone();
+        let txin = TxInRef::new(&unsigned_tx, 0);
+
+        let witness_utxo = self.psbt.inputs[0]
+            .witness_utxo
+            .clone()
+            .ok_or(FError::MissingWitness)?;
+
+        let script = self.psbt.inputs[0]
+            .witness_script
+            .clone()
+            .ok_or(FError::MissingWitness)?;
+        let value = witness_utxo.value;
+
+        let sighash_type = self.psbt.inputs[0]
+            .sighash_type
+            .ok_or(FError::new(Error::MissingSigHashType))?;
+
+        Ok(signature_hash(txin, &script, value, sighash_type))
+    }
+
     fn add_witness(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
         let sighash_type = self.psbt.inputs[0]
             .sighash_type

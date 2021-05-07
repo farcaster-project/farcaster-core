@@ -176,17 +176,17 @@ pub trait Keys {
     fn as_bytes(pubkey: &Self::PublicKey) -> Vec<u8>;
 }
 
-/// Generate the keys for a blockchain from a master seed.
+/// Generate the public keys for a blockchain type (arbitrating or accordant) from a key generator
+/// engine.
 pub trait FromSeed<T>: Keys
 where
     T: Blockchain,
 {
-    /// Type of seed received as input
-    type Seed;
+    /// The key generator engine.
+    type Wallet;
 
-    fn get_privkey(seed: &Self::Seed, key_type: T::KeyList) -> Result<Self::PrivateKey, Error>;
-
-    fn get_pubkey(seed: &Self::Seed, key_type: T::KeyList) -> Result<Self::PublicKey, Error>;
+    /// Retreive a specific public key from the key generator engine.
+    fn get_pubkey(engine: &Self::Wallet, key_type: T::KeyList) -> Result<Self::PublicKey, Error>;
 }
 
 /// This trait is required for blockchains for fixing the potential shared private key send over
@@ -199,7 +199,7 @@ where
     type SharedPrivateKey: Clone + PartialEq + Debug + StrictEncode + StrictDecode;
 
     fn get_shared_privkey(
-        seed: &Self::Seed,
+        engine: &Self::Wallet,
         key_type: SharedPrivateKey,
     ) -> Result<Self::SharedPrivateKey, Error>;
 
@@ -227,35 +227,84 @@ pub trait Commitment {
     }
 }
 
-/// This trait is required for arbitrating blockchains for fixing the types of signatures and
-/// adaptor signatures.
+/// This trait is required for arbitrating blockchains for defining the types of messages,
+/// signatures and adaptor signatures used in the cryptographic operation such as signing/verifying
+/// signatures and adaptor signatures.
 pub trait Signatures: Keys {
-    /// Defines the signature format for the arbitrating blockchain
+    /// A context passed to methods.
+    type Wallet: Clone + Debug;
+
+    /// Type of the message passed to sign or adaptor sign methods, transactions will produce
+    /// messages that will be passed to these methods.
+    type Message: Clone + Debug;
+
+    /// Defines the signature format for the arbitrating blockchain.
     type Signature: Clone + Debug + StrictEncode + StrictDecode;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic primitives used.
     type AdaptorSignature: Clone + Debug + StrictEncode + StrictDecode;
 
-    /// Finalize an adaptor signature into an adapted signature following the regular signature
-    /// format.
-    fn adapt(key: &Self::PrivateKey, sig: Self::AdaptorSignature)
-        -> Result<Self::Signature, Error>;
+    /// Sign the message with the corresponding private key identified by the provided public key.
+    fn sign_with_key(
+        context: &Self::Wallet,
+        key: &Self::PublicKey,
+        msg: Self::Message,
+    ) -> Result<Self::Signature, Error>;
+
+    /// Verify a signature for a given message with the provided public key.
+    fn verify_signature(
+        context: &Self::Wallet,
+        key: &Self::PublicKey,
+        msg: Self::Message,
+        sig: &Self::Signature,
+    ) -> Result<(), Error>;
+
+    /// Sign the message with the corresponding private key identified by the provided public key
+    /// and encrypt it (create an adaptor signature) with the provided adaptor public key.
+    fn adaptor_sign_with_key(
+        context: &Self::Wallet,
+        key: &Self::PublicKey,
+        adaptor: &Self::PublicKey,
+        msg: Self::Message,
+    ) -> Result<Self::AdaptorSignature, Error>;
+
+    /// Verify a adaptor signature for a given message with the provided public key and the public
+    /// adaptor key.
+    fn verify_adaptor_signature(
+        context: &Self::Wallet,
+        key: &Self::PublicKey,
+        adaptor: &Self::PublicKey,
+        msg: Self::Message,
+        sig: &Self::AdaptorSignature,
+    ) -> Result<(), Error>;
+
+    /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
+    /// signatures) with the corresponding private key identified by the provided public key.
+    fn adapt_signature(
+        context: &Self::Wallet,
+        key: &Self::PublicKey,
+        sig: Self::AdaptorSignature,
+    ) -> Result<Self::Signature, Error>;
 
     /// Recover the encryption key based on the adaptor signature and the decrypted signature.
-    fn recover_key(sig: Self::Signature, adapted_sig: Self::AdaptorSignature) -> Self::PrivateKey;
+    fn recover_key(
+        context: &Self::Wallet,
+        sig: Self::Signature,
+        adapted_sig: Self::AdaptorSignature,
+    ) -> Self::PrivateKey;
 }
 
-/// Define a proving system to link two different blockchain cryptographic group parameters.
+/// Define a proving system to link two different cryptographic groups.
 pub trait DleqProof<Ar, Ac>: Clone + Debug + StrictEncode + StrictDecode
 where
     Ar: Arbitrating,
     Ac: Accordant,
 {
-    fn project_over(ac_seed: &<Ac as FromSeed<Acc>>::Seed) -> Result<Ar::PrivateKey, Error>;
+    fn project_over(ac_engine: &<Ac as FromSeed<Acc>>::Wallet) -> Result<Ar::PublicKey, Error>;
 
     fn generate(
-        ac_seed: &<Ac as FromSeed<Acc>>::Seed,
+        ac_engine: &<Ac as FromSeed<Acc>>::Wallet,
     ) -> Result<(Ac::PublicKey, Ar::PublicKey, Self), Error>;
 
     fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> Result<(), Error>;

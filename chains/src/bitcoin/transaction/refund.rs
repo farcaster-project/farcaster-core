@@ -1,17 +1,13 @@
 use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::secp256k1::Signature;
-use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::script;
-use farcaster_core::transaction::{
-    AdaptorSignable, Cancelable, Error as FError, Refundable, Signable,
-};
+use farcaster_core::transaction::{Cancelable, Error as FError, Refundable};
 
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::{Address, Bitcoin, ECDSAAdaptorSig};
+use crate::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug)]
 pub struct Refund;
@@ -67,35 +63,6 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
         &self,
         _punish_lock: script::DataPunishableLock<Bitcoin>,
         _refund_target: Address,
-    ) -> Result<(), FError> {
-        todo!()
-    }
-}
-
-impl Signable<Bitcoin> for Tx<Refund> {
-    fn generate_witness(&self, _privkey: &PrivateKey) -> Result<Signature, FError> {
-        todo!()
-    }
-
-    fn verify_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
-        todo!()
-    }
-}
-
-impl AdaptorSignable<Bitcoin> for Tx<Refund> {
-    fn generate_adaptor_witness(
-        &self,
-        _privkey: &PrivateKey,
-        _adaptor: &PublicKey,
-    ) -> Result<ECDSAAdaptorSig, FError> {
-        todo!()
-    }
-
-    fn verify_adaptor_witness(
-        &self,
-        _pubkey: &PublicKey,
-        _adaptor: &PublicKey,
-        _sig: ECDSAAdaptorSig,
     ) -> Result<(), FError> {
         todo!()
     }

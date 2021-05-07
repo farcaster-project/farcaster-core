@@ -4,14 +4,13 @@ use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::script::Instruction;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::secp256k1::{Secp256k1, Signature};
-use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Error as FError, Forkable, Lockable};
+use farcaster_core::transaction::{Cancelable, Error as FError, Lockable};
 
-use crate::bitcoin::transaction::{sign_input, Error, MetadataOutput, SubTransaction, Tx, TxInRef};
+use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
@@ -133,43 +132,6 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
         _lock: script::DataLock<Bitcoin>,
         _punish_lock: script::DataPunishableLock<Bitcoin>,
     ) -> Result<(), FError> {
-        todo!()
-    }
-}
-
-impl Forkable<Bitcoin> for Tx<Cancel> {
-    fn generate_failure_witness(&self, privkey: &PrivateKey) -> Result<Signature, FError> {
-        let mut secp = Secp256k1::new();
-
-        let unsigned_tx = self.psbt.global.unsigned_tx.clone();
-        let txin = TxInRef::new(&unsigned_tx, 0);
-
-        let witness_utxo = self.psbt.inputs[0]
-            .witness_utxo
-            .clone()
-            .ok_or(FError::MissingWitness)?;
-
-        let script = self.psbt.inputs[0]
-            .witness_script
-            .clone()
-            .ok_or(FError::MissingWitness)?;
-
-        let value = witness_utxo.value;
-
-        let sighash_type = self.psbt.inputs[0]
-            .sighash_type
-            .ok_or(FError::new(Error::MissingSigHashType))?;
-
-        let sig = sign_input(&mut secp, txin, &script, value, sighash_type, &privkey.key)
-            .map_err(Error::from)?;
-        // TODO
-        //let pubkey = PublicKey::from_private_key(&secp, &privkey);
-        //self.add_cooperation(pubkey, sig)?;
-
-        Ok(sig)
-    }
-
-    fn verify_failure_witness(&self, _pubkey: &PublicKey, _sig: Signature) -> Result<(), FError> {
         todo!()
     }
 }

@@ -20,14 +20,22 @@ use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Re
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
 pub trait Address {
     /// Defines the address format for the arbitrating blockchain.
-    type Address: Clone + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
+    type Address: Clone + Debug + StrictEncode + StrictDecode;
+
+    fn as_bytes(data: &Self::Address) -> Result<Vec<u8>, io::Error>;
+
+    fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self::Address, consensus::Error>;
 }
 
 /// Defines the type for a blockchain timelock, this type is used when manipulating transactions
 /// and is carried in the [Offer](crate::negotiation::Offer) to fix the two timelocks.
 pub trait Timelock {
     /// Defines the type of timelock used for the arbitrating transactions.
-    type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
+    type Timelock: Copy + PartialEq + Eq + Debug;
+
+    fn as_bytes(data: &Self::Timelock) -> Result<Vec<u8>, io::Error>;
+
+    fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self::Timelock, consensus::Error>;
 }
 
 /// Defines the asset identifier for a blockchain and its associated asset unit type, it is carried

@@ -684,7 +684,10 @@ where
         match self.param_id {
             ParameterId::DestinationAddress | ParameterId::RefundAddress => {
                 match &self.param_value {
-                    ParameterType::Address(add) => Ok(len + wrap_in_vec!(wrap add in writer)),
+                    ParameterType::Address(add) => {
+                        let bytes = <T as Address>::as_bytes(&add)?;
+                        Encodable::consensus_encode(&bytes, writer)
+                    }
                     _ => Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         "Failed to encode the parameter value",
@@ -693,7 +696,8 @@ where
             }
             ParameterId::CancelTimelock | ParameterId::PunishTimelock => match &self.param_value {
                 ParameterType::Timelock(timelock) => {
-                    Ok(len + wrap_in_vec!(wrap timelock in writer))
+                    let bytes = <T as Timelock>::as_bytes(&timelock)?;
+                    Encodable::consensus_encode(&bytes, writer)
                 }
                 _ => Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -719,11 +723,13 @@ where
         let param_id = Decodable::consensus_decode(d)?;
         let param_value = match param_id {
             ParameterId::DestinationAddress | ParameterId::RefundAddress => {
-                let add = unwrap_from_vec!(d);
+                let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
+                let add = <T as Address>::from_bytes(&bytes)?;
                 ParameterType::Address(add)
             }
             ParameterId::CancelTimelock | ParameterId::PunishTimelock => {
-                let timelock = unwrap_from_vec!(d);
+                let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
+                let timelock = <T as Timelock>::from_bytes(&bytes)?;
                 ParameterType::Timelock(timelock)
             }
             ParameterId::FeeStrategy => {

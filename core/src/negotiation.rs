@@ -128,8 +128,8 @@ where
             .consensus_encode(writer)?;
         len += wrap_in_vec!(wrap arbitrating_amount for self in writer);
         len += wrap_in_vec!(wrap accordant_amount for self in writer);
-        len += wrap_in_vec!(wrap cancel_timelock for self in writer);
-        len += wrap_in_vec!(wrap punish_timelock for self in writer);
+        len += <Ctx::Ar as Timelock>::as_bytes(&self.cancel_timelock)?.consensus_encode(writer)?;
+        len += <Ctx::Ar as Timelock>::as_bytes(&self.punish_timelock)?.consensus_encode(writer)?;
         len += self.fee_strategy.consensus_encode(writer)?;
         Ok(len + self.maker_role.consensus_encode(writer)?)
     }
@@ -148,8 +148,8 @@ where
                 .ok_or(consensus::Error::UnknownType)?,
             arbitrating_amount: unwrap_from_vec!(d),
             accordant_amount: unwrap_from_vec!(d),
-            cancel_timelock: unwrap_from_vec!(d),
-            punish_timelock: unwrap_from_vec!(d),
+            cancel_timelock: <Ctx::Ar as Timelock>::from_bytes(Vec::<u8>::consensus_decode(d)?)?,
+            punish_timelock: <Ctx::Ar as Timelock>::from_bytes(Vec::<u8>::consensus_decode(d)?)?,
             fee_strategy: Decodable::consensus_decode(d)?,
             maker_role: Decodable::consensus_decode(d)?,
         })

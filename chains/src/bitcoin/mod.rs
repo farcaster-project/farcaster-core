@@ -19,6 +19,7 @@ use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
 
 use std::fmt::Debug;
 use std::io;
+use std::str;
 use std::str::FromStr;
 
 pub mod fee;
@@ -108,46 +109,38 @@ impl Decodable for Amount {
 
 impl blockchain::Address for Bitcoin {
     /// Defines the address format for the arbitrating blockchain
-    type Address = Address;
+    type Address = bitcoin::Address;
+
+    fn as_bytes(data: &bitcoin::Address) -> Result<Vec<u8>, io::Error> {
+        Ok(data.to_string().into())
+    }
+
+    fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<bitcoin::Address, consensus::Error> {
+        let add: bitcoin::Address =
+            FromStr::from_str(str::from_utf8(bytes.as_ref()).map_err(|_| {
+                consensus::Error::ParseFailed("Invalid UTF-8 encoded Bitcoin address")
+            })?)
+            .map_err(|_| consensus::Error::ParseFailed("Bitcoin address parsing failed"))?;
+        Ok(add)
+    }
 }
 
 impl Timelock for Bitcoin {
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock = CSVTimelock;
+
+    fn as_bytes(data: &CSVTimelock) -> Result<Vec<u8>, io::Error> {
+        Ok(bitcoin::consensus::encode::serialize(&data.0))
+    }
+
+    fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<CSVTimelock, consensus::Error> {
+        let timelock: u32 = bitcoin::consensus::encode::deserialize(bytes.as_ref())
+            .map_err(|_| consensus::Error::ParseFailed("Bitcoin u32 timelock parsing failed"))?;
+        Ok(CSVTimelock(timelock))
+    }
 }
 
 impl Arbitrating for Bitcoin {}
-
-#[derive(Debug, Clone, StrictDecode, StrictEncode)]
-pub struct Address(pub bitcoin::Address);
-
-impl From<bitcoin::Address> for Address {
-    fn from(address: bitcoin::Address) -> Self {
-        Self(address)
-    }
-}
-
-impl AsRef<bitcoin::Address> for Address {
-    fn as_ref(&self) -> &bitcoin::Address {
-        &self.0
-    }
-}
-
-impl Encodable for Address {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        bitcoin::consensus::encode::Encodable::consensus_encode(&self.0.to_string(), writer)
-    }
-}
-
-impl Decodable for Address {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let bytes: String = bitcoin::consensus::encode::Decodable::consensus_decode(d)
-            .map_err(|_| consensus::Error::ParseFailed("Bitcoin address parsing failed"))?;
-        let add: bitcoin::Address = FromStr::from_str(&bytes)
-            .map_err(|_| consensus::Error::ParseFailed("Bitcoin address parsing failed"))?;
-        Ok(Address(add))
-    }
-}
 
 impl FromStr for CSVTimelock {
     type Err = consensus::Error;
@@ -170,20 +163,6 @@ impl CSVTimelock {
 
     pub fn as_u32(&self) -> u32 {
         self.0
-    }
-}
-
-impl Encodable for CSVTimelock {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        bitcoin::consensus::encode::Encodable::consensus_encode(&self.0, writer)
-    }
-}
-
-impl Decodable for CSVTimelock {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let timelock: u32 = bitcoin::consensus::encode::Decodable::consensus_decode(d)
-            .map_err(|_| consensus::Error::ParseFailed("Bitcoin u32 timelock parsing failed"))?;
-        Ok(CSVTimelock(timelock))
     }
 }
 

@@ -2,12 +2,13 @@ use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
 
 use farcaster_core::script;
 use farcaster_core::transaction::{Cancelable, Error as FError, Refundable};
 
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::{Address, Bitcoin};
+use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Refund;
@@ -37,7 +38,7 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
             }],
             output: vec![TxOut {
                 value: output_metadata.tx_out.value,
-                script_pubkey: refund_target.0.script_pubkey(),
+                script_pubkey: refund_target.script_pubkey(),
             }],
         };
 

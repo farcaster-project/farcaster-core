@@ -65,6 +65,14 @@ pub trait Onchain {
 
     /// Defines the finalized transaction format for the arbitrating blockchain
     type Transaction: Clone + Debug + StrictEncode + StrictDecode;
+
+    fn partial_as_bytes(data: &Self::PartialTransaction) -> Result<Vec<u8>, io::Error>;
+
+    fn partial_from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self::PartialTransaction, consensus::Error>;
+
+    fn tx_as_bytes(data: &Self::Transaction) -> Result<Vec<u8>, io::Error>;
+
+    fn tx_from_bytes<T: AsRef<[u8]>>(bytes: T) -> Result<Self::Transaction, consensus::Error>;
 }
 
 /// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],

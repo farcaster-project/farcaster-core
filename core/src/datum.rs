@@ -13,7 +13,6 @@ use crate::transaction::TxId;
 use std::io;
 
 #[derive(Debug, Clone, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub enum TransactionType<T>
 where
     T: Onchain,

@@ -18,7 +18,6 @@ pub trait ProtocolMessage: StrictEncode + StrictDecode {}
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct CommitAliceParameters<Ctx: Swap> {
     /// Commitment to `Ab` curve point
     pub buy: Ctx::Commitment,
@@ -116,7 +115,6 @@ impl<Ctx> ProtocolMessage for CommitAliceParameters<Ctx> where Ctx: Swap {}
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct CommitBobParameters<Ctx: Swap> {
     /// Commitment to `Bb` curve point
     pub buy: Ctx::Commitment,
@@ -206,7 +204,6 @@ impl<Ctx> ProtocolMessage for CommitBobParameters<Ctx> where Ctx: Swap {}
 /// `reveal_alice_session_params` reveals the parameters commited by the
 /// `commit_alice_session_params` message.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct RevealAliceParameters<Ctx: Swap> {
     /// The buy `Ab` public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
@@ -289,7 +286,6 @@ impl<Ctx> ProtocolMessage for RevealAliceParameters<Ctx> where Ctx: Swap {}
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct RevealBobParameters<Ctx: Swap> {
     /// The buy `Bb` public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
@@ -368,7 +364,6 @@ impl<Ctx> ProtocolMessage for RevealBobParameters<Ctx> where Ctx: Swap {}
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct CoreArbitratingSetup<Ctx: Swap> {
     /// The arbitrating `lock (b)` transaction
     pub lock: <Ctx::Ar as Onchain>::PartialTransaction,
@@ -421,7 +416,6 @@ impl<Ctx> ProtocolMessage for CoreArbitratingSetup<Ctx> where Ctx: Swap {}
 /// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
 /// must validate the signatures.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct RefundProcedureSignatures<Ctx: Swap> {
     /// The `Ac` `cancel (d)` signature
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
@@ -473,7 +467,6 @@ impl<Ctx> ProtocolMessage for RefundProcedureSignatures<Ctx> where Ctx: Swap {}
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct BuyProcedureSignature<Ctx: Swap> {
     /// The arbitrating `buy (c)` transaction
     pub buy: <Ctx::Ar as Onchain>::PartialTransaction,
@@ -529,7 +522,6 @@ impl<Ctx> ProtocolMessage for BuyProcedureSignature<Ctx> where Ctx: Swap {}
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct Abort {
     /// OPTIONAL `body`: error code | string
     pub error_body: Option<String>,

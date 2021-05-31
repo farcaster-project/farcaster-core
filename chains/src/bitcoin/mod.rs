@@ -161,7 +161,6 @@ impl FromStr for CSVTimelock {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode, Copy)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct CSVTimelock(u32);
 
 impl CSVTimelock {
@@ -209,7 +208,6 @@ impl Transactions for Bitcoin {
 }
 
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub struct ECDSAAdaptorSig {
     pub sig: Signature,
     pub point: PublicKey,

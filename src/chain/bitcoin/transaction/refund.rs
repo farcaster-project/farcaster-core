@@ -3,11 +3,11 @@ use std::marker::PhantomData;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Error as FError, Refundable};
+use crate::script;
+use crate::transaction::{Cancelable, Error as FError, Refundable};
 
-use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::{Address, Bitcoin};
+use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
+use crate::chain::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug)]
 pub struct Refund;

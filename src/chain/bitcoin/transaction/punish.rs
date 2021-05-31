@@ -1,10 +1,10 @@
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Error, Punishable};
+use crate::script;
+use crate::transaction::{Cancelable, Error, Punishable};
 
-use crate::bitcoin::transaction::{MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::{Address, Bitcoin};
+use crate::chain::bitcoin::transaction::{MetadataOutput, SubTransaction, Tx};
+use crate::chain::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug)]
 pub struct Punish;

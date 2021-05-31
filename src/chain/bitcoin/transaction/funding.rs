@@ -2,11 +2,11 @@ use bitcoin::blockdata::transaction::{OutPoint, Transaction};
 use bitcoin::network::constants::Network as BtcNetwork;
 use bitcoin::util::key::PublicKey;
 
-use farcaster_core::blockchain::Network;
-use farcaster_core::transaction::{Error as FError, Fundable, Linkable};
+use crate::blockchain::Network;
+use crate::transaction::{Error as FError, Fundable, Linkable};
 
-use crate::bitcoin::transaction::{Error, MetadataOutput};
-use crate::bitcoin::{Address, Bitcoin};
+use crate::chain::bitcoin::transaction::{Error, MetadataOutput};
+use crate::chain::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug, Clone)]
 pub struct Funding {

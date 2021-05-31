@@ -12,12 +12,12 @@ use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 use thiserror::Error;
 
-use farcaster_core::script::ScriptPath;
-use farcaster_core::transaction::{
+use crate::script::ScriptPath;
+use crate::transaction::{
     Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
 };
 
-use crate::bitcoin::{Amount, Bitcoin};
+use crate::chain::bitcoin::{Amount, Bitcoin};
 
 pub mod buy;
 pub mod cancel;

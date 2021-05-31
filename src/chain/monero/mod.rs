@@ -1,10 +1,8 @@
 //! Defines and implements all the traits for Monero
 
-use farcaster_core::blockchain::Asset;
-use farcaster_core::crypto::{
-    self, AccordantKey, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys,
-};
-use farcaster_core::role::{Acc, Accordant};
+use crate::blockchain::Asset;
+use crate::crypto::{self, AccordantKey, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys};
+use crate::role::{Acc, Accordant};
 
 use monero::cryptonote::hash::Hash;
 use monero::util::key::{PrivateKey, PublicKey};
@@ -17,12 +15,12 @@ pub const SHARED_KEY_BITS: usize = 252;
 pub struct Monero;
 
 impl std::str::FromStr for Monero {
-    type Err = farcaster_core::consensus::Error;
+    type Err = crate::consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "Monero" => Ok(Monero),
-            _ => Err(farcaster_core::consensus::Error::UnknownType),
+            _ => Err(crate::consensus::Error::UnknownType),
         }
     }
 }

@@ -7,11 +7,11 @@ use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::script;
-use farcaster_core::transaction::{Cancelable, Error as FError, Lockable};
+use crate::script;
+use crate::transaction::{Cancelable, Error as FError, Lockable};
 
-use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::Bitcoin;
+use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
+use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Cancel;

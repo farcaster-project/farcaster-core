@@ -1,6 +1,27 @@
-[workspace]
+[package]
+name = "farcaster_core"
+version = "0.1.0"
+authors = ["h4sh3d <h4sh3d@protonmail.com>"]
+edition = "2018"
 
-members = [
-    "core",
-    "chains",
-]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+rpc = []
+
+[dependencies]
+hex = "0.4.3"
+strict_encoding = "~1.3"
+thiserror = "1.0.24"
+internet2 = "0.3.10"
+
+# blockchain specific
+bitcoin = "0.26"
+monero = { version = "0.12", features = ["strict_encoding_support"] }
+
+[dev-dependencies]
+bitcoincore-rpc = "0.13.0"
+rand_core = { version = "^0.5.0", features = ["getrandom"] }
+secp256k1 = { version = "0.20.1", features = ["rand-std"] }
+internet2 = "0.3.10"
+lazy_static = "1.4.0"

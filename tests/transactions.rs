@@ -1,12 +1,12 @@
 #![cfg(feature = "rpc")]
 
-use farcaster_chains::bitcoin::fee::SatPerVByte;
 use farcaster_core::blockchain::*;
+use farcaster_core::chain::bitcoin::fee::SatPerVByte;
 use farcaster_core::script::*;
 use farcaster_core::transaction::*;
 
-use farcaster_chains::bitcoin::transaction::*;
-use farcaster_chains::bitcoin::*;
+use farcaster_core::chain::bitcoin::transaction::*;
+use farcaster_core::chain::bitcoin::*;
 
 use bitcoincore_rpc::RpcApi;
 

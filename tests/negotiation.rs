@@ -1,7 +1,7 @@
-use farcaster_chains::bitcoin::fee::SatPerVByte;
-use farcaster_chains::bitcoin::{Amount, Bitcoin, CSVTimelock};
-use farcaster_chains::monero::Monero;
-use farcaster_chains::pairs::btcxmr::BtcXmr;
+use farcaster_core::chain::bitcoin::fee::SatPerVByte;
+use farcaster_core::chain::bitcoin::{Amount, Bitcoin, CSVTimelock};
+use farcaster_core::chain::monero::Monero;
+use farcaster_core::chain::pairs::btcxmr::BtcXmr;
 
 use farcaster_core::blockchain::{Asset, FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};

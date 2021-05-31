@@ -2,9 +2,9 @@ use bitcoin::blockdata::transaction::{TxIn, TxOut};
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 
-use farcaster_chains::bitcoin::transaction::{Funding, Lock, Tx};
-use farcaster_chains::bitcoin::{Amount, Bitcoin, CSVTimelock};
-use farcaster_chains::pairs::btcxmr::BtcXmr;
+use farcaster_core::chain::bitcoin::transaction::{Funding, Lock, Tx};
+use farcaster_core::chain::bitcoin::{Amount, Bitcoin, CSVTimelock};
+use farcaster_core::chain::pairs::btcxmr::BtcXmr;
 
 use farcaster_core::blockchain::Network;
 use farcaster_core::consensus::{deserialize, serialize, serialize_hex};

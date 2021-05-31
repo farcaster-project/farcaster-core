@@ -1,6 +1,6 @@
-use farcaster_chains::bitcoin as btc;
-use farcaster_chains::monero as xmr;
-use farcaster_chains::pairs::btcxmr::BtcXmr;
+use farcaster_core::chain::bitcoin as btc;
+use farcaster_core::chain::monero as xmr;
+use farcaster_core::chain::pairs::btcxmr::BtcXmr;
 
 use farcaster_core::blockchain::FeePolitic;
 use farcaster_core::consensus::deserialize;

@@ -56,7 +56,6 @@ impl Error {
 }
 
 #[derive(Debug, Clone, PartialEq, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub enum KeyType<Ctx>
 where
     Ctx: Swap,
@@ -108,7 +107,6 @@ where
 
 /// Type of signatures
 #[derive(Clone, Debug, StrictDecode, StrictEncode)]
-#[strict_encoding_crate(strict_encoding)]
 pub enum SignatureType<S>
 where
     S: Signatures,

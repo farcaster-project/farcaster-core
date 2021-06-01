@@ -274,3 +274,17 @@ where
     sig.normalize_s();
     Ok(sig)
 }
+
+/// Computes the [`BIP-143`][bip-143] compliant signature for the given hash.
+/// Assumes that the hash is correctly computed.
+pub fn sign_hash(
+    sighash: Hash,
+    secret_key: &bitcoin::secp256k1::SecretKey,
+) -> Result<Signature, bitcoin::secp256k1::Error> {
+    let context = Secp256k1::new();
+    // Makes signature.
+    let msg = Message::from_slice(&sighash[..])?;
+    let mut sig = context.sign(&msg, secret_key);
+    sig.normalize_s();
+    Ok(sig)
+}

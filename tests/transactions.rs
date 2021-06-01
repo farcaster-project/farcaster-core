@@ -41,9 +41,6 @@ macro_rules! setup_txs {
 
         let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), target_amount).unwrap();
 
-        // Validate that the fee follows the strategy
-        // TODO Bitcoin::validate_fee(lock.partial(), &fee).unwrap();
-
         //
         // Create cancel tx
         //
@@ -72,9 +69,15 @@ macro_rules! setup_txs {
         //
         // Co-Sign cancel
         //
-        let sig = cancel.generate_failure_witness(&secret_a2).unwrap();
+        let msg = cancel
+            .generate_witness_message(ScriptPath::Failure)
+            .unwrap();
+        let sig = sign_hash(msg, &secret_a2.key).unwrap();
         cancel.add_witness(pubkey_a2, sig).unwrap();
-        let sig = cancel.generate_failure_witness(&secret_b2).unwrap();
+        let msg = cancel
+            .generate_witness_message(ScriptPath::Failure)
+            .unwrap();
+        let sig = sign_hash(msg, &secret_b2.key).unwrap();
         cancel.add_witness(pubkey_b2, sig).unwrap();
 
         //
@@ -85,7 +88,8 @@ macro_rules! setup_txs {
         //
         // Sign lock tx
         //
-        let sig = lock.generate_witness(&secret_a1).unwrap();
+        let msg = lock.generate_witness_message(ScriptPath::Success).unwrap();
+        let sig = sign_hash(msg, &secret_a1.key).unwrap();
         lock.add_witness(pubkey_a1, sig).unwrap();
         let lock_finalized = lock.finalize_and_extract().unwrap();
 

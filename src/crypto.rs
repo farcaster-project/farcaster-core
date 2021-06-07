@@ -3,11 +3,9 @@
 use std::error;
 use std::fmt::Debug;
 
-use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 
 use crate::consensus::{self};
-use crate::role::{Acc, Accordant, Arbitrating, Blockchain};
 use crate::swap::Swap;
 
 /// List of cryptographic errors that can be encountered when processing cryptographic operation
@@ -55,14 +53,14 @@ impl Error {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, StrictDecode, StrictEncode)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum KeyType<Ctx>
 where
     Ctx: Swap,
 {
     PublicArbitrating(<Ctx::Ar as Keys>::PublicKey),
     PublicAccordant(<Ctx::Ac as Keys>::PublicKey),
-    SharedPrivate(<Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey),
+    SharedPrivateKeys(<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey),
 }
 
 impl<Ctx> KeyType<Ctx>
@@ -89,9 +87,9 @@ where
 
     pub fn try_into_shared_private(
         &self,
-    ) -> Result<<Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey, consensus::Error> {
+    ) -> Result<<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey, consensus::Error> {
         match self {
-            KeyType::SharedPrivate(key) => Ok(key.clone()),
+            KeyType::SharedPrivateKeys(key) => Ok(key.clone()),
             _ => Err(consensus::Error::TypeMismatch),
         }
     }
@@ -100,13 +98,13 @@ where
         match self {
             KeyType::PublicArbitrating(key) => <Ctx::Ar as Keys>::as_bytes(&key),
             KeyType::PublicAccordant(key) => <Ctx::Ac as Keys>::as_bytes(&key),
-            KeyType::SharedPrivate(key) => <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&key),
+            KeyType::SharedPrivateKeys(key) => <Ctx::Ac as SharedPrivateKeys>::as_bytes(&key),
         }
     }
 }
 
 /// Type of signatures
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub enum SignatureType<S>
 where
     S: Signatures,
@@ -142,6 +140,8 @@ where
     }
 }
 
+// TODO(h4sh3d): add identifiers on key ids
+
 #[derive(Debug, Clone, Copy)]
 pub enum ArbitratingKey {
     Fund,
@@ -149,16 +149,19 @@ pub enum ArbitratingKey {
     Cancel,
     Refund,
     Punish,
+    //Extra(u16),
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum AccordantKey {
     Spend,
+    //Extra(u16),
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum SharedPrivateKey {
     View,
+    //Extra(u16),
 }
 
 /// This trait is required for blockchains to fix the concrete cryptographic key types. The public
@@ -168,38 +171,17 @@ pub trait Keys {
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine.
-    type PublicKey: Clone + PartialEq + Debug + StrictEncode + StrictDecode;
+    type PublicKey: Clone + PartialEq + Debug;
 
     /// Get the bytes from the public key.
     fn as_bytes(pubkey: &Self::PublicKey) -> Vec<u8>;
 }
 
-/// Generate the public keys for a blockchain type (arbitrating or accordant) from a key generator
-/// engine.
-pub trait FromSeed<T>: Keys
-where
-    T: Blockchain,
-{
-    /// The key generator engine.
-    type Wallet;
-
-    /// Retreive a specific public key from the key generator engine.
-    fn get_pubkey(engine: &Self::Wallet, key_type: T::KeyList) -> Result<Self::PublicKey, Error>;
-}
-
 /// This trait is required for blockchains for fixing the potential shared private key send over
 /// the network.
-pub trait SharedPrivateKeys<T>: FromSeed<T>
-where
-    T: Blockchain,
-{
+pub trait SharedPrivateKeys {
     /// A shareable private key type used to parse non-transparent blockchain
-    type SharedPrivateKey: Clone + PartialEq + Debug + StrictEncode + StrictDecode;
-
-    fn get_shared_privkey(
-        engine: &Self::Wallet,
-        key_type: SharedPrivateKey,
-    ) -> Result<Self::SharedPrivateKey, Error>;
+    type SharedPrivateKey: Clone + PartialEq + Debug;
 
     /// Get the bytes from the shared private key.
     fn as_bytes(privkey: &Self::SharedPrivateKey) -> Vec<u8>;
@@ -209,7 +191,7 @@ where
 /// parameters that must go through the commit/reveal scheme at the beginning of the protocol.
 pub trait Commitment {
     /// Commitment type used in the commit/reveal scheme during swap parameters setup.
-    type Commitment: Clone + PartialEq + Eq + Debug + StrictEncode + StrictDecode;
+    type Commitment: Clone + PartialEq + Eq + Debug;
 
     /// Provides a generic method to commit to any value referencable as stream of bytes.
     fn commit_to<T: AsRef<[u8]>>(value: T) -> Self::Commitment;
@@ -228,82 +210,102 @@ pub trait Commitment {
 /// This trait is required for arbitrating blockchains for defining the types of messages,
 /// signatures and adaptor signatures used in the cryptographic operation such as signing/verifying
 /// signatures and adaptor signatures.
-pub trait Signatures: Keys {
-    /// A context passed to methods.
-    type Wallet: Clone + Debug;
-
+pub trait Signatures {
     /// Type of the message passed to sign or adaptor sign methods, transactions will produce
     /// messages that will be passed to these methods.
     type Message: Clone + Debug;
 
     /// Defines the signature format for the arbitrating blockchain.
-    type Signature: Clone + Debug + StrictEncode + StrictDecode;
+    type Signature: Clone + Debug;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic primitives used.
-    type AdaptorSignature: Clone + Debug + StrictEncode + StrictDecode;
+    type AdaptorSignature: Clone + Debug;
+}
 
+pub trait Wallet<ArPublicKey, AcPublicKey, SharedKey, Proof>:
+    GenerateKey<ArPublicKey, ArbitratingKey>
+    + GenerateKey<AcPublicKey, AccordantKey>
+    + ProveCrossGroupDleq<ArPublicKey, AcPublicKey, Proof>
+    + GenerateSharedKey<SharedKey>
+{
+}
+
+pub trait GenerateKey<PublicKey, KeyIds> {
+    /// Retreive a specific public key by its key id.
+    fn get_pubkey(&self, key_id: KeyIds) -> Result<PublicKey, Error>;
+}
+
+pub trait GenerateSharedKey<SharedKey> {
+    /// Retreive a specific shared private key by its key id.
+    fn get_shared_key(&self, key_id: SharedPrivateKey) -> Result<Option<SharedKey>, Error>;
+}
+
+pub trait Sign<PublicKey, PrivateKey, Message, Signature, AdaptorSignature> {
     /// Sign the message with the corresponding private key identified by the provided public key.
-    fn sign_with_key(
-        context: &Self::Wallet,
-        key: &Self::PublicKey,
-        msg: Self::Message,
-    ) -> Result<Self::Signature, Error>;
+    fn sign_with_key(&self, key: &PublicKey, msg: Message) -> Result<Signature, Error>;
 
     /// Verify a signature for a given message with the provided public key.
-    fn verify_signature(
-        context: &Self::Wallet,
-        key: &Self::PublicKey,
-        msg: Self::Message,
-        sig: &Self::Signature,
-    ) -> Result<(), Error>;
+    fn verify_signature(&self, key: &PublicKey, msg: Message, sig: &Signature)
+        -> Result<(), Error>;
 
     /// Sign the message with the corresponding private key identified by the provided public key
     /// and encrypt it (create an adaptor signature) with the provided adaptor public key.
     fn adaptor_sign_with_key(
-        context: &Self::Wallet,
-        key: &Self::PublicKey,
-        adaptor: &Self::PublicKey,
-        msg: Self::Message,
-    ) -> Result<Self::AdaptorSignature, Error>;
+        &self,
+        key: &PublicKey,
+        adaptor: &PublicKey,
+        msg: Message,
+    ) -> Result<AdaptorSignature, Error>;
 
     /// Verify a adaptor signature for a given message with the provided public key and the public
     /// adaptor key.
     fn verify_adaptor_signature(
-        context: &Self::Wallet,
-        key: &Self::PublicKey,
-        adaptor: &Self::PublicKey,
-        msg: Self::Message,
-        sig: &Self::AdaptorSignature,
+        &self,
+        key: &PublicKey,
+        adaptor: &PublicKey,
+        msg: Message,
+        sig: &AdaptorSignature,
     ) -> Result<(), Error>;
 
     /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
     /// signatures) with the corresponding private key identified by the provided public key.
-    fn adapt_signature(
-        context: &Self::Wallet,
-        key: &Self::PublicKey,
-        sig: Self::AdaptorSignature,
-    ) -> Result<Self::Signature, Error>;
+    fn adapt_signature(&self, key: &PublicKey, sig: AdaptorSignature) -> Result<Signature, Error>;
 
     /// Recover the encryption key based on the adaptor signature and the decrypted signature.
-    fn recover_key(
-        context: &Self::Wallet,
-        sig: Self::Signature,
-        adapted_sig: Self::AdaptorSignature,
-    ) -> Self::PrivateKey;
+    fn recover_key(&self, sig: Signature, adapted_sig: AdaptorSignature) -> PrivateKey;
 }
 
-/// Define a proving system to link two different cryptographic groups.
-pub trait DleqProof<Ar, Ac>: Clone + Debug + StrictEncode + StrictDecode
-where
-    Ar: Arbitrating,
-    Ac: Accordant,
-{
-    fn project_over(ac_engine: &<Ac as FromSeed<Acc>>::Wallet) -> Result<Ar::PublicKey, Error>;
+pub trait Commit<Commitment: Eq> {
+    /// Provides a generic method to commit to any value referencable as stream of bytes.
+    fn commit_to<T: AsRef<[u8]>>(&self, value: T) -> Commitment;
 
-    fn generate(
-        ac_engine: &<Ac as FromSeed<Acc>>::Wallet,
-    ) -> Result<(Ac::PublicKey, Ar::PublicKey, Self), Error>;
+    /// Validate the equality between a value and a commitment, return ok if the value commits to
+    /// the same commitment's value.
+    fn validate<T: AsRef<[u8]>>(&self, value: T, commitment: Commitment) -> Result<(), Error> {
+        if self.commit_to(value) == commitment {
+            Ok(())
+        } else {
+            Err(Error::InvalidCommitment)
+        }
+    }
+}
 
-    fn verify(spend: &Ac::PublicKey, adaptor: &Ar::PublicKey, proof: Self) -> Result<(), Error>;
+pub trait ProveCrossGroupDleq<Adaptor, PublicSpendKey, Proof> {
+    /// Generate the proof and the two public keys: the arbitrating public key, also called the
+    /// adaptor public key, and the accordant public spend key.
+    fn generate(&self) -> Result<(PublicSpendKey, Adaptor, Proof), Error>;
+
+    /// Project the accordant sepnd secret key over the arbitrating curve to get the public key
+    /// used as the adaptor public key.
+    fn project_over(&self) -> Result<Adaptor, Error>;
+
+    /// Verify the proof given the two public keys: the accordant spend public key and the
+    /// arbitrating adaptor public key.
+    fn verify(
+        &self,
+        public_spend: &PublicSpendKey,
+        adaptor: &Adaptor,
+        proof: Proof,
+    ) -> Result<(), Error>;
 }

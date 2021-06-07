@@ -5,19 +5,19 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::crypto::{DleqProof, Keys, SharedPrivateKeys, SignatureType, Signatures};
+use crate::crypto::{Keys, SharedPrivateKeys, SignatureType, Signatures};
 use crate::datum;
-use crate::role::{Acc, SwapRole};
+use crate::role::SwapRole;
 use crate::swap::Swap;
 use crate::transaction::TxId;
 use crate::Error;
 
 /// Trait for defining inter-daemon communication messages.
-pub trait ProtocolMessage: StrictEncode + StrictDecode {}
+pub trait ProtocolMessage {}
 
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub struct CommitAliceParameters<Ctx: Swap> {
     /// Commitment to `Ab` curve point
     pub buy: Ctx::Commitment,
@@ -81,12 +81,12 @@ where
         )?;
         // Check private view commitment
         Ctx::validate(
-            <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&reveal.view),
+            <Ctx::Ac as SharedPrivateKeys>::as_bytes(&reveal.view),
             self.view.clone(),
         )?;
 
         // Check the Dleq proof
-        DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
+        //DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
 
         // All validations passed, return ok
         Ok(())
@@ -114,7 +114,7 @@ impl<Ctx> ProtocolMessage for CommitAliceParameters<Ctx> where Ctx: Swap {}
 
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub struct CommitBobParameters<Ctx: Swap> {
     /// Commitment to `Bb` curve point
     pub buy: Ctx::Commitment,
@@ -170,12 +170,12 @@ where
         )?;
         // Check private view commitment
         Ctx::validate(
-            <Ctx::Ac as SharedPrivateKeys<Acc>>::as_bytes(&reveal.view),
+            <Ctx::Ac as SharedPrivateKeys>::as_bytes(&reveal.view),
             self.view.clone(),
         )?;
 
         // Check the Dleq proof
-        DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
+        //DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
 
         // All validations passed, return ok
         Ok(())
@@ -203,7 +203,7 @@ impl<Ctx> ProtocolMessage for CommitBobParameters<Ctx> where Ctx: Swap {}
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
 /// `commit_alice_session_params` message.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub struct RevealAliceParameters<Ctx: Swap> {
     /// The buy `Ab` public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
@@ -220,7 +220,7 @@ pub struct RevealAliceParameters<Ctx: Swap> {
     /// The `K_v^a` view private key
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^a` spend public key
-    pub view: <Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey,
+    pub view: <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Ctx::Proof,
 }
@@ -285,7 +285,7 @@ impl<Ctx> ProtocolMessage for RevealAliceParameters<Ctx> where Ctx: Swap {}
 
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub struct RevealBobParameters<Ctx: Swap> {
     /// The buy `Bb` public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
@@ -300,7 +300,7 @@ pub struct RevealBobParameters<Ctx: Swap> {
     /// The `K_v^b` view private key
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// The `K_s^b` spend public key
-    pub view: <Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey,
+    pub view: <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
     /// The cross-group discrete logarithm zero-knowledge proof
     pub proof: Ctx::Proof,
 }
@@ -363,7 +363,7 @@ impl<Ctx> ProtocolMessage for RevealBobParameters<Ctx> where Ctx: Swap {}
 
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub struct CoreArbitratingSetup<Ctx: Swap> {
     /// The arbitrating `lock (b)` transaction
     pub lock: <Ctx::Ar as Onchain>::PartialTransaction,
@@ -415,7 +415,7 @@ impl<Ctx> ProtocolMessage for CoreArbitratingSetup<Ctx> where Ctx: Swap {}
 /// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
 /// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
 /// must validate the signatures.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub struct RefundProcedureSignatures<Ctx: Swap> {
     /// The `Ac` `cancel (d)` signature
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
@@ -466,7 +466,7 @@ impl<Ctx> ProtocolMessage for RefundProcedureSignatures<Ctx> where Ctx: Swap {}
 /// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub struct BuyProcedureSignature<Ctx: Swap> {
     /// The arbitrating `buy (c)` transaction
     pub buy: <Ctx::Ar as Onchain>::PartialTransaction,
@@ -521,7 +521,7 @@ impl<Ctx> ProtocolMessage for BuyProcedureSignature<Ctx> where Ctx: Swap {}
 
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
+#[derive(Clone, Debug)]
 pub struct Abort {
     /// OPTIONAL `body`: error code | string
     pub error_body: Option<String>,

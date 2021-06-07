@@ -9,11 +9,11 @@ use crate::datum;
 use crate::swap::Swap;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-pub trait Bundle: StrictDecode + StrictEncode {}
+pub trait Bundle {}
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct AliceParameters<Ctx: Swap> {
     pub buy: datum::Key<Ctx>,
     pub cancel: datum::Key<Ctx>,
@@ -31,7 +31,7 @@ pub struct AliceParameters<Ctx: Swap> {
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct BobParameters<Ctx: Swap> {
     pub buy: datum::Key<Ctx>,
     pub cancel: datum::Key<Ctx>,
@@ -47,7 +47,7 @@ pub struct BobParameters<Ctx: Swap> {
 }
 
 /// Provides daemon with a signature on the unsigned cancel (d) transaction.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct CosignedArbitratingCancel<S>
 where
     S: Signatures,
@@ -58,7 +58,7 @@ where
 impl<S> Bundle for CosignedArbitratingCancel<S> where S: Signatures {}
 
 /// Provides Bob's daemon the funding transaction for building the core arbritrating transactions.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct FundingTransaction<T>
 where
     T: Onchain,
@@ -69,7 +69,7 @@ where
 impl<T> Bundle for FundingTransaction<T> where T: Onchain {}
 
 /// Provides Bob's daemon or Alice's clients the core set of arbritrating transactions.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct CoreArbitratingTransactions<T>
 where
     T: Onchain,
@@ -83,7 +83,7 @@ impl<T> Bundle for CoreArbitratingTransactions<T> where T: Onchain {}
 
 /// Provides Bob's daemon or Alice's client with an adaptor signature for the unsigned buy (c)
 /// transaction.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct SignedAdaptorBuy<T>
 where
     T: Signatures + Onchain,
@@ -96,7 +96,7 @@ impl<T> Bundle for SignedAdaptorBuy<T> where T: Signatures + Onchain {}
 
 /// Provides Alice's daemon or Bob's clients with the two signatures on the unsigned buy (c)
 /// transaction.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct FullySignedBuy<S>
 where
     S: Signatures,
@@ -109,7 +109,7 @@ impl<S> Bundle for FullySignedBuy<S> where S: Signatures {}
 
 /// Provides Alice's daemon or Bob's clients with a signature on the unsigned refund (e)
 /// transaction.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct SignedAdaptorRefund<S>
 where
     S: Signatures,
@@ -121,7 +121,7 @@ impl<S> Bundle for SignedAdaptorRefund<S> where S: Signatures {}
 
 /// Provides Bob's daemon or Alice's clients with the two signatures on the unsigned refund (e)
 /// transaction.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct FullySignedRefund<S>
 where
     S: Signatures,
@@ -133,7 +133,7 @@ where
 impl<S> Bundle for FullySignedRefund<S> where S: Signatures {}
 
 /// Provides Bob's daemon with the signature on the unsigned lock (b) transaction.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct SignedArbitratingLock<S>
 where
     S: Signatures,
@@ -144,7 +144,7 @@ where
 impl<S> Bundle for SignedArbitratingLock<S> where S: Signatures {}
 
 /// Provides Alice's daemon with the signature on the unsigned punish (f) transaction.
-#[derive(Debug, Clone, StrictEncode, StrictDecode)]
+#[derive(Debug, Clone)]
 pub struct FullySignedPunish<T>
 where
     T: Signatures + Onchain,

@@ -6,13 +6,13 @@ use strict_encoding::{strict_deserialize, strict_serialize, StrictDecode, Strict
 use crate::blockchain::{Address, Fee, FeeStrategy, Onchain, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, Keys, SharedPrivateKeys, Signatures};
-use crate::role::{Acc, Arbitrating, SwapRole};
+use crate::role::{Arbitrating, SwapRole};
 use crate::swap::Swap;
 use crate::transaction::TxId;
 
 use std::io;
 
-#[derive(Debug, Clone, StrictDecode, StrictEncode)]
+#[derive(Debug, Clone)]
 pub enum TransactionType<T>
 where
     T: Onchain,
@@ -102,55 +102,55 @@ where
     impl_new_tx!(new_punish, TxId::Punish);
 }
 
-impl<T> Encodable for Transaction<T>
-where
-    T: Onchain,
-{
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        let len = self.tx_id.consensus_encode(writer)?;
-        let tx_value = strict_serialize(&self.tx_value).map_err(|_| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Failed to encode the transaction value",
-            )
-        })?;
-        Ok(len + tx_value.consensus_encode(writer)?)
-    }
-}
-
-impl<T> Decodable for Transaction<T>
-where
-    T: Onchain,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let tx_id = Decodable::consensus_decode(d)?;
-        let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
-        let tx_value = strict_deserialize(&bytes)?;
-        Ok(Self { tx_id, tx_value })
-    }
-}
-
-impl<T> StrictEncode for Transaction<T>
-where
-    T: Onchain,
-{
-    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
-    }
-}
-
-impl<T> StrictDecode for Transaction<T>
-where
-    T: Onchain,
-{
-    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError(
-                "Failed to decode the transaction datum".to_string(),
-            )
-        })
-    }
-}
+//impl<T> Encodable for Transaction<T>
+//where
+//    T: Onchain,
+//{
+//    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+//        let len = self.tx_id.consensus_encode(writer)?;
+//        let tx_value = strict_serialize(&self.tx_value).map_err(|_| {
+//            io::Error::new(
+//                io::ErrorKind::InvalidData,
+//                "Failed to encode the transaction value",
+//            )
+//        })?;
+//        Ok(len + tx_value.consensus_encode(writer)?)
+//    }
+//}
+//
+//impl<T> Decodable for Transaction<T>
+//where
+//    T: Onchain,
+//{
+//    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+//        let tx_id = Decodable::consensus_decode(d)?;
+//        let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
+//        let tx_value = strict_deserialize(&bytes)?;
+//        Ok(Self { tx_id, tx_value })
+//    }
+//}
+//
+//impl<T> StrictEncode for Transaction<T>
+//where
+//    T: Onchain,
+//{
+//    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+//        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
+//    }
+//}
+//
+//impl<T> StrictDecode for Transaction<T>
+//where
+//    T: Onchain,
+//{
+//    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+//        Decodable::consensus_decode(&mut d).map_err(|_| {
+//            strict_encoding::Error::DataIntegrityError(
+//                "Failed to decode the transaction datum".to_string(),
+//            )
+//        })
+//    }
+//}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyId {
@@ -241,10 +241,10 @@ macro_rules! impl_new_key {
         }
     };
     ( sp, $fnname:ident, $type:expr ) => {
-        pub fn $fnname(key_value: <Ctx::Ac as SharedPrivateKeys<Acc>>::SharedPrivateKey) -> Self {
+        pub fn $fnname(key_value: <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey) -> Self {
             Self {
                 key_id: $type,
-                key_value: crypto::KeyType::SharedPrivate(key_value),
+                key_value: crypto::KeyType::SharedPrivateKeys(key_value),
             }
         }
     };
@@ -283,50 +283,50 @@ where
     impl_new_key!(sp, new_bob_private_view, KeyId::BobPrivateView);
 }
 
-impl<Ctx> Encodable for Key<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        let len = self.key_id.consensus_encode(writer)?;
-        let key_value = dbg!(strict_serialize(&self.key_value).map_err(|_| {
-            io::Error::new(io::ErrorKind::InvalidData, "Failed to encode the key value")
-        })?);
-        Ok(len + key_value.consensus_encode(writer)?)
-    }
-}
-
-impl<Ctx> Decodable for Key<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let key_id = Decodable::consensus_decode(d)?;
-        let bytes: Vec<u8> = dbg!(Decodable::consensus_decode(d)?);
-        let key_value = dbg!(strict_deserialize(&bytes)?);
-        Ok(Self { key_id, key_value })
-    }
-}
-
-impl<Ctx> StrictEncode for Key<Ctx>
-where
-    Ctx: Swap,
-{
-    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
-    }
-}
-
-impl<Ctx> StrictDecode for Key<Ctx>
-where
-    Ctx: Swap,
-{
-    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError("Failed to decode the key datum".to_string())
-        })
-    }
-}
+//impl<Ctx> Encodable for Key<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+//        let len = self.key_id.consensus_encode(writer)?;
+//        let key_value = dbg!(strict_serialize(&self.key_value).map_err(|_| {
+//            io::Error::new(io::ErrorKind::InvalidData, "Failed to encode the key value")
+//        })?);
+//        Ok(len + key_value.consensus_encode(writer)?)
+//    }
+//}
+//
+//impl<Ctx> Decodable for Key<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+//        let key_id = Decodable::consensus_decode(d)?;
+//        let bytes: Vec<u8> = dbg!(Decodable::consensus_decode(d)?);
+//        let key_value = dbg!(strict_deserialize(&bytes)?);
+//        Ok(Self { key_id, key_value })
+//    }
+//}
+//
+//impl<Ctx> StrictEncode for Key<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+//        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
+//    }
+//}
+//
+//impl<Ctx> StrictDecode for Key<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+//        Decodable::consensus_decode(&mut d).map_err(|_| {
+//            strict_encoding::Error::DataIntegrityError("Failed to decode the key datum".to_string())
+//        })
+//    }
+//}
 
 /// The signature datum is used to convey signatures between clients and daemons. When this datum
 /// comes from a client, it is usually a signature freshly generated or adapted by the client. When
@@ -374,61 +374,61 @@ where
     }
 }
 
-impl<S> Encodable for Signature<S>
-where
-    S: Signatures,
-{
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.tx_id.consensus_encode(writer)?;
-        len += self.role.consensus_encode(writer)?;
-        let sig_value = strict_serialize(&self.sig_value).map_err(|_| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Failed to encode the signature value",
-            )
-        })?;
-        Ok(len + sig_value.consensus_encode(writer)?)
-    }
-}
+//impl<S> Encodable for Signature<S>
+//where
+//    S: Signatures,
+//{
+//    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+//        let mut len = self.tx_id.consensus_encode(writer)?;
+//        len += self.role.consensus_encode(writer)?;
+//        let sig_value = strict_serialize(&self.sig_value).map_err(|_| {
+//            io::Error::new(
+//                io::ErrorKind::InvalidData,
+//                "Failed to encode the signature value",
+//            )
+//        })?;
+//        Ok(len + sig_value.consensus_encode(writer)?)
+//    }
+//}
+//
+//impl<S> Decodable for Signature<S>
+//where
+//    S: Signatures,
+//{
+//    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+//        let tx_id = Decodable::consensus_decode(d)?;
+//        let role = Decodable::consensus_decode(d)?;
+//        let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
+//        let sig_value = strict_deserialize(&bytes)?;
+//        Ok(Self {
+//            tx_id,
+//            role,
+//            sig_value,
+//        })
+//    }
+//}
 
-impl<S> Decodable for Signature<S>
-where
-    S: Signatures,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let tx_id = Decodable::consensus_decode(d)?;
-        let role = Decodable::consensus_decode(d)?;
-        let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
-        let sig_value = strict_deserialize(&bytes)?;
-        Ok(Self {
-            tx_id,
-            role,
-            sig_value,
-        })
-    }
-}
-
-impl<S> StrictEncode for Signature<S>
-where
-    S: Signatures,
-{
-    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
-    }
-}
-
-impl<S> StrictDecode for Signature<S>
-where
-    S: Signatures,
-{
-    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError(
-                "Failed to decode the signature datum".to_string(),
-            )
-        })
-    }
-}
+//impl<S> StrictEncode for Signature<S>
+//where
+//    S: Signatures,
+//{
+//    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+//        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
+//    }
+//}
+//
+//impl<S> StrictDecode for Signature<S>
+//where
+//    S: Signatures,
+//{
+//    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+//        Decodable::consensus_decode(&mut d).map_err(|_| {
+//            strict_encoding::Error::DataIntegrityError(
+//                "Failed to decode the signature datum".to_string(),
+//            )
+//        })
+//    }
+//}
 
 #[derive(Clone, Debug, Copy)]
 pub enum ProofId {
@@ -486,58 +486,58 @@ where
     }
 }
 
-impl<Ctx> Encodable for Proof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        let len = self.proof_id.consensus_encode(writer)?;
-        let proof_value = strict_serialize(&self.proof_value).map_err(|_| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Failed to encode the proof value",
-            )
-        })?;
-        Ok(len + proof_value.consensus_encode(writer)?)
-    }
-}
-
-impl<Ctx> Decodable for Proof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let proof_id = Decodable::consensus_decode(d)?;
-        let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
-        let proof_value = strict_deserialize(&bytes)?;
-        Ok(Self {
-            proof_id,
-            proof_value,
-        })
-    }
-}
-
-impl<Ctx> StrictEncode for Proof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
-    }
-}
-
-impl<Ctx> StrictDecode for Proof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError(
-                "Failed to decode the proof datum".to_string(),
-            )
-        })
-    }
-}
+//impl<Ctx> Encodable for Proof<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+//        let len = self.proof_id.consensus_encode(writer)?;
+//        let proof_value = strict_serialize(&self.proof_value).map_err(|_| {
+//            io::Error::new(
+//                io::ErrorKind::InvalidData,
+//                "Failed to encode the proof value",
+//            )
+//        })?;
+//        Ok(len + proof_value.consensus_encode(writer)?)
+//    }
+//}
+//
+//impl<Ctx> Decodable for Proof<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+//        let proof_id = Decodable::consensus_decode(d)?;
+//        let bytes: Vec<u8> = Decodable::consensus_decode(d)?;
+//        let proof_value = strict_deserialize(&bytes)?;
+//        Ok(Self {
+//            proof_id,
+//            proof_value,
+//        })
+//    }
+//}
+//
+//impl<Ctx> StrictEncode for Proof<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+//        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
+//    }
+//}
+//
+//impl<Ctx> StrictDecode for Proof<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+//        Decodable::consensus_decode(&mut d).map_err(|_| {
+//            strict_encoding::Error::DataIntegrityError(
+//                "Failed to decode the proof datum".to_string(),
+//            )
+//        })
+//    }
+//}
 
 #[derive(Debug, Clone, Copy)]
 pub enum ParameterId {

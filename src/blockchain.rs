@@ -20,7 +20,7 @@ use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Re
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
 pub trait Address {
     /// Defines the address format for the arbitrating blockchain.
-    type Address: Clone + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
+    type Address: Clone + Debug;
 }
 
 /// Defines the type for a blockchain timelock, this type is used when manipulating transactions
@@ -53,10 +53,10 @@ pub trait Asset: Copy + Debug {
 pub trait Onchain {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
-    type PartialTransaction: Clone + Debug + StrictEncode + StrictDecode;
+    type PartialTransaction: Clone + Debug;
 
     /// Defines the finalized transaction format for the arbitrating blockchain
-    type Transaction: Clone + Debug + StrictEncode + StrictDecode;
+    type Transaction: Clone + Debug;
 }
 
 /// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
@@ -83,14 +83,7 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
 
 impl<T> FromStr for FeeStrategy<T>
 where
-    T: Clone
-        + PartialOrd
-        + PartialEq
-        + Encodable
-        + Decodable
-        + StrictEncode
-        + StrictDecode
-        + FromStr,
+    T: Clone + PartialOrd + PartialEq + Encodable + Decodable + FromStr,
 {
     type Err = consensus::Error;
 

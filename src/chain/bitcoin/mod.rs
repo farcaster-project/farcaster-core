@@ -11,9 +11,9 @@ use bitcoin::Network;
 use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{self, Asset, Onchain, Timelock, Transactions};
-use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{self, ArbitratingKey, FromSeed, Keys, Signatures};
-use crate::role::{Arb, Arbitrating};
+use crate::consensus::{self, AsCanonicalBytes, Decodable, Encodable};
+use crate::crypto::{self, Keys, SharedKeyId, SharedPrivateKeys, Signatures};
+use crate::role::Arbitrating;
 
 use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
 
@@ -239,8 +239,30 @@ impl Keys for Bitcoin {
     /// Public key type for the blockchain
     type PublicKey = PublicKey;
 
-    fn as_bytes(pubkey: &PublicKey) -> Vec<u8> {
-        pubkey.to_bytes()
+    fn extra_keys() -> Vec<u16> {
+        // No extra key
+        vec![]
+    }
+}
+
+impl SharedPrivateKeys for Bitcoin {
+    type SharedPrivateKey = PrivateKey;
+
+    fn shared_keys() -> Vec<SharedKeyId> {
+        // No shared key in Bitcoin, transparent ledger
+        vec![]
+    }
+}
+
+impl AsCanonicalBytes for PrivateKey {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
+    }
+}
+
+impl AsCanonicalBytes for PublicKey {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 }
 
@@ -254,107 +276,107 @@ impl Wallet {
         Self { seed }
     }
 
-    pub fn get_privkey(&self, key_type: ArbitratingKey) -> Result<PrivateKey, crypto::Error> {
-        let secp = Secp256k1::new();
-        let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, self.seed.as_ref())
-            .map_err(|e| crypto::Error::new(e))?;
-        let key = match key_type {
-            ArbitratingKey::Fund => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/1").unwrap())
-            }
-            ArbitratingKey::Buy => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/2").unwrap())
-            }
-            ArbitratingKey::Cancel => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/3").unwrap())
-            }
-            ArbitratingKey::Refund => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/4").unwrap())
-            }
-            ArbitratingKey::Punish => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/5").unwrap())
-            }
-        };
-        Ok(key.map_err(|e| crypto::Error::new(e))?.private_key)
-    }
+    //pub fn get_privkey(&self, key_type: ArbitratingKey) -> Result<PrivateKey, crypto::Error> {
+    //    let secp = Secp256k1::new();
+    //    let master_key = ExtendedPrivKey::new_master(Network::Bitcoin, self.seed.as_ref())
+    //        .map_err(|e| crypto::Error::new(e))?;
+    //    let key = match key_type {
+    //        ArbitratingKey::Fund => {
+    //            master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/1").unwrap())
+    //        }
+    //        ArbitratingKey::Buy => {
+    //            master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/2").unwrap())
+    //        }
+    //        ArbitratingKey::Cancel => {
+    //            master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/3").unwrap())
+    //        }
+    //        ArbitratingKey::Refund => {
+    //            master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/4").unwrap())
+    //        }
+    //        ArbitratingKey::Punish => {
+    //            master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1/5").unwrap())
+    //        }
+    //    };
+    //    Ok(key.map_err(|e| crypto::Error::new(e))?.private_key)
+    //}
 
-    pub fn get_pubkey(&self, key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
-        let secp = Secp256k1::new();
-        Ok(self.get_privkey(key_type)?.public_key(&secp))
-    }
+    //pub fn get_pubkey(&self, key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
+    //    let secp = Secp256k1::new();
+    //    Ok(self.get_privkey(key_type)?.public_key(&secp))
+    //}
 }
 
-impl FromSeed<Arb> for Bitcoin {
-    type Wallet = Wallet;
-
-    fn get_pubkey(engine: &Wallet, key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
-        engine.get_pubkey(key_type)
-    }
-}
+//impl FromSeed<Arb> for Bitcoin {
+//    type Wallet = Wallet;
+//
+//    fn get_pubkey(engine: &Wallet, key_type: ArbitratingKey) -> Result<PublicKey, crypto::Error> {
+//        engine.get_pubkey(key_type)
+//    }
+//}
 
 impl Signatures for Bitcoin {
-    type Wallet = Wallet;
+    //type Wallet = Wallet;
     type Message = Sha256dHash;
     type Signature = Signature;
     type AdaptorSignature = ECDSAAdaptorSig;
 
-    fn sign_with_key(
-        _context: &Wallet,
-        _key: &PublicKey,
-        _msg: Sha256dHash,
-    ) -> Result<Signature, crypto::Error> {
-        todo!()
-    }
+    //fn sign_with_key(
+    //    _context: &Wallet,
+    //    _key: &PublicKey,
+    //    _msg: Sha256dHash,
+    //) -> Result<Signature, crypto::Error> {
+    //    todo!()
+    //}
 
-    /// Verify a signature for a given message with the provided public key.
-    fn verify_signature(
-        _context: &Wallet,
-        _key: &PublicKey,
-        _msg: Sha256dHash,
-        _sig: &Signature,
-    ) -> Result<(), crypto::Error> {
-        todo!()
-    }
+    ///// Verify a signature for a given message with the provided public key.
+    //fn verify_signature(
+    //    _context: &Wallet,
+    //    _key: &PublicKey,
+    //    _msg: Sha256dHash,
+    //    _sig: &Signature,
+    //) -> Result<(), crypto::Error> {
+    //    todo!()
+    //}
 
-    /// Sign the message with the corresponding private key identified by the provided public key
-    /// and encrypt it (create an adaptor signature) with the provided adaptor public key.
-    fn adaptor_sign_with_key(
-        _context: &Wallet,
-        _key: &PublicKey,
-        _adaptor: &PublicKey,
-        _msg: Sha256dHash,
-    ) -> Result<ECDSAAdaptorSig, crypto::Error> {
-        todo!()
-    }
+    ///// Sign the message with the corresponding private key identified by the provided public key
+    ///// and encrypt it (create an adaptor signature) with the provided adaptor public key.
+    //fn adaptor_sign_with_key(
+    //    _context: &Wallet,
+    //    _key: &PublicKey,
+    //    _adaptor: &PublicKey,
+    //    _msg: Sha256dHash,
+    //) -> Result<ECDSAAdaptorSig, crypto::Error> {
+    //    todo!()
+    //}
 
-    /// Verify a adaptor signature for a given message with the provided public key and the public
-    /// adaptor key.
-    fn verify_adaptor_signature(
-        _context: &Wallet,
-        _key: &PublicKey,
-        _adaptor: &PublicKey,
-        _msg: Sha256dHash,
-        _sig: &ECDSAAdaptorSig,
-    ) -> Result<(), crypto::Error> {
-        todo!()
-    }
+    ///// Verify a adaptor signature for a given message with the provided public key and the public
+    ///// adaptor key.
+    //fn verify_adaptor_signature(
+    //    _context: &Wallet,
+    //    _key: &PublicKey,
+    //    _adaptor: &PublicKey,
+    //    _msg: Sha256dHash,
+    //    _sig: &ECDSAAdaptorSig,
+    //) -> Result<(), crypto::Error> {
+    //    todo!()
+    //}
 
-    /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
-    /// signatures) with the corresponding private key identified by the provided public key.
-    fn adapt_signature(
-        _context: &Wallet,
-        _key: &PublicKey,
-        _sig: ECDSAAdaptorSig,
-    ) -> Result<Signature, crypto::Error> {
-        todo!()
-    }
+    ///// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
+    ///// signatures) with the corresponding private key identified by the provided public key.
+    //fn adapt_signature(
+    //    _context: &Wallet,
+    //    _key: &PublicKey,
+    //    _sig: ECDSAAdaptorSig,
+    //) -> Result<Signature, crypto::Error> {
+    //    todo!()
+    //}
 
-    /// Recover the encryption key based on the adaptor signature and the decrypted signature.
-    fn recover_key(
-        _context: &Wallet,
-        _sig: Signature,
-        _adapted_sig: ECDSAAdaptorSig,
-    ) -> PrivateKey {
-        todo!()
-    }
+    ///// Recover the encryption key based on the adaptor signature and the decrypted signature.
+    //fn recover_key(
+    //    _context: &Wallet,
+    //    _sig: Signature,
+    //    _adapted_sig: ECDSAAdaptorSig,
+    //) -> PrivateKey {
+    //    todo!()
+    //}
 }

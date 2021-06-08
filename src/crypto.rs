@@ -192,19 +192,6 @@ pub trait SharedPrivateKeys {
 pub trait Commitment {
     /// Commitment type used in the commit/reveal scheme during swap parameters setup.
     type Commitment: Clone + PartialEq + Eq + Debug;
-
-    /// Provides a generic method to commit to any value referencable as stream of bytes.
-    fn commit_to<T: AsRef<[u8]>>(value: T) -> Self::Commitment;
-
-    /// Validate the equality between a value and a commitment, return ok if the value commits to
-    /// the same commitment's value.
-    fn validate<T: AsRef<[u8]>>(value: T, commitment: Self::Commitment) -> Result<(), Error> {
-        if Self::commit_to(value) == commitment {
-            Ok(())
-        } else {
-            Err(Error::InvalidCommitment)
-        }
-    }
 }
 
 /// This trait is required for arbitrating blockchains for defining the types of messages,

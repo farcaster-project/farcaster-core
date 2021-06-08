@@ -12,8 +12,7 @@ use crate::bundle::{
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
-    ArbitratingKey, Keys, SharedPrivateKey, SharedPrivateKeys, Sign, SignatureType, Signatures,
-    Wallet,
+    ArbitratingKeyId, Keys, SharedKeyId, SharedPrivateKeys, Sign, SignatureType, Signatures, Wallet,
 };
 use crate::datum::{self, Key, Parameter, Proof, Signature};
 use crate::negotiation::PublicOffer;
@@ -189,6 +188,7 @@ where
         wallet: &impl Wallet<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
+            <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey,
             <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
             Ctx::Proof,
         >,
@@ -196,19 +196,15 @@ where
     ) -> Result<AliceParameters<Ctx>, Error> {
         let (spend, adaptor, proof) = wallet.generate()?;
         Ok(AliceParameters {
-            buy: Key::new_alice_buy(wallet.get_pubkey(ArbitratingKey::Buy)?),
-            cancel: Key::new_alice_cancel(wallet.get_pubkey(ArbitratingKey::Cancel)?),
-            refund: Key::new_alice_refund(wallet.get_pubkey(ArbitratingKey::Refund)?),
-            punish: Key::new_alice_punish(wallet.get_pubkey(ArbitratingKey::Punish)?),
+            buy: Key::new_alice_buy(wallet.get_pubkey(ArbitratingKeyId::Buy)?),
+            cancel: Key::new_alice_cancel(wallet.get_pubkey(ArbitratingKeyId::Cancel)?),
+            refund: Key::new_alice_refund(wallet.get_pubkey(ArbitratingKeyId::Refund)?),
+            punish: Key::new_alice_punish(wallet.get_pubkey(ArbitratingKeyId::Punish)?),
             adaptor: Key::new_alice_adaptor(adaptor),
             destination_address: Parameter::new_destination_address(
                 self.destination_address.clone(),
             ),
-            // FIXME(h4sh3d): unwrap the option because we know there is a private view key, this
-            // must be fixed when introducing flexible shared key for acc/arb as vec<>
-            view: Key::new_alice_private_view(
-                wallet.get_shared_key(SharedPrivateKey::View)?.unwrap(),
-            ),
+            view: Key::new_alice_private_view(wallet.get_shared_key(SharedKeyId::new(1))?),
             spend: Key::new_alice_spend(spend),
             proof: Proof::new_cross_group_dleq(proof),
             cancel_timelock: Some(Parameter::new_cancel_timelock(
@@ -758,6 +754,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         wallet: &impl Wallet<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
+            <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey,
             <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
             Ctx::Proof,
         >,
@@ -765,16 +762,12 @@ impl<Ctx: Swap> Bob<Ctx> {
     ) -> Result<BobParameters<Ctx>, Error> {
         let (spend, adaptor, proof) = wallet.generate()?;
         Ok(BobParameters {
-            buy: Key::new_bob_buy(wallet.get_pubkey(ArbitratingKey::Buy)?),
-            cancel: Key::new_bob_cancel(wallet.get_pubkey(ArbitratingKey::Cancel)?),
-            refund: Key::new_bob_refund(wallet.get_pubkey(ArbitratingKey::Refund)?),
+            buy: Key::new_bob_buy(wallet.get_pubkey(ArbitratingKeyId::Buy)?),
+            cancel: Key::new_bob_cancel(wallet.get_pubkey(ArbitratingKeyId::Cancel)?),
+            refund: Key::new_bob_refund(wallet.get_pubkey(ArbitratingKeyId::Refund)?),
             adaptor: Key::new_bob_adaptor(adaptor),
             refund_address: Parameter::new_destination_address(self.refund_address.clone()),
-            // FIXME(h4sh3d): unwrap the option because we know there is a private view key, this
-            // must be fixed when introducing flexible shared key for acc/arb as vec<>
-            view: Key::new_bob_private_view(
-                wallet.get_shared_key(SharedPrivateKey::View)?.unwrap(),
-            ),
+            view: Key::new_bob_private_view(wallet.get_shared_key(SharedKeyId::new(1))?),
             spend: Key::new_bob_spend(spend),
             proof: Proof::new_cross_group_dleq(proof),
             cancel_timelock: Some(Parameter::new_cancel_timelock(
@@ -1191,6 +1184,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         key_wallet: &impl Wallet<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
+            <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey,
             <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
             Ctx::Proof,
         >,
@@ -1205,7 +1199,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the fund key.
         let msg = lock.generate_witness_message(ScriptPath::Success)?;
-        let key = key_wallet.get_pubkey(ArbitratingKey::Fund)?;
+        let key = key_wallet.get_pubkey(ArbitratingKeyId::Fund)?;
         let sig = wallet.sign_with_key(&key, msg)?;
 
         Ok(SignedArbitratingLock {
@@ -1301,7 +1295,17 @@ impl<Ctx: Swap> Bob<Ctx> {
 /// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
 /// blockchain will use transaction to transfer the funds on both blockchains.
 pub trait Arbitrating:
-    Asset + Address + Fee + Keys + Onchain + Signatures + Timelock + Transactions + Clone + Eq
+    Asset
+    + Address
+    + Fee
+    + Keys
+    + Onchain
+    + Signatures
+    + Timelock
+    + Transactions
+    + SharedPrivateKeys
+    + Clone
+    + Eq
 {
 }
 

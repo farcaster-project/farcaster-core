@@ -12,6 +12,9 @@ use crate::swap::Swap;
 /// such as signatures, proofs, key derivation, or commitments.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// The key identifier is not supported and the key cannot be derived.
+    #[error("The key identifier is not supported and the key cannot be derived")]
+    UnsupportedKey,
     /// The signature does not pass the validation tests.
     #[error("The signature does not pass the validation")]
     InvalidSignature,
@@ -140,28 +143,29 @@ where
     }
 }
 
-// TODO(h4sh3d): add identifiers on key ids
-
 #[derive(Debug, Clone, Copy)]
-pub enum ArbitratingKey {
+pub enum ArbitratingKeyId {
     Fund,
     Buy,
     Cancel,
     Refund,
     Punish,
-    //Extra(u16),
+    Extra(u16),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum AccordantKey {
+pub enum AccordantKeyId {
     Spend,
-    //Extra(u16),
+    Extra(u16),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum SharedPrivateKey {
-    View,
-    //Extra(u16),
+pub struct SharedKeyId(u16);
+
+impl SharedKeyId {
+    pub fn new(id: u16) -> Self {
+        Self(id)
+    }
 }
 
 /// This trait is required for blockchains to fix the concrete cryptographic key types. The public
@@ -175,6 +179,8 @@ pub trait Keys {
 
     /// Get the bytes from the public key.
     fn as_bytes(pubkey: &Self::PublicKey) -> Vec<u8>;
+
+    fn extra_keys() -> Vec<u16>;
 }
 
 /// This trait is required for blockchains for fixing the potential shared private key send over
@@ -185,6 +191,8 @@ pub trait SharedPrivateKeys {
 
     /// Get the bytes from the shared private key.
     fn as_bytes(privkey: &Self::SharedPrivateKey) -> Vec<u8>;
+
+    fn shared_keys() -> Vec<SharedKeyId>;
 }
 
 /// This trait is required for blockchains for fixing the commitment types of the keys and
@@ -210,22 +218,25 @@ pub trait Signatures {
     type AdaptorSignature: Clone + Debug;
 }
 
-pub trait Wallet<ArPublicKey, AcPublicKey, SharedKey, Proof>:
-    GenerateKey<ArPublicKey, ArbitratingKey>
-    + GenerateKey<AcPublicKey, AccordantKey>
+pub trait Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:
+    GenerateKey<ArPublicKey, ArbitratingKeyId>
+    + GenerateKey<AcPublicKey, AccordantKeyId>
     + ProveCrossGroupDleq<ArPublicKey, AcPublicKey, Proof>
-    + GenerateSharedKey<SharedKey>
+    + GenerateSharedKey<ArSharedKey>
+    + GenerateSharedKey<AcSharedKey>
 {
 }
 
 pub trait GenerateKey<PublicKey, KeyIds> {
-    /// Retreive a specific public key by its key id.
+    /// Retreive a specific public key by its key id. If the key cannot be derived the
+    /// implementation must return an [`Error::UnsupportedKey`]
     fn get_pubkey(&self, key_id: KeyIds) -> Result<PublicKey, Error>;
 }
 
 pub trait GenerateSharedKey<SharedKey> {
-    /// Retreive a specific shared private key by its key id.
-    fn get_shared_key(&self, key_id: SharedPrivateKey) -> Result<Option<SharedKey>, Error>;
+    /// Retreive a specific shared private key by its key id. If the key cannot be derived the
+    /// implementation must return an [`Error::UnsupportedKey`]
+    fn get_shared_key(&self, key_id: SharedKeyId) -> Result<SharedKey, Error>;
 }
 
 pub trait Sign<PublicKey, PrivateKey, Message, Signature, AdaptorSignature> {

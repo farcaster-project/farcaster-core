@@ -1,4 +1,4 @@
-//! Cryptographic type definitions and primitives supported in Farcaster
+//! Cryptographic types and primitives supported in Farcaster
 
 use std::error;
 use std::fmt::Debug;
@@ -6,6 +6,7 @@ use std::fmt::Debug;
 use thiserror::Error;
 
 use crate::consensus::{self};
+use crate::role::SwapRole;
 use crate::swap::Swap;
 
 /// List of cryptographic errors that can be encountered when processing cryptographic operation
@@ -56,90 +57,23 @@ impl Error {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum KeyType<Ctx>
-where
-    Ctx: Swap,
-{
-    PublicArbitrating(<Ctx::Ar as Keys>::PublicKey),
-    PublicAccordant(<Ctx::Ac as Keys>::PublicKey),
-    SharedPrivateKeys(<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey),
-}
-
-impl<Ctx> KeyType<Ctx>
-where
-    Ctx: Swap,
-{
-    pub fn try_into_arbitrating_pubkey(
-        &self,
-    ) -> Result<<Ctx::Ar as Keys>::PublicKey, consensus::Error> {
-        match self {
-            KeyType::PublicArbitrating(key) => Ok(key.clone()),
-            _ => Err(consensus::Error::TypeMismatch),
-        }
-    }
-
-    pub fn try_into_accordant_pubkey(
-        &self,
-    ) -> Result<<Ctx::Ac as Keys>::PublicKey, consensus::Error> {
-        match self {
-            KeyType::PublicAccordant(key) => Ok(key.clone()),
-            _ => Err(consensus::Error::TypeMismatch),
-        }
-    }
-
-    pub fn try_into_shared_private(
-        &self,
-    ) -> Result<<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey, consensus::Error> {
-        match self {
-            KeyType::SharedPrivateKeys(key) => Ok(key.clone()),
-            _ => Err(consensus::Error::TypeMismatch),
-        }
-    }
-
-    pub fn as_bytes(&self) -> Vec<u8> {
-        match self {
-            KeyType::PublicArbitrating(key) => <Ctx::Ar as Keys>::as_bytes(&key),
-            KeyType::PublicAccordant(key) => <Ctx::Ac as Keys>::as_bytes(&key),
-            KeyType::SharedPrivateKeys(key) => <Ctx::Ac as SharedPrivateKeys>::as_bytes(&key),
-        }
-    }
-}
-
-/// Type of signatures
 #[derive(Clone, Debug)]
-pub enum SignatureType<S>
-where
-    S: Signatures,
-{
-    Adaptor(S::AdaptorSignature),
-    Adapted(S::Signature),
-    Regular(S::Signature),
+pub struct TaggedElement<T, E> {
+    tag: T,
+    elem: E,
 }
 
-impl<S> SignatureType<S>
-where
-    S: Signatures,
-{
-    pub fn try_into_adaptor(&self) -> Result<S::AdaptorSignature, consensus::Error> {
-        match self {
-            SignatureType::Adaptor(sig) => Ok(sig.clone()),
-            _ => Err(consensus::Error::TypeMismatch),
-        }
+impl<T, E> TaggedElement<T, E> {
+    pub fn new(tag: T, elem: E) -> Self {
+        Self { tag, elem }
     }
 
-    pub fn try_into_adapted(&self) -> Result<S::Signature, consensus::Error> {
-        match self {
-            SignatureType::Adapted(sig) => Ok(sig.clone()),
-            _ => Err(consensus::Error::TypeMismatch),
-        }
+    pub fn tag(&self) -> &T {
+        &self.tag
     }
 
-    pub fn try_into_regular(&self) -> Result<S::Signature, consensus::Error> {
-        match self {
-            SignatureType::Regular(sig) => Ok(sig.clone()),
-            _ => Err(consensus::Error::TypeMismatch),
-        }
+    pub fn elem(&self) -> &E {
+        &self.elem
     }
 }
 
@@ -166,6 +100,10 @@ impl SharedKeyId {
     pub fn new(id: u16) -> Self {
         Self(id)
     }
+
+    pub fn id(&self) -> u16 {
+        self.0
+    }
 }
 
 /// This trait is required for blockchains to fix the concrete cryptographic key types. The public
@@ -177,9 +115,6 @@ pub trait Keys {
     /// Public key type given the blockchain and the crypto engine.
     type PublicKey: Clone + PartialEq + Debug;
 
-    /// Get the bytes from the public key.
-    fn as_bytes(pubkey: &Self::PublicKey) -> Vec<u8>;
-
     fn extra_keys() -> Vec<u16>;
 }
 
@@ -188,9 +123,6 @@ pub trait Keys {
 pub trait SharedPrivateKeys {
     /// A shareable private key type used to parse non-transparent blockchain
     type SharedPrivateKey: Clone + PartialEq + Debug;
-
-    /// Get the bytes from the shared private key.
-    fn as_bytes(privkey: &Self::SharedPrivateKey) -> Vec<u8>;
 
     fn shared_keys() -> Vec<SharedKeyId>;
 }
@@ -227,10 +159,14 @@ pub trait Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:
 {
 }
 
-pub trait GenerateKey<PublicKey, KeyIds> {
+pub trait GenerateKey<PublicKey, KeyId> {
     /// Retreive a specific public key by its key id. If the key cannot be derived the
     /// implementation must return an [`Error::UnsupportedKey`]
-    fn get_pubkey(&self, key_id: KeyIds) -> Result<PublicKey, Error>;
+    fn get_pubkey(&self, key_id: KeyId) -> Result<PublicKey, Error>;
+
+    fn get_pubkeys(&self, key_ids: Vec<KeyId>) -> Result<Vec<PublicKey>, Error> {
+        key_ids.into_iter().map(|id| self.get_pubkey(id)).collect()
+    }
 }
 
 pub trait GenerateSharedKey<SharedKey> {
@@ -238,6 +174,8 @@ pub trait GenerateSharedKey<SharedKey> {
     /// implementation must return an [`Error::UnsupportedKey`]
     fn get_shared_key(&self, key_id: SharedKeyId) -> Result<SharedKey, Error>;
 }
+
+// TODO give extra keys and/or shared keys in signing methods
 
 pub trait Sign<PublicKey, PrivateKey, Message, Signature, AdaptorSignature> {
     /// Sign the message with the corresponding private key identified by the provided public key.

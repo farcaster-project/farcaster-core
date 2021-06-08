@@ -12,9 +12,9 @@ use crate::bundle::{
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
-    ArbitratingKeyId, Keys, SharedKeyId, SharedPrivateKeys, Sign, SignatureType, Signatures, Wallet,
+    AccordantKeyId, ArbitratingKeyId, Keys, SharedKeyId, SharedPrivateKeys, Sign, Signatures,
+    TaggedElement, Wallet,
 };
-use crate::datum::{self, Key, Parameter, Proof, Signature};
 use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 use crate::swap::Swap;
@@ -194,28 +194,68 @@ where
         >,
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<AliceParameters<Ctx>, Error> {
+        let extra_arbitrating_keys: Result<
+            Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
+            Error,
+        > = <Ctx::Ar as Keys>::extra_keys()
+            .into_iter()
+            .map(|tag| {
+                let key = wallet.get_pubkey(ArbitratingKeyId::Extra(tag))?;
+                Ok(TaggedElement::new(tag, key))
+            })
+            .collect();
+
+        let arbitrating_shared_keys: Result<
+            Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
+            Error,
+        > = <Ctx::Ar as SharedPrivateKeys>::shared_keys()
+            .into_iter()
+            .map(|tag| {
+                let key = wallet.get_shared_key(tag)?;
+                Ok(TaggedElement::new(tag, key))
+            })
+            .collect();
+
+        let extra_accordant_keys: Result<
+            Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
+            Error,
+        > = <Ctx::Ac as Keys>::extra_keys()
+            .into_iter()
+            .map(|tag| {
+                let key = wallet.get_pubkey(AccordantKeyId::Extra(tag))?;
+                Ok(TaggedElement::new(tag, key))
+            })
+            .collect();
+
+        let accordant_shared_keys: Result<
+            Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
+            Error,
+        > = <Ctx::Ac as SharedPrivateKeys>::shared_keys()
+            .into_iter()
+            .map(|tag| {
+                let key = wallet.get_shared_key(tag)?;
+                Ok(TaggedElement::new(tag, key))
+            })
+            .collect();
+
         let (spend, adaptor, proof) = wallet.generate()?;
+
         Ok(AliceParameters {
-            buy: Key::new_alice_buy(wallet.get_pubkey(ArbitratingKeyId::Buy)?),
-            cancel: Key::new_alice_cancel(wallet.get_pubkey(ArbitratingKeyId::Cancel)?),
-            refund: Key::new_alice_refund(wallet.get_pubkey(ArbitratingKeyId::Refund)?),
-            punish: Key::new_alice_punish(wallet.get_pubkey(ArbitratingKeyId::Punish)?),
-            adaptor: Key::new_alice_adaptor(adaptor),
-            destination_address: Parameter::new_destination_address(
-                self.destination_address.clone(),
-            ),
-            view: Key::new_alice_private_view(wallet.get_shared_key(SharedKeyId::new(1))?),
-            spend: Key::new_alice_spend(spend),
-            proof: Proof::new_cross_group_dleq(proof),
-            cancel_timelock: Some(Parameter::new_cancel_timelock(
-                public_offer.offer.cancel_timelock,
-            )),
-            punish_timelock: Some(Parameter::new_punish_timelock(
-                public_offer.offer.punish_timelock,
-            )),
-            fee_strategy: Some(Parameter::new_fee_strategy(
-                public_offer.offer.fee_strategy.clone(),
-            )),
+            buy: wallet.get_pubkey(ArbitratingKeyId::Buy)?,
+            cancel: wallet.get_pubkey(ArbitratingKeyId::Cancel)?,
+            refund: wallet.get_pubkey(ArbitratingKeyId::Refund)?,
+            punish: wallet.get_pubkey(ArbitratingKeyId::Punish)?,
+            adaptor,
+            extra_arbitrating_keys: extra_arbitrating_keys?,
+            arbitrating_shared_keys: arbitrating_shared_keys?,
+            spend,
+            extra_accordant_keys: extra_accordant_keys?,
+            accordant_shared_keys: accordant_shared_keys?,
+            destination_address: self.destination_address.clone(),
+            proof,
+            cancel_timelock: Some(public_offer.offer.cancel_timelock),
+            punish_timelock: Some(public_offer.offer.punish_timelock),
+            fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
         })
     }
 
@@ -273,20 +313,13 @@ where
 
         // Generate the witness message to sign and adaptor sign with the refund key and the
         // counter-party adaptor.
-        let key = alice_parameters
-            .refund
-            .key()
-            .try_into_arbitrating_pubkey()?;
-        let adaptor = bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?;
+        let key = &alice_parameters.refund;
+        let adaptor = &bob_parameters.adaptor;
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
         let sig = wallet.adaptor_sign_with_key(&key, &adaptor, msg)?;
 
         Ok(SignedAdaptorRefund {
-            refund_adaptor_sig: Signature::new(
-                TxId::Refund,
-                SwapRole::Alice,
-                SignatureType::Adaptor(sig),
-            ),
+            refund_adaptor_sig: sig,
         })
     }
 
@@ -337,15 +370,10 @@ where
 
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
-        let key = alice_parameters
-            .cancel
-            .key()
-            .try_into_arbitrating_pubkey()?;
+        let key = &alice_parameters.cancel;
         let sig = wallet.sign_with_key(&key, msg)?;
 
-        Ok(CosignedArbitratingCancel {
-            cancel_sig: Signature::new(TxId::Cancel, SwapRole::Alice, SignatureType::Regular(sig)),
-        })
+        Ok(CosignedArbitratingCancel { cancel_sig: sig })
     }
 
     /// Validates the adaptor buy witness with based on the parameters and the buy arbitrating
@@ -400,7 +428,7 @@ where
 
         // Extract the partial transaction from the adaptor buy bundle, this operation should not
         // error if the bundle is well formed.
-        let partial_buy = adaptor_buy.buy.tx().try_into_partial_transaction()?;
+        let partial_buy = adaptor_buy.buy.clone();
 
         // Initialize the buy transaction based on the extracted partial transaction format.
         let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
@@ -412,13 +440,10 @@ where
         // Verify the adaptor buy witness
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
         wallet.verify_adaptor_signature(
-            &bob_parameters.buy.key().try_into_arbitrating_pubkey()?,
-            &alice_parameters
-                .adaptor
-                .key()
-                .try_into_arbitrating_pubkey()?,
+            &bob_parameters.buy,
+            &alice_parameters.adaptor,
             msg,
-            &adaptor_buy.buy_adaptor_sig.signature().try_into_adaptor()?,
+            &adaptor_buy.buy_adaptor_sig,
         )?;
 
         Ok(())
@@ -484,7 +509,7 @@ where
 
         // Extract the partial transaction from the adaptor buy bundle, this operation should not
         // error if the bundle is well formed.
-        let partial_buy = adaptor_buy.buy.tx().try_into_partial_transaction()?;
+        let partial_buy = adaptor_buy.buy.clone();
 
         // Initialize the buy transaction based on the extracted partial transaction format.
         let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
@@ -495,26 +520,16 @@ where
 
         // Generate the witness message to sign and sign with the buy key.
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
-        let key = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
+        let key = &alice_parameters.buy;
         let sig = wallet.sign_with_key(&key, msg)?;
 
         // Retreive the adaptor public key and the counter-party adaptor witness.
-        let key = alice_parameters
-            .adaptor
-            .key()
-            .try_into_arbitrating_pubkey()?;
-        let adapted_sig = wallet.adapt_signature(
-            &key,
-            adaptor_buy.buy_adaptor_sig.signature().try_into_adaptor()?,
-        )?;
+        let key = &alice_parameters.adaptor;
+        let adapted_sig = wallet.adapt_signature(&key, adaptor_buy.buy_adaptor_sig.clone())?;
 
         Ok(FullySignedBuy {
-            buy_sig: Signature::new(TxId::Buy, SwapRole::Alice, SignatureType::Regular(sig)),
-            buy_adapted_sig: Signature::new(
-                TxId::Buy,
-                SwapRole::Bob,
-                SignatureType::Adapted(adapted_sig),
-            ),
+            buy_sig: sig,
+            buy_adapted_sig: adapted_sig,
         })
     }
 
@@ -585,19 +600,12 @@ where
 
         // Generate the witness message to sign and sign with the punish key.
         let msg = punish.generate_witness_message(ScriptPath::Failure)?;
-        let key = alice_parameters
-            .punish
-            .key()
-            .try_into_arbitrating_pubkey()?;
+        let key = &alice_parameters.punish;
         let punish_sig = wallet.sign_with_key(&key, msg)?;
 
         Ok(FullySignedPunish {
-            punish: datum::Transaction::new_punish(punish.to_partial()),
-            punish_sig: Signature::new(
-                TxId::Punish,
-                SwapRole::Alice,
-                SignatureType::Regular(punish_sig),
-            ),
+            punish: punish.to_partial(),
+            punish_sig,
         })
     }
 
@@ -625,7 +633,7 @@ where
     ) -> Result<ValidatedCoreTransactions<Ctx>, Error> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_lock = core.lock.tx().try_into_partial_transaction()?;
+        let partial_lock = core.lock.clone();
 
         // Initialize the lock transaction based on the extracted partial transaction format.
         let lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(partial_lock);
@@ -633,13 +641,11 @@ where
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let bob_buy = bob_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let alice_cancel = alice_parameters
-            .cancel
-            .key()
-            .try_into_arbitrating_pubkey()?;
-        let bob_cancel = bob_parameters.cancel.key().try_into_arbitrating_pubkey()?;
+        // FIXME change dataLock to take refs
+        let alice_buy = alice_parameters.buy.clone();
+        let bob_buy = bob_parameters.buy.clone();
+        let alice_cancel = alice_parameters.cancel.clone();
+        let bob_cancel = bob_parameters.cancel.clone();
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -662,15 +668,10 @@ where
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
         // contract on the arbitrating blockchain.
-        let alice_refund = alice_parameters
-            .refund
-            .key()
-            .try_into_arbitrating_pubkey()?;
-        let bob_refund = bob_parameters.refund.key().try_into_arbitrating_pubkey()?;
-        let alice_punish = alice_parameters
-            .punish
-            .key()
-            .try_into_arbitrating_pubkey()?;
+        // FIXME change dataLock to take refs
+        let alice_refund = alice_parameters.refund.clone();
+        let bob_refund = bob_parameters.refund.clone();
+        let alice_punish = alice_parameters.punish.clone();
 
         // Create the data structure that represents an on-chain punishable contract for the
         // arbitrating blockchain.
@@ -682,7 +683,7 @@ where
 
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_cancel = core.lock.tx().try_into_partial_transaction()?;
+        let partial_cancel = core.lock.clone();
 
         // Initialize the lock transaction based on the extracted partial transaction format.
         let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
@@ -694,13 +695,13 @@ where
 
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_refund = core.refund.tx().try_into_partial_transaction()?;
+        let partial_refund = core.refund.clone();
 
         // Initialize the refund transaction based on the extracted partial transaction format.
         let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
         // Check that the refund transaction is build on top of the cancel transaction.
         refund.is_build_on_top_of(&cancel)?;
-        let refund_address = bob_parameters.refund_address.param().try_into_address()?;
+        let refund_address = bob_parameters.refund_address.clone();
         refund.verify_template(punish_lock.clone(), refund_address)?;
         // Validate the fee strategy
         <Ctx::Ar as Fee>::validate_fee(refund.partial(), &fee_strategy)?;
@@ -760,25 +761,67 @@ impl<Ctx: Swap> Bob<Ctx> {
         >,
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<BobParameters<Ctx>, Error> {
+        let extra_arbitrating_keys: Result<
+            Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
+            Error,
+        > = <Ctx::Ar as Keys>::extra_keys()
+            .into_iter()
+            .map(|tag| {
+                let key = wallet.get_pubkey(ArbitratingKeyId::Extra(tag))?;
+                Ok(TaggedElement::new(tag, key))
+            })
+            .collect();
+
+        let arbitrating_shared_keys: Result<
+            Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
+            Error,
+        > = <Ctx::Ar as SharedPrivateKeys>::shared_keys()
+            .into_iter()
+            .map(|tag| {
+                let key = wallet.get_shared_key(tag)?;
+                Ok(TaggedElement::new(tag, key))
+            })
+            .collect();
+
+        let extra_accordant_keys: Result<
+            Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
+            Error,
+        > = <Ctx::Ac as Keys>::extra_keys()
+            .into_iter()
+            .map(|tag| {
+                let key = wallet.get_pubkey(AccordantKeyId::Extra(tag))?;
+                Ok(TaggedElement::new(tag, key))
+            })
+            .collect();
+
+        let accordant_shared_keys: Result<
+            Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
+            Error,
+        > = <Ctx::Ac as SharedPrivateKeys>::shared_keys()
+            .into_iter()
+            .map(|tag| {
+                let key = wallet.get_shared_key(tag)?;
+                Ok(TaggedElement::new(tag, key))
+            })
+            .collect();
+
         let (spend, adaptor, proof) = wallet.generate()?;
+
         Ok(BobParameters {
-            buy: Key::new_bob_buy(wallet.get_pubkey(ArbitratingKeyId::Buy)?),
-            cancel: Key::new_bob_cancel(wallet.get_pubkey(ArbitratingKeyId::Cancel)?),
-            refund: Key::new_bob_refund(wallet.get_pubkey(ArbitratingKeyId::Refund)?),
-            adaptor: Key::new_bob_adaptor(adaptor),
-            refund_address: Parameter::new_destination_address(self.refund_address.clone()),
-            view: Key::new_bob_private_view(wallet.get_shared_key(SharedKeyId::new(1))?),
-            spend: Key::new_bob_spend(spend),
-            proof: Proof::new_cross_group_dleq(proof),
-            cancel_timelock: Some(Parameter::new_cancel_timelock(
-                public_offer.offer.cancel_timelock,
-            )),
-            punish_timelock: Some(Parameter::new_punish_timelock(
-                public_offer.offer.punish_timelock,
-            )),
-            fee_strategy: Some(Parameter::new_fee_strategy(
-                public_offer.offer.fee_strategy.clone(),
-            )),
+            buy: wallet.get_pubkey(ArbitratingKeyId::Buy)?,
+            cancel: wallet.get_pubkey(ArbitratingKeyId::Cancel)?,
+            refund: wallet.get_pubkey(ArbitratingKeyId::Refund)?,
+            adaptor,
+            extra_arbitrating_keys: extra_arbitrating_keys?,
+            arbitrating_shared_keys: arbitrating_shared_keys?,
+            spend,
+            extra_accordant_keys: extra_accordant_keys?,
+            accordant_shared_keys: accordant_shared_keys?,
+            refund_address: self.refund_address.clone(),
+            proof,
+            cancel_timelock: Some(public_offer.offer.cancel_timelock),
+            punish_timelock: Some(public_offer.offer.punish_timelock),
+            fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
         })
     }
 
@@ -835,18 +878,15 @@ impl<Ctx: Swap> Bob<Ctx> {
         let funding = <<Ctx::Ar as Transactions>::Funding as Fundable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-        >>::raw(funding_bundle.funding.tx().try_into_transaction()?)?;
+        >>::raw(funding_bundle.funding.clone())?;
 
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let bob_buy = bob_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let alice_cancel = alice_parameters
-            .cancel
-            .key()
-            .try_into_arbitrating_pubkey()?;
-        let bob_cancel = bob_parameters.cancel.key().try_into_arbitrating_pubkey()?;
+        let alice_buy = alice_parameters.buy.clone();
+        let bob_buy = bob_parameters.buy.clone();
+        let alice_cancel = alice_parameters.cancel.clone();
+        let bob_cancel = bob_parameters.cancel.clone();
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -874,15 +914,9 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
         // contract on the arbitrating blockchain.
-        let alice_refund = alice_parameters
-            .refund
-            .key()
-            .try_into_arbitrating_pubkey()?;
-        let bob_refund = bob_parameters.refund.key().try_into_arbitrating_pubkey()?;
-        let alice_punish = alice_parameters
-            .punish
-            .key()
-            .try_into_arbitrating_pubkey()?;
+        let alice_refund = alice_parameters.refund.clone();
+        let bob_refund = bob_parameters.refund.clone();
+        let alice_punish = alice_parameters.punish.clone();
 
         // Create the data structure that represents an on-chain punishable contract for the
         // arbitrating blockchain.
@@ -913,9 +947,9 @@ impl<Ctx: Swap> Bob<Ctx> {
         <Ctx::Ar as Fee>::set_fee(refund.partial_mut(), &fee_strategy, self.fee_politic)?;
 
         Ok(CoreArbitratingTransactions {
-            lock: datum::Transaction::new_lock(lock.to_partial()),
-            cancel: datum::Transaction::new_cancel(cancel.to_partial()),
-            refund: datum::Transaction::new_refund(refund.to_partial()),
+            lock: lock.to_partial(),
+            cancel: cancel.to_partial(),
+            refund: refund.to_partial(),
         })
     }
 
@@ -952,19 +986,17 @@ impl<Ctx: Swap> Bob<Ctx> {
     ) -> Result<CosignedArbitratingCancel<Ctx::Ar>, Error> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_cancel = core.cancel.tx().try_into_partial_transaction()?;
+        let partial_cancel = core.cancel.clone();
 
         // Initialize the cancel transaction based on the partial transaction format.
         let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
 
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
-        let key = bob_parameters.cancel.key().try_into_arbitrating_pubkey()?;
+        let key = &bob_parameters.cancel;
         let sig = wallet.sign_with_key(&key, msg)?;
 
-        Ok(CosignedArbitratingCancel {
-            cancel_sig: Signature::new(TxId::Cancel, SwapRole::Bob, SignatureType::Regular(sig)),
-        })
+        Ok(CosignedArbitratingCancel { cancel_sig: sig })
     }
 
     /// Validates the adaptor refund witness based on the parameters and the core arbitrating
@@ -1013,7 +1045,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ) -> Result<(), Error> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_refund = core.refund.tx().try_into_partial_transaction()?;
+        let partial_refund = core.refund.clone();
 
         // Initialize the refund transaction based on the partial transaction format.
         let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
@@ -1021,16 +1053,10 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Verify the adaptor refund witness
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
         wallet.verify_adaptor_signature(
-            &alice_parameters
-                .refund
-                .key()
-                .try_into_arbitrating_pubkey()?,
-            &bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?,
+            &alice_parameters.refund,
+            &bob_parameters.adaptor,
             msg,
-            &adaptor_refund
-                .refund_adaptor_sig
-                .signature()
-                .try_into_adaptor()?,
+            &adaptor_refund.refund_adaptor_sig,
         )?;
 
         Ok(())
@@ -1091,7 +1117,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ) -> Result<SignedAdaptorBuy<Ctx::Ar>, Error> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_lock = core.lock.tx().try_into_partial_transaction()?;
+        let partial_lock = core.lock.clone();
 
         // Initialize the lock transaction based on the partial transaction format.
         let lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(partial_lock);
@@ -1099,13 +1125,10 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        let alice_buy = alice_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let bob_buy = bob_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let alice_cancel = alice_parameters
-            .cancel
-            .key()
-            .try_into_arbitrating_pubkey()?;
-        let bob_cancel = bob_parameters.cancel.key().try_into_arbitrating_pubkey()?;
+        let alice_buy = alice_parameters.buy.clone();
+        let bob_buy = bob_parameters.buy.clone();
+        let alice_cancel = alice_parameters.cancel.clone();
+        let bob_cancel = bob_parameters.cancel.clone();
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -1124,10 +1147,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         >>::initialize(
             &lock,
             cancel_lock,
-            alice_parameters
-                .destination_address
-                .param()
-                .try_into_address()?,
+            alice_parameters.destination_address.clone(),
         )?;
 
         // Set the fees according to the strategy in the offer and the local politic.
@@ -1136,17 +1156,14 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and adaptor sign with the buy key and the
         // counter-party adaptor.
-        let key = bob_parameters.buy.key().try_into_arbitrating_pubkey()?;
-        let adaptor = alice_parameters
-            .adaptor
-            .key()
-            .try_into_arbitrating_pubkey()?;
+        let key = &bob_parameters.buy;
+        let adaptor = &alice_parameters.adaptor;
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
         let sig = wallet.adaptor_sign_with_key(&key, &adaptor, msg)?;
 
         Ok(SignedAdaptorBuy {
-            buy: datum::Transaction::new_buy(buy.to_partial()),
-            buy_adaptor_sig: Signature::new(TxId::Buy, SwapRole::Bob, SignatureType::Adaptor(sig)),
+            buy: buy.to_partial(),
+            buy_adaptor_sig: sig,
         })
     }
 
@@ -1192,7 +1209,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ) -> Result<SignedArbitratingLock<Ctx::Ar>, Error> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_lock = core.lock.tx().try_into_partial_transaction()?;
+        let partial_lock = core.lock.clone();
 
         // Initialize the lock transaction based on the partial transaction format.
         let lock = <<Ctx::Ar as Transactions>::Lock>::from_partial(partial_lock);
@@ -1202,9 +1219,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let key = key_wallet.get_pubkey(ArbitratingKeyId::Fund)?;
         let sig = wallet.sign_with_key(&key, msg)?;
 
-        Ok(SignedArbitratingLock {
-            lock_sig: Signature::new(TxId::Lock, SwapRole::Bob, SignatureType::Regular(sig)),
-        })
+        Ok(SignedArbitratingLock { lock_sig: sig })
     }
 
     /// Sign the arbitrating [`Refundable`] transaction and adapt the counter-party adaptor witness
@@ -1258,32 +1273,23 @@ impl<Ctx: Swap> Bob<Ctx> {
     ) -> Result<FullySignedRefund<Ctx::Ar>, Error> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_refund = core.refund.tx().try_into_partial_transaction()?;
+        let partial_refund = core.refund;
 
         // Initialize the refund transaction based on the partial transaction format.
         let refund = <<Ctx::Ar as Transactions>::Refund>::from_partial(partial_refund);
 
         // Generate the witness message to sign and sign with the refund key.
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
-        let key = bob_parameters.refund.key().try_into_arbitrating_pubkey()?;
+        let key = &bob_parameters.refund;
         let sig = wallet.sign_with_key(&key, msg)?;
 
-        let key = bob_parameters.adaptor.key().try_into_arbitrating_pubkey()?;
-        let adapted_sig = wallet.adapt_signature(
-            &key,
-            signed_adaptor_refund
-                .refund_adaptor_sig
-                .signature()
-                .try_into_adaptor()?,
-        )?;
+        let key = &bob_parameters.adaptor;
+        let adapted_sig =
+            wallet.adapt_signature(&key, signed_adaptor_refund.refund_adaptor_sig.clone())?;
 
         Ok(FullySignedRefund {
-            refund_sig: Signature::new(TxId::Refund, SwapRole::Bob, SignatureType::Regular(sig)),
-            refund_adapted_sig: Signature::new(
-                TxId::Refund,
-                SwapRole::Alice,
-                SignatureType::Adapted(adapted_sig),
-            ),
+            refund_sig: sig,
+            refund_adapted_sig: adapted_sig,
         })
     }
 

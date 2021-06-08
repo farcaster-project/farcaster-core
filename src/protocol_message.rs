@@ -5,7 +5,7 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::crypto::{Commit, Keys, SharedPrivateKeys, SignatureType, Signatures};
+use crate::crypto::{Commit, Keys, SharedKeyId, SharedPrivateKeys, SignatureType, Signatures};
 use crate::datum;
 use crate::role::SwapRole;
 use crate::swap::Swap;
@@ -19,95 +19,101 @@ pub trait ProtocolMessage {}
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug)]
 pub struct CommitAliceParameters<Ctx: Swap> {
-    /// Commitment to `Ab` curve point
+    /// Commitment to the buy public key
     pub buy: Ctx::Commitment,
-    /// Commitment to `Ac` curve point
+    /// Commitment to the cancel public key
     pub cancel: Ctx::Commitment,
-    /// Commitment to `Ar` curve point
+    /// Commitment to the refund public key
     pub refund: Ctx::Commitment,
-    /// Commitment to `Ap` curve point
+    /// Commitment to the punish public key
     pub punish: Ctx::Commitment,
-    /// Commitment to `Ta` curve point
+    /// Commitment to the adaptor public key
     pub adaptor: Ctx::Commitment,
-    /// Commitment to `k_v^a` scalar
+    /// Commitments to the extra arbitrating public keys
+    pub extra_arbitrating_keys: Vec<(u16, Ctx::Commitment)>,
+    /// Commitments to the arbitrating shared keys
+    pub arbitrating_shared_keys: Vec<(SharedKeyId, Ctx::Commitment)>,
+    /// Commitment to the spend public key
     pub spend: Ctx::Commitment,
-    /// Commitment to `K_s^a` curve point
-    pub view: Ctx::Commitment,
+    /// Commitments to the extra accordant public keys
+    pub extra_accordant_keys: Vec<(u16, Ctx::Commitment)>,
+    /// Commitments to the accordant shared keys
+    pub accordant_shared_keys: Vec<(SharedKeyId, Ctx::Commitment)>,
 }
 
-impl<Ctx> CommitAliceParameters<Ctx>
-where
-    Ctx: Swap,
-{
-    pub fn from_bundle(
-        wallet: &impl Commit<Ctx::Commitment>,
-        bundle: &bundle::AliceParameters<Ctx>,
-    ) -> Self {
-        Self {
-            buy: wallet.commit_to(bundle.buy.key().as_bytes()),
-            cancel: wallet.commit_to(bundle.cancel.key().as_bytes()),
-            refund: wallet.commit_to(bundle.refund.key().as_bytes()),
-            punish: wallet.commit_to(bundle.punish.key().as_bytes()),
-            adaptor: wallet.commit_to(bundle.adaptor.key().as_bytes()),
-            spend: wallet.commit_to(bundle.spend.key().as_bytes()),
-            view: wallet.commit_to(bundle.view.key().as_bytes()),
-        }
-    }
-
-    pub fn verify(
-        &self,
-        wallet: &impl Commit<Ctx::Commitment>,
-        reveal: &RevealAliceParameters<Ctx>,
-    ) -> Result<(), Error> {
-        // Check buy commitment
-        wallet.validate(<Ctx::Ar as Keys>::as_bytes(&reveal.buy), self.buy.clone())?;
-        // Check cancel commitment
-        wallet.validate(
-            <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
-            self.cancel.clone(),
-        )?;
-        // Check refund commitment
-        wallet.validate(
-            <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
-            self.refund.clone(),
-        )?;
-        // Check punish commitment
-        wallet.validate(
-            <Ctx::Ar as Keys>::as_bytes(&reveal.punish),
-            self.punish.clone(),
-        )?;
-        // Check adaptor commitment
-        wallet.validate(
-            <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
-            self.adaptor.clone(),
-        )?;
-        // Check spend commitment
-        wallet.validate(
-            <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
-            self.spend.clone(),
-        )?;
-        // Check private view commitment
-        wallet.validate(
-            <Ctx::Ac as SharedPrivateKeys>::as_bytes(&reveal.view),
-            self.view.clone(),
-        )?;
-
-        // Check the Dleq proof
-        //DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
-
-        // All validations passed, return ok
-        Ok(())
-    }
-
-    pub fn verify_then_bundle(
-        &self,
-        wallet: &impl Commit<Ctx::Commitment>,
-        reveal: &RevealAliceParameters<Ctx>,
-    ) -> Result<bundle::AliceParameters<Ctx>, Error> {
-        self.verify(wallet, reveal)?;
-        Ok(reveal.into_bundle())
-    }
-}
+//impl<Ctx> CommitAliceParameters<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    pub fn from_bundle(
+//        wallet: &impl Commit<Ctx::Commitment>,
+//        bundle: &bundle::AliceParameters<Ctx>,
+//    ) -> Self {
+//        Self {
+//            buy: wallet.commit_to(bundle.buy.key().as_bytes()),
+//            cancel: wallet.commit_to(bundle.cancel.key().as_bytes()),
+//            refund: wallet.commit_to(bundle.refund.key().as_bytes()),
+//            punish: wallet.commit_to(bundle.punish.key().as_bytes()),
+//            adaptor: wallet.commit_to(bundle.adaptor.key().as_bytes()),
+//            spend: wallet.commit_to(bundle.spend.key().as_bytes()),
+//            view: wallet.commit_to(bundle.view.key().as_bytes()),
+//        }
+//    }
+//
+//    pub fn verify(
+//        &self,
+//        wallet: &impl Commit<Ctx::Commitment>,
+//        reveal: &RevealAliceParameters<Ctx>,
+//    ) -> Result<(), Error> {
+//        // Check buy commitment
+//        wallet.validate(<Ctx::Ar as Keys>::as_bytes(&reveal.buy), self.buy.clone())?;
+//        // Check cancel commitment
+//        wallet.validate(
+//            <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
+//            self.cancel.clone(),
+//        )?;
+//        // Check refund commitment
+//        wallet.validate(
+//            <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
+//            self.refund.clone(),
+//        )?;
+//        // Check punish commitment
+//        wallet.validate(
+//            <Ctx::Ar as Keys>::as_bytes(&reveal.punish),
+//            self.punish.clone(),
+//        )?;
+//        // Check adaptor commitment
+//        wallet.validate(
+//            <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
+//            self.adaptor.clone(),
+//        )?;
+//        // Check spend commitment
+//        wallet.validate(
+//            <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
+//            self.spend.clone(),
+//        )?;
+//        // Check private view commitment
+//        wallet.validate(
+//            <Ctx::Ac as SharedPrivateKeys>::as_bytes(&reveal.view),
+//            self.view.clone(),
+//        )?;
+//
+//        // Check the Dleq proof
+//        //DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
+//
+//        // All validations passed, return ok
+//        Ok(())
+//    }
+//
+//    pub fn verify_then_bundle(
+//        &self,
+//        wallet: &impl Commit<Ctx::Commitment>,
+//        reveal: &RevealAliceParameters<Ctx>,
+//    ) -> Result<bundle::AliceParameters<Ctx>, Error> {
+//        self.verify(wallet, reveal)?;
+//        Ok(reveal.into_bundle())
+//    }
+//}
 
 impl<Ctx> ProtocolMessage for CommitAliceParameters<Ctx> where Ctx: Swap {}
 

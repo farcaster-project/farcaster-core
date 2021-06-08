@@ -53,4 +53,3 @@ impl Decodable for Amount {
         Ok(Amount::from_sat(sats))
     }
 }
-

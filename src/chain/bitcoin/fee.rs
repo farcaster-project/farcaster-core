@@ -5,9 +5,9 @@ use strict_encoding::{StrictDecode, StrictEncode};
 use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
 use crate::consensus::{self, Decodable, Encodable};
 
-use crate::chain::bitcoin::transaction;
 use crate::chain::bitcoin::amount::Amount;
-use crate::chain::bitcoin::{Bitcoin};
+use crate::chain::bitcoin::transaction;
+use crate::chain::bitcoin::Bitcoin;
 
 use std::io;
 use std::str::FromStr;

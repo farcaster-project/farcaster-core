@@ -32,6 +32,31 @@ pub struct AliceParameters<Ctx: Swap> {
     pub fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
 }
 
+impl<Ctx> From<protocol_message::RevealAliceParameters<Ctx>> for AliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(msg: protocol_message::RevealAliceParameters<Ctx>) -> Self {
+        Self {
+            buy: msg.buy,
+            cancel: msg.cancel,
+            refund: msg.refund,
+            punish: msg.punish,
+            adaptor: msg.adaptor,
+            extra_arbitrating_keys: msg.extra_arbitrating_keys,
+            arbitrating_shared_keys: msg.arbitrating_shared_keys,
+            spend: msg.spend,
+            extra_accordant_keys: msg.extra_accordant_keys,
+            accordant_shared_keys: msg.accordant_shared_keys,
+            destination_address: msg.address,
+            proof: msg.proof,
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
+}
+
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
 #[derive(Debug, Clone)]
@@ -52,6 +77,30 @@ pub struct BobParameters<Ctx: Swap> {
     pub cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     pub punish_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     pub fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
+}
+
+impl<Ctx> From<protocol_message::RevealBobParameters<Ctx>> for BobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(msg: protocol_message::RevealBobParameters<Ctx>) -> Self {
+        Self {
+            buy: msg.buy,
+            cancel: msg.cancel,
+            refund: msg.refund,
+            adaptor: msg.adaptor,
+            extra_arbitrating_keys: msg.extra_arbitrating_keys,
+            arbitrating_shared_keys: msg.arbitrating_shared_keys,
+            spend: msg.spend,
+            extra_accordant_keys: msg.extra_accordant_keys,
+            accordant_shared_keys: msg.accordant_shared_keys,
+            refund_address: msg.address,
+            proof: msg.proof,
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
 }
 
 /// Provides daemon with a signature on the unsigned cancel (d) transaction. Two signature are

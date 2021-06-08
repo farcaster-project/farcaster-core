@@ -5,11 +5,50 @@ use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement};
+use crate::consensus::AsCanonicalBytes;
+use crate::crypto::{
+    self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement,
+};
 use crate::role::SwapRole;
 use crate::swap::Swap;
 use crate::transaction::TxId;
 use crate::Error;
+
+fn commit_to_vec<T: Clone + Eq, K: AsCanonicalBytes, C: Clone + Eq>(
+    wallet: &impl Commit<C>,
+    keys: &Vec<TaggedElement<T, K>>,
+) -> Vec<TaggedElement<T, C>> {
+    keys.into_iter()
+        .map(|tagged_key| {
+            TaggedElement::new(
+                tagged_key.tag().clone(),
+                wallet.commit_to(tagged_key.elem().as_canonical_bytes()),
+            )
+        })
+        .collect()
+}
+
+fn verify_vec_of_commitments<T: Eq, K: AsCanonicalBytes, C: Clone + Eq>(
+    wallet: &impl Commit<C>,
+    keys: Vec<TaggedElement<T, K>>,
+    commitments: &Vec<TaggedElement<T, C>>,
+) -> Result<(), Error> {
+    keys.into_iter()
+        .flat_map(|tagged_key| {
+            commitments
+                .iter()
+                .find(|tagged_commitment| tagged_commitment.tag() == tagged_key.tag())
+                .map(|tagged_commitment| {
+                    wallet
+                        .validate(
+                            tagged_key.elem().as_canonical_bytes(),
+                            tagged_commitment.elem().clone(),
+                        )
+                        .map_err(|e| Error::Crypto(e))
+                })
+        })
+        .collect::<Result<(), Error>>()
+}
 
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
@@ -37,79 +76,61 @@ pub struct CommitAliceParameters<Ctx: Swap> {
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Ctx::Commitment>>,
 }
 
-//impl<Ctx> CommitAliceParameters<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    pub fn from_bundle(
-//        wallet: &impl Commit<Ctx::Commitment>,
-//        bundle: &bundle::AliceParameters<Ctx>,
-//    ) -> Self {
-//        Self {
-//            buy: wallet.commit_to(bundle.buy.key().as_bytes()),
-//            cancel: wallet.commit_to(bundle.cancel.key().as_bytes()),
-//            refund: wallet.commit_to(bundle.refund.key().as_bytes()),
-//            punish: wallet.commit_to(bundle.punish.key().as_bytes()),
-//            adaptor: wallet.commit_to(bundle.adaptor.key().as_bytes()),
-//            spend: wallet.commit_to(bundle.spend.key().as_bytes()),
-//            view: wallet.commit_to(bundle.view.key().as_bytes()),
-//        }
-//    }
-//
-//    pub fn verify(
-//        &self,
-//        wallet: &impl Commit<Ctx::Commitment>,
-//        reveal: &RevealAliceParameters<Ctx>,
-//    ) -> Result<(), Error> {
-//        // Check buy commitment
-//        wallet.validate(<Ctx::Ar as Keys>::as_bytes(&reveal.buy), self.buy.clone())?;
-//        // Check cancel commitment
-//        wallet.validate(
-//            <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
-//            self.cancel.clone(),
-//        )?;
-//        // Check refund commitment
-//        wallet.validate(
-//            <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
-//            self.refund.clone(),
-//        )?;
-//        // Check punish commitment
-//        wallet.validate(
-//            <Ctx::Ar as Keys>::as_bytes(&reveal.punish),
-//            self.punish.clone(),
-//        )?;
-//        // Check adaptor commitment
-//        wallet.validate(
-//            <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
-//            self.adaptor.clone(),
-//        )?;
-//        // Check spend commitment
-//        wallet.validate(
-//            <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
-//            self.spend.clone(),
-//        )?;
-//        // Check private view commitment
-//        wallet.validate(
-//            <Ctx::Ac as SharedPrivateKeys>::as_bytes(&reveal.view),
-//            self.view.clone(),
-//        )?;
-//
-//        // Check the Dleq proof
-//        //DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
-//
-//        // All validations passed, return ok
-//        Ok(())
-//    }
-//
-//    pub fn verify_then_bundle(
-//        &self,
-//        wallet: &impl Commit<Ctx::Commitment>,
-//        reveal: &RevealAliceParameters<Ctx>,
-//    ) -> Result<bundle::AliceParameters<Ctx>, Error> {
-//        self.verify(wallet, reveal)?;
-//        Ok(reveal.into_bundle())
-//    }
-//}
+impl<Ctx> CommitAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn commit_to_bundle(
+        wallet: &impl Commit<Ctx::Commitment>,
+        bundle: bundle::AliceParameters<Ctx>,
+    ) -> Self {
+        Self {
+            buy: wallet.commit_to(bundle.buy.as_canonical_bytes()),
+            cancel: wallet.commit_to(bundle.cancel.as_canonical_bytes()),
+            refund: wallet.commit_to(bundle.refund.as_canonical_bytes()),
+            punish: wallet.commit_to(bundle.punish.as_canonical_bytes()),
+            adaptor: wallet.commit_to(bundle.adaptor.as_canonical_bytes()),
+            extra_arbitrating_keys: commit_to_vec(wallet, &bundle.extra_arbitrating_keys),
+            arbitrating_shared_keys: commit_to_vec(wallet, &bundle.arbitrating_shared_keys),
+            spend: wallet.commit_to(bundle.spend.as_canonical_bytes()),
+            extra_accordant_keys: commit_to_vec(wallet, &bundle.extra_accordant_keys),
+            accordant_shared_keys: commit_to_vec(wallet, &bundle.accordant_shared_keys),
+        }
+    }
+
+    pub fn verify_with_reveal(
+        &self,
+        wallet: &impl Commit<Ctx::Commitment>,
+        reveal: RevealAliceParameters<Ctx>,
+    ) -> Result<(), Error> {
+        wallet.validate(reveal.buy.as_canonical_bytes(), self.buy.clone())?;
+        wallet.validate(reveal.cancel.as_canonical_bytes(), self.cancel.clone())?;
+        wallet.validate(reveal.refund.as_canonical_bytes(), self.refund.clone())?;
+        wallet.validate(reveal.punish.as_canonical_bytes(), self.punish.clone())?;
+        wallet.validate(reveal.adaptor.as_canonical_bytes(), self.adaptor.clone())?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.extra_arbitrating_keys,
+            &self.extra_arbitrating_keys,
+        )?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.arbitrating_shared_keys,
+            &self.arbitrating_shared_keys,
+        )?;
+        wallet.validate(reveal.spend.as_canonical_bytes(), self.spend.clone())?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.extra_accordant_keys,
+            &self.extra_accordant_keys,
+        )?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.accordant_shared_keys,
+            &self.accordant_shared_keys,
+        )
+    }
+}
 
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
@@ -135,73 +156,59 @@ pub struct CommitBobParameters<Ctx: Swap> {
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Ctx::Commitment>>,
 }
 
-//impl<Ctx> CommitBobParameters<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    pub fn from_bundle(
-//        wallet: &impl Commit<Ctx::Commitment>,
-//        bundle: &bundle::BobParameters<Ctx>,
-//    ) -> Self {
-//        Self {
-//            buy: wallet.commit_to(bundle.buy.key().as_bytes()),
-//            cancel: wallet.commit_to(bundle.cancel.key().as_bytes()),
-//            refund: wallet.commit_to(bundle.refund.key().as_bytes()),
-//            adaptor: wallet.commit_to(bundle.adaptor.key().as_bytes()),
-//            spend: wallet.commit_to(bundle.spend.key().as_bytes()),
-//            view: wallet.commit_to(bundle.view.key().as_bytes()),
-//        }
-//    }
-//
-//    pub fn verify(
-//        &self,
-//        wallet: &impl Commit<Ctx::Commitment>,
-//        reveal: &RevealBobParameters<Ctx>,
-//    ) -> Result<(), Error> {
-//        // Check buy commitment
-//        wallet.validate(<Ctx::Ar as Keys>::as_bytes(&reveal.buy), self.buy.clone())?;
-//        // Check cancel commitment
-//        wallet.validate(
-//            <Ctx::Ar as Keys>::as_bytes(&reveal.cancel),
-//            self.cancel.clone(),
-//        )?;
-//        // Check refund commitment
-//        wallet.validate(
-//            <Ctx::Ar as Keys>::as_bytes(&reveal.refund),
-//            self.refund.clone(),
-//        )?;
-//        // Check adaptor commitment
-//        wallet.validate(
-//            <Ctx::Ar as Keys>::as_bytes(&reveal.adaptor),
-//            self.adaptor.clone(),
-//        )?;
-//        // Check spend commitment
-//        wallet.validate(
-//            <Ctx::Ac as Keys>::as_bytes(&reveal.spend),
-//            self.spend.clone(),
-//        )?;
-//        // Check private view commitment
-//        wallet.validate(
-//            <Ctx::Ac as SharedPrivateKeys>::as_bytes(&reveal.view),
-//            self.view.clone(),
-//        )?;
-//
-//        // Check the Dleq proof
-//        //DleqProof::verify(&reveal.spend, &reveal.adaptor, reveal.proof.clone())?;
-//
-//        // All validations passed, return ok
-//        Ok(())
-//    }
-//
-//    pub fn verify_then_bundle(
-//        &self,
-//        wallet: &impl Commit<Ctx::Commitment>,
-//        reveal: &RevealBobParameters<Ctx>,
-//    ) -> Result<bundle::BobParameters<Ctx>, Error> {
-//        self.verify(wallet, reveal)?;
-//        Ok(reveal.into_bundle())
-//    }
-//}
+impl<Ctx> CommitBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    pub fn commit_to_bundle(
+        wallet: &impl Commit<Ctx::Commitment>,
+        bundle: bundle::BobParameters<Ctx>,
+    ) -> Self {
+        Self {
+            buy: wallet.commit_to(bundle.buy.as_canonical_bytes()),
+            cancel: wallet.commit_to(bundle.cancel.as_canonical_bytes()),
+            refund: wallet.commit_to(bundle.refund.as_canonical_bytes()),
+            adaptor: wallet.commit_to(bundle.adaptor.as_canonical_bytes()),
+            extra_arbitrating_keys: commit_to_vec(wallet, &bundle.extra_arbitrating_keys),
+            arbitrating_shared_keys: commit_to_vec(wallet, &bundle.arbitrating_shared_keys),
+            spend: wallet.commit_to(bundle.spend.as_canonical_bytes()),
+            extra_accordant_keys: commit_to_vec(wallet, &bundle.extra_accordant_keys),
+            accordant_shared_keys: commit_to_vec(wallet, &bundle.accordant_shared_keys),
+        }
+    }
+
+    pub fn verify_with_reveal(
+        &self,
+        wallet: &impl Commit<Ctx::Commitment>,
+        reveal: RevealBobParameters<Ctx>,
+    ) -> Result<(), Error> {
+        wallet.validate(reveal.buy.as_canonical_bytes(), self.buy.clone())?;
+        wallet.validate(reveal.cancel.as_canonical_bytes(), self.cancel.clone())?;
+        wallet.validate(reveal.refund.as_canonical_bytes(), self.refund.clone())?;
+        wallet.validate(reveal.adaptor.as_canonical_bytes(), self.adaptor.clone())?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.extra_arbitrating_keys,
+            &self.extra_arbitrating_keys,
+        )?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.arbitrating_shared_keys,
+            &self.arbitrating_shared_keys,
+        )?;
+        wallet.validate(reveal.spend.as_canonical_bytes(), self.spend.clone())?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.extra_accordant_keys,
+            &self.extra_accordant_keys,
+        )?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.accordant_shared_keys,
+            &self.accordant_shared_keys,
+        )
+    }
+}
 
 // TODO: Add more common data to reveal, e.g. help to ensure that both node uses the same value for
 // fee

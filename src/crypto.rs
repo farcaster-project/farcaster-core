@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use thiserror::Error;
 
-use crate::consensus::{self};
+use crate::consensus::AsCanonicalBytes;
 use crate::role::SwapRole;
 use crate::swap::Swap;
 
@@ -58,12 +58,18 @@ impl Error {
 }
 
 #[derive(Clone, Debug)]
-pub struct TaggedElement<T, E> {
+pub struct TaggedElement<T, E>
+where
+    T: Eq,
+{
     tag: T,
     elem: E,
 }
 
-impl<T, E> TaggedElement<T, E> {
+impl<T, E> TaggedElement<T, E>
+where
+    T: Eq,
+{
     pub fn new(tag: T, elem: E) -> Self {
         Self { tag, elem }
     }
@@ -93,7 +99,7 @@ pub enum AccordantKeyId {
     Extra(u16),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SharedKeyId(u16);
 
 impl SharedKeyId {
@@ -113,7 +119,7 @@ pub trait Keys {
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine.
-    type PublicKey: Clone + PartialEq + Debug;
+    type PublicKey: Clone + PartialEq + Debug + AsCanonicalBytes;
 
     fn extra_keys() -> Vec<u16>;
 }
@@ -122,7 +128,7 @@ pub trait Keys {
 /// the network.
 pub trait SharedPrivateKeys {
     /// A shareable private key type used to parse non-transparent blockchain
-    type SharedPrivateKey: Clone + PartialEq + Debug;
+    type SharedPrivateKey: Clone + PartialEq + Debug + AsCanonicalBytes;
 
     fn shared_keys() -> Vec<SharedKeyId>;
 }

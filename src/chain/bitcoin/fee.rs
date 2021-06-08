@@ -1,5 +1,4 @@
 use bitcoin::blockdata::transaction::TxOut;
-use bitcoin::util::amount;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use strict_encoding::{StrictDecode, StrictEncode};
 
@@ -7,7 +6,8 @@ use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
 use crate::consensus::{self, Decodable, Encodable};
 
 use crate::chain::bitcoin::transaction;
-use crate::chain::bitcoin::{Amount, Bitcoin};
+use crate::chain::bitcoin::amount::Amount;
+use crate::chain::bitcoin::{Bitcoin};
 
 use std::io;
 use std::str::FromStr;
@@ -49,7 +49,7 @@ impl FromStr for SatPerVByte {
         let x = s
             .parse::<u64>()
             .map_err(|_| consensus::Error::ParseFailed("Failed to parse amount"))?;
-        Ok(Self(Amount(amount::Amount::from_sat(x))))
+        Ok(Self(Amount::from_sat(x)))
     }
 }
 

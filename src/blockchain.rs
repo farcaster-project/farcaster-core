@@ -34,9 +34,6 @@ pub trait Asset: Copy + Debug {
     /// Type for the traded asset unit for a blockchain.
     type AssetUnit: Copy + Eq + Debug + Encodable + Decodable;
 
-    /// Create a new blockchain.
-    fn new() -> Self;
-
     /// Parse an 32 bits identifier as defined in [SLIP
     /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
     /// and return a blockchain if existant.

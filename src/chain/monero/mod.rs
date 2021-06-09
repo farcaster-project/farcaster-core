@@ -40,14 +40,9 @@ impl Asset for Monero {
     /// Type for the traded asset unit
     type AssetUnit = u64;
 
-    /// Create a new Bitcoin blockchain
-    fn new() -> Self {
-        Monero {}
-    }
-
     fn from_u32(bytes: u32) -> Option<Self> {
         match bytes {
-            0x80000080 => Some(Self::new()),
+            0x80000080 => Some(Self),
             _ => None,
         }
     }

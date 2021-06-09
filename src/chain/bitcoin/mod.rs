@@ -44,14 +44,9 @@ impl Asset for Bitcoin {
     /// Type for the traded asset unit
     type AssetUnit = amount::Amount;
 
-    /// Create a new Bitcoin blockchain
-    fn new() -> Self {
-        Bitcoin {}
-    }
-
     fn from_u32(bytes: u32) -> Option<Self> {
         match bytes {
-            0x80000000 => Some(Self::new()),
+            0x80000000 => Some(Self),
             _ => None,
         }
     }

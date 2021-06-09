@@ -15,7 +15,7 @@ use bitcoin::Address;
 
 use std::str::FromStr;
 
-fn init_alice() -> (
+fn init() -> (
     Alice<BtcXmr>,
     Bob<BtcXmr>,
     PublicOffer<BtcXmr>,
@@ -51,8 +51,8 @@ fn init_alice() -> (
 }
 
 #[test]
-fn create_alice_parameters() {
-    let (alice, bob, pub_offer, funding_tx) = init_alice();
+fn execute_offline_protocol() {
+    let (alice, bob, pub_offer, funding_tx) = init();
 
     let alice_wallet = Wallet::new([
         32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10,
@@ -97,8 +97,50 @@ fn create_alice_parameters() {
     let core = bob
         .core_arbitrating_transactions(&alice_params, &bob_params, funding, &pub_offer)
         .unwrap();
+    let _bob_cosign_cancel = bob
+        .cosign_arbitrating_cancel(&bob_wallet, &bob_params, &core)
+        .unwrap();
 
-    let _signed_adaptor = alice
+    let adaptor_refund = alice
         .sign_adaptor_refund(&alice_wallet, &alice_params, &bob_params, &core, &pub_offer)
+        .unwrap();
+    let _alice_cosign_cancel = alice
+        .cosign_arbitrating_cancel(&alice_wallet, &alice_params, &bob_params, &core, &pub_offer)
+        .unwrap();
+
+    bob.validate_adaptor_refund(
+        &bob_wallet,
+        &alice_params,
+        &bob_params,
+        &core,
+        &adaptor_refund,
+    )
+    .unwrap();
+    let adaptor_buy = bob
+        .sign_adaptor_buy(&bob_wallet, &alice_params, &bob_params, &core, &pub_offer)
+        .unwrap();
+    let _signed_lock = bob
+        .sign_arbitrating_lock(&bob_wallet, &bob_wallet, &core)
+        .unwrap();
+
+    alice
+        .validate_adaptor_buy(
+            &alice_wallet,
+            &alice_params,
+            &bob_params,
+            &core,
+            &pub_offer,
+            &adaptor_buy,
+        )
+        .unwrap();
+    let _fully_sign_buy = alice
+        .fully_sign_buy(
+            &alice_wallet,
+            &alice_params,
+            &bob_params,
+            &core,
+            &pub_offer,
+            &adaptor_buy,
+        )
         .unwrap();
 }

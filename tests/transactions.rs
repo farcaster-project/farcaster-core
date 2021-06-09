@@ -54,7 +54,7 @@ macro_rules! setup_txs {
             Tx::<Cancel>::initialize(&lock, datalock.clone(), datapunishablelock.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fee(cancel.partial_mut(), &fee, politic).unwrap();
+        Bitcoin::set_fee(cancel.as_partial_mut(), &fee, politic).unwrap();
 
         //
         // Create refund tx
@@ -65,7 +65,7 @@ macro_rules! setup_txs {
                 .unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fee(refund.partial_mut(), &fee, politic).unwrap();
+        Bitcoin::set_fee(refund.as_partial_mut(), &fee, politic).unwrap();
 
         //
         // Co-Sign refund
@@ -112,7 +112,7 @@ macro_rules! setup_txs {
         let mut buy = Tx::<Buy>::initialize(&lock, datalock, new_address.into()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fee(buy.partial_mut(), &fee, politic).unwrap();
+        Bitcoin::set_fee(buy.as_partial_mut(), &fee, politic).unwrap();
 
         //
         // Co-Sign buy
@@ -145,7 +145,7 @@ macro_rules! setup_txs {
             Tx::<Punish>::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fee(punish.partial_mut(), &fee, politic).unwrap();
+        Bitcoin::set_fee(punish.as_partial_mut(), &fee, politic).unwrap();
 
         //
         // Sign punish

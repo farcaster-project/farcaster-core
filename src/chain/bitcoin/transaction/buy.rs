@@ -107,6 +107,7 @@ impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
         _lock: script::DataLock<Bitcoin>,
         _destination_target: Address,
     ) -> Result<(), FError> {
-        todo!()
+        // FIXME
+        Ok(())
     }
 }

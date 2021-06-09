@@ -9,8 +9,6 @@ use std::io;
 use std::ops::Range;
 use std::str::FromStr;
 
-use strict_encoding::{StrictDecode, StrictEncode};
-
 use thiserror::Error;
 
 use crate::consensus::{self, Decodable, Encodable};

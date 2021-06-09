@@ -4,10 +4,9 @@
 //! daemons. Bundles are used during the different steps of the swap by both Alice and Bob.
 
 use crate::blockchain::{Address, Fee, FeeStrategy, Onchain, Timelock};
-use crate::crypto::{self, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement};
+use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement};
 use crate::protocol_message;
 use crate::swap::Swap;
-use strict_encoding::{StrictDecode, StrictEncode};
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.

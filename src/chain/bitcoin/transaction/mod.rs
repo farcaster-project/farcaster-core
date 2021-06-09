@@ -17,7 +17,8 @@ use crate::transaction::{
     Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
 };
 
-use crate::chain::bitcoin::{Amount, Bitcoin};
+use crate::chain::bitcoin::amount::Amount;
+use crate::chain::bitcoin::Bitcoin;
 
 pub mod buy;
 pub mod cancel;

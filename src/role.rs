@@ -19,7 +19,7 @@ use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 use crate::swap::Swap;
 use crate::transaction::{
-    Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction, TxId,
+    Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction,
     Witnessable,
 };
 use crate::Error;

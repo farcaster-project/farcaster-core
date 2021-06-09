@@ -6,8 +6,6 @@ use std::fmt::Debug;
 use thiserror::Error;
 
 use crate::consensus::AsCanonicalBytes;
-use crate::role::SwapRole;
-use crate::swap::Swap;
 
 /// List of cryptographic errors that can be encountered when processing cryptographic operation
 /// such as signatures, proofs, key derivation, or commitments.
@@ -162,6 +160,17 @@ pub trait Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:
     + ProveCrossGroupDleq<ArPublicKey, AcPublicKey, Proof>
     + GenerateSharedKey<ArSharedKey>
     + GenerateSharedKey<AcSharedKey>
+{
+}
+
+impl<T, ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>
+    Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof> for T
+where
+    T: GenerateKey<ArPublicKey, ArbitratingKeyId>
+        + GenerateKey<AcPublicKey, AccordantKeyId>
+        + GenerateSharedKey<ArSharedKey>
+        + GenerateSharedKey<AcSharedKey>
+        + ProveCrossGroupDleq<ArPublicKey, AcPublicKey, Proof>,
 {
 }
 

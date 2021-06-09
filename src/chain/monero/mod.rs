@@ -2,23 +2,21 @@
 
 use crate::blockchain::{Address, Asset};
 use crate::consensus::AsCanonicalBytes;
-use crate::crypto::{
-    self, AccordantKeyId, GenerateKey, GenerateSharedKey, Keys, SharedKeyId, SharedPrivateKeys,
-};
+use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys};
 use crate::role::Accordant;
 
-use monero::cryptonote::hash::Hash;
 use monero::util::key::{PrivateKey, PublicKey};
 
 use std::fmt::{self, Debug, Display, Formatter};
 
 pub mod tasks;
 
-pub const SHARED_VIEW_KEY: u16 = 0x01;
-pub const SHARED_KEY_BITS: usize = 252;
+pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
+
+impl Accordant for Monero {}
 
 impl std::str::FromStr for Monero {
     type Err = crate::consensus::Error;
@@ -59,8 +57,6 @@ impl Asset for Monero {
     }
 }
 
-impl Accordant for Monero {}
-
 impl Address for Monero {
     type Address = monero::Address;
 }
@@ -95,51 +91,6 @@ impl SharedPrivateKeys for Monero {
 
     fn shared_keys() -> Vec<SharedKeyId> {
         // Share one key: the private view key
-        vec![SharedKeyId::new(SHARED_VIEW_KEY)]
-    }
-}
-
-pub fn private_spend_from_seed<T: AsRef<[u8]>>(seed: T) -> Result<PrivateKey, crypto::Error> {
-    let mut bytes = Vec::from(b"farcaster_priv_spend".as_ref());
-    bytes.extend_from_slice(&seed.as_ref());
-
-    let mut key = Hash::hash(&bytes).to_fixed_bytes();
-    key[31] &= 0b0000_1111; // Chop off bits that might be greater than the curve modulus
-
-    PrivateKey::from_slice(&key).map_err(|e| crypto::Error::new(e))
-}
-
-#[derive(Clone, Debug)]
-pub struct Wallet {
-    seed: [u8; 32],
-}
-
-impl Wallet {
-    pub fn new(seed: [u8; 32]) -> Self {
-        Self { seed }
-    }
-}
-
-impl GenerateKey<PublicKey, AccordantKeyId> for Wallet {
-    fn get_pubkey(&self, key_id: AccordantKeyId) -> Result<PublicKey, crypto::Error> {
-        match key_id {
-            AccordantKeyId::Spend => Ok(PublicKey::from_private_key(&private_spend_from_seed(
-                &self.seed,
-            )?)),
-            AccordantKeyId::Extra(_) => Err(crypto::Error::UnsupportedKey),
-        }
-    }
-}
-
-impl GenerateSharedKey<PrivateKey> for Wallet {
-    fn get_shared_key(&self, key_id: SharedKeyId) -> Result<PrivateKey, crypto::Error> {
-        match key_id.id() {
-            SHARED_VIEW_KEY => {
-                let mut bytes = Vec::from(b"farcaster_priv_view".as_ref());
-                bytes.extend_from_slice(&self.seed.as_ref());
-                Ok(Hash::hash(&bytes).as_scalar())
-            }
-            _ => Err(crypto::Error::UnsupportedKey),
-        }
+        vec![SharedKeyId::new(SHARED_VIEW_KEY_ID)]
     }
 }

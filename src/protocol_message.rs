@@ -1,17 +1,10 @@
 //! Protocol messages exchanged between swap daemons
 
-use std::convert::TryInto;
-use strict_encoding::{StrictDecode, StrictEncode};
-
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
 use crate::consensus::AsCanonicalBytes;
-use crate::crypto::{
-    self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement,
-};
-use crate::role::SwapRole;
+use crate::crypto::{Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement};
 use crate::swap::Swap;
-use crate::transaction::TxId;
 use crate::Error;
 
 fn commit_to_vec<T: Clone + Eq, K: AsCanonicalBytes, C: Clone + Eq>(

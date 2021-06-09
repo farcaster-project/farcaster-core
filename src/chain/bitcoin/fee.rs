@@ -53,6 +53,23 @@ impl FromStr for SatPerVByte {
     }
 }
 
+fn get_available_input_sat(tx: &PartiallySignedTransaction) -> Result<Amount, FeeStrategyError> {
+    // Get the available amount on the transaction
+    let inputs: Result<Vec<TxOut>, FeeStrategyError> = tx
+        .inputs
+        .iter()
+        .map(|psbt_in| {
+            psbt_in
+                .witness_utxo
+                .clone()
+                .ok_or(FeeStrategyError::MissingInputsMetadata)
+        })
+        .collect();
+    Ok(Amount::from_sat(
+        inputs?.iter().map(|txout| txout.value).sum(),
+    ))
+}
+
 impl Fee for Bitcoin {
     type FeeUnit = SatPerVByte;
 
@@ -62,18 +79,13 @@ impl Fee for Bitcoin {
         strategy: &FeeStrategy<SatPerVByte>,
         politic: FeePolitic,
     ) -> Result<Amount, FeeStrategyError> {
-        // Get the available amount on the transaction
-        let inputs: Result<Vec<TxOut>, FeeStrategyError> = tx
-            .inputs
-            .iter()
-            .map(|psbt_in| {
-                psbt_in
-                    .witness_utxo
-                    .clone()
-                    .ok_or(FeeStrategyError::MissingInputsMetadata)
-            })
-            .collect();
-        let input_sum = Amount::from_sat(inputs?.iter().map(|txout| txout.value).sum());
+        if tx.global.unsigned_tx.output.len() != 1 {
+            return Err(FeeStrategyError::new(
+                transaction::Error::MultiUTXOUnsuported,
+            ));
+        }
+
+        let input_sum = get_available_input_sat(&tx)?;
 
         // FIXME This does not account for witnesses
         // currently the fees are wrong
@@ -90,12 +102,6 @@ impl Fee for Bitcoin {
         }
         .ok_or_else(|| FeeStrategyError::AmountOfFeeTooHigh)?;
 
-        if tx.global.unsigned_tx.output.len() != 1 {
-            return Err(FeeStrategyError::new(
-                transaction::Error::MultiUTXOUnsuported,
-            ));
-        }
-
         // Apply the fee on the first output
         tx.global.unsigned_tx.output[0].value = input_sum
             .checked_sub(fee_amount)
@@ -108,9 +114,31 @@ impl Fee for Bitcoin {
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
     fn validate_fee(
-        _tx: &PartiallySignedTransaction,
-        _strategy: &FeeStrategy<SatPerVByte>,
+        tx: &PartiallySignedTransaction,
+        strategy: &FeeStrategy<SatPerVByte>,
     ) -> Result<bool, FeeStrategyError> {
-        todo!()
+        if tx.global.unsigned_tx.output.len() != 1 {
+            return Err(FeeStrategyError::new(
+                transaction::Error::MultiUTXOUnsuported,
+            ));
+        }
+
+        let input_sum = get_available_input_sat(&tx)?.as_sat();
+        let output_sum = tx.global.unsigned_tx.output[0].value;
+        let fee = input_sum
+            .checked_sub(output_sum)
+            .ok_or_else(|| FeeStrategyError::AmountOfFeeTooHigh)?;
+        let weight = tx.global.unsigned_tx.get_weight() as u64;
+
+        let effective_sat_per_vbyte = SatPerVByte::from_sat(
+            weight
+                .checked_div(fee)
+                .ok_or(FeeStrategyError::AmountOfFeeTooLow)?,
+        );
+
+        Ok(match strategy {
+            FeeStrategy::Fixed(fee_strat) => &effective_sat_per_vbyte == fee_strat,
+            FeeStrategy::Range(range) => range.contains(&effective_sat_per_vbyte),
+        })
     }
 }

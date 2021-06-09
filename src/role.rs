@@ -7,8 +7,8 @@ use std::str::FromStr;
 use crate::blockchain::{Address, Asset, Fee, FeePolitic, Onchain, Timelock, Transactions};
 use crate::bundle::{
     AliceParameters, BobParameters, CoreArbitratingTransactions, CosignedArbitratingCancel,
-    FullySignedBuy, FullySignedPunish, FullySignedRefund, FundingTransaction, SignedAdaptorBuy,
-    SignedAdaptorRefund, SignedArbitratingLock,
+    FullySignedBuy, FullySignedPunish, FullySignedRefund, SignedAdaptorBuy, SignedAdaptorRefund,
+    SignedArbitratingLock,
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
@@ -849,7 +849,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// The parameters to create the three transactions are:
     ///  * Alice's public keys present in Alice's parameters bundle: [`AliceParameters`]
     ///  * Bob's public keys present in Bob's parameters bundle: [`BobParameters`]
-    ///  * The [`Fundable`] transaction in [`FundingTransaction`] bundle
+    ///  * The [`Fundable`] transaction
     ///  * The [`FeeStrategy`] and the [`FeePolitic`]
     ///
     /// The lock transaction is initialized by passing the [`DataLock`] structure, then the cancel
@@ -867,18 +867,14 @@ impl<Ctx: Swap> Bob<Ctx> {
         &self,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
-        funding_bundle: &FundingTransaction<Ctx::Ar>,
+        funding: impl Fundable<Ctx::Ar, <Ctx::Ar as Transactions>::Metadata>,
         public_offer: &PublicOffer<Ctx>,
     ) -> Result<CoreArbitratingTransactions<Ctx::Ar>, Error> {
         // Initialize the fundable transaction to build the lockable transaction on top of it.
         //
-        // The fundable transaction contains all the logic to build on top of a externally created
-        // transaction seen on-chain asyncronously by a syncer when broadcasted by the external
-        // wallet.
-        let funding = <<Ctx::Ar as Transactions>::Funding as Fundable<
-            Ctx::Ar,
-            <Ctx::Ar as Transactions>::Metadata,
-        >>::raw(funding_bundle.funding.clone())?;
+        // The fundable transaction `funding` contains all the logic to build on top of a
+        // externally created transaction seen on-chain asyncronously by a syncer when broadcasted
+        // by the external wallet.
 
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating

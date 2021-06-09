@@ -1,4 +1,7 @@
+use std::marker::PhantomData;
+
 use bitcoin::blockdata::script::Instruction;
+use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
@@ -64,11 +67,39 @@ impl SubTransaction for Buy {
 
 impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
     fn initialize(
-        _prev: &impl Lockable<Bitcoin, MetadataOutput>,
+        prev: &impl Lockable<Bitcoin, MetadataOutput>,
         _lock: script::DataLock<Bitcoin>,
-        _destination_target: Address,
+        destination_target: Address,
     ) -> Result<Self, FError> {
-        todo!()
+        let output_metadata = prev.get_consumable_output()?;
+
+        let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
+            version: 2,
+            lock_time: 0,
+            input: vec![TxIn {
+                previous_output: output_metadata.out_point,
+                script_sig: bitcoin::blockdata::script::Script::default(),
+                sequence: 0,
+                witness: vec![],
+            }],
+            output: vec![TxOut {
+                value: output_metadata.tx_out.value,
+                script_pubkey: destination_target.0.script_pubkey(),
+            }],
+        };
+
+        let mut psbt =
+            PartiallySignedTransaction::from_unsigned_tx(unsigned_tx).map_err(Error::from)?;
+
+        // Set the input witness data and sighash type
+        psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
+        psbt.inputs[0].witness_script = output_metadata.script_pubkey;
+        psbt.inputs[0].sighash_type = Some(SigHashType::All);
+
+        Ok(Tx {
+            psbt,
+            _t: PhantomData,
+        })
     }
 
     fn verify_template(

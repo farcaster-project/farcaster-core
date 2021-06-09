@@ -18,7 +18,7 @@ macro_rules! setup_txs {
         let (_, pubkey_a1, secret_a1) = new_address!();
         let (_, pubkey_a2, secret_a2) = new_address!();
 
-        let (_, pubkey_b1, _secret_b1) = new_address!();
+        let (_, pubkey_b1, secret_b1) = new_address!();
         let (_, pubkey_b2, secret_b2) = new_address!();
 
         let mut funding = Funding::initialize(pubkey_a1, Network::Local).unwrap();
@@ -51,7 +51,7 @@ macro_rules! setup_txs {
         };
 
         let mut cancel =
-            Tx::<Cancel>::initialize(&lock, datalock, datapunishablelock.clone()).unwrap();
+            Tx::<Cancel>::initialize(&lock, datalock.clone(), datapunishablelock.clone()).unwrap();
 
         // Set the fees according to the given strategy
         Bitcoin::set_fee(cancel.partial_mut(), &fee, politic).unwrap();
@@ -65,6 +65,25 @@ macro_rules! setup_txs {
 
         // Set the fees according to the given strategy
         Bitcoin::set_fee(refund.partial_mut(), &fee, politic).unwrap();
+
+        //
+        // Co-Sign refund
+        //
+        let msg = refund
+            .generate_witness_message(ScriptPath::Success)
+            .unwrap();
+        let sig = sign_hash(msg, &secret_a1.key).unwrap();
+        refund.add_witness(pubkey_a1, sig).unwrap();
+        let msg = refund
+            .generate_witness_message(ScriptPath::Success)
+            .unwrap();
+        let sig = sign_hash(msg, &secret_b1.key).unwrap();
+        refund.add_witness(pubkey_b1, sig).unwrap();
+
+        //
+        // Finalize refund
+        //
+        let refund_finalized = refund.finalize_and_extract().unwrap();
 
         //
         // Co-Sign cancel
@@ -86,6 +105,30 @@ macro_rules! setup_txs {
         let cancel_finalized = cancel.finalize_and_extract().unwrap();
 
         //
+        // Create buy tx
+        //
+        let (new_address, _, _) = new_address!();
+        let mut buy = Tx::<Buy>::initialize(&lock, datalock, new_address.into()).unwrap();
+
+        // Set the fees according to the given strategy
+        Bitcoin::set_fee(buy.partial_mut(), &fee, politic).unwrap();
+
+        //
+        // Co-Sign buy
+        //
+        let msg = buy.generate_witness_message(ScriptPath::Success).unwrap();
+        let sig = sign_hash(msg, &secret_a1.key).unwrap();
+        buy.add_witness(pubkey_a1, sig).unwrap();
+        let msg = buy.generate_witness_message(ScriptPath::Success).unwrap();
+        let sig = sign_hash(msg, &secret_b1.key).unwrap();
+        buy.add_witness(pubkey_b1, sig).unwrap();
+
+        //
+        // Finalize buy
+        //
+        let buy_finalized = buy.finalize_and_extract().unwrap();
+
+        //
         // Sign lock tx
         //
         let msg = lock.generate_witness_message(ScriptPath::Success).unwrap();
@@ -93,7 +136,12 @@ macro_rules! setup_txs {
         lock.add_witness(pubkey_a1, sig).unwrap();
         let lock_finalized = lock.finalize_and_extract().unwrap();
 
-        (lock_finalized, cancel_finalized, refund)
+        (
+            lock_finalized,
+            cancel_finalized,
+            refund_finalized,
+            buy_finalized,
+        )
     }};
 }
 
@@ -104,48 +152,83 @@ fn create_transactions() {
 
 #[test]
 fn broadcast_lock() {
-    let (lock_finalized, _, _) = setup_txs!();
+    let (lock, _, _, _) = setup_txs!();
 
     rpc! {
         // Wait 100 blocks to unlock the coinbase
         mine 100;
 
-        // Broadcast the lock and mine the number of blocks needed for CSV
-        then broadcast lock_finalized;
+        // Broadcast the lock and mine the transaction
+        then broadcast lock;
         then mine 1;
+    }
+}
+
+#[test]
+fn broadcast_lock_and_buy() {
+    let (lock, _, _, buy) = setup_txs!();
+
+    rpc! {
+        // Wait 100 blocks to unlock the coinbase
+        mine 100;
+
+        // Broadcast the lock, mine 1 block, and broadcast buy
+        then broadcast lock;
+        then mine 1;
+        then broadcast buy;
     }
 }
 
 #[test]
 #[should_panic]
 fn broadcast_cancel_before_timelock() {
-    let (lock_finalized, cancel_finalized, _) = setup_txs!();
+    let (lock, cancel, _, _) = setup_txs!();
 
     rpc! {
         // Wait 100 blocks to unlock the coinbase
         mine 100;
 
         // Broadcast the lock, wait 1 block, and directly cancel without waiting the lock
-        then broadcast lock_finalized;
+        then broadcast lock;
         then mine 1;
-        then broadcast cancel_finalized;
+        then broadcast cancel;
     }
 }
 
 #[test]
 fn broadcast_cancel_after_timelock() {
-    let (lock_finalized, cancel_finalized, _) = setup_txs!();
+    let (lock, cancel, _, _) = setup_txs!();
 
     rpc! {
         // Wait 100 blocks to unlock the coinbase
         mine 100;
 
         // Broadcast the lock and mine the number of blocks needed for CSV
-        then broadcast lock_finalized;
+        then broadcast lock;
         then mine 10;
 
         // Broadcast the cancel and mine the transaction
-        then broadcast cancel_finalized;
+        then broadcast cancel;
+        then mine 1;
+    }
+}
+
+#[test]
+fn full_refund_path() {
+    let (lock, cancel, refund, _) = setup_txs!();
+
+    rpc! {
+        // Wait 100 blocks to unlock the coinbase
+        mine 100;
+
+        // Broadcast the lock and mine the number of blocks needed for CSV
+        then broadcast lock;
+        then mine 10;
+
+        // Broadcast the cancel and mine the transaction
+        then broadcast cancel;
+        then mine 1;
+        then broadcast refund;
         then mine 1;
     }
 }

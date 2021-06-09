@@ -61,7 +61,8 @@ macro_rules! setup_txs {
         //
         let (new_address, _, _) = new_address!();
         let mut refund =
-            Tx::<Refund>::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
+            Tx::<Refund>::initialize(&cancel, datapunishablelock.clone(), new_address.into())
+                .unwrap();
 
         // Set the fees according to the given strategy
         Bitcoin::set_fee(refund.partial_mut(), &fee, politic).unwrap();
@@ -136,11 +137,36 @@ macro_rules! setup_txs {
         lock.add_witness(pubkey_a1, sig).unwrap();
         let lock_finalized = lock.finalize_and_extract().unwrap();
 
+        //
+        // Create punish tx
+        //
+        let (new_address, _, _) = new_address!();
+        let mut punish =
+            Tx::<Punish>::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
+
+        // Set the fees according to the given strategy
+        Bitcoin::set_fee(punish.partial_mut(), &fee, politic).unwrap();
+
+        //
+        // Sign punish
+        //
+        let msg = punish
+            .generate_witness_message(ScriptPath::Failure)
+            .unwrap();
+        let sig = sign_hash(msg, &secret_a2.key).unwrap();
+        punish.add_witness(pubkey_a2, sig).unwrap();
+
+        //
+        // Finalize buy
+        //
+        let punish_finalized = punish.finalize_and_extract().unwrap();
+
         (
             lock_finalized,
             cancel_finalized,
             refund_finalized,
             buy_finalized,
+            punish_finalized,
         )
     }};
 }
@@ -152,7 +178,7 @@ fn create_transactions() {
 
 #[test]
 fn broadcast_lock() {
-    let (lock, _, _, _) = setup_txs!();
+    let (lock, _, _, _, _) = setup_txs!();
 
     rpc! {
         // Wait 100 blocks to unlock the coinbase
@@ -166,7 +192,7 @@ fn broadcast_lock() {
 
 #[test]
 fn broadcast_lock_and_buy() {
-    let (lock, _, _, buy) = setup_txs!();
+    let (lock, _, _, buy, _) = setup_txs!();
 
     rpc! {
         // Wait 100 blocks to unlock the coinbase
@@ -182,7 +208,7 @@ fn broadcast_lock_and_buy() {
 #[test]
 #[should_panic]
 fn broadcast_cancel_before_timelock() {
-    let (lock, cancel, _, _) = setup_txs!();
+    let (lock, cancel, _, _, _) = setup_txs!();
 
     rpc! {
         // Wait 100 blocks to unlock the coinbase
@@ -197,7 +223,7 @@ fn broadcast_cancel_before_timelock() {
 
 #[test]
 fn broadcast_cancel_after_timelock() {
-    let (lock, cancel, _, _) = setup_txs!();
+    let (lock, cancel, _, _, _) = setup_txs!();
 
     rpc! {
         // Wait 100 blocks to unlock the coinbase
@@ -215,7 +241,7 @@ fn broadcast_cancel_after_timelock() {
 
 #[test]
 fn full_refund_path() {
-    let (lock, cancel, refund, _) = setup_txs!();
+    let (lock, cancel, refund, _, _) = setup_txs!();
 
     rpc! {
         // Wait 100 blocks to unlock the coinbase
@@ -230,5 +256,47 @@ fn full_refund_path() {
         then mine 1;
         then broadcast refund;
         then mine 1;
+    }
+}
+
+#[test]
+#[should_panic]
+fn broadcast_punish_before_timelock() {
+    let (lock, cancel, _, _, punish) = setup_txs!();
+
+    rpc! {
+        // Wait 100 blocks to unlock the coinbase
+        mine 100;
+
+        // Broadcast the lock and mine the number of blocks needed for CSV
+        then broadcast lock;
+        then mine 10;
+
+        // Broadcast the cancel, wait 1 block, and directly punish without waiting the lock
+        then broadcast cancel;
+        then mine 1;
+        // This should panic
+        then broadcast punish;
+    }
+}
+
+#[test]
+fn broadcast_punish_after_timelock() {
+    let (lock, cancel, _, _, punish) = setup_txs!();
+
+    rpc! {
+        // Wait 100 blocks to unlock the coinbase
+        mine 100;
+
+        // Broadcast the lock and mine the number of blocks needed for CSV
+        then broadcast lock;
+        then mine 10;
+
+        // Broadcast the cancel and mine the number of blocks needed for CSV
+        then broadcast cancel;
+        then mine 10;
+
+        // Punish after the timelock
+        then broadcast punish;
     }
 }

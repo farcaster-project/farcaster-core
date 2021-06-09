@@ -1,13 +1,15 @@
 //! Defines and implements all the traits for Monero
 
 use crate::blockchain::{Address, Asset};
-use crate::consensus::AsCanonicalBytes;
+use crate::consensus::{self, AsCanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys};
 use crate::role::Accordant;
 
 use monero::util::key::{PrivateKey, PublicKey};
+use monero::Amount;
 
 use std::fmt::{self, Debug, Display, Formatter};
+use std::io;
 
 pub mod tasks;
 
@@ -38,7 +40,7 @@ impl Display for Monero {
 
 impl Asset for Monero {
     /// Type for the traded asset unit
-    type AssetUnit = u64;
+    type AssetUnit = Amount;
 
     fn from_u32(bytes: u32) -> Option<Self> {
         match bytes {
@@ -49,6 +51,20 @@ impl Asset for Monero {
 
     fn to_u32(&self) -> u32 {
         0x80000080
+    }
+}
+
+impl Encodable for Amount {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        monero::consensus::encode::Encodable::consensus_encode(&self.as_pico(), writer)
+    }
+}
+
+impl Decodable for Amount {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let pico: u64 = monero::consensus::encode::Decodable::consensus_decode(d)
+            .map_err(|_| consensus::Error::ParseFailed("Monero amount parsing failed"))?;
+        Ok(Amount::from_pico(pico))
     }
 }
 

@@ -3,7 +3,9 @@
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
 use crate::consensus::AsCanonicalBytes;
-use crate::crypto::{Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement};
+use crate::crypto::{
+    self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement,
+};
 use crate::swap::Swap;
 use crate::Error;
 
@@ -27,7 +29,7 @@ fn verify_vec_of_commitments<T: Eq, K: AsCanonicalBytes, C: Clone + Eq>(
     commitments: &Vec<TaggedElement<T, C>>,
 ) -> Result<(), Error> {
     keys.into_iter()
-        .flat_map(|tagged_key| {
+        .map(|tagged_key| {
             commitments
                 .iter()
                 .find(|tagged_commitment| tagged_commitment.tag() == tagged_key.tag())
@@ -39,8 +41,10 @@ fn verify_vec_of_commitments<T: Eq, K: AsCanonicalBytes, C: Clone + Eq>(
                         )
                         .map_err(|e| Error::Crypto(e))
                 })
+                .ok_or(Error::Crypto(crypto::Error::InvalidCommitment))
         })
-        .collect::<Result<(), Error>>()
+        .collect::<Result<Vec<_>, _>>()
+        .map(|_| ())
 }
 
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup

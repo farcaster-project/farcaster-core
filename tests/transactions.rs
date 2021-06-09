@@ -26,12 +26,12 @@ macro_rules! setup_txs {
 
         let funding_tx_seen = fund_address!(address.as_ref());
         // Minimum of fee of 122 sat
-        let target_amount = Amount::from_sat(funding_tx_seen.output[0].value - 122);
+        let target_amount = amount::Amount::from_sat(funding_tx_seen.output[0].value - 122);
 
         funding.update(funding_tx_seen).unwrap();
 
         let datalock = DataLock {
-            timelock: CSVTimelock::new(10),
+            timelock: timelock::CSVTimelock::new(10),
             success: DoubleKeys::new(pubkey_a1, pubkey_b1),
             failure: DoubleKeys::new(pubkey_a2, pubkey_b2),
         };
@@ -45,7 +45,7 @@ macro_rules! setup_txs {
         // Create cancel tx
         //
         let datapunishablelock = DataPunishableLock {
-            timelock: CSVTimelock::new(10),
+            timelock: timelock::CSVTimelock::new(10),
             success: DoubleKeys::new(pubkey_a1, pubkey_b1),
             failure: pubkey_a2,
         };
@@ -125,8 +125,9 @@ fn broadcast_cancel_before_timelock() {
         // Wait 100 blocks to unlock the coinbase
         mine 100;
 
-        // Broadcast the lock and directly cancel without waiting the lock
+        // Broadcast the lock, wait 1 block, and directly cancel without waiting the lock
         then broadcast lock_finalized;
+        then mine 1;
         then broadcast cancel_finalized;
     }
 }

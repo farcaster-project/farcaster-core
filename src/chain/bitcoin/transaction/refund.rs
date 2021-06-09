@@ -107,6 +107,7 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
         _punish_lock: script::DataPunishableLock<Bitcoin>,
         _refund_target: Address,
     ) -> Result<(), FError> {
-        todo!()
+        // FIXME
+        Ok(())
     }
 }

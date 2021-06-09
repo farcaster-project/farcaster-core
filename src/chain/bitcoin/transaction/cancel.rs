@@ -128,6 +128,7 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
         _lock: script::DataLock<Bitcoin>,
         _punish_lock: script::DataPunishableLock<Bitcoin>,
     ) -> Result<(), FError> {
-        todo!()
+        // FIXME
+        Ok(())
     }
 }

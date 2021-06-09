@@ -683,7 +683,7 @@ where
 
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
-        let partial_cancel = core.lock.clone();
+        let partial_cancel = core.cancel.clone();
 
         // Initialize the lock transaction based on the extracted partial transaction format.
         let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);

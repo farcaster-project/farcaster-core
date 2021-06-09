@@ -60,7 +60,7 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
     /// The returned type of the consumable output and the `base_on` transaction method, used to
     /// reference the funds and chain other transactions on it. This must contain all necessary
     /// data to latter create a valid unlocking witness for the output and identify the funds.
-    type Metadata: Eq;
+    type Metadata: Clone + Eq + Debug;
 
     /// Defines the type for the `funding (a)` transaction
     type Funding: Fundable<Self, Self::Metadata>;

@@ -94,11 +94,11 @@ fn create_alice_parameters() {
     let mut funding = Funding::initialize(funding_key, Network::Local).unwrap();
     funding.update(funding_tx).unwrap();
 
-    let _core = bob
+    let core = bob
         .core_arbitrating_transactions(&alice_params, &bob_params, funding, &pub_offer)
         .unwrap();
 
-    //let signed_adaptor = alice
-    //    .sign_adaptor_refund(&alice_wallet, &alice_params, &bob_params, &core, &pub_offer)
-    //    .unwrap();
+    let _signed_adaptor = alice
+        .sign_adaptor_refund(&alice_wallet, &alice_params, &bob_params, &core, &pub_offer)
+        .unwrap();
 }

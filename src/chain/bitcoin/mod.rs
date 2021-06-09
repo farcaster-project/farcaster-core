@@ -4,7 +4,6 @@ use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
-use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{self, Asset, Onchain, Timelock, Transactions};
 use crate::consensus::{self, AsCanonicalBytes};
@@ -86,30 +85,6 @@ impl Transactions for Bitcoin {
     type Punish = Tx<Punish>;
 }
 
-#[derive(Clone, Debug, StrictDecode, StrictEncode)]
-pub struct ECDSAAdaptorSig {
-    pub sig: Signature,
-    pub point: PublicKey,
-    pub dleq: PDLEQ,
-}
-
-/// Produces a zero-knowledge proof of knowledge of the same relation k between two pairs of
-/// elements in the same group, i.e. `(G, R')` and `(T, R)`.
-#[derive(Clone, Debug)]
-pub struct PDLEQ;
-
-impl StrictEncode for PDLEQ {
-    fn strict_encode<E: std::io::Write>(&self, mut _e: E) -> Result<usize, strict_encoding::Error> {
-        Ok(0)
-    }
-}
-
-impl StrictDecode for PDLEQ {
-    fn strict_decode<D: std::io::Read>(mut _d: D) -> Result<Self, strict_encoding::Error> {
-        Ok(Self)
-    }
-}
-
 impl Keys for Bitcoin {
     /// Private key type for the blockchain
     type PrivateKey = PrivateKey;
@@ -147,5 +122,5 @@ impl AsCanonicalBytes for PublicKey {
 impl Signatures for Bitcoin {
     type Message = Sha256dHash;
     type Signature = Signature;
-    type AdaptorSignature = ECDSAAdaptorSig;
+    type AdaptorSignature = Signature;
 }

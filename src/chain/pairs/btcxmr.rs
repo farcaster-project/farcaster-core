@@ -5,13 +5,15 @@ use crate::crypto::{
 };
 use crate::swap::Swap;
 
-use crate::chain::bitcoin::{Bitcoin, ECDSAAdaptorSig};
+use crate::chain::bitcoin::transaction::sign_hash;
+use crate::chain::bitcoin::Bitcoin;
 use crate::chain::monero::{self as xmr, Monero};
 
 use monero::cryptonote::hash::Hash;
 
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::key::SecretKey;
+use bitcoin::secp256k1::Message;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
@@ -79,6 +81,26 @@ impl Wallet {
         Ok(key.map_err(|e| crypto::Error::new(e))?.private_key)
     }
 
+    pub fn get_btc_privkey_by_pub(
+        &self,
+        pubkey: &bitcoin::PublicKey,
+    ) -> Result<bitcoin::PrivateKey, crypto::Error> {
+        let secp = Secp256k1::new();
+        let all_keys = vec![
+            ArbitratingKeyId::Fund,
+            ArbitratingKeyId::Buy,
+            ArbitratingKeyId::Cancel,
+            ArbitratingKeyId::Refund,
+            ArbitratingKeyId::Punish,
+        ];
+        // This is very ineficient as we generate all keys (known) each time
+        all_keys
+            .into_iter()
+            .filter_map(|id| self.get_btc_privkey(id).ok())
+            .find(|privkey| bitcoin::PublicKey::from_private_key(&secp, privkey) == *pubkey)
+            .ok_or(crypto::Error::UnsupportedKey)
+    }
+
     pub fn private_spend_from_seed(&self) -> Result<monero::PrivateKey, crypto::Error> {
         let mut bytes = Vec::from(b"farcaster_priv_spend".as_ref());
         bytes.extend_from_slice(self.seed.as_ref());
@@ -128,54 +150,60 @@ impl GenerateSharedKey<bitcoin::PrivateKey> for Wallet {
     }
 }
 
-impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, ECDSAAdaptorSig>
-    for Wallet
-{
+impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, Signature> for Wallet {
     fn sign_with_key(
         &self,
-        _key: &bitcoin::PublicKey,
-        _msg: Sha256dHash,
+        key: &bitcoin::PublicKey,
+        msg: Sha256dHash,
     ) -> Result<Signature, crypto::Error> {
-        todo!()
+        sign_hash(msg, &self.get_btc_privkey_by_pub(key)?.key).map_err(|e| crypto::Error::new(e))
     }
 
     fn verify_signature(
         &self,
-        _key: &bitcoin::PublicKey,
-        _msg: Sha256dHash,
-        _sig: &Signature,
+        key: &bitcoin::PublicKey,
+        msg: Sha256dHash,
+        sig: &Signature,
     ) -> Result<(), crypto::Error> {
-        todo!()
+        let secp = Secp256k1::new();
+        let message = Message::from_slice(&msg).expect("Hash is always ok");
+        secp.verify(&message, &sig, &key.key)
+            .map_err(|e| crypto::Error::new(e))
     }
 
     fn adaptor_sign_with_key(
         &self,
-        _key: &bitcoin::PublicKey,
+        key: &bitcoin::PublicKey,
         _adaptor: &bitcoin::PublicKey,
-        _msg: Sha256dHash,
-    ) -> Result<ECDSAAdaptorSig, crypto::Error> {
-        todo!()
+        msg: Sha256dHash,
+    ) -> Result<Signature, crypto::Error> {
+        // FIXME this ignore the adaptor
+        sign_hash(msg, &self.get_btc_privkey_by_pub(key)?.key).map_err(|e| crypto::Error::new(e))
     }
 
     fn verify_adaptor_signature(
         &self,
-        _key: &bitcoin::PublicKey,
+        key: &bitcoin::PublicKey,
         _adaptor: &bitcoin::PublicKey,
-        _msg: Sha256dHash,
-        _sig: &ECDSAAdaptorSig,
+        msg: Sha256dHash,
+        sig: &Signature,
     ) -> Result<(), crypto::Error> {
-        todo!()
+        // FIXME this ignore the adaptor
+        let secp = Secp256k1::new();
+        let message = Message::from_slice(&msg).expect("Hash is always ok");
+        secp.verify(&message, &sig, &key.key)
+            .map_err(|e| crypto::Error::new(e))
     }
 
     fn adapt_signature(
         &self,
         _key: &bitcoin::PublicKey,
-        _sig: ECDSAAdaptorSig,
+        sig: Signature,
     ) -> Result<Signature, crypto::Error> {
-        todo!()
+        Ok(sig)
     }
 
-    fn recover_key(&self, _sig: Signature, _adapted_sig: ECDSAAdaptorSig) -> bitcoin::PrivateKey {
+    fn recover_key(&self, _sig: Signature, _adapted_sig: Signature) -> bitcoin::PrivateKey {
         todo!()
     }
 }

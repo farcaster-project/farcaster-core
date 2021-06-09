@@ -435,7 +435,7 @@ where
 
         buy.is_build_on_top_of(&lock)?;
         buy.verify_template(data_lock, self.destination_address.clone())?;
-        <Ctx::Ar as Fee>::validate_fee(buy.partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(buy.as_partial(), &fee_strategy)?;
 
         // Verify the adaptor buy witness
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
@@ -516,7 +516,7 @@ where
 
         buy.is_build_on_top_of(&lock)?;
         buy.verify_template(data_lock, self.destination_address.clone())?;
-        <Ctx::Ar as Fee>::validate_fee(buy.partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(buy.as_partial(), &fee_strategy)?;
 
         // Generate the witness message to sign and sign with the buy key.
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
@@ -596,7 +596,7 @@ where
             >>::initialize(&cancel, punish_lock, self.destination_address.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        <Ctx::Ar as Fee>::set_fee(punish.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(punish.as_partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Generate the witness message to sign and sign with the punish key.
         let msg = punish.generate_witness_message(ScriptPath::Failure)?;
@@ -663,7 +663,7 @@ where
         lock.verify_target_amount(target_amount)?;
         // Validate that the transaction follows the strategy.
         let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::validate_fee(lock.partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(lock.as_partial(), &fee_strategy)?;
 
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
@@ -691,7 +691,7 @@ where
         cancel.is_build_on_top_of(&lock)?;
         cancel.verify_template(data_lock.clone(), punish_lock.clone())?;
         // Validate the fee strategy
-        <Ctx::Ar as Fee>::validate_fee(cancel.partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(cancel.as_partial(), &fee_strategy)?;
 
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
@@ -704,7 +704,7 @@ where
         let refund_address = bob_parameters.refund_address.clone();
         refund.verify_template(punish_lock.clone(), refund_address)?;
         // Validate the fee strategy
-        <Ctx::Ar as Fee>::validate_fee(refund.partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(refund.as_partial(), &fee_strategy)?;
 
         Ok(ValidatedCoreTransactions {
             lock,
@@ -905,7 +905,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Ensure that the transaction contains enough assets to pass the fee validation latter.
         let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::validate_fee(lock.partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(lock.as_partial(), &fee_strategy)?;
 
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
@@ -930,7 +930,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         >>::initialize(&lock, cancel_lock, punish_lock.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        <Ctx::Ar as Fee>::set_fee(cancel.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(cancel.as_partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Initialize the refund transaction for the cancel transaction, moving the funds out of
         // the punishable lock to Bob's refund address.
@@ -940,7 +940,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         >>::initialize(&cancel, punish_lock, self.refund_address.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        <Ctx::Ar as Fee>::set_fee(refund.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(refund.as_partial_mut(), &fee_strategy, self.fee_politic)?;
 
         Ok(CoreArbitratingTransactions {
             lock: lock.to_partial(),
@@ -1148,7 +1148,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Set the fees according to the strategy in the offer and the local politic.
         let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::set_fee(buy.partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(buy.as_partial_mut(), &fee_strategy, self.fee_politic)?;
 
         // Generate the witness message to sign and adaptor sign with the buy key and the
         // counter-party adaptor.

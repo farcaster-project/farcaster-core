@@ -83,11 +83,11 @@ impl<T> Transaction<Bitcoin, MetadataOutput> for Tx<T>
 where
     T: SubTransaction,
 {
-    fn partial(&self) -> &PartiallySignedTransaction {
+    fn as_partial(&self) -> &PartiallySignedTransaction {
         &self.psbt
     }
 
-    fn partial_mut(&mut self) -> &mut PartiallySignedTransaction {
+    fn as_partial_mut(&mut self) -> &mut PartiallySignedTransaction {
         &mut self.psbt
     }
 

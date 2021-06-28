@@ -16,7 +16,7 @@ pub mod protocol_message;
 pub mod role;
 pub mod script;
 pub mod swap;
-pub mod tasks;
+pub mod syncer;
 pub mod transaction;
 
 /// A list of possible errors when performing a cross-chain atomic swap with the **Farcaster**

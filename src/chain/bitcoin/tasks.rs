@@ -11,7 +11,7 @@ impl BtcAddressAddendum {
         todo!()
     }
 
-    pub fn deserialize(data_vec: Vec<u8>) -> Result<BtcAddressAddendum, std::io::Error> {
+    pub fn deserialize(data_vec: Vec<u8>) -> Result<BtcAddressAddendum, crate::syncer::Error> {
         todo!()
     }
 }

@@ -40,4 +40,7 @@ pub enum Error {
     /// A negotiation error.
     #[error("Negotiation error: {0}")]
     Negotiation(#[from] negotiation::Error),
+    /// A syncer task or event error.
+    #[error("Syncer error: {0}")]
+    Syncer(#[from] syncer::Error),
 }

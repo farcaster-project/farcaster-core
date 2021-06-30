@@ -10,10 +10,10 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Network;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::blockchain::{self, Asset, Onchain, Timelock, Transactions};
-use farcaster_core::consensus::{self, Decodable, Encodable};
-use farcaster_core::crypto::{self, ArbitratingKey, FromSeed, Keys, Signatures};
-use farcaster_core::role::{Arb, Arbitrating};
+use crate::blockchain::{self, Asset, Onchain, Timelock, Transactions};
+use crate::consensus::{self, Decodable, Encodable};
+use crate::crypto::{self, ArbitratingKey, FromSeed, Keys, Signatures};
+use crate::role::{Arb, Arbitrating};
 
 use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
 

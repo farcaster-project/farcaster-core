@@ -3,11 +3,11 @@ use bitcoin::util::amount;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
-use farcaster_core::consensus::{self, Decodable, Encodable};
+use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
+use crate::consensus::{self, Decodable, Encodable};
 
-use crate::bitcoin::transaction;
-use crate::bitcoin::{Amount, Bitcoin};
+use crate::chain::bitcoin::transaction;
+use crate::chain::bitcoin::{Amount, Bitcoin};
 
 use std::io;
 use std::str::FromStr;

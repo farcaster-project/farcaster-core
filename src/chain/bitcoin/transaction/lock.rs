@@ -5,11 +5,11 @@ use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::script;
-use farcaster_core::transaction::{Error as FError, Fundable, Lockable};
+use crate::script;
+use crate::transaction::{Error as FError, Fundable, Lockable};
 
-use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::{Amount, Bitcoin};
+use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
+use crate::chain::bitcoin::{Amount, Bitcoin};
 
 #[derive(Debug)]
 pub struct Lock;

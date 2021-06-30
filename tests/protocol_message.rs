@@ -6,8 +6,8 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use farcaster_core::protocol_message::{Abort, BuyProcedureSignature};
 
-use farcaster_chains::bitcoin::{ECDSAAdaptorSig, PDLEQ};
-use farcaster_chains::pairs::btcxmr::BtcXmr;
+use farcaster_core::chain::bitcoin::{ECDSAAdaptorSig, PDLEQ};
+use farcaster_core::chain::pairs::btcxmr::BtcXmr;
 
 #[test]
 fn create_abort_message() {

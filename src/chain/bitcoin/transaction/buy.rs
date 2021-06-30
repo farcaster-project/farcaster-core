@@ -2,11 +2,11 @@ use bitcoin::blockdata::script::Instruction;
 use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::script;
-use farcaster_core::transaction::{Buyable, Error as FError, Lockable};
+use crate::script;
+use crate::transaction::{Buyable, Error as FError, Lockable};
 
-use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::{Address, Bitcoin};
+use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
+use crate::chain::bitcoin::{Address, Bitcoin};
 
 #[derive(Debug)]
 pub struct Buy;

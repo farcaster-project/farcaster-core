@@ -1,10 +1,10 @@
 use strict_encoding::{StrictDecode, StrictEncode};
 
-use farcaster_core::crypto::{self, AccordantKey, Commitment, DleqProof};
-use farcaster_core::swap::Swap;
+use crate::crypto::{self, AccordantKey, Commitment, DleqProof};
+use crate::swap::Swap;
 
-use crate::bitcoin::Bitcoin;
-use crate::monero::{self as xmr, Monero};
+use crate::chain::bitcoin::Bitcoin;
+use crate::chain::monero::{self as xmr, Monero};
 
 use monero::cryptonote::hash::Hash;
 

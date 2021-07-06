@@ -1,5 +1,3 @@
-use enum_dispatch::enum_dispatch;
-
 pub trait EventCore {
     fn id(&self) -> i32;
 }
@@ -17,8 +15,7 @@ impl EventCore for HeightChanged {
     }
 }
 
-#[enum_dispatch(EventCore)]
 #[derive(Debug, Clone)]
 pub enum Event {
-  HeightChanged,
+    HeightChanged,
 }

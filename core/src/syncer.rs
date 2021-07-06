@@ -1,11 +1,9 @@
 //! Tasks used for the daemon to instruct the syncer on what info to track
 
 use std::error;
-use thiserror::Error;
-use enum_dispatch::enum_dispatch;
-use async_trait::async_trait;
-use strict_encoding::{StrictEncode, StrictDecode};
 use std::fmt;
+use strict_encoding::{StrictDecode, StrictEncode};
+use thiserror::Error;
 
 /// Errors when manipulating tasks
 #[derive(Error, Debug)]
@@ -15,14 +13,14 @@ pub enum Error {
     LifetimeExpired,
     /// Any syncer error not part of this list.
     #[error("Syncer error: {0}")]
-    Other(Box<dyn error::Error + Send + Sync>),
+    Other(Box<dyn error::Error>),
 }
 
 impl Error {
     /// Creates a new cryptographic error of type other with an arbitrary payload.
     pub fn new<E>(error: E) -> Self
     where
-        E: Into<Box<dyn error::Error + Send + Sync>>,
+        E: Into<Box<dyn error::Error>>,
     {
         Self::Other(error.into())
     }
@@ -34,7 +32,7 @@ impl Error {
     ///
     /// [`new`]: Error::new
     ///
-    pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
+    pub fn into_inner(self) -> Option<Box<dyn error::Error>> {
         match self {
             Self::Other(error) => Some(error),
             _ => None,
@@ -48,16 +46,13 @@ impl From<std::io::Error> for Error {
     }
 }
 
-
-#[async_trait]
-#[enum_dispatch]
 pub trait Syncer {
-    async fn abort(&mut self, task: Abort) -> Result<(), Error>;
-    async fn watch_height(&mut self, task: WatchHeight) -> Result<(), Error>;
-    async fn watch_address(&mut self, task: WatchAddress) -> Result<(), Error>;
-    async fn watch_transaction(&mut self, task: WatchTransaction) -> Result<(), Error>;
-    async fn broadcast_transaction(&mut self, task: BroadcastTransaction) -> Result<(), Error>;
-    async fn poll(&mut self) -> Result<Vec<Event>, Error>;
+    fn abort(&mut self, task: Abort) -> Result<(), Error>;
+    fn watch_height(&mut self, task: WatchHeight) -> Result<(), Error>;
+    fn watch_address(&mut self, task: WatchAddress) -> Result<(), Error>;
+    fn watch_transaction(&mut self, task: WatchTransaction) -> Result<(), Error>;
+    fn broadcast_transaction(&mut self, task: BroadcastTransaction) -> Result<(), Error>;
+    fn poll(&mut self) -> Result<Vec<Event>, Error>;
 }
 
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
@@ -129,11 +124,11 @@ impl fmt::Display for BroadcastTransaction {
 
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
 pub enum Task {
-  Abort(Abort),
-  WatchHeight(WatchHeight),
-  WatchAddress(WatchAddress),
-  WatchTransaction(WatchTransaction),
-  BroadcastTransaction(BroadcastTransaction),
+    Abort(Abort),
+    WatchHeight(WatchHeight),
+    WatchAddress(WatchAddress),
+    WatchTransaction(WatchTransaction),
+    BroadcastTransaction(BroadcastTransaction),
 }
 
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
@@ -148,7 +143,6 @@ impl fmt::Display for TaskAborted {
     }
 }
 
-
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
 pub struct HeightChanged {
     pub id: i32,
@@ -161,7 +155,6 @@ impl fmt::Display for HeightChanged {
         write!(f, "heightchanged")
     }
 }
-
 
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
 pub struct AddressTransaction {
@@ -176,7 +169,6 @@ impl fmt::Display for AddressTransaction {
         write!(f, "addresstransaction")
     }
 }
-
 
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
 pub struct TransactionConfirmations {
@@ -207,9 +199,9 @@ impl fmt::Display for TransactionBroadcasted {
 
 #[derive(Debug, Clone, StrictEncode, StrictDecode)]
 pub enum Event {
-  HeightChanged(HeightChanged),
-  AddressTransaction(AddressTransaction),
-  TransactionConfirmations(TransactionConfirmations),
-  TransactionBroadcasted(TransactionBroadcasted),
-  TaskAborted(TaskAborted),
+    HeightChanged(HeightChanged),
+    AddressTransaction(AddressTransaction),
+    TransactionConfirmations(TransactionConfirmations),
+    TransactionBroadcasted(TransactionBroadcasted),
+    TaskAborted(TaskAborted),
 }

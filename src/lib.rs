@@ -10,12 +10,14 @@ pub mod bundle;
 pub mod chain;
 pub mod crypto;
 pub mod datum;
+pub mod events;
 pub mod instruction;
 pub mod negotiation;
 pub mod protocol_message;
 pub mod role;
 pub mod script;
 pub mod swap;
+pub mod syncer;
 pub mod transaction;
 
 /// A list of possible errors when performing a cross-chain atomic swap with the **Farcaster**
@@ -39,4 +41,7 @@ pub enum Error {
     /// A negotiation error.
     #[error("Negotiation error: {0}")]
     Negotiation(#[from] negotiation::Error),
+    /// A syncer task or event error.
+    #[error("Syncer error: {0}")]
+    Syncer(#[from] syncer::Error),
 }

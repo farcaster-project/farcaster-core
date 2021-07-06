@@ -9,6 +9,8 @@ use monero::util::key::{PrivateKey, PublicKey};
 
 use std::fmt::{self, Debug, Display, Formatter};
 
+pub mod tasks;
+
 pub const SHARED_KEY_BITS: usize = 252;
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]

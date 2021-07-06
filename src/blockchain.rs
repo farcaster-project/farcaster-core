@@ -9,8 +9,6 @@ use std::io;
 use std::ops::Range;
 use std::str::FromStr;
 
-use strict_encoding::{StrictDecode, StrictEncode};
-
 use thiserror::Error;
 
 use crate::consensus::{self, Decodable, Encodable};
@@ -20,7 +18,7 @@ use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Re
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
 pub trait Address {
     /// Defines the address format for the arbitrating blockchain.
-    type Address: Clone + Debug + Encodable + Decodable + StrictEncode + StrictDecode;
+    type Address: Clone + Debug;
 }
 
 /// Defines the type for a blockchain timelock, this type is used when manipulating transactions
@@ -36,9 +34,6 @@ pub trait Asset: Copy + Debug {
     /// Type for the traded asset unit for a blockchain.
     type AssetUnit: Copy + Eq + Debug + Encodable + Decodable;
 
-    /// Create a new blockchain.
-    fn new() -> Self;
-
     /// Parse an 32 bits identifier as defined in [SLIP
     /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
     /// and return a blockchain if existant.
@@ -53,10 +48,10 @@ pub trait Asset: Copy + Debug {
 pub trait Onchain {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
-    type PartialTransaction: Clone + Debug + StrictEncode + StrictDecode;
+    type PartialTransaction: Clone + Debug;
 
     /// Defines the finalized transaction format for the arbitrating blockchain
-    type Transaction: Clone + Debug + StrictEncode + StrictDecode;
+    type Transaction: Clone + Debug;
 }
 
 /// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
@@ -65,7 +60,7 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
     /// The returned type of the consumable output and the `base_on` transaction method, used to
     /// reference the funds and chain other transactions on it. This must contain all necessary
     /// data to latter create a valid unlocking witness for the output and identify the funds.
-    type Metadata: Eq;
+    type Metadata: Clone + Eq + Debug;
 
     /// Defines the type for the `funding (a)` transaction
     type Funding: Fundable<Self, Self::Metadata>;
@@ -83,14 +78,7 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
 
 impl<T> FromStr for FeeStrategy<T>
 where
-    T: Clone
-        + PartialOrd
-        + PartialEq
-        + Encodable
-        + Decodable
-        + StrictEncode
-        + StrictDecode
-        + FromStr,
+    T: Clone + PartialOrd + PartialEq + Encodable + Decodable + FromStr,
 {
     type Err = consensus::Error;
 

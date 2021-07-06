@@ -1,9 +1,11 @@
+use farcaster_core::chain::bitcoin::amount::Amount;
 use farcaster_core::chain::bitcoin::fee::SatPerVByte;
-use farcaster_core::chain::bitcoin::{Amount, Bitcoin, CSVTimelock};
+use farcaster_core::chain::bitcoin::timelock::CSVTimelock;
+use farcaster_core::chain::bitcoin::Bitcoin;
 use farcaster_core::chain::monero::Monero;
 use farcaster_core::chain::pairs::btcxmr::BtcXmr;
 
-use farcaster_core::blockchain::{Asset, FeeStrategy, Network};
+use farcaster_core::blockchain::{FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};
 use farcaster_core::negotiation::{Buy, Offer, PublicOffer, Sell};
 use farcaster_core::role::SwapRole;
@@ -18,10 +20,10 @@ fn create_offer() {
                10800090000000000000002";
     let offer: Offer<BtcXmr> = Offer {
         network: Network::Testnet,
-        arbitrating_blockchain: Bitcoin::new(),
-        accordant_blockchain: Monero::new(),
+        arbitrating_blockchain: Bitcoin,
+        accordant_blockchain: Monero,
         arbitrating_amount: Amount::from_sat(5),
-        accordant_amount: 6,
+        accordant_amount: monero::Amount::from_pico(6),
         cancel_timelock: CSVTimelock::new(7),
         punish_timelock: CSVTimelock::new(8),
         fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
@@ -33,8 +35,8 @@ fn create_offer() {
 
 #[test]
 fn maker_buy_arbitrating_assets_offer() {
-    let offer: Option<Offer<BtcXmr>> = Buy::some(Bitcoin::new(), Amount::from_sat(100000))
-        .with(Monero::new(), 200)
+    let offer: Option<Offer<BtcXmr>> = Buy::some(Bitcoin, Amount::from_sat(100000))
+        .with(Monero, monero::Amount::from_pico(200))
         .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
         .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
         .on(Network::Testnet)
@@ -45,8 +47,8 @@ fn maker_buy_arbitrating_assets_offer() {
 
 #[test]
 fn maker_sell_arbitrating_assets_offer() {
-    let offer: Option<Offer<BtcXmr>> = Sell::some(Bitcoin::new(), Amount::from_sat(100000))
-        .for_some(Monero::new(), 200)
+    let offer: Option<Offer<BtcXmr>> = Sell::some(Bitcoin, Amount::from_sat(100000))
+        .for_some(Monero, monero::Amount::from_pico(200))
         .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
         .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
         .on(Network::Testnet)
@@ -61,8 +63,8 @@ fn serialize_public_offer() {
                a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
                873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
                000000000000000000000260700";
-    let offer: Offer<BtcXmr> = Sell::some(Bitcoin::new(), Amount::from_sat(100000))
-        .for_some(Monero::new(), 200)
+    let offer: Offer<BtcXmr> = Sell::some(Bitcoin, Amount::from_sat(100000))
+        .for_some(Monero, monero::Amount::from_pico(200))
         .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
         .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
         .on(Network::Testnet)

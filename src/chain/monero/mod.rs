@@ -1,20 +1,24 @@
 //! Defines and implements all the traits for Monero
 
-use crate::blockchain::Asset;
-use crate::crypto::{self, AccordantKey, FromSeed, Keys, SharedPrivateKey, SharedPrivateKeys};
-use crate::role::{Acc, Accordant};
+use crate::blockchain::{Address, Asset};
+use crate::consensus::{self, AsCanonicalBytes, Decodable, Encodable};
+use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys};
+use crate::role::Accordant;
 
-use monero::cryptonote::hash::Hash;
 use monero::util::key::{PrivateKey, PublicKey};
+use monero::Amount;
 
 use std::fmt::{self, Debug, Display, Formatter};
+use std::io;
 
 pub mod tasks;
 
-pub const SHARED_KEY_BITS: usize = 252;
+pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
+
+impl Accordant for Monero {}
 
 impl std::str::FromStr for Monero {
     type Err = crate::consensus::Error;
@@ -36,16 +40,11 @@ impl Display for Monero {
 
 impl Asset for Monero {
     /// Type for the traded asset unit
-    type AssetUnit = u64;
-
-    /// Create a new Bitcoin blockchain
-    fn new() -> Self {
-        Monero {}
-    }
+    type AssetUnit = Amount;
 
     fn from_u32(bytes: u32) -> Option<Self> {
         match bytes {
-            0x80000080 => Some(Self::new()),
+            0x80000080 => Some(Self),
             _ => None,
         }
     }
@@ -55,7 +54,23 @@ impl Asset for Monero {
     }
 }
 
-impl Accordant for Monero {}
+impl Encodable for Amount {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        monero::consensus::encode::Encodable::consensus_encode(&self.as_pico(), writer)
+    }
+}
+
+impl Decodable for Amount {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let pico: u64 = monero::consensus::encode::Decodable::consensus_decode(d)
+            .map_err(|_| consensus::Error::ParseFailed("Monero amount parsing failed"))?;
+        Ok(Amount::from_pico(pico))
+    }
+}
+
+impl Address for Monero {
+    type Address = monero::Address;
+}
 
 impl Keys for Monero {
     /// Private key type for the blockchain
@@ -64,74 +79,29 @@ impl Keys for Monero {
     /// Public key type for the blockchain
     type PublicKey = PublicKey;
 
-    fn as_bytes(pubkey: &PublicKey) -> Vec<u8> {
-        pubkey.as_bytes().into()
+    fn extra_keys() -> Vec<u16> {
+        // No extra key
+        vec![]
     }
 }
 
-impl SharedPrivateKeys<Acc> for Monero {
+impl AsCanonicalBytes for PrivateKey {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.to_bytes().into()
+    }
+}
+
+impl AsCanonicalBytes for PublicKey {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.as_bytes().into()
+    }
+}
+
+impl SharedPrivateKeys for Monero {
     type SharedPrivateKey = PrivateKey;
 
-    fn get_shared_privkey(
-        engine: &Wallet,
-        key_type: SharedPrivateKey,
-    ) -> Result<PrivateKey, crypto::Error> {
-        engine.get_shared_privkey(key_type)
-    }
-
-    fn as_bytes(privkey: &PrivateKey) -> Vec<u8> {
-        privkey.as_bytes().into()
-    }
-}
-
-pub fn private_spend_from_seed<T: AsRef<[u8]>>(seed: T) -> Result<PrivateKey, crypto::Error> {
-    let mut bytes = Vec::from(b"farcaster_priv_spend".as_ref());
-    bytes.extend_from_slice(&seed.as_ref());
-
-    let mut key = Hash::hash(&bytes).to_fixed_bytes();
-    key[31] &= 0b0000_1111; // Chop off bits that might be greater than the curve modulus
-
-    PrivateKey::from_slice(&key).map_err(|e| crypto::Error::new(e))
-}
-
-#[derive(Clone, Debug)]
-pub struct Wallet {
-    seed: [u8; 32],
-}
-
-impl Wallet {
-    pub fn new(seed: [u8; 32]) -> Self {
-        Self { seed }
-    }
-
-    pub fn get_privkey(&self, key_type: AccordantKey) -> Result<PrivateKey, crypto::Error> {
-        match key_type {
-            AccordantKey::Spend => private_spend_from_seed(&self.seed),
-        }
-    }
-
-    pub fn get_shared_privkey(
-        &self,
-        key_type: SharedPrivateKey,
-    ) -> Result<PrivateKey, crypto::Error> {
-        match key_type {
-            SharedPrivateKey::View => {
-                let mut bytes = Vec::from(b"farcaster_priv_view".as_ref());
-                bytes.extend_from_slice(&self.seed.as_ref());
-                Ok(Hash::hash(&bytes).as_scalar())
-            }
-        }
-    }
-
-    pub fn get_pubkey(&self, key_type: AccordantKey) -> Result<PublicKey, crypto::Error> {
-        Ok(PublicKey::from_private_key(&self.get_privkey(key_type)?))
-    }
-}
-
-impl FromSeed<Acc> for Monero {
-    type Wallet = Wallet;
-
-    fn get_pubkey(engine: &Wallet, key_type: AccordantKey) -> Result<PublicKey, crypto::Error> {
-        engine.get_pubkey(key_type)
+    fn shared_keys() -> Vec<SharedKeyId> {
+        // Share one key: the private view key
+        vec![SharedKeyId::new(SHARED_VIEW_KEY_ID)]
     }
 }

@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
+use bitcoin::blockdata::script::Instruction;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
+use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
 use crate::script;
@@ -13,26 +15,71 @@ use crate::chain::bitcoin::{Address, Bitcoin};
 pub struct Refund;
 
 impl SubTransaction for Refund {
-    fn finalize(_psbt: &mut PartiallySignedTransaction) -> Result<(), FError> {
-        todo!()
+    fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), FError> {
+        let script = psbt.inputs[0]
+            .witness_script
+            .clone()
+            .ok_or(FError::MissingWitness)?;
+
+        let mut keys = script.instructions().skip(2).take(2);
+
+        psbt.inputs[0].final_script_witness = Some(vec![
+            vec![], // 0 for multisig
+            psbt.inputs[0]
+                .partial_sigs
+                .get(
+                    &PublicKey::from_slice(
+                        keys.next()
+                            .ok_or(FError::MissingPublicKey)?
+                            .map(|i| match i {
+                                Instruction::PushBytes(b) => Ok(b),
+                                _ => Err(FError::MissingPublicKey),
+                            })
+                            .map_err(Error::from)??,
+                    )
+                    .map_err(|_| FError::MissingPublicKey)?,
+                )
+                .ok_or(FError::MissingSignature)?
+                .clone(),
+            psbt.inputs[0]
+                .partial_sigs
+                .get(
+                    &PublicKey::from_slice(
+                        keys.next()
+                            .ok_or(FError::MissingPublicKey)?
+                            .map(|i| match i {
+                                Instruction::PushBytes(b) => Ok(b),
+                                _ => Err(FError::MissingPublicKey),
+                            })
+                            .map_err(Error::from)??,
+                    )
+                    .map_err(|_| FError::MissingPublicKey)?,
+                )
+                .ok_or(FError::MissingSignature)?
+                .clone(),
+            vec![1],             // OP_TRUE
+            script.into_bytes(), // cancel script
+        ]);
+
+        Ok(())
     }
 }
 
 impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
     fn initialize(
         prev: &impl Cancelable<Bitcoin, MetadataOutput>,
-        punish_lock: script::DataPunishableLock<Bitcoin>,
+        _punish_lock: script::DataPunishableLock<Bitcoin>,
         refund_target: Address,
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;
 
-        let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
+        let unsigned_tx = bitcoin::Transaction {
             version: 2,
             lock_time: 0,
             input: vec![TxIn {
                 previous_output: output_metadata.out_point,
-                script_sig: bitcoin::blockdata::script::Script::default(),
-                sequence: punish_lock.timelock.as_u32(),
+                script_sig: bitcoin::Script::default(),
+                sequence: 0,
                 witness: vec![],
             }],
             output: vec![TxOut {
@@ -49,10 +96,6 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
         psbt.inputs[0].witness_script = output_metadata.script_pubkey;
         psbt.inputs[0].sighash_type = Some(SigHashType::All);
 
-        // TODO move the logic inside core
-        //// Set the fees according to the given strategy
-        //Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
-
         Ok(Tx {
             psbt,
             _t: PhantomData,
@@ -64,6 +107,7 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
         _punish_lock: script::DataPunishableLock<Bitcoin>,
         _refund_target: Address,
     ) -> Result<(), FError> {
-        todo!()
+        // FIXME
+        Ok(())
     }
 }

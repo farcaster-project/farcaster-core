@@ -9,7 +9,7 @@ pub mod blockchain;
 pub mod bundle;
 pub mod chain;
 pub mod crypto;
-pub mod datum;
+//pub mod datum;
 pub mod events;
 pub mod instruction;
 pub mod negotiation;

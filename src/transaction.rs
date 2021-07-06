@@ -78,10 +78,10 @@ where
     Self: Sized,
 {
     /// Returns a reference to the inner partial transaction data.
-    fn partial(&self) -> &T::PartialTransaction;
+    fn as_partial(&self) -> &T::PartialTransaction;
 
     /// Returns a mutable reference to the inner partial transaction data.
-    fn partial_mut(&mut self) -> &mut T::PartialTransaction;
+    fn as_partial_mut(&mut self) -> &mut T::PartialTransaction;
 
     /// Extract the transaction in the defined partial format on the arbitrating blockchain. The
     /// partial format is used to exchange unsigned or patially signed transactions.

@@ -17,7 +17,8 @@ use crate::transaction::{
     Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
 };
 
-use crate::chain::bitcoin::{Amount, Bitcoin};
+use crate::chain::bitcoin::amount::Amount;
+use crate::chain::bitcoin::Bitcoin;
 
 pub mod buy;
 pub mod cancel;
@@ -82,11 +83,11 @@ impl<T> Transaction<Bitcoin, MetadataOutput> for Tx<T>
 where
     T: SubTransaction,
 {
-    fn partial(&self) -> &PartiallySignedTransaction {
+    fn as_partial(&self) -> &PartiallySignedTransaction {
         &self.psbt
     }
 
-    fn partial_mut(&mut self) -> &mut PartiallySignedTransaction {
+    fn as_partial_mut(&mut self) -> &mut PartiallySignedTransaction {
         &mut self.psbt
     }
 

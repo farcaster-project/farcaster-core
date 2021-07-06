@@ -117,10 +117,6 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
         // Set the script witness of the output
         psbt.outputs[0].witness_script = Some(script);
 
-        // TODO move the logic inside core
-        //// Set the fees according to the given strategy
-        //Bitcoin::set_fees(&mut psbt, fee_strategy, fee_politic)?;
-
         Ok(Tx {
             psbt,
             _t: PhantomData,
@@ -132,6 +128,7 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
         _lock: script::DataLock<Bitcoin>,
         _punish_lock: script::DataPunishableLock<Bitcoin>,
     ) -> Result<(), FError> {
-        todo!()
+        // FIXME
+        Ok(())
     }
 }

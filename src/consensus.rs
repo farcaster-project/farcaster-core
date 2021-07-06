@@ -35,6 +35,12 @@ pub enum Error {
     StrictEncoding(#[from] strict_encoding::Error),
 }
 
+/// Data that can be represented in a canonical bytes format.
+pub trait AsCanonicalBytes {
+    /// Returns the canonical bytes representation of the element.
+    fn as_canonical_bytes(&self) -> Vec<u8>;
+}
+
 /// Encode an object into a vector
 pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
     let mut encoder = Vec::new();

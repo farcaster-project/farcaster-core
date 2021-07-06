@@ -8,8 +8,9 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use crate::script;
 use crate::transaction::{Error as FError, Fundable, Lockable};
 
+use crate::chain::bitcoin::amount::Amount;
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::{Amount, Bitcoin};
+use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Lock;

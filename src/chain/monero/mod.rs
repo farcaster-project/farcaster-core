@@ -1,11 +1,12 @@
 //! Defines and implements all the traits for Monero
 
-use crate::blockchain::{Address, Asset};
+use crate::blockchain::{self, Asset};
 use crate::consensus::{self, AsCanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys};
 use crate::role::Accordant;
 
 use monero::util::key::{PrivateKey, PublicKey};
+use monero::Address;
 use monero::Amount;
 
 use std::fmt::{self, Debug, Display, Formatter};
@@ -68,8 +69,23 @@ impl Decodable for Amount {
     }
 }
 
-impl Address for Monero {
-    type Address = monero::Address;
+impl blockchain::Address for Monero {
+    type Address = Address;
+}
+
+impl Encodable for Address {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        monero::consensus::encode::Encodable::consensus_encode(&self.as_bytes(), writer)
+    }
+}
+
+impl Decodable for Address {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: Vec<u8> = monero::consensus::encode::Decodable::consensus_decode(d)
+            .map_err(|_| consensus::Error::ParseFailed("Parsing failed"))?;
+        Ok(Address::from_bytes(&bytes[..])
+            .map_err(|_| consensus::Error::ParseFailed("Parsing failed"))?)
+    }
 }
 
 impl Keys for Monero {

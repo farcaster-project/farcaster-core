@@ -1,7 +1,7 @@
 //! Defines and implements all the traits for Monero
 
 use crate::blockchain::{self, Asset};
-use crate::consensus::{self, AsCanonicalBytes, Decodable, Encodable};
+use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys};
 use crate::role::Accordant;
 
@@ -10,7 +10,6 @@ use monero::Address;
 use monero::Amount;
 
 use std::fmt::{self, Debug, Display, Formatter};
-use std::io;
 
 pub mod tasks;
 
@@ -55,17 +54,18 @@ impl Asset for Monero {
     }
 }
 
-impl Encodable for Amount {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        monero::consensus::encode::Encodable::consensus_encode(&self.as_pico(), writer)
+impl CanonicalBytes for Amount {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        monero::consensus::encode::serialize(&self.as_pico())
     }
-}
 
-impl Decodable for Amount {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let pico: u64 = monero::consensus::encode::Decodable::consensus_decode(d)
-            .map_err(|_| consensus::Error::ParseFailed("Monero amount parsing failed"))?;
-        Ok(Amount::from_pico(pico))
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Ok(Amount::from_pico(
+            monero::consensus::encode::deserialize(bytes).map_err(consensus::Error::new)?,
+        ))
     }
 }
 
@@ -73,18 +73,16 @@ impl blockchain::Address for Monero {
     type Address = Address;
 }
 
-impl Encodable for Address {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        monero::consensus::encode::Encodable::consensus_encode(&self.as_bytes(), writer)
+impl CanonicalBytes for Address {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.as_bytes()
     }
-}
 
-impl Decodable for Address {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let bytes: Vec<u8> = monero::consensus::encode::Decodable::consensus_decode(d)
-            .map_err(|_| consensus::Error::ParseFailed("Parsing failed"))?;
-        Ok(Address::from_bytes(&bytes[..])
-            .map_err(|_| consensus::Error::ParseFailed("Parsing failed"))?)
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Address::from_bytes(bytes).map_err(consensus::Error::new)
     }
 }
 
@@ -101,15 +99,29 @@ impl Keys for Monero {
     }
 }
 
-impl AsCanonicalBytes for PrivateKey {
+impl CanonicalBytes for PrivateKey {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         self.to_bytes().into()
     }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        PrivateKey::from_slice(bytes).map_err(consensus::Error::new)
+    }
 }
 
-impl AsCanonicalBytes for PublicKey {
+impl CanonicalBytes for PublicKey {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         self.as_bytes().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        PublicKey::from_slice(bytes).map_err(consensus::Error::new)
     }
 }
 

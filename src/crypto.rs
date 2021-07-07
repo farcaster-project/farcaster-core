@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use thiserror::Error;
 
-use crate::consensus::AsCanonicalBytes;
+use crate::consensus::CanonicalBytes;
 
 /// List of cryptographic errors that can be encountered when processing cryptographic operation
 /// such as signatures, proofs, key derivation, or commitments.
@@ -117,7 +117,7 @@ pub trait Keys {
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine.
-    type PublicKey: Clone + PartialEq + Debug + AsCanonicalBytes;
+    type PublicKey: Clone + PartialEq + Debug + CanonicalBytes;
 
     fn extra_keys() -> Vec<u16>;
 }
@@ -126,7 +126,7 @@ pub trait Keys {
 /// the network.
 pub trait SharedPrivateKeys {
     /// A shareable private key type used to parse non-transparent blockchain
-    type SharedPrivateKey: Clone + PartialEq + Debug + AsCanonicalBytes;
+    type SharedPrivateKey: Clone + PartialEq + Debug + CanonicalBytes;
 
     fn shared_keys() -> Vec<SharedKeyId>;
 }
@@ -147,11 +147,11 @@ pub trait Signatures {
     type Message: Clone + Debug;
 
     /// Defines the signature format for the arbitrating blockchain.
-    type Signature: Clone + Debug;
+    type Signature: Clone + Debug + CanonicalBytes;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic primitives used.
-    type AdaptorSignature: Clone + Debug;
+    type AdaptorSignature: Clone + Debug + CanonicalBytes;
 }
 
 pub trait Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:

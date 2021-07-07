@@ -2,14 +2,14 @@
 
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::consensus::AsCanonicalBytes;
+use crate::consensus::CanonicalBytes;
 use crate::crypto::{
     self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement,
 };
 use crate::swap::Swap;
 use crate::Error;
 
-fn commit_to_vec<T: Clone + Eq, K: AsCanonicalBytes, C: Clone + Eq>(
+fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: &Vec<TaggedElement<T, K>>,
 ) -> Vec<TaggedElement<T, C>> {
@@ -23,7 +23,7 @@ fn commit_to_vec<T: Clone + Eq, K: AsCanonicalBytes, C: Clone + Eq>(
         .collect()
 }
 
-fn verify_vec_of_commitments<T: Eq, K: AsCanonicalBytes, C: Clone + Eq>(
+fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: Vec<TaggedElement<T, K>>,
     commitments: &Vec<TaggedElement<T, C>>,

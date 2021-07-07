@@ -8,6 +8,7 @@
 use hex::encode as hex_encode;
 use thiserror::Error;
 
+use std::error;
 use std::io;
 use std::io::prelude::*;
 
@@ -33,12 +34,47 @@ pub enum Error {
     /// Strict encoding error.
     #[error("Strict encoding error: {0}")]
     StrictEncoding(#[from] strict_encoding::Error),
+    /// Any Consensus error not part of this list.
+    #[error("Consensus error: {0}")]
+    Other(Box<dyn error::Error + Send + Sync>),
+}
+
+impl Error {
+    /// Creates a new transaction error of type other with an arbitrary payload.
+    pub fn new<E>(error: E) -> Self
+    where
+        E: Into<Box<dyn error::Error + Send + Sync>>,
+    {
+        Self::Other(error.into())
+    }
+
+    /// Consumes the `Error`, returning its inner error (if any).
+    ///
+    /// If this [`enum@Error`] was constructed via [`new`] then this function will return [`Some`],
+    /// otherwise it will return [`None`].
+    ///
+    /// [`new`]: Error::new
+    ///
+    pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
+        match self {
+            Self::Other(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
 /// Data that can be represented in a canonical bytes format.
-pub trait AsCanonicalBytes {
+///
+/// The implementer MUST use the strict encoding dictated by the blockchain consensus without any
+/// lenght prefix. Lenght prefix is done by Farcaster core after during the serialization.
+pub trait CanonicalBytes {
     /// Returns the canonical bytes representation of the element.
     fn as_canonical_bytes(&self) -> Vec<u8>;
+
+    /// Parse a normally canonical bytes representation of an element and return it.
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized;
 }
 
 /// Encode an object into a vector
@@ -79,11 +115,7 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
     Ok((rv, consumed))
 }
 
-/// Data which can be encoded in a consensus-consistent way
-///
-/// **When implemented on foreign blockchain specific types such as `Amount` from the bitcoin
-/// crate, the implementer MUST use the strict encoding dictated by the blockchain consensus
-/// without any lenght prefix. Lenght prefix is done by Farcaster core after this serialization.**
+/// Data which can be encoded in a consensus-consistent way.
 pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever error if
     /// the underlying encoder errors.
@@ -92,11 +124,7 @@ pub trait Encodable {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error>;
 }
 
-/// Data which can be encoded in a consensus-consistent way
-///
-/// **When implemented on foreign blockchain specific types such as `Amount` from the bitcoin
-/// crate, the implementer MUST use the strict encoding dictated by the blockchain consensus
-/// without any lenght prefix. Lenght prefix is done by Farcaster core after this serialization.**
+/// Data which can be encoded in a consensus-consistent way.
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error>;
@@ -143,25 +171,10 @@ impl Decodable for [u8; 6] {
     }
 }
 
-macro_rules! wrap_in_vec {
-    (wrap $name: ident in $writer: ident) => {{
-        let mut encoder = ::std::io::Cursor::new(vec![]);
-        $name.consensus_encode(&mut encoder)?;
-        encoder.into_inner().consensus_encode($writer)?
-    }};
-
-    (wrap $name: ident for $self: ident in $writer: ident) => {{
-        let mut encoder = ::std::io::Cursor::new(vec![]);
-        $self.$name.consensus_encode(&mut encoder)?;
-        encoder.into_inner().consensus_encode($writer)?
-    }};
-}
-
-macro_rules! unwrap_from_vec {
+macro_rules! unwrap_vec_ref {
     ($reader: ident) => {{
         let v: Vec<u8> = $crate::consensus::Decodable::consensus_decode($reader)?;
-        let mut reader = ::std::io::Cursor::new(v);
-        $crate::consensus::Decodable::consensus_decode(&mut reader)?
+        v
     }};
 }
 

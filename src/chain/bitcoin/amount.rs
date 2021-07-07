@@ -1,19 +1,17 @@
+use crate::consensus::{self, CanonicalBytes};
 use bitcoin::Amount;
 
-use crate::consensus::{self, Decodable, Encodable};
-
-use std::io;
-
-impl Encodable for Amount {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        bitcoin::consensus::encode::Encodable::consensus_encode(&self.as_sat(), writer)
+impl CanonicalBytes for Amount {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        bitcoin::consensus::encode::serialize(&self.as_sat())
     }
-}
 
-impl Decodable for Amount {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let sats: u64 = bitcoin::consensus::encode::Decodable::consensus_decode(d)
-            .map_err(|_| consensus::Error::ParseFailed("Bitcoin amount parsing failed"))?;
-        Ok(Amount::from_sat(sats))
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Ok(Amount::from_sat(
+            bitcoin::consensus::encode::deserialize(bytes).map_err(consensus::Error::new)?,
+        ))
     }
 }

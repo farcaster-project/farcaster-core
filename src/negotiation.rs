@@ -7,7 +7,7 @@ use thiserror::Error;
 use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
-use crate::consensus::{self, Decodable, Encodable};
+use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::role::{NegotiationRole, SwapRole};
 use crate::swap::Swap;
 
@@ -126,10 +126,22 @@ where
             .accordant_blockchain
             .to_u32()
             .consensus_encode(writer)?;
-        len += wrap_in_vec!(wrap arbitrating_amount for self in writer);
-        len += wrap_in_vec!(wrap accordant_amount for self in writer);
-        len += wrap_in_vec!(wrap cancel_timelock for self in writer);
-        len += wrap_in_vec!(wrap punish_timelock for self in writer);
+        len += self
+            .arbitrating_amount
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
+        len += self
+            .accordant_amount
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
+        len += self
+            .cancel_timelock
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
+        len += self
+            .punish_timelock
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
         len += self.fee_strategy.consensus_encode(writer)?;
         Ok(len + self.maker_role.consensus_encode(writer)?)
     }
@@ -146,10 +158,18 @@ where
                 .ok_or(consensus::Error::UnknownType)?,
             accordant_blockchain: Ctx::Ac::from_u32(Decodable::consensus_decode(d)?)
                 .ok_or(consensus::Error::UnknownType)?,
-            arbitrating_amount: unwrap_from_vec!(d),
-            accordant_amount: unwrap_from_vec!(d),
-            cancel_timelock: unwrap_from_vec!(d),
-            punish_timelock: unwrap_from_vec!(d),
+            arbitrating_amount: <Ctx::Ar as Asset>::AssetUnit::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            accordant_amount: <Ctx::Ac as Asset>::AssetUnit::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            cancel_timelock: <Ctx::Ar as Timelock>::Timelock::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            punish_timelock: <Ctx::Ar as Timelock>::Timelock::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
             fee_strategy: Decodable::consensus_decode(d)?,
             maker_role: Decodable::consensus_decode(d)?,
         })

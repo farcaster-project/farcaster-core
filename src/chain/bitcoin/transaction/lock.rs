@@ -4,11 +4,11 @@ use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Amount;
 
 use crate::script;
 use crate::transaction::{Error as FError, Fundable, Lockable};
 
-use crate::chain::bitcoin::amount::Amount;
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::chain::bitcoin::Bitcoin;
 

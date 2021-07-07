@@ -8,6 +8,7 @@ use farcaster_core::transaction::*;
 use farcaster_core::chain::bitcoin::transaction::*;
 use farcaster_core::chain::bitcoin::*;
 
+use bitcoin::Amount;
 use bitcoincore_rpc::RpcApi;
 
 #[macro_use]
@@ -26,7 +27,7 @@ macro_rules! setup_txs {
 
         let funding_tx_seen = fund_address!(address);
         // Minimum of fee of 122 sat
-        let target_amount = amount::Amount::from_sat(funding_tx_seen.output[0].value - 122);
+        let target_amount = Amount::from_sat(funding_tx_seen.output[0].value - 122);
 
         funding.update(funding_tx_seen).unwrap();
 

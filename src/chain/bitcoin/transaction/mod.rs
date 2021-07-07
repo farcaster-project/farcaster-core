@@ -9,6 +9,7 @@ use bitcoin::util::address;
 use bitcoin::util::bip143::SigHashCache;
 use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
+use bitcoin::Amount;
 
 use thiserror::Error;
 
@@ -17,7 +18,6 @@ use crate::transaction::{
     Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
 };
 
-use crate::chain::bitcoin::amount::Amount;
 use crate::chain::bitcoin::Bitcoin;
 
 pub mod buy;

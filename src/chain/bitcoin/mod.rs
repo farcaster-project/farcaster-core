@@ -5,6 +5,7 @@ use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
+use bitcoin::Amount;
 
 use crate::blockchain::{self, Asset, Onchain, Timelock, Transactions};
 use crate::consensus::{self, AsCanonicalBytes};
@@ -41,7 +42,7 @@ impl FromStr for Bitcoin {
 
 impl Asset for Bitcoin {
     /// Type for the traded asset unit
-    type AssetUnit = amount::Amount;
+    type AssetUnit = Amount;
 
     fn from_u32(bytes: u32) -> Option<Self> {
         match bytes {

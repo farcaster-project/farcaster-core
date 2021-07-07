@@ -1,4 +1,3 @@
-use farcaster_core::chain::bitcoin::amount::Amount;
 use farcaster_core::chain::bitcoin::fee::SatPerVByte;
 use farcaster_core::chain::bitcoin::timelock::CSVTimelock;
 use farcaster_core::chain::bitcoin::Bitcoin;
@@ -9,6 +8,8 @@ use farcaster_core::blockchain::{FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};
 use farcaster_core::negotiation::{Buy, Offer, PublicOffer, Sell};
 use farcaster_core::role::SwapRole;
+
+use bitcoin::Amount;
 
 use internet2::{RemoteNodeAddr, RemoteSocketAddr};
 

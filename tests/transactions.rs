@@ -24,7 +24,7 @@ macro_rules! setup_txs {
         let mut funding = Funding::initialize(pubkey_a1, Network::Local).unwrap();
         let address = funding.get_address().unwrap();
 
-        let funding_tx_seen = fund_address!(address.as_ref());
+        let funding_tx_seen = fund_address!(address);
         // Minimum of fee of 122 sat
         let target_amount = amount::Amount::from_sat(funding_tx_seen.output[0].value - 122);
 

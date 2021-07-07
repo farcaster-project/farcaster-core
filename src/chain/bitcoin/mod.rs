@@ -4,13 +4,13 @@ use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
 
 use crate::blockchain::{self, Asset, Onchain, Timelock, Transactions};
 use crate::consensus::{self, AsCanonicalBytes};
 use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures};
 use crate::role::Arbitrating;
 
-use address::Address;
 use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
 
 use std::fmt::Debug;

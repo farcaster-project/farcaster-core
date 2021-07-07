@@ -4,12 +4,13 @@ use bitcoin::blockdata::script::Instruction;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
 
 use crate::script;
 use crate::transaction::{Buyable, Error as FError, Lockable};
 
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::{Address, Bitcoin};
+use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Buy;
@@ -84,7 +85,7 @@ impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
             }],
             output: vec![TxOut {
                 value: output_metadata.tx_out.value,
-                script_pubkey: destination_target.0.script_pubkey(),
+                script_pubkey: destination_target.script_pubkey(),
             }],
         };
 

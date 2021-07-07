@@ -1,12 +1,13 @@
 use bitcoin::blockdata::transaction::{OutPoint, Transaction};
 use bitcoin::network::constants::Network as BtcNetwork;
 use bitcoin::util::key::PublicKey;
+use bitcoin::Address;
 
 use crate::blockchain::Network;
 use crate::transaction::{Error as FError, Fundable, Linkable};
 
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput};
-use crate::chain::bitcoin::{Address, Bitcoin};
+use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug, Clone)]
 pub struct Funding {
@@ -43,15 +44,9 @@ impl Linkable<MetadataOutput> for Funding {
                     tx_out: t.output[0].clone(),
                     script_pubkey: Some(
                         match self.network {
-                            Some(Network::Mainnet) => {
-                                bitcoin::Address::p2pkh(&pubkey, BtcNetwork::Bitcoin)
-                            }
-                            Some(Network::Testnet) => {
-                                bitcoin::Address::p2pkh(&pubkey, BtcNetwork::Testnet)
-                            }
-                            Some(Network::Local) => {
-                                bitcoin::Address::p2pkh(&pubkey, BtcNetwork::Regtest)
-                            }
+                            Some(Network::Mainnet) => Address::p2pkh(&pubkey, BtcNetwork::Bitcoin),
+                            Some(Network::Testnet) => Address::p2pkh(&pubkey, BtcNetwork::Testnet),
+                            Some(Network::Local) => Address::p2pkh(&pubkey, BtcNetwork::Regtest),
                             None => Err(FError::MissingNetwork)?,
                         }
                         .script_pubkey(),
@@ -80,15 +75,15 @@ impl Fundable<Bitcoin, MetadataOutput> for Funding {
         }?;
 
         match self.network {
-            Some(Network::Mainnet) => Ok(Address(
-                bitcoin::Address::p2wpkh(&pubkey, BtcNetwork::Bitcoin).map_err(Error::from)?,
-            )),
-            Some(Network::Testnet) => Ok(Address(
-                bitcoin::Address::p2wpkh(&pubkey, BtcNetwork::Testnet).map_err(Error::from)?,
-            )),
-            Some(Network::Local) => Ok(Address(
-                bitcoin::Address::p2wpkh(&pubkey, BtcNetwork::Regtest).map_err(Error::from)?,
-            )),
+            Some(Network::Mainnet) => {
+                Ok(Address::p2wpkh(&pubkey, BtcNetwork::Bitcoin).map_err(Error::from)?)
+            }
+            Some(Network::Testnet) => {
+                Ok(Address::p2wpkh(&pubkey, BtcNetwork::Testnet).map_err(Error::from)?)
+            }
+            Some(Network::Local) => {
+                Ok(Address::p2wpkh(&pubkey, BtcNetwork::Regtest).map_err(Error::from)?)
+            }
             None => Err(FError::MissingNetwork),
         }
     }

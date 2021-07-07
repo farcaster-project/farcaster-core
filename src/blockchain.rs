@@ -18,7 +18,7 @@ use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Re
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
 pub trait Address {
     /// Defines the address format for the arbitrating blockchain.
-    type Address: Clone + Debug;
+    type Address: Clone + Debug + Encodable + Decodable;
 }
 
 /// Defines the type for a blockchain timelock, this type is used when manipulating transactions

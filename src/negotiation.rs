@@ -1,7 +1,6 @@
 //! Negotiation phase utilities
 
 use internet2::RemoteNodeAddr;
-use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 
 use std::io;
@@ -37,8 +36,8 @@ impl Version {
 }
 
 impl Encodable for Version {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        self.to_u16().consensus_encode(writer)
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.to_u16().consensus_encode(s)
     }
 }
 
@@ -116,34 +115,28 @@ impl<Ctx> Encodable for Offer<Ctx>
 where
     Ctx: Swap,
 {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.network.consensus_encode(writer)?;
-        len += self
-            .arbitrating_blockchain
-            .to_u32()
-            .consensus_encode(writer)?;
-        len += self
-            .accordant_blockchain
-            .to_u32()
-            .consensus_encode(writer)?;
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let mut len = self.network.consensus_encode(s)?;
+        len += self.arbitrating_blockchain.to_u32().consensus_encode(s)?;
+        len += self.accordant_blockchain.to_u32().consensus_encode(s)?;
         len += self
             .arbitrating_amount
             .as_canonical_bytes()
-            .consensus_encode(writer)?;
+            .consensus_encode(s)?;
         len += self
             .accordant_amount
             .as_canonical_bytes()
-            .consensus_encode(writer)?;
+            .consensus_encode(s)?;
         len += self
             .cancel_timelock
             .as_canonical_bytes()
-            .consensus_encode(writer)?;
+            .consensus_encode(s)?;
         len += self
             .punish_timelock
             .as_canonical_bytes()
-            .consensus_encode(writer)?;
-        len += self.fee_strategy.consensus_encode(writer)?;
-        Ok(len + self.maker_role.consensus_encode(writer)?)
+            .consensus_encode(s)?;
+        len += self.fee_strategy.consensus_encode(s)?;
+        Ok(len + self.maker_role.consensus_encode(s)?)
     }
 }
 
@@ -175,6 +168,8 @@ where
         })
     }
 }
+
+impl_strict_encoding!(Offer<Ctx>, Ctx: Swap);
 
 /// Helper to create an offer from an arbitrating asset buyer perspective.
 ///
@@ -404,8 +399,7 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let decoded =
-            hex::decode(s).map_err(|_| consensus::Error::ParseFailed("Hex decode failed"))?;
+        let decoded = hex::decode(s).map_err(consensus::Error::new)?;
         let mut res = std::io::Cursor::new(decoded);
         Decodable::consensus_decode(&mut res)
     }
@@ -415,11 +409,11 @@ impl<Ctx> Encodable for PublicOffer<Ctx>
 where
     Ctx: Swap,
 {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        let mut len = OFFER_MAGIC_BYTES.consensus_encode(writer)?;
-        len += self.version.consensus_encode(writer)?;
-        len += self.offer.consensus_encode(writer)?;
-        len += strict_encoding::StrictEncode::strict_encode(&self.daemon_service, writer).map_err(
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let mut len = OFFER_MAGIC_BYTES.consensus_encode(s)?;
+        len += self.version.consensus_encode(s)?;
+        len += self.offer.consensus_encode(s)?;
+        len += strict_encoding::StrictEncode::strict_encode(&self.daemon_service, s).map_err(
             |_| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -444,49 +438,9 @@ where
             version: Decodable::consensus_decode(d)?,
             offer: Decodable::consensus_decode(d)?,
             daemon_service: strict_encoding::StrictDecode::strict_decode(d)
-                .map_err(|_| consensus::Error::ParseFailed("Failed to decode RemoteNodeAddr"))?,
+                .map_err(consensus::Error::new)?,
         })
     }
 }
 
-impl<Ctx> StrictEncode for PublicOffer<Ctx>
-where
-    Ctx: Swap,
-{
-    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
-    }
-}
-
-impl<Ctx> StrictDecode for PublicOffer<Ctx>
-where
-    Ctx: Swap,
-{
-    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError(
-                "Failed to decode the public offer".to_string(),
-            )
-        })
-    }
-}
-
-impl<Ctx> StrictEncode for Offer<Ctx>
-where
-    Ctx: Swap,
-{
-    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-        Encodable::consensus_encode(self, &mut e).map_err(strict_encoding::Error::from)
-    }
-}
-
-impl<Ctx> StrictDecode for Offer<Ctx>
-where
-    Ctx: Swap,
-{
-    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        Decodable::consensus_decode(&mut d).map_err(|_| {
-            strict_encoding::Error::DataIntegrityError("Failed to decode the offer".to_string())
-        })
-    }
-}
+impl_strict_encoding!(PublicOffer<Ctx>, Ctx: Swap);

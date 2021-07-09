@@ -1,7 +1,6 @@
 use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
-use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
 use crate::consensus::{self, CanonicalBytes};
@@ -11,7 +10,7 @@ use crate::chain::bitcoin::Bitcoin;
 
 use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, StrictDecode, StrictEncode)]
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {

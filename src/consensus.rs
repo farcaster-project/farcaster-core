@@ -10,6 +10,7 @@ use thiserror::Error;
 
 use std::error;
 use std::io;
+use std::str;
 
 /// Encoding and decoding errors and data transformation errors (when converting data from protocol
 /// messages into datum messages).
@@ -30,9 +31,6 @@ pub enum Error {
     /// A generic parsing error.
     #[error("Parsing error: {0}")]
     ParseFailed(&'static str),
-    /// Strict encoding error.
-    #[error("Strict encoding error: {0}")]
-    StrictEncoding(#[from] strict_encoding::Error),
     /// Any Consensus error not part of this list.
     #[error("Consensus error: {0}")]
     Other(Box<dyn error::Error + Send + Sync>),
@@ -129,23 +127,31 @@ pub trait Decodable: Sized {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error>;
 }
 
-impl Encodable for Vec<u8> {
+impl<T> Encodable for Vec<T>
+where
+    T: Encodable,
+{
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         if self.len() > u16::MAX as usize {
             return Err(io::Error::new(io::ErrorKind::Other, "Value is too long"));
         }
-        (self.len() as u16).consensus_encode(s)?;
-        s.write_all(&self[..])?;
-        Ok(self.len() + 2)
+        let mut len = (self.len() as u16).consensus_encode(s)?;
+        for t in self {
+            len += t.consensus_encode(s)?;
+        }
+        Ok(len)
     }
 }
 
-impl Decodable for Vec<u8> {
+impl<T> Decodable for Vec<T>
+where
+    T: Decodable,
+{
     #[inline]
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
         let len = u16::consensus_decode(d)?;
-        let mut ret = Vec::<u8>::with_capacity(len as usize);
+        let mut ret = Vec::<T>::with_capacity(len as usize);
         for _ in 0..len {
             ret.push(Decodable::consensus_decode(d)?);
         }
@@ -211,6 +217,23 @@ impl Decodable for u16 {
     }
 }
 
+impl Encodable for i16 {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        s.write_all(&self.to_le_bytes())?;
+        Ok(2)
+    }
+}
+
+impl Decodable for i16 {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        let mut buffer = [0u8; 2];
+        d.read_exact(&mut buffer)?;
+        Ok(i16::from_le_bytes(buffer))
+    }
+}
+
 impl Encodable for u32 {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -225,6 +248,23 @@ impl Decodable for u32 {
         let mut buffer = [0u8; 4];
         d.read_exact(&mut buffer)?;
         Ok(u32::from_le_bytes(buffer))
+    }
+}
+
+impl Encodable for i32 {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        s.write_all(&self.to_le_bytes())?;
+        Ok(4)
+    }
+}
+
+impl Decodable for i32 {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        let mut buffer = [0u8; 4];
+        d.read_exact(&mut buffer)?;
+        Ok(i32::from_le_bytes(buffer))
     }
 }
 
@@ -243,6 +283,105 @@ impl Decodable for u64 {
         d.read_exact(&mut buffer)?;
         Ok(u64::from_le_bytes(buffer))
     }
+}
+
+impl<T> Encodable for Option<T>
+where
+    T: CanonicalBytes,
+{
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        match self {
+            Some(t) => {
+                s.write_all(&[1u8])?;
+                let len = t.as_canonical_bytes().consensus_encode(s)?;
+                Ok(1 + len)
+            }
+            None => s.write_all(&[0u8]).map(|_| 1),
+        }
+    }
+}
+
+impl<T> Decodable for Option<T>
+where
+    T: CanonicalBytes,
+{
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        match u8::consensus_decode(d)? {
+            1u8 => Ok(Some(T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?)),
+            0u8 => Ok(None),
+            _ => Err(Error::UnknownType),
+        }
+    }
+}
+
+impl CanonicalBytes for String {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.as_bytes().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        Ok(str::from_utf8(bytes).map_err(Error::new)?.into())
+    }
+}
+
+impl Encodable for String {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        Vec::<u8>::from(self.as_bytes()).consensus_encode(s)
+    }
+}
+
+impl Decodable for String {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        Ok(str::from_utf8(unwrap_vec_ref!(d).as_ref())
+            .map_err(Error::new)?
+            .into())
+    }
+}
+
+macro_rules! impl_strict_encoding {
+    ($thing:ty, $($args:tt)*) => {
+        impl<$($args)*> ::strict_encoding::StrictEncode for $thing {
+            fn strict_encode<E: ::std::io::Write>(
+                &self,
+                mut e: E,
+            ) -> Result<usize, strict_encoding::Error> {
+                $crate::consensus::Encodable::consensus_encode(self, &mut e)
+                    .map_err(strict_encoding::Error::from)
+            }
+        }
+
+        impl<$($args)*> ::strict_encoding::StrictDecode for $thing {
+            fn strict_decode<D: ::std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+                $crate::consensus::Decodable::consensus_decode(&mut d)
+                    .map_err(|e| strict_encoding::Error::DataIntegrityError(e.to_string()))
+            }
+        }
+    };
+    ($thing:ty) => {
+        impl strict_encoding::StrictEncode for $thing {
+            fn strict_encode<E: ::std::io::Write>(
+                &self,
+                mut e: E,
+            ) -> Result<usize, strict_encoding::Error> {
+                $crate::consensus::Encodable::consensus_encode(self, &mut e)
+                    .map_err(strict_encoding::Error::from)
+            }
+        }
+
+        impl strict_encoding::StrictDecode for $thing {
+            fn strict_decode<D: ::std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+                $crate::consensus::Decodable::consensus_decode(&mut d)
+                    .map_err(|e| strict_encoding::Error::DataIntegrityError(e.to_string()))
+            }
+        }
+    };
 }
 
 #[cfg(test)]

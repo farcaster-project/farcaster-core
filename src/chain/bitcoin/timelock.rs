@@ -1,5 +1,3 @@
-use strict_encoding::{StrictDecode, StrictEncode};
-
 use crate::consensus::{self, CanonicalBytes};
 
 use std::fmt::Debug;
@@ -16,7 +14,7 @@ impl FromStr for CSVTimelock {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, StrictDecode, StrictEncode, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, Copy)]
 pub struct CSVTimelock(u32);
 
 impl CSVTimelock {

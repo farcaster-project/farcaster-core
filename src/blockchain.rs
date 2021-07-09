@@ -11,7 +11,7 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
-use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
+use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Keys, Signatures};
 use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
@@ -145,6 +145,27 @@ where
     }
 }
 
+impl<T> CanonicalBytes for FeeStrategy<T>
+where
+    T: Clone + PartialOrd + PartialEq + Debug + CanonicalBytes,
+{
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        serialize(self)
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        deserialize(bytes)
+    }
+}
+
+impl_strict_encoding!(
+    FeeStrategy<T>,
+    T: Clone + PartialOrd + PartialEq + CanonicalBytes
+);
+
 /// Define the type of errors a fee strategy can encounter during calculation, application, and
 /// validation of fees on a partial transaction.
 #[derive(Error, Debug)]
@@ -268,3 +289,5 @@ impl Decodable for Network {
         }
     }
 }
+
+impl_strict_encoding!(Network);

@@ -46,6 +46,27 @@ impl NegotiationRole {
     }
 }
 
+impl Encodable for NegotiationRole {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        match self {
+            NegotiationRole::Maker => 0x01u8.consensus_encode(writer),
+            NegotiationRole::Taker => 0x02u8.consensus_encode(writer),
+        }
+    }
+}
+
+impl Decodable for NegotiationRole {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x01u8 => Ok(NegotiationRole::Maker),
+            0x02u8 => Ok(NegotiationRole::Taker),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl_strict_encoding!(NegotiationRole);
+
 impl FromStr for NegotiationRole {
     type Err = consensus::Error;
 
@@ -66,13 +87,6 @@ impl ToString for NegotiationRole {
         }
     }
 }
-
-/// A maker is one that creates and share a public offer and start his daemon in listening mode so
-/// one taker can connect and start interacting with him.
-pub struct Maker;
-
-/// A taker parses offers and, if interested, connects to the peer registred in the offer.
-pub struct Taker;
 
 /// Defines the possible roles during the swap phase. When negotitation is done negotitation role
 /// will transition into swap role.
@@ -114,6 +128,8 @@ impl Decodable for SwapRole {
         }
     }
 }
+
+impl_strict_encoding!(SwapRole);
 
 impl FromStr for SwapRole {
     type Err = consensus::Error;

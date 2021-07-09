@@ -2,12 +2,13 @@ use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
 
 use crate::script;
 use crate::transaction::{Cancelable, Error, Punishable};
 
 use crate::chain::bitcoin::transaction::{MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::{Address, Bitcoin};
+use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Punish;
@@ -53,7 +54,7 @@ impl Punishable<Bitcoin, MetadataOutput> for Tx<Punish> {
             }],
             output: vec![TxOut {
                 value: output_metadata.tx_out.value,
-                script_pubkey: destination_target.0.script_pubkey(),
+                script_pubkey: destination_target.script_pubkey(),
             }],
         };
 

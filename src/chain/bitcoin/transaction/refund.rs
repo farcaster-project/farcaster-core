@@ -4,12 +4,13 @@ use bitcoin::blockdata::script::Instruction;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
 
 use crate::script;
 use crate::transaction::{Cancelable, Error as FError, Refundable};
 
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::{Address, Bitcoin};
+use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Refund;
@@ -84,7 +85,7 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
             }],
             output: vec![TxOut {
                 value: output_metadata.tx_out.value,
-                script_pubkey: refund_target.0.script_pubkey(),
+                script_pubkey: refund_target.script_pubkey(),
             }],
         };
 

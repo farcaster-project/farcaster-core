@@ -74,3 +74,50 @@ jobs:
     - uses: Swatinem/rust-cache@v1.3.0
 
     - run: cargo test --verbose
+
+  rpc-test:
+
+    strategy:
+      matrix:
+        rust: [
+            stable,
+            nightly
+        ]
+
+    runs-on: ubuntu-latest
+
+    # Service containers to run with `container-job`
+    services:
+      # Label used to access the service container
+      bitcoin-core:
+        # Docker Hub image
+        image: coblox/bitcoin-core
+
+        options: >-
+          -regtest
+          -server
+          -rpcbind=0.0.0.0
+          -rpcallowip=0.0.0.0/0
+          -rpcuser=test
+          -rpcpassword=cEl2o3tHHgzYeuu3CiiZ2FjdgSiw9wNeMFzoNbFmx9k=
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust ${{ matrix.rust }}
+      uses: actions-rs/toolchain@v1.0.7
+      with:
+        toolchain: ${{ matrix.rust }}
+        override: true
+        profile: minimal
+
+    - uses: Swatinem/rust-cache@v1.3.0
+
+    - name: Run regtest Bitcoin transactions
+      run: cargo test --verbose --test transactions --features rpc
+
+      env:
+        RPC_HOST: bitcoin-core
+        RPC_PORT: 18443
+        RPC_USER: test
+        RPC_PASS: cEl2o3tHHgzYeuu3CiiZ2FjdgSiw9wNeMFzoNbFmx9k=

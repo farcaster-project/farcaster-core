@@ -27,7 +27,7 @@ use crate::Error;
 /// Defines the possible roles during the negotiation phase. Any negotiation role can transition
 /// into any swap role when negotiation is done.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NegotiationRole {
+pub enum TradeRole {
     /// The maker role create the public offer during the negotiation phase and waits for incoming
     /// connections.
     Maker,
@@ -36,7 +36,7 @@ pub enum NegotiationRole {
     Taker,
 }
 
-impl NegotiationRole {
+impl TradeRole {
     /// Return the other role possible in the negotiation phase.
     pub fn other(&self) -> Self {
         match self {
@@ -46,44 +46,44 @@ impl NegotiationRole {
     }
 }
 
-impl Encodable for NegotiationRole {
+impl Encodable for TradeRole {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
-            NegotiationRole::Maker => 0x01u8.consensus_encode(writer),
-            NegotiationRole::Taker => 0x02u8.consensus_encode(writer),
+            TradeRole::Maker => 0x01u8.consensus_encode(writer),
+            TradeRole::Taker => 0x02u8.consensus_encode(writer),
         }
     }
 }
 
-impl Decodable for NegotiationRole {
+impl Decodable for TradeRole {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         match Decodable::consensus_decode(d)? {
-            0x01u8 => Ok(NegotiationRole::Maker),
-            0x02u8 => Ok(NegotiationRole::Taker),
+            0x01u8 => Ok(TradeRole::Maker),
+            0x02u8 => Ok(TradeRole::Taker),
             _ => Err(consensus::Error::UnknownType),
         }
     }
 }
 
-impl_strict_encoding!(NegotiationRole);
+impl_strict_encoding!(TradeRole);
 
-impl FromStr for NegotiationRole {
+impl FromStr for TradeRole {
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Maker" | "maker" => Ok(NegotiationRole::Maker),
-            "Taker" | "taker" => Ok(NegotiationRole::Taker),
+            "Maker" | "maker" => Ok(TradeRole::Maker),
+            "Taker" | "taker" => Ok(TradeRole::Taker),
             _ => Err(consensus::Error::UnknownType),
         }
     }
 }
 
-impl ToString for NegotiationRole {
+impl ToString for TradeRole {
     fn to_string(&self) -> String {
         match self {
-            NegotiationRole::Maker => "Maker".to_string(),
-            NegotiationRole::Taker => "Taker".to_string(),
+            TradeRole::Maker => "Maker".to_string(),
+            TradeRole::Taker => "Taker".to_string(),
         }
     }
 }

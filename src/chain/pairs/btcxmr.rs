@@ -71,12 +71,16 @@ impl CanonicalBytes for RingProof {
 
 #[derive(Clone, Debug)]
 pub struct Wallet {
-    seed: [u8; 32],
+    seed: Option<[u8; 32]>,
 }
 
 impl Wallet {
     pub fn new(seed: [u8; 32]) -> Self {
-        Self { seed }
+        Self { seed: Some(seed) }
+    }
+
+    pub fn new_keyless() -> Self {
+        Self { seed: None }
     }
 
     pub fn get_btc_privkey(
@@ -84,27 +88,31 @@ impl Wallet {
         key_id: ArbitratingKeyId,
     ) -> Result<bitcoin::PrivateKey, crypto::Error> {
         let secp = Secp256k1::new();
-        let master_key = ExtendedPrivKey::new_master(bitcoin::Network::Bitcoin, self.seed.as_ref())
-            .map_err(|e| crypto::Error::new(e))?;
-        let key = match key_id {
-            ArbitratingKeyId::Fund => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/1").unwrap())
-            }
-            ArbitratingKeyId::Buy => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/2").unwrap())
-            }
-            ArbitratingKeyId::Cancel => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/3").unwrap())
-            }
-            ArbitratingKeyId::Refund => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/4").unwrap())
-            }
-            ArbitratingKeyId::Punish => {
-                master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/5").unwrap())
-            }
-            ArbitratingKeyId::Extra(_) => Err(crypto::Error::UnsupportedKey)?,
-        };
-        Ok(key.map_err(|e| crypto::Error::new(e))?.private_key)
+        if let Some(seed) = self.seed {
+            let master_key = ExtendedPrivKey::new_master(bitcoin::Network::Bitcoin, &seed)
+                .map_err(|e| crypto::Error::new(e))?;
+            let key = match key_id {
+                ArbitratingKeyId::Fund => {
+                    master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/1").unwrap())
+                }
+                ArbitratingKeyId::Buy => {
+                    master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/2").unwrap())
+                }
+                ArbitratingKeyId::Cancel => {
+                    master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/3").unwrap())
+                }
+                ArbitratingKeyId::Refund => {
+                    master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/4").unwrap())
+                }
+                ArbitratingKeyId::Punish => {
+                    master_key.derive_priv(&secp, &DerivationPath::from_str("m/0/1'/5").unwrap())
+                }
+                ArbitratingKeyId::Extra(_) => Err(crypto::Error::UnsupportedKey)?,
+            };
+            Ok(key.map_err(|e| crypto::Error::new(e))?.private_key)
+        } else {
+            Err(crypto::Error::UnsupportedKey)
+        }
     }
 
     pub fn get_btc_privkey_by_pub(
@@ -128,13 +136,17 @@ impl Wallet {
     }
 
     pub fn private_spend_from_seed(&self) -> Result<monero::PrivateKey, crypto::Error> {
-        let mut bytes = Vec::from(b"farcaster_priv_spend".as_ref());
-        bytes.extend_from_slice(self.seed.as_ref());
+        if let Some(seed) = self.seed {
+            let mut bytes = Vec::from(b"farcaster_priv_spend".as_ref());
+            bytes.extend_from_slice(&seed);
 
-        let mut key = Hash::hash(&bytes).to_fixed_bytes();
-        key[31] &= 0b0000_1111; // Chop off bits that might be greater than the curve modulus
+            let mut key = Hash::hash(&bytes).to_fixed_bytes();
+            key[31] &= 0b0000_1111; // Chop off bits that might be greater than the curve modulus
 
-        monero::PrivateKey::from_slice(&key).map_err(|e| crypto::Error::new(e))
+            monero::PrivateKey::from_slice(&key).map_err(|e| crypto::Error::new(e))
+        } else {
+            Err(crypto::Error::UnsupportedKey)
+        }
     }
 }
 
@@ -151,13 +163,17 @@ impl GenerateKey<monero::PublicKey, AccordantKeyId> for Wallet {
 
 impl GenerateSharedKey<monero::PrivateKey> for Wallet {
     fn get_shared_key(&self, key_id: SharedKeyId) -> Result<monero::PrivateKey, crypto::Error> {
-        match key_id.id() {
-            xmr::SHARED_VIEW_KEY_ID => {
-                let mut bytes = Vec::from(b"farcaster_priv_view".as_ref());
-                bytes.extend_from_slice(&self.seed.as_ref());
-                Ok(Hash::hash(&bytes).as_scalar())
+        if let Some(seed) = self.seed {
+            match key_id.id() {
+                xmr::SHARED_VIEW_KEY_ID => {
+                    let mut bytes = Vec::from(b"farcaster_priv_view".as_ref());
+                    bytes.extend_from_slice(&seed);
+                    Ok(Hash::hash(&bytes).as_scalar())
+                }
+                _ => Err(crypto::Error::UnsupportedKey),
             }
-            _ => Err(crypto::Error::UnsupportedKey),
+        } else {
+            Err(crypto::Error::UnsupportedKey)
         }
     }
 }

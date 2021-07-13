@@ -44,7 +44,7 @@ pub enum Error {
     MissingSigHashType,
     /// Partially signed transaction error
     #[error("Partially signed transaction error: `{0}`")]
-    PSBT(#[from] psbt::Error),
+    Psbt(#[from] psbt::Error),
     /// Bitcoin address error
     #[error("Bitcoin address error: `{0}`")]
     Address(#[from] address::Error),

@@ -9,7 +9,6 @@ use hex::encode as hex_encode;
 use thiserror::Error;
 
 use std::io;
-use std::io::prelude::*;
 
 /// Encoding and decoding errors and data transformation errors (when converting data from protocol
 /// messages into datum messages).
@@ -228,7 +227,7 @@ impl Decodable for u64 {
     #[inline]
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
         let mut buffer = [0u8; 8];
-        d.take(8).read(&mut buffer)?;
+        d.read_exact(&mut buffer)?;
         Ok(u64::from_le_bytes(buffer))
     }
 }

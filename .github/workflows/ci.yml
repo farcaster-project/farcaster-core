@@ -90,7 +90,7 @@ jobs:
       bitcoin-core:
         image: ghcr.io/farcaster-project/containers/bitcoin-core
         env:
-          NETWORK: -stagenet
+          NETWORK: regtest
           RPC_USER: ci
           RPC_PASS: ${{ secrets.RPC_PASS }}
         ports:

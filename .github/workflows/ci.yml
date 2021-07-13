@@ -92,7 +92,7 @@ jobs:
         env:
           NETWORK: regtest
           RPC_USER: ci
-          RPC_PASS: ${{ secrets.RPC_PASS }}
+          RPC_PASS: ci
         ports:
           - 18443:18443
 
@@ -114,4 +114,4 @@ jobs:
         RPC_HOST: 127.0.0.1
         RPC_PORT: 18443
         RPC_USER: ci
-        RPC_PASS: ${{ secrets.RPC_PASS }}
+        RPC_PASS: ci

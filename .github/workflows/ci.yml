@@ -111,5 +111,5 @@ jobs:
       env:
         RPC_HOST: 127.0.0.1
         RPC_PORT: 18443
-        RPC_USER: test
+        RPC_USER: ci
         RPC_PASS: ${{ secrets.RPC_PASS }}

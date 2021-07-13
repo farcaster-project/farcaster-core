@@ -106,8 +106,10 @@ jobs:
         override: true
         profile: minimal
 
+    - uses: Swatinem/rust-cache@v1.3.0
+
     - name: Run regtest Bitcoin transactions
-      run: cargo test --verbose --test transactions --features rpc
+      run: cargo test --verbose --test transactions --features rpc -- --test-threads=1
       env:
         RPC_HOST: 127.0.0.1
         RPC_PORT: 18443

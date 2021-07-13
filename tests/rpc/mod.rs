@@ -1,5 +1,5 @@
-use std::env;
 use bitcoincore_rpc::{Auth, Client};
+use std::env;
 
 lazy_static::lazy_static! {
     pub static ref CLIENT: Client =  {

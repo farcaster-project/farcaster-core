@@ -11,28 +11,28 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
-use crate::consensus::{self, Decodable, Encodable};
+use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Keys, Signatures};
 use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
 pub trait Address {
     /// Defines the address format for the arbitrating blockchain.
-    type Address: Clone + Debug;
+    type Address: Clone + Debug + CanonicalBytes;
 }
 
 /// Defines the type for a blockchain timelock, this type is used when manipulating transactions
 /// and is carried in the [Offer](crate::negotiation::Offer) to fix the two timelocks.
 pub trait Timelock {
     /// Defines the type of timelock used for the arbitrating transactions.
-    type Timelock: Copy + Debug + Encodable + Decodable + PartialEq + Eq;
+    type Timelock: Copy + Debug + CanonicalBytes + PartialEq + Eq;
 }
 
 /// Defines the asset identifier for a blockchain and its associated asset unit type, it is carried
 /// in the [Offer](crate::negotiation::Offer) to fix exchanged amounts.
 pub trait Asset: Copy + Debug {
     /// Type for the traded asset unit for a blockchain.
-    type AssetUnit: Copy + Eq + Debug + Encodable + Decodable;
+    type AssetUnit: Copy + Eq + Debug + CanonicalBytes;
 
     /// Parse an 32 bits identifier as defined in [SLIP
     /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
@@ -48,10 +48,10 @@ pub trait Asset: Copy + Debug {
 pub trait Onchain {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
-    type PartialTransaction: Clone + Debug;
+    type PartialTransaction: Clone + Debug + CanonicalBytes;
 
     /// Defines the finalized transaction format for the arbitrating blockchain
-    type Transaction: Clone + Debug;
+    type Transaction: Clone + Debug + CanonicalBytes;
 }
 
 /// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
@@ -78,7 +78,7 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
 
 impl<T> FromStr for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Encodable + Decodable + FromStr,
+    T: Clone + PartialOrd + PartialEq + CanonicalBytes + FromStr,
 {
     type Err = consensus::Error;
 
@@ -99,7 +99,7 @@ where
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Encodable + Decodable,
+    T: Clone + PartialOrd + PartialEq + CanonicalBytes,
 {
     /// A fixed strategy with the exact amount to set
     Fixed(T),
@@ -109,18 +109,18 @@ where
 
 impl<T> Encodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Encodable + Decodable,
+    T: Clone + PartialOrd + PartialEq + CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
             FeeStrategy::Fixed(t) => {
                 0x01u8.consensus_encode(writer)?;
-                Ok(wrap_in_vec!(wrap t in writer) + 1)
+                Ok(t.as_canonical_bytes().consensus_encode(writer)? + 1)
             }
             FeeStrategy::Range(Range { start, end }) => {
-                0x02u8.consensus_encode(writer)?;
-                let len = wrap_in_vec!(wrap start in writer);
-                Ok(wrap_in_vec!(wrap end in writer) + len + 1)
+                let mut len = 0x02u8.consensus_encode(writer)?;
+                len += start.as_canonical_bytes().consensus_encode(writer)?;
+                Ok(len + end.as_canonical_bytes().consensus_encode(writer)?)
             }
         }
     }
@@ -128,20 +128,43 @@ where
 
 impl<T> Decodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Encodable + Decodable,
+    T: Clone + PartialOrd + PartialEq + CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         match Decodable::consensus_decode(d)? {
-            0x01u8 => Ok(FeeStrategy::Fixed(unwrap_from_vec!(d))),
+            0x01u8 => Ok(FeeStrategy::Fixed(T::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?)),
             0x02u8 => {
-                let start = unwrap_from_vec!(d);
-                let end = unwrap_from_vec!(d);
+                let start = T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+                let end = T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
                 Ok(FeeStrategy::Range(Range { start, end }))
             }
             _ => Err(consensus::Error::UnknownType),
         }
     }
 }
+
+impl<T> CanonicalBytes for FeeStrategy<T>
+where
+    T: Clone + PartialOrd + PartialEq + Debug + CanonicalBytes,
+{
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        serialize(self)
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        deserialize(bytes)
+    }
+}
+
+impl_strict_encoding!(
+    FeeStrategy<T>,
+    T: Clone + PartialOrd + PartialEq + CanonicalBytes
+);
 
 /// Define the type of errors a fee strategy can encounter during calculation, application, and
 /// validation of fees on a partial transaction.
@@ -204,7 +227,7 @@ pub enum FeePolitic {
 /// transactions.
 pub trait Fee: Onchain + Asset {
     /// Type for describing the fee of a blockchain
-    type FeeUnit: Clone + Debug + PartialOrd + PartialEq + Encodable + Decodable + PartialEq + Eq;
+    type FeeUnit: Clone + PartialOrd + PartialEq + Eq + Debug + CanonicalBytes;
 
     /// Calculates and sets the fee on the given transaction and return the amount of fee set in
     /// the blockchain native amount format.
@@ -266,3 +289,5 @@ impl Decodable for Network {
         }
     }
 }
+
+impl_strict_encoding!(Network);

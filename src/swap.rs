@@ -2,6 +2,7 @@
 
 use std::fmt::Debug;
 
+use crate::consensus::CanonicalBytes;
 use crate::crypto::Commitment;
 use crate::role::{Accordant, Arbitrating};
 
@@ -15,5 +16,5 @@ pub trait Swap: Debug + Clone + Commitment {
     type Ac: Accordant;
 
     ///// The concrete type to link both blockchain cryptographic groups used in by the signatures.
-    type Proof: Debug + Clone;
+    type Proof: Clone + Debug + CanonicalBytes;
 }

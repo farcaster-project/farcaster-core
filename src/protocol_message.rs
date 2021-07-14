@@ -1,15 +1,17 @@
 //! Protocol messages exchanged between swap daemons
 
+use std::io;
+
 use crate::blockchain::{Address, Onchain};
 use crate::bundle;
-use crate::consensus::AsCanonicalBytes;
+use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
     self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement,
 };
 use crate::swap::Swap;
 use crate::Error;
 
-fn commit_to_vec<T: Clone + Eq, K: AsCanonicalBytes, C: Clone + Eq>(
+fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: &Vec<TaggedElement<T, K>>,
 ) -> Vec<TaggedElement<T, C>> {
@@ -23,7 +25,7 @@ fn commit_to_vec<T: Clone + Eq, K: AsCanonicalBytes, C: Clone + Eq>(
         .collect()
 }
 
-fn verify_vec_of_commitments<T: Eq, K: AsCanonicalBytes, C: Clone + Eq>(
+fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: Vec<TaggedElement<T, K>>,
     commitments: &Vec<TaggedElement<T, C>>,
@@ -129,6 +131,46 @@ where
     }
 }
 
+impl<Ctx> Encodable for CommitAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let mut len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
+        len += self.refund.as_canonical_bytes().consensus_encode(s)?;
+        len += self.punish.as_canonical_bytes().consensus_encode(s)?;
+        len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
+        len += self.extra_arbitrating_keys.consensus_encode(s)?;
+        len += self.arbitrating_shared_keys.consensus_encode(s)?;
+        len += self.spend.as_canonical_bytes().consensus_encode(s)?;
+        len += self.extra_accordant_keys.consensus_encode(s)?;
+        Ok(len + self.accordant_shared_keys.consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Decodable for CommitAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            refund: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            punish: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            adaptor: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            extra_arbitrating_keys: Decodable::consensus_decode(d)?,
+            arbitrating_shared_keys: Decodable::consensus_decode(d)?,
+            spend: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            extra_accordant_keys: Decodable::consensus_decode(d)?,
+            accordant_shared_keys: Decodable::consensus_decode(d)?,
+        })
+    }
+}
+
+impl_strict_encoding!(CommitAliceParameters<Ctx>, Ctx: Swap);
+
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug)]
@@ -207,6 +249,44 @@ where
     }
 }
 
+impl<Ctx> Encodable for CommitBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let mut len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
+        len += self.refund.as_canonical_bytes().consensus_encode(s)?;
+        len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
+        len += self.extra_arbitrating_keys.consensus_encode(s)?;
+        len += self.arbitrating_shared_keys.consensus_encode(s)?;
+        len += self.spend.as_canonical_bytes().consensus_encode(s)?;
+        len += self.extra_accordant_keys.consensus_encode(s)?;
+        Ok(len + self.accordant_shared_keys.consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Decodable for CommitBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            refund: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            adaptor: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            extra_arbitrating_keys: Decodable::consensus_decode(d)?,
+            arbitrating_shared_keys: Decodable::consensus_decode(d)?,
+            spend: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            extra_accordant_keys: Decodable::consensus_decode(d)?,
+            accordant_shared_keys: Decodable::consensus_decode(d)?,
+        })
+    }
+}
+
+impl_strict_encoding!(CommitBobParameters<Ctx>, Ctx: Swap);
+
 // TODO: Add more common data to reveal, e.g. help to ensure that both node uses the same value for
 // fee
 
@@ -241,6 +321,60 @@ pub struct RevealAliceParameters<Ctx: Swap> {
     /// Reveal the cross-group discrete logarithm zero-knowledge proof
     pub proof: Ctx::Proof,
 }
+
+impl<Ctx> Encodable for RevealAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let mut len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
+        len += self.refund.as_canonical_bytes().consensus_encode(s)?;
+        len += self.punish.as_canonical_bytes().consensus_encode(s)?;
+        len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
+        len += self.extra_arbitrating_keys.consensus_encode(s)?;
+        len += self.arbitrating_shared_keys.consensus_encode(s)?;
+        len += self.spend.as_canonical_bytes().consensus_encode(s)?;
+        len += self.extra_accordant_keys.consensus_encode(s)?;
+        len += self.accordant_shared_keys.consensus_encode(s)?;
+        len += self.address.as_canonical_bytes().consensus_encode(s)?;
+        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Decodable for RevealAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            refund: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            punish: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            adaptor: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            extra_arbitrating_keys: Decodable::consensus_decode(d)?,
+            arbitrating_shared_keys: Decodable::consensus_decode(d)?,
+            spend: <Ctx::Ac as Keys>::PublicKey::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            extra_accordant_keys: Decodable::consensus_decode(d)?,
+            accordant_shared_keys: Decodable::consensus_decode(d)?,
+            address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+        })
+    }
+}
+
+impl_strict_encoding!(RevealAliceParameters<Ctx>, Ctx: Swap);
 
 impl<Ctx> From<bundle::AliceParameters<Ctx>> for RevealAliceParameters<Ctx>
 where
@@ -294,6 +428,56 @@ pub struct RevealBobParameters<Ctx: Swap> {
     pub proof: Ctx::Proof,
 }
 
+impl<Ctx> Encodable for RevealBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let mut len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
+        len += self.refund.as_canonical_bytes().consensus_encode(s)?;
+        len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
+        len += self.extra_arbitrating_keys.consensus_encode(s)?;
+        len += self.arbitrating_shared_keys.consensus_encode(s)?;
+        len += self.spend.as_canonical_bytes().consensus_encode(s)?;
+        len += self.extra_accordant_keys.consensus_encode(s)?;
+        len += self.accordant_shared_keys.consensus_encode(s)?;
+        len += self.address.as_canonical_bytes().consensus_encode(s)?;
+        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Decodable for RevealBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            refund: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            adaptor: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            extra_arbitrating_keys: Decodable::consensus_decode(d)?,
+            arbitrating_shared_keys: Decodable::consensus_decode(d)?,
+            spend: <Ctx::Ac as Keys>::PublicKey::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            extra_accordant_keys: Decodable::consensus_decode(d)?,
+            accordant_shared_keys: Decodable::consensus_decode(d)?,
+            address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+        })
+    }
+}
+
+impl_strict_encoding!(RevealBobParameters<Ctx>, Ctx: Swap);
+
 impl<Ctx> From<bundle::BobParameters<Ctx>> for RevealBobParameters<Ctx>
 where
     Ctx: Swap,
@@ -329,6 +513,42 @@ pub struct CoreArbitratingSetup<Ctx: Swap> {
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
 }
 
+impl<Ctx> Encodable for CoreArbitratingSetup<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let mut len = self.lock.as_canonical_bytes().consensus_encode(s)?;
+        len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
+        len += self.refund.as_canonical_bytes().consensus_encode(s)?;
+        Ok(len + self.cancel_sig.as_canonical_bytes().consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Decodable for CoreArbitratingSetup<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            lock: <Ctx::Ar as Onchain>::PartialTransaction::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            cancel: <Ctx::Ar as Onchain>::PartialTransaction::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            refund: <Ctx::Ar as Onchain>::PartialTransaction::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            cancel_sig: <Ctx::Ar as Signatures>::Signature::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+        })
+    }
+}
+
+impl_strict_encoding!(CoreArbitratingSetup<Ctx>, Ctx: Swap);
+
 impl<Ctx>
     From<(
         bundle::CoreArbitratingTransactions<Ctx::Ar>,
@@ -363,6 +583,38 @@ pub struct RefundProcedureSignatures<Ctx: Swap> {
     pub refund_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
 }
 
+impl<Ctx> Encodable for RefundProcedureSignatures<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let len = self.cancel_sig.as_canonical_bytes().consensus_encode(s)?;
+        Ok(len
+            + self
+                .refund_adaptor_sig
+                .as_canonical_bytes()
+                .consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Decodable for RefundProcedureSignatures<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            cancel_sig: <Ctx::Ar as Signatures>::Signature::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            refund_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+        })
+    }
+}
+
+impl_strict_encoding!(RefundProcedureSignatures<Ctx>, Ctx: Swap);
+
 impl<Ctx>
     From<(
         bundle::CosignedArbitratingCancel<Ctx::Ar>,
@@ -395,6 +647,38 @@ pub struct BuyProcedureSignature<Ctx: Swap> {
     pub buy_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
 }
 
+impl<Ctx> Encodable for BuyProcedureSignature<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        Ok(len
+            + self
+                .buy_adaptor_sig
+                .as_canonical_bytes()
+                .consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Decodable for BuyProcedureSignature<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            buy: <Ctx::Ar as Onchain>::PartialTransaction::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            buy_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+        })
+    }
+}
+
+impl_strict_encoding!(BuyProcedureSignature<Ctx>, Ctx: Swap);
+
 impl<Ctx> From<bundle::SignedAdaptorBuy<Ctx::Ar>> for BuyProcedureSignature<Ctx>
 where
     Ctx: Swap,
@@ -414,3 +698,19 @@ pub struct Abort {
     /// OPTIONAL `body`: error code | string
     pub error_body: Option<String>,
 }
+
+impl Encodable for Abort {
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.error_body.consensus_encode(s)
+    }
+}
+
+impl Decodable for Abort {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            error_body: Option::<String>::consensus_decode(d)?,
+        })
+    }
+}
+
+impl_strict_encoding!(Abort);

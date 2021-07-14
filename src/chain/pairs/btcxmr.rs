@@ -1,7 +1,7 @@
-use crate::crypto::{self, Commitment};
+use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{
-    AccordantKeyId, ArbitratingKeyId, Commit, GenerateKey, GenerateSharedKey, ProveCrossGroupDleq,
-    SharedKeyId, Sign,
+    self, AccordantKeyId, ArbitratingKeyId, Commit, Commitment, GenerateKey, GenerateSharedKey,
+    ProveCrossGroupDleq, SharedKeyId, Sign,
 };
 use crate::swap::Swap;
 
@@ -40,8 +40,34 @@ impl Commitment for BtcXmr {
     type Commitment = Hash;
 }
 
+impl CanonicalBytes for Hash {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.to_bytes().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Ok(Self::from_slice(bytes))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct RingProof;
+
+impl CanonicalBytes for RingProof {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        vec![0u8]
+    }
+
+    fn from_canonical_bytes(_: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Ok(Self)
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Wallet {

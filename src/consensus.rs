@@ -8,7 +8,9 @@
 use hex::encode as hex_encode;
 use thiserror::Error;
 
+use std::error;
 use std::io;
+use std::str;
 
 /// Encoding and decoding errors and data transformation errors (when converting data from protocol
 /// messages into datum messages).
@@ -29,15 +31,47 @@ pub enum Error {
     /// A generic parsing error.
     #[error("Parsing error: {0}")]
     ParseFailed(&'static str),
-    /// Strict encoding error.
-    #[error("Strict encoding error: {0}")]
-    StrictEncoding(#[from] strict_encoding::Error),
+    /// Any Consensus error not part of this list.
+    #[error("Consensus error: {0}")]
+    Other(Box<dyn error::Error + Send + Sync>),
+}
+
+impl Error {
+    /// Creates a new transaction error of type other with an arbitrary payload.
+    pub fn new<E>(error: E) -> Self
+    where
+        E: Into<Box<dyn error::Error + Send + Sync>>,
+    {
+        Self::Other(error.into())
+    }
+
+    /// Consumes the `Error`, returning its inner error (if any).
+    ///
+    /// If this [`enum@Error`] was constructed via [`new`] then this function will return [`Some`],
+    /// otherwise it will return [`None`].
+    ///
+    /// [`new`]: Error::new
+    ///
+    pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
+        match self {
+            Self::Other(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
 /// Data that can be represented in a canonical bytes format.
-pub trait AsCanonicalBytes {
+///
+/// The implementer MUST use the strict encoding dictated by the blockchain consensus without any
+/// lenght prefix. Lenght prefix is done by Farcaster core after during the serialization.
+pub trait CanonicalBytes {
     /// Returns the canonical bytes representation of the element.
     fn as_canonical_bytes(&self) -> Vec<u8>;
+
+    /// Parse a normally canonical bytes representation of an element and return it.
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized;
 }
 
 /// Encode an object into a vector
@@ -78,11 +112,7 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
     Ok((rv, consumed))
 }
 
-/// Data which can be encoded in a consensus-consistent way
-///
-/// **When implemented on foreign blockchain specific types such as `Amount` from the bitcoin
-/// crate, the implementer MUST use the strict encoding dictated by the blockchain consensus
-/// without any lenght prefix. Lenght prefix is done by Farcaster core after this serialization.**
+/// Data which can be encoded in a consensus-consistent way.
 pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever error if
     /// the underlying encoder errors.
@@ -91,33 +121,37 @@ pub trait Encodable {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error>;
 }
 
-/// Data which can be encoded in a consensus-consistent way
-///
-/// **When implemented on foreign blockchain specific types such as `Amount` from the bitcoin
-/// crate, the implementer MUST use the strict encoding dictated by the blockchain consensus
-/// without any lenght prefix. Lenght prefix is done by Farcaster core after this serialization.**
+/// Data which can be encoded in a consensus-consistent way.
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error>;
 }
 
-impl Encodable for Vec<u8> {
+impl<T> Encodable for Vec<T>
+where
+    T: Encodable,
+{
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         if self.len() > u16::MAX as usize {
             return Err(io::Error::new(io::ErrorKind::Other, "Value is too long"));
         }
-        (self.len() as u16).consensus_encode(s)?;
-        s.write_all(&self[..])?;
-        Ok(self.len() + 2)
+        let mut len = (self.len() as u16).consensus_encode(s)?;
+        for t in self {
+            len += t.consensus_encode(s)?;
+        }
+        Ok(len)
     }
 }
 
-impl Decodable for Vec<u8> {
+impl<T> Decodable for Vec<T>
+where
+    T: Decodable,
+{
     #[inline]
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
         let len = u16::consensus_decode(d)?;
-        let mut ret = Vec::<u8>::with_capacity(len as usize);
+        let mut ret = Vec::<T>::with_capacity(len as usize);
         for _ in 0..len {
             ret.push(Decodable::consensus_decode(d)?);
         }
@@ -142,25 +176,10 @@ impl Decodable for [u8; 6] {
     }
 }
 
-macro_rules! wrap_in_vec {
-    (wrap $name: ident in $writer: ident) => {{
-        let mut encoder = ::std::io::Cursor::new(vec![]);
-        $name.consensus_encode(&mut encoder)?;
-        encoder.into_inner().consensus_encode($writer)?
-    }};
-
-    (wrap $name: ident for $self: ident in $writer: ident) => {{
-        let mut encoder = ::std::io::Cursor::new(vec![]);
-        $self.$name.consensus_encode(&mut encoder)?;
-        encoder.into_inner().consensus_encode($writer)?
-    }};
-}
-
-macro_rules! unwrap_from_vec {
+macro_rules! unwrap_vec_ref {
     ($reader: ident) => {{
         let v: Vec<u8> = $crate::consensus::Decodable::consensus_decode($reader)?;
-        let mut reader = ::std::io::Cursor::new(v);
-        $crate::consensus::Decodable::consensus_decode(&mut reader)?
+        v
     }};
 }
 
@@ -198,6 +217,23 @@ impl Decodable for u16 {
     }
 }
 
+impl Encodable for i16 {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        s.write_all(&self.to_le_bytes())?;
+        Ok(2)
+    }
+}
+
+impl Decodable for i16 {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        let mut buffer = [0u8; 2];
+        d.read_exact(&mut buffer)?;
+        Ok(i16::from_le_bytes(buffer))
+    }
+}
+
 impl Encodable for u32 {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
@@ -212,6 +248,23 @@ impl Decodable for u32 {
         let mut buffer = [0u8; 4];
         d.read_exact(&mut buffer)?;
         Ok(u32::from_le_bytes(buffer))
+    }
+}
+
+impl Encodable for i32 {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        s.write_all(&self.to_le_bytes())?;
+        Ok(4)
+    }
+}
+
+impl Decodable for i32 {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        let mut buffer = [0u8; 4];
+        d.read_exact(&mut buffer)?;
+        Ok(i32::from_le_bytes(buffer))
     }
 }
 
@@ -232,6 +285,105 @@ impl Decodable for u64 {
     }
 }
 
+impl<T> Encodable for Option<T>
+where
+    T: CanonicalBytes,
+{
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        match self {
+            Some(t) => {
+                s.write_all(&[1u8])?;
+                let len = t.as_canonical_bytes().consensus_encode(s)?;
+                Ok(1 + len)
+            }
+            None => s.write_all(&[0u8]).map(|_| 1),
+        }
+    }
+}
+
+impl<T> Decodable for Option<T>
+where
+    T: CanonicalBytes,
+{
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        match u8::consensus_decode(d)? {
+            1u8 => Ok(Some(T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?)),
+            0u8 => Ok(None),
+            _ => Err(Error::UnknownType),
+        }
+    }
+}
+
+impl CanonicalBytes for String {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.as_bytes().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        Ok(str::from_utf8(bytes).map_err(Error::new)?.into())
+    }
+}
+
+impl Encodable for String {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        Vec::<u8>::from(self.as_bytes()).consensus_encode(s)
+    }
+}
+
+impl Decodable for String {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        Ok(str::from_utf8(unwrap_vec_ref!(d).as_ref())
+            .map_err(Error::new)?
+            .into())
+    }
+}
+
+macro_rules! impl_strict_encoding {
+    ($thing:ty, $($args:tt)*) => {
+        impl<$($args)*> ::strict_encoding::StrictEncode for $thing {
+            fn strict_encode<E: ::std::io::Write>(
+                &self,
+                mut e: E,
+            ) -> Result<usize, strict_encoding::Error> {
+                $crate::consensus::Encodable::consensus_encode(self, &mut e)
+                    .map_err(strict_encoding::Error::from)
+            }
+        }
+
+        impl<$($args)*> ::strict_encoding::StrictDecode for $thing {
+            fn strict_decode<D: ::std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+                $crate::consensus::Decodable::consensus_decode(&mut d)
+                    .map_err(|e| strict_encoding::Error::DataIntegrityError(e.to_string()))
+            }
+        }
+    };
+    ($thing:ty) => {
+        impl strict_encoding::StrictEncode for $thing {
+            fn strict_encode<E: ::std::io::Write>(
+                &self,
+                mut e: E,
+            ) -> Result<usize, strict_encoding::Error> {
+                $crate::consensus::Encodable::consensus_encode(self, &mut e)
+                    .map_err(strict_encoding::Error::from)
+            }
+        }
+
+        impl strict_encoding::StrictDecode for $thing {
+            fn strict_decode<D: ::std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+                $crate::consensus::Decodable::consensus_decode(&mut d)
+                    .map_err(|e| strict_encoding::Error::DataIntegrityError(e.to_string()))
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,7 +401,7 @@ mod tests {
 
     #[test]
     fn simple_vec() {
-        let vec = vec![0xde, 0xad, 0xbe, 0xef];
+        let vec: Vec<u8> = vec![0xde, 0xad, 0xbe, 0xef];
         // len of 4 as u16 in little endian = 0400
         assert_eq!(serialize_hex(&vec), "0400deadbeef");
         // test max size vec

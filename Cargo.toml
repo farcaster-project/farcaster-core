@@ -17,7 +17,7 @@ internet2 = "0.3.10"
 
 # blockchain specific
 bitcoin = "0.26"
-monero = { version = "0.13", features = ["strict_encoding_support"] }
+monero = { version = "0.13" }
 
 [dev-dependencies]
 bitcoincore-rpc = "0.13.0"

@@ -2,10 +2,11 @@
 
 use std::error;
 use std::fmt::Debug;
+use std::io;
 
 use thiserror::Error;
 
-use crate::consensus::AsCanonicalBytes;
+use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 
 /// List of cryptographic errors that can be encountered when processing cryptographic operation
 /// such as signatures, proofs, key derivation, or commitments.
@@ -81,6 +82,31 @@ where
     }
 }
 
+impl<T, E> Encodable for TaggedElement<T, E>
+where
+    T: Eq + Encodable,
+    E: CanonicalBytes,
+{
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        let len = self.tag.consensus_encode(s)?;
+        Ok(len + self.elem.as_canonical_bytes().consensus_encode(s)?)
+    }
+}
+
+impl<T, E> Decodable for TaggedElement<T, E>
+where
+    T: Eq + Decodable,
+    E: CanonicalBytes,
+{
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let tag = T::consensus_decode(d)?;
+        let elem = E::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+        Ok(TaggedElement { tag, elem })
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ArbitratingKeyId {
     Fund,
@@ -110,6 +136,20 @@ impl SharedKeyId {
     }
 }
 
+impl Encodable for SharedKeyId {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        self.0.consensus_encode(s)
+    }
+}
+
+impl Decodable for SharedKeyId {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self(u16::consensus_decode(d)?))
+    }
+}
+
 /// This trait is required for blockchains to fix the concrete cryptographic key types. The public
 /// key associated type is shared across the network.
 pub trait Keys {
@@ -117,7 +157,7 @@ pub trait Keys {
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine.
-    type PublicKey: Clone + PartialEq + Debug + AsCanonicalBytes;
+    type PublicKey: Clone + PartialEq + Debug + CanonicalBytes;
 
     fn extra_keys() -> Vec<u16>;
 }
@@ -126,7 +166,7 @@ pub trait Keys {
 /// the network.
 pub trait SharedPrivateKeys {
     /// A shareable private key type used to parse non-transparent blockchain
-    type SharedPrivateKey: Clone + PartialEq + Debug + AsCanonicalBytes;
+    type SharedPrivateKey: Clone + PartialEq + Debug + CanonicalBytes;
 
     fn shared_keys() -> Vec<SharedKeyId>;
 }
@@ -135,7 +175,7 @@ pub trait SharedPrivateKeys {
 /// parameters that must go through the commit/reveal scheme at the beginning of the protocol.
 pub trait Commitment {
     /// Commitment type used in the commit/reveal scheme during swap parameters setup.
-    type Commitment: Clone + PartialEq + Eq + Debug;
+    type Commitment: Clone + PartialEq + Eq + Debug + CanonicalBytes;
 }
 
 /// This trait is required for arbitrating blockchains for defining the types of messages,
@@ -147,11 +187,11 @@ pub trait Signatures {
     type Message: Clone + Debug;
 
     /// Defines the signature format for the arbitrating blockchain.
-    type Signature: Clone + Debug;
+    type Signature: Clone + Debug + CanonicalBytes;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic primitives used.
-    type AdaptorSignature: Clone + Debug;
+    type AdaptorSignature: Clone + Debug + CanonicalBytes;
 }
 
 pub trait Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:

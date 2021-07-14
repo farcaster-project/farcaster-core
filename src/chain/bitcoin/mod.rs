@@ -8,7 +8,7 @@ use bitcoin::Address;
 use bitcoin::Amount;
 
 use crate::blockchain::{self, Asset, Onchain, Timelock, Transactions};
-use crate::consensus::{self, AsCanonicalBytes};
+use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures};
 use crate::role::Arbitrating;
 
@@ -108,15 +108,35 @@ impl SharedPrivateKeys for Bitcoin {
     }
 }
 
-impl AsCanonicalBytes for PrivateKey {
+impl CanonicalBytes for PrivateKey {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         self.to_bytes()
     }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        let key =
+            bitcoin::secp256k1::SecretKey::from_slice(bytes).map_err(consensus::Error::new)?;
+        Ok(PrivateKey {
+            compressed: true,
+            network: bitcoin::Network::Bitcoin,
+            key,
+        })
+    }
 }
 
-impl AsCanonicalBytes for PublicKey {
+impl CanonicalBytes for PublicKey {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         self.to_bytes()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        PublicKey::from_slice(bytes).map_err(consensus::Error::new)
     }
 }
 
@@ -124,4 +144,17 @@ impl Signatures for Bitcoin {
     type Message = Sha256dHash;
     type Signature = Signature;
     type AdaptorSignature = Signature;
+}
+
+impl CanonicalBytes for Signature {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.serialize_compact().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Signature::from_compact(bytes).map_err(consensus::Error::new)
+    }
 }

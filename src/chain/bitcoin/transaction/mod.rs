@@ -13,6 +13,7 @@ use bitcoin::Amount;
 
 use thiserror::Error;
 
+use crate::consensus::{self, CanonicalBytes};
 use crate::script::ScriptPath;
 use crate::transaction::{
     Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
@@ -232,6 +233,32 @@ impl<'a> TxInRef<'a> {
 impl<'a> AsRef<TxIn> for TxInRef<'a> {
     fn as_ref(&self) -> &TxIn {
         self.input()
+    }
+}
+
+impl CanonicalBytes for bitcoin::Transaction {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        bitcoin::consensus::encode::serialize(&self)
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        bitcoin::consensus::encode::deserialize(bytes).map_err(consensus::Error::new)
+    }
+}
+
+impl CanonicalBytes for PartiallySignedTransaction {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        bitcoin::consensus::encode::serialize(&self)
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        bitcoin::consensus::encode::deserialize(bytes).map_err(consensus::Error::new)
     }
 }
 

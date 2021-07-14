@@ -1,18 +1,16 @@
 use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
-use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
-use crate::consensus::{self, Decodable, Encodable};
+use crate::consensus::{self, CanonicalBytes};
 
 use crate::chain::bitcoin::transaction;
 use crate::chain::bitcoin::Bitcoin;
 
-use std::io;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, StrictDecode, StrictEncode)]
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq)]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {
@@ -29,16 +27,18 @@ impl SatPerVByte {
     }
 }
 
-impl Encodable for SatPerVByte {
-    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        self.0.consensus_encode(writer)
+impl CanonicalBytes for SatPerVByte {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        bitcoin::consensus::encode::serialize(&self.0.as_sat())
     }
-}
 
-impl Decodable for SatPerVByte {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let amount: Amount = Decodable::consensus_decode(d)?;
-        Ok(SatPerVByte(amount))
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Ok(SatPerVByte(Amount::from_sat(
+            bitcoin::consensus::encode::deserialize(bytes).map_err(consensus::Error::new)?,
+        )))
     }
 }
 

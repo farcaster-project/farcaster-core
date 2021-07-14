@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn simple_vec() {
-        let vec = vec![0xde, 0xad, 0xbe, 0xef];
+        let vec: Vec<u8> = vec![0xde, 0xad, 0xbe, 0xef];
         // len of 4 as u16 in little endian = 0400
         assert_eq!(serialize_hex(&vec), "0400deadbeef");
         // test max size vec

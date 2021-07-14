@@ -7,7 +7,7 @@ use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
-use crate::role::{NegotiationRole, SwapRole};
+use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
 
 /// First six magic bytes of a public offer
@@ -103,10 +103,10 @@ impl<Ctx: Swap> Offer<Ctx> {
     }
 
     /// Return the future swap role for the given negotiation role.
-    pub fn swap_role(&self, nego_role: &NegotiationRole) -> SwapRole {
+    pub fn swap_role(&self, nego_role: &TradeRole) -> SwapRole {
         match nego_role {
-            NegotiationRole::Maker => self.maker_role,
-            NegotiationRole::Taker => self.maker_role.other(),
+            TradeRole::Maker => self.maker_role,
+            TradeRole::Taker => self.maker_role.other(),
         }
     }
 }
@@ -367,7 +367,7 @@ pub struct PublicOffer<Ctx: Swap> {
 
 impl<Ctx: Swap> PublicOffer<Ctx> {
     /// Return the future swap role for the given negotiation role.
-    pub fn swap_role(&self, nego_role: &NegotiationRole) -> SwapRole {
+    pub fn swap_role(&self, nego_role: &TradeRole) -> SwapRole {
         self.offer.swap_role(nego_role)
     }
 }

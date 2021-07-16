@@ -1,6 +1,7 @@
 use farcaster_core::chain::pairs::btcxmr::{BtcXmr, Wallet};
 
 use farcaster_core::blockchain::FeePolitic;
+use farcaster_core::bundle::{AliceParameters, BobParameters};
 use farcaster_core::consensus::deserialize;
 use farcaster_core::negotiation::PublicOffer;
 use farcaster_core::protocol_message::{
@@ -11,6 +12,14 @@ use farcaster_core::role::{Alice, Bob};
 use bitcoin::Address;
 
 use std::str::FromStr;
+
+macro_rules! test_strict_ser {
+    ($var:ident, $type:ty) => {
+        let strict_ser = strict_encoding::strict_serialize(&$var).unwrap();
+        let res: Result<$type, _> = strict_encoding::strict_deserialize(&strict_ser);
+        assert!(res.is_ok());
+    };
+}
 
 fn init_alice() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>) {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
@@ -44,14 +53,21 @@ fn create_alice_parameters() {
 
     let alice_params = dbg!(alice.generate_parameters(&wallet, &pub_offer).unwrap());
 
+    test_strict_ser!(alice_params, AliceParameters<BtcXmr>);
+
     let commit_alice_params = dbg!(CommitAliceParameters::commit_to_bundle(
         &wallet,
         alice_params.clone()
     ));
-    let reveal_alice_params: RevealAliceParameters<BtcXmr> = dbg!(alice_params.into());
-    assert!(dbg!(commit_alice_params.verify_with_reveal(&wallet, reveal_alice_params)).is_ok());
 
-    //assert!(false);
+    test_strict_ser!(commit_alice_params, CommitAliceParameters<BtcXmr>);
+
+    let reveal_alice_params: RevealAliceParameters<BtcXmr> = dbg!(alice_params.into());
+    assert!(
+        dbg!(commit_alice_params.verify_with_reveal(&wallet, reveal_alice_params.clone())).is_ok()
+    );
+
+    test_strict_ser!(reveal_alice_params, RevealAliceParameters<BtcXmr>);
 }
 
 #[test]
@@ -65,14 +81,19 @@ fn create_bob_parameters() {
 
     let bob_params = dbg!(bob.generate_parameters(&wallet, &pub_offer).unwrap());
 
+    test_strict_ser!(bob_params, BobParameters<BtcXmr>);
+
     let commit_bob_params = dbg!(CommitBobParameters::commit_to_bundle(
         &wallet,
         bob_params.clone()
     ));
-    let reveal_bob_params: RevealBobParameters<_> = dbg!(bob_params.into());
-    assert!(dbg!(commit_bob_params.verify_with_reveal(&wallet, reveal_bob_params)).is_ok());
 
-    //assert!(false);
+    test_strict_ser!(commit_bob_params, CommitBobParameters<BtcXmr>);
+
+    let reveal_bob_params: RevealBobParameters<_> = dbg!(bob_params.into());
+    assert!(dbg!(commit_bob_params.verify_with_reveal(&wallet, reveal_bob_params.clone())).is_ok());
+
+    test_strict_ser!(reveal_bob_params, RevealBobParameters<BtcXmr>);
 }
 
 #[test]

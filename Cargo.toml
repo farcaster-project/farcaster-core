@@ -13,6 +13,7 @@ rpc = []
 hex = "0.4.3"
 strict_encoding = "=1.2.3"
 strict_encoding_derive = "=1.0.0"
+lightning_encoding = "0.4.0-beta.1"
 thiserror = "1.0.24"
 internet2 = "0.3.10"
 

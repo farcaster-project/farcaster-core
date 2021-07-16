@@ -32,6 +32,10 @@ fn create_offer() {
     };
 
     assert_eq!(hex, serialize_hex(&offer));
+    let strict_ser = strict_encoding::strict_serialize(&offer).unwrap();
+    assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
+    let res: Offer<BtcXmr> = strict_encoding::strict_deserialize(&strict_ser).unwrap();
+    assert_eq!(&offer, &res);
 }
 
 #[test]
@@ -88,6 +92,10 @@ fn serialize_public_offer() {
     let public_offer = offer.to_public_v1(peer);
 
     assert_eq!(hex, serialize_hex(&public_offer));
+    let strict_ser = strict_encoding::strict_serialize(&public_offer).unwrap();
+    assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
+    let res: PublicOffer<BtcXmr> = strict_encoding::strict_deserialize(&strict_ser).unwrap();
+    assert_eq!(&public_offer, &res);
 }
 
 #[test]

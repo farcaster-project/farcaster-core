@@ -12,6 +12,14 @@ use bitcoin::Address;
 
 use std::str::FromStr;
 
+macro_rules! test_strict_ser {
+    ($var:ident, $type:ty) => {
+        let strict_ser = strict_encoding::strict_serialize(&$var).unwrap();
+        let res: Result<$type, _> = strict_encoding::strict_deserialize(&strict_ser);
+        assert!(res.is_ok());
+    };
+}
+
 fn init_alice() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>) {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
                a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
@@ -48,10 +56,15 @@ fn create_alice_parameters() {
         &wallet,
         alice_params.clone()
     ));
-    let reveal_alice_params: RevealAliceParameters<BtcXmr> = dbg!(alice_params.into());
-    assert!(dbg!(commit_alice_params.verify_with_reveal(&wallet, reveal_alice_params)).is_ok());
 
-    //assert!(false);
+    test_strict_ser!(commit_alice_params, CommitAliceParameters<BtcXmr>);
+
+    let reveal_alice_params: RevealAliceParameters<BtcXmr> = dbg!(alice_params.into());
+    assert!(
+        dbg!(commit_alice_params.verify_with_reveal(&wallet, reveal_alice_params.clone())).is_ok()
+    );
+
+    test_strict_ser!(reveal_alice_params, RevealAliceParameters<BtcXmr>);
 }
 
 #[test]
@@ -69,10 +82,13 @@ fn create_bob_parameters() {
         &wallet,
         bob_params.clone()
     ));
-    let reveal_bob_params: RevealBobParameters<_> = dbg!(bob_params.into());
-    assert!(dbg!(commit_bob_params.verify_with_reveal(&wallet, reveal_bob_params)).is_ok());
 
-    //assert!(false);
+    test_strict_ser!(commit_bob_params, CommitBobParameters<BtcXmr>);
+
+    let reveal_bob_params: RevealBobParameters<_> = dbg!(bob_params.into());
+    assert!(dbg!(commit_bob_params.verify_with_reveal(&wallet, reveal_bob_params.clone())).is_ok());
+
+    test_strict_ser!(reveal_bob_params, RevealBobParameters<BtcXmr>);
 }
 
 #[test]

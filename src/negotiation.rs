@@ -365,7 +365,7 @@ where
 /// willing of trading some assets at some conditions. The assets and condition
 /// are defined in the offer, the make peer connection information are happen to
 /// the offer the create a public offer.
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicOffer<Ctx: Swap> {
     /// The public offer version
     pub version: Version,
@@ -373,6 +373,15 @@ pub struct PublicOffer<Ctx: Swap> {
     pub offer: Offer<Ctx>,
     /// Address of the listening daemon's peer
     pub daemon_service: RemoteNodeAddr,
+}
+
+impl<Ctx: Swap> std::hash::Hash for PublicOffer<Ctx> {
+    fn hash<H>(&self, hasher: &mut H)
+    where
+        H: Hasher,
+    {
+        hasher.write(&consensus::serialize(self)[..]);
+    }
 }
 
 impl<Ctx: Swap> PublicOffer<Ctx> {

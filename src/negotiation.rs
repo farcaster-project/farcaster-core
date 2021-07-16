@@ -63,7 +63,7 @@ pub enum Error {
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
 /// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
 /// the data needed to a Taker to connect to the Maker's daemon.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct Offer<Ctx: Swap> {
     /// Type of offer and network to use
     pub network: Network,
@@ -85,8 +85,7 @@ pub struct Offer<Ctx: Swap> {
     pub maker_role: SwapRole,
 }
 
-impl<Ctx: Swap> Eq for Offer<Ctx> {}
-
+// https://doc.rust-lang.org/std/hash/trait.Hash.html#hash-and-eq
 impl<Ctx: Swap> PartialEq for Offer<Ctx> {
     fn eq(&self, other: &Self) -> bool {
         consensus::serialize_hex(self) == consensus::serialize_hex(other)
@@ -365,7 +364,7 @@ where
 /// willing of trading some assets at some conditions. The assets and condition
 /// are defined in the offer, the make peer connection information are happen to
 /// the offer the create a public offer.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Debug, Clone, Eq)]
 pub struct PublicOffer<Ctx: Swap> {
     /// The public offer version
     pub version: Version,
@@ -373,6 +372,13 @@ pub struct PublicOffer<Ctx: Swap> {
     pub offer: Offer<Ctx>,
     /// Address of the listening daemon's peer
     pub daemon_service: RemoteNodeAddr,
+}
+
+// https://doc.rust-lang.org/std/hash/trait.Hash.html#hash-and-eq
+impl<Ctx: Swap> PartialEq for PublicOffer<Ctx> {
+    fn eq(&self, other: &Self) -> bool {
+        consensus::serialize_hex(self) == consensus::serialize_hex(other)
+    }
 }
 
 impl<Ctx: Swap> std::hash::Hash for PublicOffer<Ctx> {

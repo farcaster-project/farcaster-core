@@ -3,6 +3,7 @@
 use internet2::RemoteNodeAddr;
 use thiserror::Error;
 
+use std::hash::Hasher;
 use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
@@ -15,7 +16,7 @@ pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
 /// A public offer version containing the version and the activated features if
 /// any.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Version(u16);
 
 impl Version {
@@ -89,6 +90,15 @@ impl<Ctx: Swap> Eq for Offer<Ctx> {}
 impl<Ctx: Swap> PartialEq for Offer<Ctx> {
     fn eq(&self, other: &Self) -> bool {
         consensus::serialize_hex(self) == consensus::serialize_hex(other)
+    }
+}
+
+impl<Ctx: Swap> std::hash::Hash for Offer<Ctx> {
+    fn hash<H>(&self, hasher: &mut H)
+    where
+        H: Hasher,
+    {
+        hasher.write(&consensus::serialize(self)[..]);
     }
 }
 
@@ -355,7 +365,7 @@ where
 /// willing of trading some assets at some conditions. The assets and condition
 /// are defined in the offer, the make peer connection information are happen to
 /// the offer the create a public offer.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct PublicOffer<Ctx: Swap> {
     /// The public offer version
     pub version: Version,

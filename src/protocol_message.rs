@@ -11,6 +11,8 @@ use crate::crypto::{
 use crate::swap::Swap;
 use crate::Error;
 
+use lightning_encoding::{Strategy, strategies::AsStrict};
+
 fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: &Vec<TaggedElement<T, K>>,
@@ -171,6 +173,13 @@ where
 
 impl_strict_encoding!(CommitAliceParameters<Ctx>, Ctx: Swap);
 
+impl<Ctx> Strategy for CommitAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    type Strategy = AsStrict;
+}
+
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug)]
@@ -287,6 +296,13 @@ where
 
 impl_strict_encoding!(CommitBobParameters<Ctx>, Ctx: Swap);
 
+impl<Ctx> Strategy for CommitBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    type Strategy = AsStrict;
+}
+
 // TODO: Add more common data to reveal, e.g. help to ensure that both node uses the same value for
 // fee
 
@@ -375,6 +391,13 @@ where
 }
 
 impl_strict_encoding!(RevealAliceParameters<Ctx>, Ctx: Swap);
+
+impl<Ctx> Strategy for RevealAliceParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    type Strategy = AsStrict;
+}
 
 impl<Ctx> From<bundle::AliceParameters<Ctx>> for RevealAliceParameters<Ctx>
 where
@@ -478,6 +501,13 @@ where
 
 impl_strict_encoding!(RevealBobParameters<Ctx>, Ctx: Swap);
 
+impl<Ctx> Strategy for RevealBobParameters<Ctx>
+where
+    Ctx: Swap,
+{
+    type Strategy = AsStrict;
+}
+
 impl<Ctx> From<bundle::BobParameters<Ctx>> for RevealBobParameters<Ctx>
 where
     Ctx: Swap,
@@ -549,6 +579,13 @@ where
 
 impl_strict_encoding!(CoreArbitratingSetup<Ctx>, Ctx: Swap);
 
+impl<Ctx> Strategy for CoreArbitratingSetup<Ctx>
+where
+    Ctx: Swap,
+{
+    type Strategy = AsStrict;
+}
+
 impl<Ctx>
     From<(
         bundle::CoreArbitratingTransactions<Ctx::Ar>,
@@ -615,6 +652,13 @@ where
 
 impl_strict_encoding!(RefundProcedureSignatures<Ctx>, Ctx: Swap);
 
+impl<Ctx> Strategy for RefundProcedureSignatures<Ctx>
+where
+    Ctx: Swap,
+{
+    type Strategy = AsStrict;
+}
+
 impl<Ctx>
     From<(
         bundle::CosignedArbitratingCancel<Ctx::Ar>,
@@ -679,6 +723,13 @@ where
 
 impl_strict_encoding!(BuyProcedureSignature<Ctx>, Ctx: Swap);
 
+impl<Ctx> Strategy for BuyProcedureSignature<Ctx>
+where
+    Ctx: Swap,
+{
+    type Strategy = AsStrict;
+}
+
 impl<Ctx> From<bundle::SignedAdaptorBuy<Ctx::Ar>> for BuyProcedureSignature<Ctx>
 where
     Ctx: Swap,
@@ -714,3 +765,7 @@ impl Decodable for Abort {
 }
 
 impl_strict_encoding!(Abort);
+
+impl Strategy for Abort {
+    type Strategy = AsStrict;
+}

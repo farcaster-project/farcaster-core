@@ -1,5 +1,12 @@
 //! Farcaster Core library
 
+// Coding conventions
+#![forbid(unsafe_code)]
+#![deny(non_upper_case_globals)]
+#![deny(non_camel_case_types)]
+#![deny(unused_mut)]
+//#![deny(missing_docs)]
+
 use thiserror::Error;
 
 #[macro_use]

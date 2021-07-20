@@ -1,3 +1,6 @@
+[![Build Status](https://img.shields.io/github/workflow/status/farcaster-project/farcaster-core/CI/main)](https://github.com/farcaster-project/farcaster-core/actions/workflows/ci.yml)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance)
+
 # Farcaster Core
 Farcaster Core Libraries and Utilities implementing in Rust:
 

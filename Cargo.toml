@@ -11,6 +11,8 @@ rpc = []
 
 [dependencies]
 hex = "0.4.3"
+tiny-keccak = { version = "2", features = ["keccak"] }
+fixed-hash = { version = "0.7.0", default-features = false }
 strict_encoding = "=1.2.3"
 strict_encoding_derive = "=1.0.0"
 thiserror = "1.0.24"

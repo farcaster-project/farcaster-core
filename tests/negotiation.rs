@@ -6,7 +6,7 @@ use farcaster_core::chain::pairs::btcxmr::BtcXmr;
 
 use farcaster_core::blockchain::{FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};
-use farcaster_core::negotiation::{Buy, Offer, PublicOffer, Sell};
+use farcaster_core::negotiation::{Buy, Offer, OfferId, PublicOffer, PublicOfferId, Sell};
 use farcaster_core::role::SwapRole;
 
 use bitcoin::Amount;
@@ -36,6 +36,17 @@ fn create_offer() {
     assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
     let res: Offer<BtcXmr> = strict_encoding::strict_deserialize(&strict_ser).unwrap();
     assert_eq!(&offer, &res);
+}
+
+#[test]
+fn get_offer_id() {
+    let hex = "02000000808000008008000500000000000000080006000000000000000400070000000400080000000\
+               10800090000000000000002";
+    let res: Offer<BtcXmr> =
+        strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
+    let id = OfferId::from_str("f79b29ccb233b37cea3aa35b94c5ece25c58a8098afc18f046810a3c04591599")
+        .unwrap();
+    assert_eq!(id, res.id());
 }
 
 #[test]
@@ -96,6 +107,20 @@ fn serialize_public_offer() {
     assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
     let res: PublicOffer<BtcXmr> = strict_encoding::strict_deserialize(&strict_ser).unwrap();
     assert_eq!(&public_offer, &res);
+}
+
+#[test]
+fn get_public_offer_id() {
+    let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
+               a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
+               873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
+               000000000000000000000260700";
+    let res: PublicOffer<BtcXmr> =
+        strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
+    let id =
+        PublicOfferId::from_str("97ba076243c6136db226cab496d6fbcdefb6dbeb23195e2997275e6ddb479d8f")
+            .unwrap();
+    assert_eq!(id, res.id());
 }
 
 #[test]

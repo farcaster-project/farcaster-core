@@ -2,12 +2,12 @@
 
 use internet2::RemoteNodeAddr;
 use thiserror::Error;
+use tiny_keccak::{Hasher, Keccak};
 
-use std::hash::Hasher;
 use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
-use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
+use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
 use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
 
@@ -59,6 +59,19 @@ pub enum Error {
     InvalidSignature,
 }
 
+fixed_hash::construct_fixed_hash!(
+    /// Identify an offer by it's content, internally store the hash of the offer serialized with
+    /// Farcaster consensus.
+    pub struct OfferId(32);
+);
+
+impl OfferId {
+    /// Return the 32-bytes hash array.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+}
+
 /// An offer is created by a Maker before the start of his daemon, it references all the data
 /// needed to know what the trade look likes from a Taker perspective. The daemon start when the
 /// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
@@ -95,7 +108,7 @@ impl<Ctx: Swap> PartialEq for Offer<Ctx> {
 impl<Ctx: Swap> std::hash::Hash for Offer<Ctx> {
     fn hash<H>(&self, hasher: &mut H)
     where
-        H: Hasher,
+        H: std::hash::Hasher,
     {
         hasher.write(&consensus::serialize(self)[..]);
     }
@@ -117,6 +130,15 @@ impl<Ctx: Swap> Offer<Ctx> {
             TradeRole::Maker => self.maker_role,
             TradeRole::Taker => self.maker_role.other(),
         }
+    }
+
+    /// Generate the [`OfferId`] from the offer.
+    pub fn id(&self) -> OfferId {
+        let mut keccak = Keccak::v256();
+        let mut out = [0u8; 32];
+        keccak.update(serialize(self).as_ref());
+        keccak.finalize(&mut out);
+        OfferId(out)
     }
 }
 
@@ -360,6 +382,19 @@ where
     }
 }
 
+fixed_hash::construct_fixed_hash!(
+    /// Identify a public offer by it's content, internally store the hash of the offer serialized
+    /// with Farcaster consensus.
+    pub struct PublicOfferId(32);
+);
+
+impl PublicOfferId {
+    /// Return the 32-bytes hash array.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+}
+
 /// A public offer is shared across maker's prefered network to signal is
 /// willing of trading some assets at some conditions. The assets and condition
 /// are defined in the offer, the make peer connection information are happen to
@@ -374,6 +409,22 @@ pub struct PublicOffer<Ctx: Swap> {
     pub daemon_service: RemoteNodeAddr,
 }
 
+impl<Ctx: Swap> PublicOffer<Ctx> {
+    /// Generate the [`OfferId`] from the offer.
+    pub fn id(&self) -> PublicOfferId {
+        let mut keccak = Keccak::v256();
+        let mut out = [0u8; 32];
+        keccak.update(serialize(self).as_ref());
+        keccak.finalize(&mut out);
+        PublicOfferId(out)
+    }
+
+    /// Returns the hex string representation of the consensus encoded public offer.
+    pub fn to_hex(&self) -> String {
+        serialize_hex(&self.clone())
+    }
+}
+
 // https://doc.rust-lang.org/std/hash/trait.Hash.html#hash-and-eq
 impl<Ctx: Swap> PartialEq for PublicOffer<Ctx> {
     fn eq(&self, other: &Self) -> bool {
@@ -384,7 +435,7 @@ impl<Ctx: Swap> PartialEq for PublicOffer<Ctx> {
 impl<Ctx: Swap> std::hash::Hash for PublicOffer<Ctx> {
     fn hash<H>(&self, hasher: &mut H)
     where
-        H: Hasher,
+        H: std::hash::Hasher,
     {
         hasher.write(&consensus::serialize(self)[..]);
     }

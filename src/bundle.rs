@@ -155,6 +155,7 @@ where
         len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_arbitrating_keys.consensus_encode(s)?;
         len += self.arbitrating_shared_keys.consensus_encode(s)?;
+        len += self.spend.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_accordant_keys.consensus_encode(s)?;
         len += self.accordant_shared_keys.consensus_encode(s)?;
         len += self

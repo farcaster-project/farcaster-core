@@ -32,6 +32,10 @@ fn create_offer() {
     };
 
     assert_eq!(hex, serialize_hex(&offer));
+    let strict_ser = strict_encoding::strict_serialize(&offer).unwrap();
+    assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
+    let res: Offer<BtcXmr> = strict_encoding::strict_deserialize(&strict_ser).unwrap();
+    assert_eq!(&offer, &res);
 }
 
 #[test]
@@ -88,6 +92,10 @@ fn serialize_public_offer() {
     let public_offer = offer.to_public_v1(peer);
 
     assert_eq!(hex, serialize_hex(&public_offer));
+    let strict_ser = strict_encoding::strict_serialize(&public_offer).unwrap();
+    assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
+    let res: PublicOffer<BtcXmr> = strict_encoding::strict_deserialize(&strict_ser).unwrap();
+    assert_eq!(&public_offer, &res);
 }
 
 #[test]
@@ -105,4 +113,32 @@ fn check_public_offer_magic_bytes() {
     let pub_offer: Result<PublicOffer<BtcXmr>, consensus::Error> =
         deserialize(&hex::decode(invalid).unwrap()[..]);
     assert!(pub_offer.is_err());
+}
+
+#[test]
+fn parse_public_offer() {
+    for hex in [
+        "4643535741500100020000008080000080080000e1f5050000000008000040e59c301200000\
+        4000a00000004000a00000001080015000000000000000102ec4a727b0290ab7c9d78241dc2dd24f\
+        c4b2251d000189aca4e9be2c858bfed7500000000000000000000000000000000000000000000000\
+        00000000000000000000000260700",
+        "46435357415001000200000080800000800800e80300000000000008000f150300000000000\
+        4000a00000004000a000000010800150000000000000002026a77a9ddca6873b8adb507a8c64e00a\
+        f1f487291d5cd846b312b5f1cedcfa38800000000000000000000000000000000000000000000000\
+        00000000000000000000000260700",
+        "46435357415001000200000080800000800800e8030000000000000800c9000000000000000\
+        4000a00000004000a000000010800150000000000000002026a77a9ddca6873b8adb507a8c64e00a\
+        f1f487291d5cd846b312b5f1cedcfa38800000000000000000000000000000000000000000000000\
+        00000000000000000000000260700",
+        "46435357415001000200000080800000800800e80300000000000008000f150300000000000\
+        4000a00000004000a00000001080015000000000000000103cf9df650968bbb9d331b06099dd86c3\
+        d059bce66dafe5f24e8ffdc4fae09c03600000000000000000000000000000000000000000000000\
+        00000000000000000000000260700",
+    ]
+    .iter_mut()
+    {
+        let bytes = hex::decode(hex).expect("hex");
+        let res: Result<PublicOffer<BtcXmr>, _> = strict_encoding::strict_deserialize(&bytes);
+        assert!(res.is_ok());
+    }
 }

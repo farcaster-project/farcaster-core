@@ -7,7 +7,7 @@ use tiny_keccak::{Hasher, Keccak};
 use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
-use crate::consensus::{self, serialize, CanonicalBytes, Decodable, Encodable};
+use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
 use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
 
@@ -417,6 +417,11 @@ impl<Ctx: Swap> PublicOffer<Ctx> {
         keccak.update(serialize(self).as_ref());
         keccak.finalize(&mut out);
         PublicOfferId(out)
+    }
+
+    /// Returns the hex string representation of the consensus encoded public offer.
+    pub fn to_hex(&self) -> String {
+        serialize_hex(&self.clone())
     }
 }
 

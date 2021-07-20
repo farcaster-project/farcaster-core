@@ -6,6 +6,11 @@ use crate::consensus::CanonicalBytes;
 use crate::crypto::Commitment;
 use crate::role::{Accordant, Arbitrating};
 
+fixed_hash::construct_fixed_hash!(
+    /// A unique swap identifier represented as an 32 bytes hash.
+    pub struct SwapId(32);
+);
+
 /// Specifie the context of a swap, fixing the arbitrating blockchain, the accordant blockchain and
 /// the link between them.
 pub trait Swap: Debug + Clone + Commitment {

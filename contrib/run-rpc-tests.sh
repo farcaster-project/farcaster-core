@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cd ..
 ID=$(docker run --rm -d -p 18443:18443 coblox/bitcoin-core\
     -regtest\
     -server\
@@ -11,3 +12,4 @@ ID=$(docker run --rm -d -p 18443:18443 coblox/bitcoin-core\
 RPC_HOST=127.0.0.1 RPC_PORT=18443 RPC_USER=test RPC_PASS=cEl2o3tHHgzYeuu3CiiZ2FjdgSiw9wNeMFzoNbFmx9k= cargo test --test transactions --features rpc -- --test-threads=1
 
 docker kill $ID
+cd -

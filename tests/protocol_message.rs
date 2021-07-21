@@ -2,13 +2,14 @@ use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
-use farcaster_core::protocol_message::{Abort, BuyProcedureSignature};
-
 use farcaster_core::chain::pairs::btcxmr::BtcXmr;
+use farcaster_core::protocol_message::{Abort, BuyProcedureSignature};
+use farcaster_core::swap::SwapId;
 
 #[test]
 fn create_abort_message() {
     let _ = Abort {
+        swap_id: SwapId::random(),
         error_body: Some(String::from("An error occured ;)")),
     };
 }
@@ -29,6 +30,7 @@ fn create_buy_procedure_signature_message() {
             .expect("Parse DER should work here");
 
     let _ = BuyProcedureSignature::<BtcXmr> {
+        swap_id: SwapId::random(),
         buy: (PartiallySignedTransaction::from_unsigned_tx(tx).expect("PSBT should work here")),
         buy_adaptor_sig,
     };

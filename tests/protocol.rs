@@ -9,6 +9,7 @@ use farcaster_core::protocol_message::{
     CommitAliceParameters, CommitBobParameters, RevealAliceParameters, RevealBobParameters,
 };
 use farcaster_core::role::{Alice, Bob};
+use farcaster_core::swap::SwapId;
 use farcaster_core::transaction::Fundable;
 
 use bitcoin::Address;
@@ -64,6 +65,8 @@ fn execute_offline_protocol() {
         26, 27, 28, 29, 30, 31, 32,
     ]);
 
+    let swap_id = SwapId::random();
+
     //
     // Commit/Reveal round
     //
@@ -71,14 +74,15 @@ fn execute_offline_protocol() {
         .generate_parameters(&alice_wallet, &pub_offer)
         .unwrap();
     let commit_alice_params =
-        CommitAliceParameters::commit_to_bundle(&alice_wallet, alice_params.clone());
+        CommitAliceParameters::commit_to_bundle(swap_id, &alice_wallet, alice_params.clone());
 
     let bob_params = bob.generate_parameters(&bob_wallet, &pub_offer).unwrap();
-    let commit_bob_params = CommitBobParameters::commit_to_bundle(&bob_wallet, bob_params.clone());
+    let commit_bob_params =
+        CommitBobParameters::commit_to_bundle(swap_id, &bob_wallet, bob_params.clone());
 
     // Reveal
-    let reveal_alice_params: RevealAliceParameters<BtcXmr> = alice_params.clone().into();
-    let reveal_bob_params: RevealBobParameters<BtcXmr> = bob_params.clone().into();
+    let reveal_alice_params: RevealAliceParameters<BtcXmr> = (swap_id, alice_params.clone()).into();
+    let reveal_bob_params: RevealBobParameters<BtcXmr> = (swap_id, bob_params.clone()).into();
 
     assert!(commit_alice_params
         .verify_with_reveal(&bob_wallet, reveal_alice_params)

@@ -8,7 +8,7 @@ use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
     self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement,
 };
-use crate::swap::Swap;
+use crate::swap::{Swap, SwapId};
 use crate::Error;
 
 use lightning_encoding::{strategies::AsStrict, Strategy};
@@ -55,6 +55,8 @@ fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug)]
 pub struct CommitAliceParameters<Ctx: Swap> {
+    /// The swap identifier related to this message
+    pub swap_id: SwapId,
     /// Commitment to the buy public key
     pub buy: Ctx::Commitment,
     /// Commitment to the cancel public key
@@ -82,10 +84,12 @@ where
     Ctx: Swap,
 {
     pub fn commit_to_bundle(
+        swap_id: SwapId,
         wallet: &impl Commit<Ctx::Commitment>,
         bundle: bundle::AliceParameters<Ctx>,
     ) -> Self {
         Self {
+            swap_id,
             buy: wallet.commit_to(bundle.buy.as_canonical_bytes()),
             cancel: wallet.commit_to(bundle.cancel.as_canonical_bytes()),
             refund: wallet.commit_to(bundle.refund.as_canonical_bytes()),
@@ -138,7 +142,8 @@ where
     Ctx: Swap,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        let mut len = self.swap_id.consensus_encode(s)?;
+        len += self.buy.as_canonical_bytes().consensus_encode(s)?;
         len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
         len += self.refund.as_canonical_bytes().consensus_encode(s)?;
         len += self.punish.as_canonical_bytes().consensus_encode(s)?;
@@ -157,6 +162,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
             buy: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             cancel: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             refund: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
@@ -184,6 +190,8 @@ where
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
 #[derive(Clone, Debug)]
 pub struct CommitBobParameters<Ctx: Swap> {
+    /// The swap identifier related to this message
+    pub swap_id: SwapId,
     /// Commitment to the buy public key
     pub buy: Ctx::Commitment,
     /// Commitment to the cancel public key
@@ -209,10 +217,12 @@ where
     Ctx: Swap,
 {
     pub fn commit_to_bundle(
+        swap_id: SwapId,
         wallet: &impl Commit<Ctx::Commitment>,
         bundle: bundle::BobParameters<Ctx>,
     ) -> Self {
         Self {
+            swap_id,
             buy: wallet.commit_to(bundle.buy.as_canonical_bytes()),
             cancel: wallet.commit_to(bundle.cancel.as_canonical_bytes()),
             refund: wallet.commit_to(bundle.refund.as_canonical_bytes()),
@@ -263,7 +273,8 @@ where
     Ctx: Swap,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        let mut len = self.swap_id.consensus_encode(s)?;
+        len += self.buy.as_canonical_bytes().consensus_encode(s)?;
         len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
         len += self.refund.as_canonical_bytes().consensus_encode(s)?;
         len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
@@ -281,6 +292,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
             buy: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             cancel: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             refund: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
@@ -310,6 +322,8 @@ where
 /// `commit_alice_session_params` message.
 #[derive(Clone, Debug)]
 pub struct RevealAliceParameters<Ctx: Swap> {
+    /// The swap identifier related to this message
+    pub swap_id: SwapId,
     /// Reveal the buy public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
     /// Reveal the cancel public key
@@ -343,7 +357,8 @@ where
     Ctx: Swap,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        let mut len = self.swap_id.consensus_encode(s)?;
+        len += self.buy.as_canonical_bytes().consensus_encode(s)?;
         len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
         len += self.refund.as_canonical_bytes().consensus_encode(s)?;
         len += self.punish.as_canonical_bytes().consensus_encode(s)?;
@@ -364,6 +379,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
             buy: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             cancel: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
@@ -399,24 +415,25 @@ where
     type Strategy = AsStrict;
 }
 
-impl<Ctx> From<bundle::AliceParameters<Ctx>> for RevealAliceParameters<Ctx>
+impl<Ctx> From<(SwapId, bundle::AliceParameters<Ctx>)> for RevealAliceParameters<Ctx>
 where
     Ctx: Swap,
 {
-    fn from(bundle: bundle::AliceParameters<Ctx>) -> Self {
+    fn from(bundle: (SwapId, bundle::AliceParameters<Ctx>)) -> Self {
         Self {
-            buy: bundle.buy,
-            cancel: bundle.cancel,
-            refund: bundle.refund,
-            punish: bundle.punish,
-            adaptor: bundle.adaptor,
-            extra_arbitrating_keys: bundle.extra_arbitrating_keys,
-            arbitrating_shared_keys: bundle.arbitrating_shared_keys,
-            spend: bundle.spend,
-            extra_accordant_keys: bundle.extra_accordant_keys,
-            accordant_shared_keys: bundle.accordant_shared_keys,
-            address: bundle.destination_address,
-            proof: bundle.proof,
+            swap_id: bundle.0,
+            buy: bundle.1.buy,
+            cancel: bundle.1.cancel,
+            refund: bundle.1.refund,
+            punish: bundle.1.punish,
+            adaptor: bundle.1.adaptor,
+            extra_arbitrating_keys: bundle.1.extra_arbitrating_keys,
+            arbitrating_shared_keys: bundle.1.arbitrating_shared_keys,
+            spend: bundle.1.spend,
+            extra_accordant_keys: bundle.1.extra_accordant_keys,
+            accordant_shared_keys: bundle.1.accordant_shared_keys,
+            address: bundle.1.destination_address,
+            proof: bundle.1.proof,
         }
     }
 }
@@ -425,6 +442,8 @@ where
 /// message.
 #[derive(Clone, Debug)]
 pub struct RevealBobParameters<Ctx: Swap> {
+    /// The swap identifier related to this message
+    pub swap_id: SwapId,
     /// Reveal the buy public key
     pub buy: <Ctx::Ar as Keys>::PublicKey,
     /// Reveal the cancel public key
@@ -456,7 +475,8 @@ where
     Ctx: Swap,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        let mut len = self.swap_id.consensus_encode(s)?;
+        len += self.buy.as_canonical_bytes().consensus_encode(s)?;
         len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
         len += self.refund.as_canonical_bytes().consensus_encode(s)?;
         len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
@@ -476,6 +496,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
             buy: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             cancel: <Ctx::Ar as Keys>::PublicKey::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
@@ -508,23 +529,24 @@ where
     type Strategy = AsStrict;
 }
 
-impl<Ctx> From<bundle::BobParameters<Ctx>> for RevealBobParameters<Ctx>
+impl<Ctx> From<(SwapId, bundle::BobParameters<Ctx>)> for RevealBobParameters<Ctx>
 where
     Ctx: Swap,
 {
-    fn from(bundle: bundle::BobParameters<Ctx>) -> Self {
+    fn from(bundle: (SwapId, bundle::BobParameters<Ctx>)) -> Self {
         Self {
-            buy: bundle.buy,
-            cancel: bundle.cancel,
-            refund: bundle.refund,
-            adaptor: bundle.adaptor,
-            extra_arbitrating_keys: bundle.extra_arbitrating_keys,
-            arbitrating_shared_keys: bundle.arbitrating_shared_keys,
-            spend: bundle.spend,
-            extra_accordant_keys: bundle.extra_accordant_keys,
-            accordant_shared_keys: bundle.accordant_shared_keys,
-            address: bundle.refund_address,
-            proof: bundle.proof,
+            swap_id: bundle.0,
+            buy: bundle.1.buy,
+            cancel: bundle.1.cancel,
+            refund: bundle.1.refund,
+            adaptor: bundle.1.adaptor,
+            extra_arbitrating_keys: bundle.1.extra_arbitrating_keys,
+            arbitrating_shared_keys: bundle.1.arbitrating_shared_keys,
+            spend: bundle.1.spend,
+            extra_accordant_keys: bundle.1.extra_accordant_keys,
+            accordant_shared_keys: bundle.1.accordant_shared_keys,
+            address: bundle.1.refund_address,
+            proof: bundle.1.proof,
         }
     }
 }
@@ -533,6 +555,8 @@ where
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
 #[derive(Clone, Debug)]
 pub struct CoreArbitratingSetup<Ctx: Swap> {
+    /// The swap identifier related to this message
+    pub swap_id: SwapId,
     /// The arbitrating `lock (b)` transaction
     pub lock: <Ctx::Ar as Onchain>::PartialTransaction,
     /// The arbitrating `cancel (d)` transaction
@@ -548,7 +572,8 @@ where
     Ctx: Swap,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.lock.as_canonical_bytes().consensus_encode(s)?;
+        let mut len = self.swap_id.consensus_encode(s)?;
+        len += self.lock.as_canonical_bytes().consensus_encode(s)?;
         len += self.cancel.as_canonical_bytes().consensus_encode(s)?;
         len += self.refund.as_canonical_bytes().consensus_encode(s)?;
         Ok(len + self.cancel_sig.as_canonical_bytes().consensus_encode(s)?)
@@ -561,6 +586,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
             lock: <Ctx::Ar as Onchain>::PartialTransaction::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
@@ -588,6 +614,7 @@ where
 
 impl<Ctx>
     From<(
+        SwapId,
         bundle::CoreArbitratingTransactions<Ctx::Ar>,
         bundle::CosignedArbitratingCancel<Ctx::Ar>,
     )> for CoreArbitratingSetup<Ctx>
@@ -596,15 +623,17 @@ where
 {
     fn from(
         bundles: (
+            SwapId,
             bundle::CoreArbitratingTransactions<Ctx::Ar>,
             bundle::CosignedArbitratingCancel<Ctx::Ar>,
         ),
     ) -> Self {
         Self {
-            lock: bundles.0.lock,
-            cancel: bundles.0.cancel,
-            refund: bundles.0.refund,
-            cancel_sig: bundles.1.cancel_sig,
+            swap_id: bundles.0,
+            lock: bundles.1.lock,
+            cancel: bundles.1.cancel,
+            refund: bundles.1.refund,
+            cancel_sig: bundles.2.cancel_sig,
         }
     }
 }
@@ -614,6 +643,8 @@ where
 /// must validate the signatures.
 #[derive(Clone, Debug)]
 pub struct RefundProcedureSignatures<Ctx: Swap> {
+    /// The swap identifier related to this message
+    pub swap_id: SwapId,
     /// The `Ac` `cancel (d)` signature
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
     /// The `Ar(Tb)` `refund (e)` adaptor signature
@@ -625,7 +656,8 @@ where
     Ctx: Swap,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let len = self.cancel_sig.as_canonical_bytes().consensus_encode(s)?;
+        let mut len = self.swap_id.consensus_encode(s)?;
+        len += self.cancel_sig.as_canonical_bytes().consensus_encode(s)?;
         Ok(len
             + self
                 .refund_adaptor_sig
@@ -640,6 +672,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
             cancel_sig: <Ctx::Ar as Signatures>::Signature::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
@@ -661,6 +694,7 @@ where
 
 impl<Ctx>
     From<(
+        SwapId,
         bundle::CosignedArbitratingCancel<Ctx::Ar>,
         bundle::SignedAdaptorRefund<Ctx::Ar>,
     )> for RefundProcedureSignatures<Ctx>
@@ -669,13 +703,15 @@ where
 {
     fn from(
         bundles: (
+            SwapId,
             bundle::CosignedArbitratingCancel<Ctx::Ar>,
             bundle::SignedAdaptorRefund<Ctx::Ar>,
         ),
     ) -> Self {
         Self {
-            cancel_sig: bundles.0.cancel_sig.clone(),
-            refund_adaptor_sig: bundles.1.refund_adaptor_sig.clone(),
+            swap_id: bundles.0,
+            cancel_sig: bundles.1.cancel_sig.clone(),
+            refund_adaptor_sig: bundles.2.refund_adaptor_sig.clone(),
         }
     }
 }
@@ -685,6 +721,8 @@ where
 /// the adaptor signature.
 #[derive(Clone, Debug)]
 pub struct BuyProcedureSignature<Ctx: Swap> {
+    /// The swap identifier related to this message
+    pub swap_id: SwapId,
     /// The arbitrating `buy (c)` transaction
     pub buy: <Ctx::Ar as Onchain>::PartialTransaction,
     /// The `Bb(Ta)` `buy (c)` adaptor signature
@@ -696,7 +734,8 @@ where
     Ctx: Swap,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let len = self.buy.as_canonical_bytes().consensus_encode(s)?;
+        let mut len = self.swap_id.consensus_encode(s)?;
+        len += self.buy.as_canonical_bytes().consensus_encode(s)?;
         Ok(len
             + self
                 .buy_adaptor_sig
@@ -711,6 +750,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
             buy: <Ctx::Ar as Onchain>::PartialTransaction::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
@@ -730,14 +770,15 @@ where
     type Strategy = AsStrict;
 }
 
-impl<Ctx> From<bundle::SignedAdaptorBuy<Ctx::Ar>> for BuyProcedureSignature<Ctx>
+impl<Ctx> From<(SwapId, bundle::SignedAdaptorBuy<Ctx::Ar>)> for BuyProcedureSignature<Ctx>
 where
     Ctx: Swap,
 {
-    fn from(bundle: bundle::SignedAdaptorBuy<Ctx::Ar>) -> Self {
+    fn from(bundle: (SwapId, bundle::SignedAdaptorBuy<Ctx::Ar>)) -> Self {
         Self {
-            buy: bundle.buy.clone(),
-            buy_adaptor_sig: bundle.buy_adaptor_sig.clone(),
+            swap_id: bundle.0,
+            buy: bundle.1.buy.clone(),
+            buy_adaptor_sig: bundle.1.buy_adaptor_sig.clone(),
         }
     }
 }
@@ -746,19 +787,23 @@ where
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
 #[derive(Clone, Debug)]
 pub struct Abort {
+    /// The swap identifier related to this message
+    pub swap_id: SwapId,
     /// OPTIONAL `body`: error code | string
     pub error_body: Option<String>,
 }
 
 impl Encodable for Abort {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        self.error_body.consensus_encode(s)
+        let len = self.swap_id.consensus_encode(s)?;
+        Ok(len + self.error_body.consensus_encode(s)?)
     }
 }
 
 impl Decodable for Abort {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
             error_body: Option::<String>::consensus_decode(d)?,
         })
     }

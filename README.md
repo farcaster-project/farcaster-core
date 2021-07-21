@@ -2,11 +2,12 @@
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance)
 [![Crates.io](https://img.shields.io/crates/v/farcaster_core.svg)](https://crates.io/crates/farcaster_core)
 [![Documentation](https://docs.rs/farcaster_core/badge.svg)](https://docs.rs/farcaster_core)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 
 # Farcaster Core Library
 Farcaster atomic swaps project core library implementing in Rust:
 
-:warning: **This library is a :construction: work in progress :construction: and does not implement everything yet, nor is suitable for production use**
+:warning: **This library is a :construction: work in progress :construction: and does not implement everything yet, nor is suitable for production use.**
 
 - [x] Farcaster swap offers
 - [x] Swap roles and trade roles

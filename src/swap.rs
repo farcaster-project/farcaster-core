@@ -1,36 +1,35 @@
 //! Defines the high level of a swap between a Arbitrating blockchain and an Accordant blockchain.
 
 use std::fmt::Debug;
+use std::io;
 
-use crate::consensus::CanonicalBytes;
+use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::Commitment;
 use crate::role::{Accordant, Arbitrating};
+
 use lightning_encoding::strategies::AsStrict;
+use serde::{Deserialize, Serialize};
 
 fixed_hash::construct_fixed_hash!(
     /// A unique swap identifier represented as an 32 bytes hash.
+    #[derive(Serialize, Deserialize)]
     pub struct SwapId(32);
 );
 
-///// This did not work on the node
-// impl strict_encoding::Strategy for SwapId {
-//     type Strategy =  HashFixedBytes;
-// }
-
-impl strict_encoding::StrictEncode for SwapId {
-    fn strict_encode<E: std::io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
-       e.write_all(&self[..])?;
-       Ok(32)
+impl Encodable for SwapId {
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.0.consensus_encode(s)
     }
 }
 
-impl strict_encoding::StrictDecode for SwapId {
-    fn strict_decode<D: std::io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
-        let mut buf = vec![0u8; 32];
-        d.read_exact(&mut buf)?;
-        Ok(Self::from_slice(&buf))
+impl Decodable for SwapId {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+        Ok(Self::from_slice(&bytes))
     }
 }
+
+impl_strict_encoding!(SwapId);
 
 impl lightning_encoding::Strategy for SwapId {
     type Strategy = AsStrict;

@@ -159,22 +159,29 @@ where
     }
 }
 
-impl Encodable for [u8; 6] {
-    #[inline]
-    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
-        s.write_all(&self[..])?;
-        Ok(6)
-    }
+macro_rules! impl_fixed_array {
+    ($len: expr) => {
+        impl Encodable for [u8; $len] {
+            #[inline]
+            fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+                s.write_all(&self[..])?;
+                Ok($len)
+            }
+        }
+
+        impl Decodable for [u8; $len] {
+            #[inline]
+            fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+                let mut buffer = [0u8; $len];
+                d.read_exact(&mut buffer)?;
+                Ok(buffer)
+            }
+        }
+    };
 }
 
-impl Decodable for [u8; 6] {
-    #[inline]
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
-        let mut buffer = [0u8; 6];
-        d.read_exact(&mut buffer)?;
-        Ok(buffer)
-    }
-}
+impl_fixed_array!(6);
+impl_fixed_array!(32);
 
 macro_rules! unwrap_vec_ref {
     ($reader: ident) => {{

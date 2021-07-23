@@ -17,8 +17,8 @@ strict_encoding = "=1.2.3"
 strict_encoding_derive = "=1.0.0"
 lightning_encoding = "0.4.0-beta.1"
 thiserror = "1.0.24"
-internet2 = "0.3.10"
 serde = "1"
+internet2 = { git = "https://github.com/zkao/rust-internet2", branch = "farcaster" }
 
 # blockchain specific
 bitcoin = "0.26"
@@ -28,5 +28,5 @@ monero = { version = "0.13" }
 bitcoincore-rpc = "0.13.0"
 rand_core = { version = "^0.5.0", features = ["getrandom"] }
 secp256k1 = { version = "0.20.1", features = ["rand-std"] }
-internet2 = "0.3.10"
+internet2 = { git = "https://github.com/zkao/rust-internet2", branch = "farcaster" }
 lazy_static = "1.4.0"

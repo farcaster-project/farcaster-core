@@ -85,7 +85,8 @@ macro_rules! setup_txs {
         //
         // Finalize refund
         //
-        let refund_finalized = refund.finalize_and_extract().unwrap();
+        let refund_finalized =
+            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut refund).unwrap();
 
         //
         // Co-Sign cancel
@@ -104,7 +105,8 @@ macro_rules! setup_txs {
         //
         // Finalize cancel
         //
-        let cancel_finalized = cancel.finalize_and_extract().unwrap();
+        let cancel_finalized =
+            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut cancel).unwrap();
 
         //
         // Create buy tx
@@ -128,7 +130,8 @@ macro_rules! setup_txs {
         //
         // Finalize buy
         //
-        let buy_finalized = buy.finalize_and_extract().unwrap();
+        let buy_finalized =
+            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut buy).unwrap();
 
         //
         // Sign lock tx
@@ -136,7 +139,8 @@ macro_rules! setup_txs {
         let msg = lock.generate_witness_message(ScriptPath::Success).unwrap();
         let sig = sign_hash(msg, &secret_a1.key).unwrap();
         lock.add_witness(pubkey_a1, sig).unwrap();
-        let lock_finalized = lock.finalize_and_extract().unwrap();
+        let lock_finalized =
+            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut lock).unwrap();
 
         //
         // Create punish tx
@@ -160,7 +164,8 @@ macro_rules! setup_txs {
         //
         // Finalize buy
         //
-        let punish_finalized = punish.finalize_and_extract().unwrap();
+        let punish_finalized =
+            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut punish).unwrap();
 
         (
             lock_finalized,

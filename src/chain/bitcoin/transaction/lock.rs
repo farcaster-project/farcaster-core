@@ -10,7 +10,7 @@ use crate::script;
 use crate::transaction::{Error as FError, Fundable, Lockable};
 
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::Bitcoin;
+use crate::chain::bitcoin::{Bitcoin, SegwitV0};
 
 #[derive(Debug)]
 pub struct Lock;
@@ -27,10 +27,10 @@ impl SubTransaction for Lock {
     }
 }
 
-impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
+impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
     fn initialize(
-        prev: &impl Fundable<Bitcoin, MetadataOutput>,
-        lock: script::DataLock<Bitcoin>,
+        prev: &impl Fundable<Bitcoin<SegwitV0>, MetadataOutput>,
+        lock: script::DataLock<Bitcoin<SegwitV0>>,
         target_amount: Amount,
     ) -> Result<Self, FError> {
         let script = Builder::new()
@@ -95,7 +95,7 @@ impl Lockable<Bitcoin, MetadataOutput> for Tx<Lock> {
         })
     }
 
-    fn verify_template(&self, lock: script::DataLock<Bitcoin>) -> Result<(), FError> {
+    fn verify_template(&self, lock: script::DataLock<Bitcoin<SegwitV0>>) -> Result<(), FError> {
         (self.psbt.global.unsigned_tx.version == 2)
             .then(|| 0)
             .ok_or_else(|| FError::WrongTemplate)?;

@@ -8,7 +8,7 @@ use crate::script;
 use crate::transaction::{Cancelable, Error, Punishable};
 
 use crate::chain::bitcoin::transaction::{MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::Bitcoin;
+use crate::chain::bitcoin::{Bitcoin, SegwitV0};
 
 #[derive(Debug)]
 pub struct Punish;
@@ -35,10 +35,10 @@ impl SubTransaction for Punish {
     }
 }
 
-impl Punishable<Bitcoin, MetadataOutput> for Tx<Punish> {
+impl Punishable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Punish> {
     fn initialize(
-        prev: &impl Cancelable<Bitcoin, MetadataOutput>,
-        punish_lock: script::DataPunishableLock<Bitcoin>,
+        prev: &impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput>,
+        punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
         destination_target: Address,
     ) -> Result<Self, Error> {
         let output_metadata = prev.get_consumable_output()?;

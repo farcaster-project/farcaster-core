@@ -11,7 +11,7 @@ use crate::script;
 use crate::transaction::{Cancelable, Error as FError, Lockable};
 
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::Bitcoin;
+use crate::chain::bitcoin::{Bitcoin, SegwitV0};
 
 #[derive(Debug)]
 pub struct Cancel;
@@ -67,11 +67,11 @@ impl SubTransaction for Cancel {
     }
 }
 
-impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
+impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Cancel> {
     fn initialize(
-        prev: &impl Lockable<Bitcoin, MetadataOutput>,
-        lock: script::DataLock<Bitcoin>,
-        punish_lock: script::DataPunishableLock<Bitcoin>,
+        prev: &impl Lockable<Bitcoin<SegwitV0>, MetadataOutput>,
+        lock: script::DataLock<Bitcoin<SegwitV0>>,
+        punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
     ) -> Result<Self, FError> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
@@ -125,8 +125,8 @@ impl Cancelable<Bitcoin, MetadataOutput> for Tx<Cancel> {
 
     fn verify_template(
         &self,
-        _lock: script::DataLock<Bitcoin>,
-        _punish_lock: script::DataPunishableLock<Bitcoin>,
+        _lock: script::DataLock<Bitcoin<SegwitV0>>,
+        _punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
     ) -> Result<(), FError> {
         // FIXME
         Ok(())

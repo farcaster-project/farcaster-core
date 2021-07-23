@@ -10,7 +10,7 @@ use crate::script;
 use crate::transaction::{Cancelable, Error as FError, Refundable};
 
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::Bitcoin;
+use crate::chain::bitcoin::{Bitcoin, SegwitV0};
 
 #[derive(Debug)]
 pub struct Refund;
@@ -66,10 +66,10 @@ impl SubTransaction for Refund {
     }
 }
 
-impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
+impl Refundable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Refund> {
     fn initialize(
-        prev: &impl Cancelable<Bitcoin, MetadataOutput>,
-        _punish_lock: script::DataPunishableLock<Bitcoin>,
+        prev: &impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput>,
+        _punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
         refund_target: Address,
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;
@@ -105,7 +105,7 @@ impl Refundable<Bitcoin, MetadataOutput> for Tx<Refund> {
 
     fn verify_template(
         &self,
-        _punish_lock: script::DataPunishableLock<Bitcoin>,
+        _punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
         _refund_target: Address,
     ) -> Result<(), FError> {
         // FIXME

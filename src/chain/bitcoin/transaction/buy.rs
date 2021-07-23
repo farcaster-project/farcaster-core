@@ -10,7 +10,7 @@ use crate::script;
 use crate::transaction::{Buyable, Error as FError, Lockable};
 
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::Bitcoin;
+use crate::chain::bitcoin::{Bitcoin, SegwitV0};
 
 #[derive(Debug)]
 pub struct Buy;
@@ -66,10 +66,10 @@ impl SubTransaction for Buy {
     }
 }
 
-impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
+impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
     fn initialize(
-        prev: &impl Lockable<Bitcoin, MetadataOutput>,
-        _lock: script::DataLock<Bitcoin>,
+        prev: &impl Lockable<Bitcoin<SegwitV0>, MetadataOutput>,
+        _lock: script::DataLock<Bitcoin<SegwitV0>>,
         destination_target: Address,
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;
@@ -105,7 +105,7 @@ impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
 
     fn verify_template(
         &self,
-        _lock: script::DataLock<Bitcoin>,
+        _lock: script::DataLock<Bitcoin<SegwitV0>>,
         _destination_target: Address,
     ) -> Result<(), FError> {
         // FIXME

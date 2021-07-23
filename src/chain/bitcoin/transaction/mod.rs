@@ -19,7 +19,7 @@ use crate::transaction::{
     Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
 };
 
-use crate::chain::bitcoin::Bitcoin;
+use crate::chain::bitcoin::{Bitcoin, Engine, SegwitV0};
 
 pub mod buy;
 pub mod cancel;
@@ -80,7 +80,7 @@ pub struct Tx<T: SubTransaction> {
     _t: PhantomData<T>,
 }
 
-impl<T> Transaction<Bitcoin, MetadataOutput> for Tx<T>
+impl<T> Transaction<Bitcoin<SegwitV0>, MetadataOutput> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -127,9 +127,10 @@ where
     }
 }
 
-impl<T> Broadcastable<Bitcoin> for Tx<T>
+impl<T, E> Broadcastable<Bitcoin<E>> for Tx<T>
 where
     T: SubTransaction,
+    E: Engine,
 {
     fn extract(&self) -> bitcoin::blockdata::transaction::Transaction {
         self.psbt.clone().extract_tx()
@@ -159,7 +160,7 @@ where
     }
 }
 
-impl<T> Witnessable<Bitcoin> for Tx<T>
+impl<T> Witnessable<Bitcoin<SegwitV0>> for Tx<T>
 where
     T: SubTransaction,
 {

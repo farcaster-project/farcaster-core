@@ -6,7 +6,7 @@ use crate::crypto::{
 use crate::swap::Swap;
 
 use crate::chain::bitcoin::transaction::sign_hash;
-use crate::chain::bitcoin::Bitcoin;
+use crate::chain::bitcoin::{Bitcoin, SegwitV0};
 use crate::chain::monero::{self as xmr, Monero};
 
 use monero::cryptonote::hash::Hash;
@@ -27,7 +27,7 @@ pub struct BtcXmr;
 
 impl Swap for BtcXmr {
     /// The arbitrating blockchain
-    type Ar = Bitcoin;
+    type Ar = Bitcoin<SegwitV0>;
 
     /// The accordant blockchain
     type Ac = Monero;

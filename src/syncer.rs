@@ -55,7 +55,6 @@ pub trait Syncer {
     fn watch_address(&mut self, task: WatchAddress) -> Result<(), Error>;
     fn watch_transaction(&mut self, task: WatchTransaction) -> Result<(), Error>;
     fn broadcast_transaction(&mut self, task: BroadcastTransaction) -> Result<(), Error>;
-    fn poll(&mut self) -> Result<Vec<Event>, Error>;
 }
 
 #[derive(Debug, Clone)]

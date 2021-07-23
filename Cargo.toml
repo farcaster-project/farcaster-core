@@ -1,7 +1,19 @@
 [package]
 name = "farcaster_core"
+description = "Farcaster project core library."
 version = "0.1.0"
-authors = ["h4sh3d <h4sh3d@protonmail.com>"]
+authors = ["Farcaster Devs"]
+license = "LGPL-3.0"
+homepage = "https://github.com/farcaster-project/farcaster-core"
+repository = "https://github.com/farcaster-project/farcaster-core"
+documentation = "https://docs.rs/farcaster_core"
+readme = "README.md"
+include = [
+    "src/*",
+    "README.md",
+    "LICENSE",
+]
+
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -30,3 +42,7 @@ rand_core = { version = "^0.6.3", features = ["getrandom"] }
 secp256k1 = { version = "0.20.1", features = ["rand-std"] }
 internet2 = "0.3.10"
 lazy_static = "1.4.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

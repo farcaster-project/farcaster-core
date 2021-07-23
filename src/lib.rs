@@ -1,5 +1,13 @@
 //! Farcaster Core library
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+// Coding conventions
+#![forbid(unsafe_code)]
+#![deny(non_upper_case_globals)]
+#![deny(non_camel_case_types)]
+#![deny(unused_mut)]
+//#![deny(missing_docs)]
+
 use thiserror::Error;
 
 #[macro_use]
@@ -9,7 +17,6 @@ pub mod blockchain;
 pub mod bundle;
 pub mod chain;
 pub mod crypto;
-//pub mod datum;
 pub mod events;
 pub mod instruction;
 pub mod negotiation;

@@ -8,6 +8,9 @@
 #![deny(unused_mut)]
 //#![deny(missing_docs)]
 
+#[macro_use]
+extern crate amplify;
+
 use thiserror::Error;
 
 #[macro_use]

@@ -22,6 +22,7 @@ edition = "2018"
 rpc = []
 
 [dependencies]
+amplify = "3.7.1"
 hex = "0.4.3"
 tiny-keccak = { version = "2", features = ["keccak"] }
 fixed-hash = { version = "0.7.0", default-features = false }

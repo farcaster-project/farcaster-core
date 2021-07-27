@@ -154,6 +154,7 @@ impl ToString for SwapRole {
 
 /// Alice, the swap role, is the role starting with accordant blockchain assets and exchange them
 /// for arbitrating blockchain assets.
+#[derive(Debug, Clone)]
 pub struct Alice<Ctx: Swap> {
     /// An arbitrating address where, if successfully executed, the funds exchanged will be sent to
     pub destination_address: <Ctx::Ar as Address>::Address,
@@ -734,6 +735,7 @@ where
 
 /// Bob, the swap role, is the role starting with arbitrating blockchain assets and exchange them
 /// for accordant blockchain assets.
+#[derive(Debug, Clone)]
 pub struct Bob<Ctx: Swap> {
     /// An arbitrating address where, if unsuccessfully executed, the funds exchanged will be sent
     /// back to

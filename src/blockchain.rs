@@ -4,7 +4,7 @@
 //! asset, e.g. for Etherum blockchain assets can be eth or dai.
 
 use std::error;
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::io;
 use std::ops::Range;
 use std::str::FromStr;
@@ -25,7 +25,7 @@ pub trait Address {
 /// and is carried in the [Offer](crate::negotiation::Offer) to fix the two timelocks.
 pub trait Timelock {
     /// Defines the type of timelock used for the arbitrating transactions.
-    type Timelock: Copy + Debug + CanonicalBytes + PartialEq + Eq;
+    type Timelock: Copy + PartialEq + Eq + Debug + fmt::Display + CanonicalBytes;
 }
 
 /// Defines the asset identifier for a blockchain and its associated asset unit type, it is carried
@@ -78,7 +78,7 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
 
 impl<T> FromStr for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + CanonicalBytes + FromStr,
+    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes + FromStr,
 {
     type Err = consensus::Error;
 
@@ -96,10 +96,11 @@ where
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Display)]
+#[display(fee_strategy_fmt)]
 pub enum FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + CanonicalBytes,
+    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
 {
     /// A fixed strategy with the exact amount to set
     Fixed(T),
@@ -107,9 +108,19 @@ where
     Range(Range<T>),
 }
 
+fn fee_strategy_fmt<T>(strategy: &FeeStrategy<T>) -> String
+where
+    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
+{
+    match strategy {
+        FeeStrategy::Fixed(t) => format!("Fixed: {}", t),
+        FeeStrategy::Range(r) => format!("Range: from {} to {}", r.start, r.end),
+    }
+}
+
 impl<T> Encodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + CanonicalBytes,
+    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
@@ -128,7 +139,7 @@ where
 
 impl<T> Decodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + CanonicalBytes,
+    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         match Decodable::consensus_decode(d)? {
@@ -147,7 +158,7 @@ where
 
 impl<T> CanonicalBytes for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Debug + CanonicalBytes,
+    T: Clone + PartialOrd + PartialEq + Debug + fmt::Display + CanonicalBytes,
 {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         serialize(self)
@@ -163,7 +174,7 @@ where
 
 impl_strict_encoding!(
     FeeStrategy<T>,
-    T: Clone + PartialOrd + PartialEq + CanonicalBytes
+    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes
 );
 
 /// Define the type of errors a fee strategy can encounter during calculation, application, and
@@ -212,7 +223,8 @@ impl FeeStrategyError {
 }
 
 /// Defines how to set the fee when a strategy allows multiple possibilities.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Display)]
+#[display(Debug)]
 pub enum FeePolitic {
     /// Set the fee at the minimum allowed by the strategy
     Aggressive,
@@ -227,7 +239,7 @@ pub enum FeePolitic {
 /// transactions.
 pub trait Fee: Onchain + Asset {
     /// Type for describing the fee of a blockchain
-    type FeeUnit: Clone + PartialOrd + PartialEq + Eq + Debug + CanonicalBytes;
+    type FeeUnit: Clone + PartialOrd + PartialEq + Eq + fmt::Display + Debug + CanonicalBytes;
 
     /// Calculates and sets the fee on the given transaction and return the amount of fee set in
     /// the blockchain native amount format.
@@ -259,7 +271,8 @@ impl FromStr for Network {
 
 /// Defines a blockchain network, identifies in which context the system interacts with the
 /// blockchain.
-#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display)]
+#[display(Debug)]
 pub enum Network {
     /// Represents a real asset on his valuable network
     Mainnet,
@@ -291,3 +304,23 @@ impl Decodable for Network {
 }
 
 impl_strict_encoding!(Network);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chain::bitcoin::fee::SatPerVByte;
+
+    #[test]
+    fn display_fee_strategy() {
+        let strategy = FeeStrategy::Fixed(SatPerVByte::from_sat(100));
+        assert_eq!(
+            format!("{}", strategy),
+            format!("Fixed: 0.00000100 BTC per vByte")
+        );
+        let strategy = FeeStrategy::Range(SatPerVByte::from_sat(50)..SatPerVByte::from_sat(150));
+        assert_eq!(
+            format!("{}", strategy),
+            format!("Range: from 0.00000050 BTC per vByte to 0.00000150 BTC per vByte")
+        )
+    }
+}

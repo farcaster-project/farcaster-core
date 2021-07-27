@@ -53,7 +53,8 @@ fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
 
 /// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
 /// before receiving Bob's setup. This is done to remove adaptive behavior.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct CommitAliceParameters<Ctx: Swap> {
     /// The swap identifier related to this message
     pub swap_id: SwapId,
@@ -188,7 +189,8 @@ where
 
 /// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
 /// before receiving Alice's setup. This is done to remove adaptive behavior.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct CommitBobParameters<Ctx: Swap> {
     /// The swap identifier related to this message
     pub swap_id: SwapId,
@@ -320,7 +322,8 @@ where
 
 /// `reveal_alice_session_params` reveals the parameters commited by the
 /// `commit_alice_session_params` message.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct RevealAliceParameters<Ctx: Swap> {
     /// The swap identifier related to this message
     pub swap_id: SwapId,
@@ -440,7 +443,8 @@ where
 
 /// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
 /// message.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct RevealBobParameters<Ctx: Swap> {
     /// The swap identifier related to this message
     pub swap_id: SwapId,
@@ -553,7 +557,8 @@ where
 
 /// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
 /// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct CoreArbitratingSetup<Ctx: Swap> {
     /// The swap identifier related to this message
     pub swap_id: SwapId,
@@ -641,7 +646,8 @@ where
 /// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
 /// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
 /// must validate the signatures.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct RefundProcedureSignatures<Ctx: Swap> {
     /// The swap identifier related to this message
     pub swap_id: SwapId,
@@ -719,7 +725,8 @@ where
 /// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct BuyProcedureSignature<Ctx: Swap> {
     /// The swap identifier related to this message
     pub swap_id: SwapId,
@@ -785,7 +792,8 @@ where
 
 /// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct Abort {
     /// The swap identifier related to this message
     pub swap_id: SwapId,

@@ -16,7 +16,8 @@ pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
 /// A public offer version containing the version and the activated features if
 /// any.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
+#[display("v{0}")]
 pub struct Version(u16);
 
 impl Version {

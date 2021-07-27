@@ -10,7 +10,8 @@ use crate::chain::bitcoin::Bitcoin;
 
 use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialOrd, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Display)]
+#[display("{0} per vByte")]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {

@@ -98,6 +98,11 @@ where
 /// upon reception by the other participant.
 #[derive(Debug, Clone, Eq, PartialEq, Display)]
 #[display(fee_strategy_fmt)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum FeeStrategy<T>
 where
     T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
@@ -225,6 +230,11 @@ impl FeeStrategyError {
 /// Defines how to set the fee when a strategy allows multiple possibilities.
 #[derive(Debug, Clone, Copy, Display)]
 #[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum FeePolitic {
     /// Set the fee at the minimum allowed by the strategy
     Aggressive,
@@ -273,6 +283,11 @@ impl FromStr for Network {
 /// blockchain.
 #[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display)]
 #[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum Network {
     /// Represents a real asset on his valuable network
     Mainnet,

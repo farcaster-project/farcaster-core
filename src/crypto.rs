@@ -57,6 +57,11 @@ impl Error {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct TaggedElement<T, E>
 where
     T: Eq,
@@ -119,6 +124,11 @@ where
 
 #[derive(Debug, Clone, Copy, Display)]
 #[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum ArbitratingKeyId {
     Fund,
     Buy,
@@ -130,6 +140,11 @@ pub enum ArbitratingKeyId {
 
 #[derive(Debug, Clone, Copy, Display)]
 #[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum AccordantKeyId {
     Spend,
     Extra(u16),
@@ -137,6 +152,11 @@ pub enum AccordantKeyId {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct SharedKeyId(u16);
 
 impl SharedKeyId {

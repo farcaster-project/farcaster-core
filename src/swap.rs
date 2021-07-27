@@ -8,11 +8,14 @@ use crate::crypto::Commitment;
 use crate::role::{Accordant, Arbitrating};
 
 use lightning_encoding::strategies::AsStrict;
-use serde::{Deserialize, Serialize};
 
 fixed_hash::construct_fixed_hash!(
     /// A unique swap identifier represented as an 32 bytes hash.
-    #[derive(Serialize, Deserialize)]
+    #[cfg_attr(
+        feature = "serde",
+        derive(Serialize, Deserialize),
+        serde(crate = "serde_crate"),
+    )]
     pub struct SwapId(32);
 );
 

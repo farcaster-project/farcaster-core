@@ -6,6 +6,11 @@ use crate::crypto::Keys;
 /// Represent a public key-pair, one key per swap role in the system.
 #[derive(Debug, Clone, Display)]
 #[display("Alice: {alice}, Bob: {bob}")]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct DoubleKeys<T>
 where
     T: Keys,
@@ -27,6 +32,11 @@ where
 /// Define the path in a script with its associated data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
 #[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum ScriptPath {
     /// The success path in the script.
     Success,

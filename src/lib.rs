@@ -1,4 +1,8 @@
 //! Farcaster Core library
+//!
+//! ## `serde` support
+//!
+//! The `serde` feature is disable by default.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // Coding conventions
@@ -10,6 +14,10 @@
 
 #[macro_use]
 extern crate amplify;
+
+#[cfg(feature = "serde")]
+#[macro_use]
+extern crate serde_crate as serde;
 
 use thiserror::Error;
 

@@ -18,6 +18,11 @@ pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 /// any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
 #[display("v{0}")]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct Version(u16);
 
 impl Version {

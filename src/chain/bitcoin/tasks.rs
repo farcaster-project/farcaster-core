@@ -4,7 +4,7 @@ use std::io;
 
 pub struct BtcHeightAddendum {}
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct BtcAddressAddendum {
     pub address: String,
     pub from_height: u64,

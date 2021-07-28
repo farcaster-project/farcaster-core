@@ -229,6 +229,54 @@ pub enum Task {
     BroadcastTransaction(BroadcastTransaction),
 }
 
+impl fmt::Display for Task {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "task")
+    }
+}
+
+impl Encodable for Task {
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        match self {
+            Task::Abort(t) => {
+                let len = 0x01u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+            Task::WatchHeight(t) => {
+                let len = 0x02u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+            Task::WatchAddress(t) => {
+                let len = 0x03u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+            Task::WatchTransaction(t) => {
+                let len = 0x04u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+            Task::BroadcastTransaction(t) => {
+                let len = 0x05u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+        }
+    }
+}
+
+impl Decodable for Task {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x01u8 => Ok(Task::Abort(Decodable::consensus_decode(d)?)),
+            0x02u8 => Ok(Task::WatchHeight(Decodable::consensus_decode(d)?)),
+            0x03u8 => Ok(Task::WatchAddress(Decodable::consensus_decode(d)?)),
+            0x04u8 => Ok(Task::WatchTransaction(Decodable::consensus_decode(d)?)),
+            0x05u8 => Ok(Task::BroadcastTransaction(Decodable::consensus_decode(d)?)),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl_strict_encoding!(Task);
+
 #[derive(Debug, Clone)]
 pub struct TaskAborted {
     pub id: i32,
@@ -404,4 +452,98 @@ pub enum Event {
     TransactionConfirmations(TransactionConfirmations),
     TransactionBroadcasted(TransactionBroadcasted),
     TaskAborted(TaskAborted),
+}
+
+impl fmt::Display for Event {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "task")
+    }
+}
+
+impl Encodable for Event {
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        match self {
+            Event::HeightChanged(t) => {
+                let len = 0x01u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+            Event::AddressTransaction(t) => {
+                let len = 0x02u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+            Event::TransactionConfirmations(t) => {
+                let len = 0x03u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+            Event::TransactionBroadcasted(t) => {
+                let len = 0x04u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+            Event::TaskAborted(t) => {
+                let len = 0x05u8.consensus_encode(s)?;
+                Ok(len + t.consensus_encode(s)?)
+            }
+        }
+    }
+}
+
+impl Decodable for Event {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x01u8 => Ok(Event::HeightChanged(Decodable::consensus_decode(d)?)),
+            0x02u8 => Ok(Event::AddressTransaction(Decodable::consensus_decode(d)?)),
+            0x03u8 => Ok(Event::TransactionConfirmations(
+                Decodable::consensus_decode(d)?,
+            )),
+            0x04u8 => Ok(Event::TransactionBroadcasted(Decodable::consensus_decode(
+                d,
+            )?)),
+            0x05u8 => Ok(Event::TaskAborted(Decodable::consensus_decode(d)?)),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl_strict_encoding!(Event);
+
+#[test]
+fn test_event_encoding() {
+    let height_changed = HeightChanged {
+        id: 32131,
+        block: vec![1; 32],
+        height: 42,
+    };
+    let event = Event::HeightChanged(height_changed);
+    let mut encoder = Vec::new();
+    event.consensus_encode(&mut encoder).unwrap();
+    let mut res = std::io::Cursor::new(encoder.clone());
+    let event_decoded = Event::consensus_decode(&mut res).unwrap();
+    match event_decoded {
+        Event::HeightChanged(height_changed) => {
+            assert_eq!(height_changed.height, 42);
+        }
+        _ => {
+            panic!("expected height changed event")
+        }
+    }
+
+    let transaction_broadcasted = TransactionBroadcasted {
+        id: 12312,
+        tx_len: 05,
+        tx: vec![42, 42, 42, 42, 42],
+        success_broadcast: 1,
+    };
+    let event_broadcasted = Event::TransactionBroadcasted(transaction_broadcasted);
+    let mut encoding = Vec::new();
+    event_broadcasted.consensus_encode(&mut encoding).unwrap();
+    let mut res_broad = std::io::Cursor::new(encoding.clone());
+    let broadcasted_decoded = Event::consensus_decode(&mut res_broad).unwrap();
+    match broadcasted_decoded {
+        Event::TransactionBroadcasted(transaction_broadcasted) => {
+            assert_eq!(transaction_broadcasted.id, 12312);
+        }
+        _ => {
+            panic!("expected transaction broadcasted event")
+        }
+    }
 }

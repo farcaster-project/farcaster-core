@@ -14,7 +14,8 @@ impl FromStr for CSVTimelock {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, Copy, Display)]
+#[display("OP_CSV: {0}")]
 pub struct CSVTimelock(u32);
 
 impl CSVTimelock {

@@ -13,7 +13,8 @@ use crate::swap::Swap;
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display(Debug)]
 pub struct AliceParameters<Ctx: Swap> {
     pub buy: <Ctx::Ar as Keys>::PublicKey,
     pub cancel: <Ctx::Ar as Keys>::PublicKey,
@@ -124,7 +125,8 @@ where
 
 /// Provides the (counter-party) daemon with all the information required for the initialization
 /// step of a swap.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display(Debug)]
 pub struct BobParameters<Ctx: Swap> {
     pub buy: <Ctx::Ar as Keys>::PublicKey,
     pub cancel: <Ctx::Ar as Keys>::PublicKey,
@@ -233,7 +235,8 @@ where
 ///
 /// [`CoreArbitratingSetup`]: protocol_message::CoreArbitratingSetup
 /// [`RefundProcedureSignatures`]: protocol_message::RefundProcedureSignatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display("Cancel signature: {cancel_sig}")]
 pub struct CosignedArbitratingCancel<S>
 where
     S: Signatures,
@@ -287,12 +290,20 @@ where
 }
 
 /// Provides Bob's daemon the funding transaction for building the core arbritrating transactions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display(funding_tx_fmt)]
 pub struct FundingTransaction<T>
 where
     T: Onchain,
 {
     pub funding: T::Transaction,
+}
+
+fn funding_tx_fmt<T>(b: &FundingTransaction<T>) -> String
+where
+    T: Onchain,
+{
+    format!("Funding transaction: {:?}", b.funding)
 }
 
 impl<T> Encodable for FundingTransaction<T>
@@ -318,7 +329,8 @@ where
 impl_strict_encoding!(FundingTransaction<T>, T: Onchain);
 
 /// Provides Bob's daemon or Alice's clients the core set of arbritrating transactions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display(core_arbitrating_tx_fmt)]
 pub struct CoreArbitratingTransactions<T>
 where
     T: Onchain,
@@ -326,6 +338,16 @@ where
     pub lock: T::PartialTransaction,
     pub cancel: T::PartialTransaction,
     pub refund: T::PartialTransaction,
+}
+
+fn core_arbitrating_tx_fmt<T>(b: &CoreArbitratingTransactions<T>) -> String
+where
+    T: Onchain,
+{
+    format!(
+        "Lock: {:?}, Cancel: {:?}, Refund: {:?}",
+        b.lock, b.cancel, b.refund
+    )
 }
 
 impl<T> Encodable for CoreArbitratingTransactions<T>
@@ -369,13 +391,24 @@ where
 
 /// Provides Bob's daemon or Alice's client with an adaptor signature for the unsigned buy (c)
 /// transaction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display(signed_adaptor_buy_fmt)]
 pub struct SignedAdaptorBuy<T>
 where
     T: Signatures + Onchain,
 {
     pub buy: T::PartialTransaction,
     pub buy_adaptor_sig: T::AdaptorSignature,
+}
+
+fn signed_adaptor_buy_fmt<T>(b: &SignedAdaptorBuy<T>) -> String
+where
+    T: Signatures + Onchain,
+{
+    format!(
+        "Buy partial: {:?}, Buy adaptor: {}",
+        b.buy, b.buy_adaptor_sig
+    )
 }
 
 impl<T> Encodable for SignedAdaptorBuy<T>
@@ -410,7 +443,8 @@ impl_strict_encoding!(SignedAdaptorBuy<T>, T: Signatures + Onchain);
 
 /// Provides Alice's daemon or Bob's clients with the two signatures on the unsigned buy (c)
 /// transaction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display("Buy signature: {buy_sig}, Buy adapted: {buy_adapted_sig}")]
 pub struct FullySignedBuy<S>
 where
     S: Signatures,
@@ -449,7 +483,8 @@ impl_strict_encoding!(FullySignedBuy<S>, S: Signatures);
 
 /// Provides Alice's daemon or Bob's clients with a signature on the unsigned refund (e)
 /// transaction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display("Refund adaptor: {refund_adaptor_sig}")]
 pub struct SignedAdaptorRefund<S>
 where
     S: Signatures,
@@ -496,7 +531,8 @@ where
 
 /// Provides Bob's daemon or Alice's clients with the two signatures on the unsigned refund (e)
 /// transaction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display("Refund signature: {refund_sig}, Refund adapted: {refund_adapted_sig}")]
 pub struct FullySignedRefund<S>
 where
     S: Signatures,
@@ -534,7 +570,8 @@ where
 impl_strict_encoding!(FullySignedRefund<S>, S: Signatures);
 
 /// Provides Bob's daemon with the signature on the unsigned lock (b) transaction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display("Lock signature: {lock_sig}")]
 pub struct SignedArbitratingLock<S>
 where
     S: Signatures,
@@ -565,13 +602,24 @@ where
 impl_strict_encoding!(SignedArbitratingLock<S>, S: Signatures);
 
 /// Provides Alice's daemon with the signature on the unsigned punish (f) transaction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display(fully_signed_punish_fmt)]
 pub struct FullySignedPunish<T>
 where
     T: Signatures + Onchain,
 {
     pub punish: T::PartialTransaction,
     pub punish_sig: T::Signature,
+}
+
+fn fully_signed_punish_fmt<T>(b: &FullySignedPunish<T>) -> String
+where
+    T: Signatures + Onchain,
+{
+    format!(
+        "Punish partial: {:?}, Punish signature: {}",
+        b.punish, b.punish_sig
+    )
 }
 
 impl<T> Encodable for FullySignedPunish<T>

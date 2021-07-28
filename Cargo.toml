@@ -20,8 +20,10 @@ edition = "2018"
 
 [features]
 rpc = []
+serde = ["serde_crate", "bitcoin/use-serde", "monero/serde_support"]
 
 [dependencies]
+amplify = "3.7.1"
 hex = "0.4.3"
 tiny-keccak = { version = "2", features = ["keccak"] }
 fixed-hash = { version = "0.7.0", default-features = false }
@@ -30,7 +32,7 @@ strict_encoding_derive = "=1.0.0"
 lightning_encoding = "0.4.0-beta.1"
 thiserror = "1.0.24"
 internet2 = "0.3.10"
-serde = "1"
+serde_crate = { package = "serde", version = "1", features = ["derive"], optional = true }
 
 # blockchain specific
 bitcoin = "0.26"

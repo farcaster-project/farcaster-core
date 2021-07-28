@@ -1,7 +1,7 @@
 //! Cryptographic types and primitives supported in Farcaster
 
 use std::error;
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::io;
 
 use thiserror::Error;
@@ -57,6 +57,11 @@ impl Error {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct TaggedElement<T, E>
 where
     T: Eq,
@@ -79,6 +84,16 @@ where
 
     pub fn elem(&self) -> &E {
         &self.elem
+    }
+}
+
+impl<T, E> fmt::Display for TaggedElement<T, E>
+where
+    T: Eq + fmt::Display,
+    E: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<{}: {}>", self.tag, self.elem)
     }
 }
 
@@ -107,7 +122,13 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Display)]
+#[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum ArbitratingKeyId {
     Fund,
     Buy,
@@ -117,13 +138,25 @@ pub enum ArbitratingKeyId {
     Extra(u16),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Display)]
+#[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum AccordantKeyId {
     Spend,
     Extra(u16),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct SharedKeyId(u16);
 
 impl SharedKeyId {
@@ -157,7 +190,7 @@ pub trait Keys {
     type PrivateKey;
 
     /// Public key type given the blockchain and the crypto engine.
-    type PublicKey: Clone + PartialEq + Debug + CanonicalBytes;
+    type PublicKey: Clone + PartialEq + Debug + fmt::Display + CanonicalBytes;
 
     fn extra_keys() -> Vec<u16>;
 }
@@ -175,7 +208,7 @@ pub trait SharedPrivateKeys {
 /// parameters that must go through the commit/reveal scheme at the beginning of the protocol.
 pub trait Commitment {
     /// Commitment type used in the commit/reveal scheme during swap parameters setup.
-    type Commitment: Clone + PartialEq + Eq + Debug + CanonicalBytes;
+    type Commitment: Clone + PartialEq + Eq + Debug + fmt::Display + CanonicalBytes;
 }
 
 /// This trait is required for arbitrating blockchains for defining the types of messages,
@@ -187,11 +220,11 @@ pub trait Signatures {
     type Message: Clone + Debug;
 
     /// Defines the signature format for the arbitrating blockchain.
-    type Signature: Clone + Debug + CanonicalBytes;
+    type Signature: Clone + Debug + fmt::Display + CanonicalBytes;
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic primitives used.
-    type AdaptorSignature: Clone + Debug + CanonicalBytes;
+    type AdaptorSignature: Clone + Debug + fmt::Display + CanonicalBytes;
 }
 
 pub trait Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:

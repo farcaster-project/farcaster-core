@@ -4,7 +4,13 @@ use crate::blockchain::Timelock;
 use crate::crypto::Keys;
 
 /// Represent a public key-pair, one key per swap role in the system.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display("Alice: {alice}, Bob: {bob}")]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct DoubleKeys<T>
 where
     T: Keys,
@@ -24,7 +30,13 @@ where
 }
 
 /// Define the path in a script with its associated data.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
+#[display(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum ScriptPath {
     /// The success path in the script.
     Success,
@@ -34,7 +46,8 @@ pub enum ScriptPath {
 
 /// The data used to create a lock and remove the double spending problem and create a mutually
 /// agreed refundable path.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display("Timelock: {timelock}, Success: <{success}>, Failure: <{failure}>")]
 pub struct DataLock<T>
 where
     T: Timelock + Keys,
@@ -46,7 +59,8 @@ where
 
 /// The data used to create a lock and remove the double spending problem and create an unilateral
 /// punishment mechanism.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display("Timelock: {timelock}, Success: <{success}>, Failure: {failure}")]
 pub struct DataPunishableLock<T>
 where
     T: Timelock + Keys,

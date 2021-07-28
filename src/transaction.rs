@@ -98,7 +98,8 @@ where
 }
 
 /// Defines the transaction IDs for serialization and network communication.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
+#[display(Debug)]
 pub enum TxId {
     /// Represents the first transaction created outside of the system by an external wallet to
     /// fund the swap on the arbitrating blockchain.

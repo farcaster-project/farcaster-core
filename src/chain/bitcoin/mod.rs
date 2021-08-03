@@ -1,65 +1,44 @@
 //! Defines and implements all the traits for Bitcoin
-use std::convert::TryFrom;
+
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::str::FromStr;
 
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 use bitcoin::Amount;
 
-use crate::blockchain::{self, Asset, Onchain, Timelock, Transactions};
+use crate::blockchain::{self, Asset, Onchain, Timelock};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures};
-use crate::role::Arbitrating;
-
-use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
 
 pub(crate) mod address;
 pub(crate) mod amount;
 pub mod fee;
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+pub mod segwitv0;
 pub mod tasks;
 pub mod timelock;
 pub mod transaction;
 
-/// Bitcoin blockchain using SegWit version 0 transaction and ECDSA cryptography.
-pub type BitcoinSegwitV0 = Bitcoin<SegwitV0>;
+/// Bitcoin blockchain using SegWit version 0 transaction outputs and ECDSA cryptography. This type
+/// is experimental because it uses ECDSA Adaptor Signatures that are not ready for production.
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+pub type BitcoinSegwitV0 = Bitcoin<segwitv0::SegwitV0>;
 
-/// Helper type enumerating over all Bitcoin variants.
+/// Helper type enumerating over all Bitcoin inner variants available.
 #[non_exhaustive]
 pub enum Btc {
+    #[cfg(feature = "experimental")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
     SegwitV0(BitcoinSegwitV0),
 }
 
-impl FromStr for Btc {
-    type Err = consensus::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Bitcoin<SegwitV0>" => Ok(Self::SegwitV0(BitcoinSegwitV0::new())),
-            _ => Err(consensus::Error::UnknownType),
-        }
-    }
-}
-
-impl From<BitcoinSegwitV0> for Btc {
-    fn from(v: BitcoinSegwitV0) -> Self {
-        Self::SegwitV0(v)
-    }
-}
-
 /// Variations of a Bitcoin implementation. Engine allows different Bitcoin implementations based
-/// on, e.g., the SegWit version such as [`SegwitV0`].
+/// on, e.g., the SegWit version such as [`SegwitV0`][segwitv0::SegwitV0].
 pub trait Engine: Clone + Copy + Debug {}
-
-/// Implementation for SegWit version 0 transactions and ECDSA cryptography.
-#[derive(Clone, Debug, Copy, Eq, PartialEq)]
-pub struct SegwitV0;
-
-impl Engine for SegwitV0 {}
 
 /// The generic blockchain implementation of Bitcoin. [`Bitcoin`] takes a generic parameter
 /// [`Engine`] to allow different definition of Bitcoin such as different SegWit version (v0, v1)
@@ -73,19 +52,6 @@ pub struct Bitcoin<E: Engine> {
 impl<E: Engine> Bitcoin<E> {
     pub fn new() -> Self {
         Self { _e: PhantomData }
-    }
-}
-
-impl Arbitrating for Bitcoin<SegwitV0> {}
-
-impl TryFrom<Btc> for Bitcoin<SegwitV0> {
-    type Error = consensus::Error;
-
-    fn try_from(v: Btc) -> Result<Self, consensus::Error> {
-        match v {
-            Btc::SegwitV0(v) => Ok(v),
-            //_ => Err(consensus::Error::TypeMismatch),
-        }
     }
 }
 
@@ -124,39 +90,6 @@ impl<E: Engine> Onchain for Bitcoin<E> {
     type Transaction = bitcoin::Transaction;
 }
 
-impl Transactions for Bitcoin<SegwitV0> {
-    type Metadata = transaction::MetadataOutput;
-
-    type Funding = Funding;
-    type Lock = Tx<Lock>;
-    type Buy = Tx<Buy>;
-    type Cancel = Tx<Cancel>;
-    type Refund = Tx<Refund>;
-    type Punish = Tx<Punish>;
-}
-
-impl Keys for Bitcoin<SegwitV0> {
-    /// Private key type for the blockchain
-    type PrivateKey = PrivateKey;
-
-    /// Public key type for the blockchain
-    type PublicKey = PublicKey;
-
-    fn extra_keys() -> Vec<u16> {
-        // No extra key
-        vec![]
-    }
-}
-
-impl SharedPrivateKeys for Bitcoin<SegwitV0> {
-    type SharedPrivateKey = PrivateKey;
-
-    fn shared_keys() -> Vec<SharedKeyId> {
-        // No shared key in Bitcoin, transparent ledger
-        vec![]
-    }
-}
-
 impl CanonicalBytes for PrivateKey {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         self.to_bytes()
@@ -189,12 +122,6 @@ impl CanonicalBytes for PublicKey {
     }
 }
 
-impl Signatures for Bitcoin<SegwitV0> {
-    type Message = Sha256dHash;
-    type Signature = Signature;
-    type AdaptorSignature = Signature;
-}
-
 impl CanonicalBytes for Signature {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         self.serialize_compact().into()
@@ -205,20 +132,5 @@ impl CanonicalBytes for Signature {
         Self: Sized,
     {
         Signature::from_compact(bytes).map_err(consensus::Error::new)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::convert::TryInto;
-
-    #[test]
-    fn from_str_and_convertion() {
-        let parse = Btc::from_str("Bitcoin<SegwitV0>");
-        assert!(parse.is_ok());
-        let parse = parse.unwrap();
-        let into: Result<BitcoinSegwitV0, _> = parse.try_into();
-        assert!(into.is_ok());
     }
 }

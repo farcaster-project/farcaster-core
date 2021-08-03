@@ -9,8 +9,9 @@ use bitcoin::Address;
 use crate::script;
 use crate::transaction::{Buyable, Error as FError, Lockable};
 
+use crate::chain::bitcoin::segwitv0::SegwitV0;
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::{Bitcoin, SegwitV0};
+use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Buy;

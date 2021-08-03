@@ -7,8 +7,9 @@ use bitcoin::Address;
 use crate::script;
 use crate::transaction::{Cancelable, Error, Punishable};
 
-use crate::chain::bitcoin::transaction::{MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::{Bitcoin, SegwitV0};
+use crate::chain::bitcoin::segwitv0::SegwitV0;
+use crate::chain::bitcoin::transaction::{self, MetadataOutput, SubTransaction, Tx};
+use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Punish;
@@ -59,7 +60,7 @@ impl Punishable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Punish> {
         };
 
         let mut psbt = PartiallySignedTransaction::from_unsigned_tx(unsigned_tx)
-            .map_err(super::Error::from)?;
+            .map_err(transaction::Error::from)?;
 
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);

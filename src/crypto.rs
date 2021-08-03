@@ -297,7 +297,12 @@ pub trait Sign<PublicKey, PrivateKey, Message, Signature, AdaptorSignature> {
     fn adapt_signature(&self, key: &PublicKey, sig: AdaptorSignature) -> Result<Signature, Error>;
 
     /// Recover the encryption key based on the adaptor signature and the decrypted signature.
-    fn recover_key(&self, sig: Signature, adapted_sig: AdaptorSignature) -> PrivateKey;
+    fn recover_key(
+        &self,
+        adaptor_key: &PublicKey,
+        sig: Signature,
+        adapted_sig: AdaptorSignature,
+    ) -> PrivateKey;
 }
 
 pub trait Commit<Commitment: Eq> {

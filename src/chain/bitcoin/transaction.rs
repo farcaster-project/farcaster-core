@@ -2,38 +2,27 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use bitcoin::blockdata::script::Script;
-use bitcoin::blockdata::transaction::{OutPoint, SigHashType, TxIn, TxOut};
-use bitcoin::hashes::sha256d::Hash;
-use bitcoin::secp256k1::{Message, Secp256k1, Signature, Signing};
+use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
 use bitcoin::util::address;
-use bitcoin::util::bip143::SigHashCache;
-use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
-use bitcoin::Amount;
+
+#[cfg(feature = "experimental")]
+use bitcoin::{hashes::sha256d::Hash, secp256k1::Signature, util::key::PublicKey, Amount};
 
 use thiserror::Error;
 
+use crate::chain::bitcoin::{Bitcoin, Engine};
 use crate::consensus::{self, CanonicalBytes};
-use crate::script::ScriptPath;
-use crate::transaction::{
-    Broadcastable, Error as FError, Finalizable, Linkable, Transaction, Witnessable,
+#[cfg(feature = "experimental")]
+use crate::transaction::Transaction;
+use crate::transaction::{Broadcastable, Error as FError, Finalizable, Linkable};
+
+#[cfg(feature = "experimental")]
+use crate::{
+    chain::bitcoin::segwitv0::{signature_hash, SegwitV0},
+    script::ScriptPath,
+    transaction::Witnessable,
 };
-
-use crate::chain::bitcoin::{Bitcoin, Engine, SegwitV0};
-
-pub mod buy;
-pub mod cancel;
-pub mod funding;
-pub mod lock;
-pub mod punish;
-pub mod refund;
-
-pub use buy::Buy;
-pub use cancel::Cancel;
-pub use funding::Funding;
-pub use lock::Lock;
-pub use punish::Punish;
-pub use refund::Refund;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -76,10 +65,12 @@ pub trait SubTransaction: Debug {
 
 #[derive(Debug)]
 pub struct Tx<T: SubTransaction> {
-    psbt: PartiallySignedTransaction,
-    _t: PhantomData<T>,
+    pub(crate) psbt: PartiallySignedTransaction,
+    pub(crate) _t: PhantomData<T>,
 }
 
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl<T> Transaction<Bitcoin<SegwitV0>, MetadataOutput> for Tx<T>
 where
     T: SubTransaction,
@@ -160,6 +151,8 @@ where
     }
 }
 
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl<T> Witnessable<Bitcoin<SegwitV0>> for Tx<T>
 where
     T: SubTransaction,
@@ -201,8 +194,8 @@ where
 /// A borrowed reference to a transaction input.
 #[derive(Debug, Copy, Clone)]
 pub struct TxInRef<'a> {
-    transaction: &'a bitcoin::blockdata::transaction::Transaction,
-    index: usize,
+    pub(crate) transaction: &'a bitcoin::blockdata::transaction::Transaction,
+    pub(crate) index: usize,
 }
 
 impl<'a> TxInRef<'a> {
@@ -261,59 +254,4 @@ impl CanonicalBytes for PartiallySignedTransaction {
     {
         bitcoin::consensus::encode::deserialize(bytes).map_err(consensus::Error::new)
     }
-}
-
-/// Computes the [`BIP-143`][bip-143] compliant sighash for a [`SIGHASH_ALL`][sighash_all]
-/// signature for the given input.
-///
-/// [bip-143]: https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-/// [sighash_all]: https://bitcoin.org/en/developer-guide#signature-hash-types
-pub fn signature_hash<'a>(
-    txin: TxInRef<'a>,
-    script: &Script,
-    value: u64,
-    sighash_type: SigHashType,
-) -> Hash {
-    SigHashCache::new(txin.transaction)
-        .signature_hash(txin.index, script, value, sighash_type)
-        .as_hash()
-}
-
-/// Computes the [`BIP-143`][bip-143] compliant signature for the given input.
-/// [Read more...][signature-hash]
-///
-/// [bip-143]: https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-/// [signature-hash]: fn.signature_hash.html
-pub fn sign_input<'a, C>(
-    context: &mut Secp256k1<C>,
-    txin: TxInRef<'a>,
-    script: &Script,
-    value: u64,
-    sighash_type: SigHashType,
-    secret_key: &bitcoin::secp256k1::SecretKey,
-) -> Result<Signature, bitcoin::secp256k1::Error>
-where
-    C: Signing,
-{
-    // Computes sighash.
-    let sighash = signature_hash(txin, script, value, sighash_type);
-    // Makes signature.
-    let msg = Message::from_slice(&sighash[..])?;
-    let mut sig = context.sign(&msg, secret_key);
-    sig.normalize_s();
-    Ok(sig)
-}
-
-/// Computes the [`BIP-143`][bip-143] compliant signature for the given hash.
-/// Assumes that the hash is correctly computed.
-pub fn sign_hash(
-    sighash: Hash,
-    secret_key: &bitcoin::secp256k1::SecretKey,
-) -> Result<Signature, bitcoin::secp256k1::Error> {
-    let context = Secp256k1::new();
-    // Makes signature.
-    let msg = Message::from_slice(&sighash[..])?;
-    let mut sig = context.sign(&msg, secret_key);
-    sig.normalize_s();
-    Ok(sig)
 }

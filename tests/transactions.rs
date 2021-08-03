@@ -5,7 +5,7 @@ use farcaster_core::chain::bitcoin::fee::SatPerVByte;
 use farcaster_core::script::*;
 use farcaster_core::transaction::*;
 
-use farcaster_core::chain::bitcoin::transaction::*;
+use farcaster_core::chain::bitcoin::segwitv0::*;
 use farcaster_core::chain::bitcoin::*;
 
 use bitcoin::Amount;
@@ -22,7 +22,7 @@ macro_rules! setup_txs {
         let (_, pubkey_b1, secret_b1) = new_address!();
         let (_, pubkey_b2, secret_b2) = new_address!();
 
-        let mut funding = Funding::initialize(pubkey_a1, Network::Local).unwrap();
+        let mut funding = FundingTx::initialize(pubkey_a1, Network::Local).unwrap();
         let address = funding.get_address().unwrap();
 
         let funding_tx_seen = fund_address!(address);
@@ -40,7 +40,7 @@ macro_rules! setup_txs {
         let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
         let politic = FeePolitic::Aggressive;
 
-        let mut lock = Tx::<Lock>::initialize(&funding, datalock.clone(), target_amount).unwrap();
+        let mut lock = LockTx::initialize(&funding, datalock.clone(), target_amount).unwrap();
 
         //
         // Create cancel tx
@@ -52,21 +52,20 @@ macro_rules! setup_txs {
         };
 
         let mut cancel =
-            Tx::<Cancel>::initialize(&lock, datalock.clone(), datapunishablelock.clone()).unwrap();
+            CancelTx::initialize(&lock, datalock.clone(), datapunishablelock.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fee(cancel.as_partial_mut(), &fee, politic).unwrap();
+        BitcoinSegwitV0::set_fee(cancel.as_partial_mut(), &fee, politic).unwrap();
 
         //
         // Create refund tx
         //
         let (new_address, _, _) = new_address!();
         let mut refund =
-            Tx::<Refund>::initialize(&cancel, datapunishablelock.clone(), new_address.into())
-                .unwrap();
+            RefundTx::initialize(&cancel, datapunishablelock.clone(), new_address.into()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fee(refund.as_partial_mut(), &fee, politic).unwrap();
+        BitcoinSegwitV0::set_fee(refund.as_partial_mut(), &fee, politic).unwrap();
 
         //
         // Co-Sign refund
@@ -112,10 +111,10 @@ macro_rules! setup_txs {
         // Create buy tx
         //
         let (new_address, _, _) = new_address!();
-        let mut buy = Tx::<Buy>::initialize(&lock, datalock, new_address.into()).unwrap();
+        let mut buy = BuyTx::initialize(&lock, datalock, new_address.into()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fee(buy.as_partial_mut(), &fee, politic).unwrap();
+        BitcoinSegwitV0::set_fee(buy.as_partial_mut(), &fee, politic).unwrap();
 
         //
         // Co-Sign buy
@@ -147,10 +146,10 @@ macro_rules! setup_txs {
         //
         let (new_address, _, _) = new_address!();
         let mut punish =
-            Tx::<Punish>::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
+            PunishTx::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
 
         // Set the fees according to the given strategy
-        Bitcoin::set_fee(punish.as_partial_mut(), &fee, politic).unwrap();
+        BitcoinSegwitV0::set_fee(punish.as_partial_mut(), &fee, politic).unwrap();
 
         //
         // Sign punish

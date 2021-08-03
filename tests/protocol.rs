@@ -1,4 +1,4 @@
-use farcaster_core::chain::bitcoin::transaction::Funding;
+use farcaster_core::chain::bitcoin::segwitv0::FundingTx;
 use farcaster_core::chain::pairs::btcxmr::{BtcXmr, Wallet};
 
 use farcaster_core::blockchain::{FeePolitic, Network};
@@ -95,7 +95,7 @@ fn execute_offline_protocol() {
     // Create core arb transactions
     //
     let funding_key = bob_wallet.get_pubkey(ArbitratingKeyId::Fund).unwrap();
-    let mut funding = Funding::initialize(funding_key, Network::Local).unwrap();
+    let mut funding = FundingTx::initialize(funding_key, Network::Local).unwrap();
     funding.update(funding_tx).unwrap();
 
     let core = bob

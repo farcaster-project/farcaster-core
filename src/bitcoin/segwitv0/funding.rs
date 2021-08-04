@@ -6,9 +6,9 @@ use bitcoin::Address;
 use crate::blockchain::Network;
 use crate::transaction::{Error as FError, Fundable, Linkable};
 
-use crate::chain::bitcoin::segwitv0::SegwitV0;
-use crate::chain::bitcoin::transaction::{Error, MetadataOutput};
-use crate::chain::bitcoin::Bitcoin;
+use crate::bitcoin::segwitv0::SegwitV0;
+use crate::bitcoin::transaction::{Error, MetadataOutput};
+use crate::bitcoin::Bitcoin;
 
 #[derive(Debug, Clone)]
 pub struct Funding {

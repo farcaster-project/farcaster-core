@@ -1,11 +1,14 @@
-use crate::chain::monero::{self as xmr};
+//! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
+//! accordant blockchain.
+
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{
     self, AccordantKeyId, ArbitratingKeyId, Commit, Commitment, GenerateKey, GenerateSharedKey,
     ProveCrossGroupDleq, SharedKeyId,
 };
+use crate::monero::{self as xmr};
 #[cfg(feature = "experimental")]
-use crate::{chain::bitcoin::BitcoinSegwitV0, chain::monero::Monero, crypto::Sign, swap::Swap};
+use crate::{bitcoin::BitcoinSegwitV0, crypto::Sign, monero::Monero, swap::Swap};
 
 use monero::cryptonote::hash::Hash;
 
@@ -37,8 +40,11 @@ type Transcript = HashTranscript<Sha256, ChaCha20Rng>;
 #[cfg(feature = "experimental")]
 type NonceGen = nonce::Synthetic<Sha256, nonce::GlobalRng<ThreadRng>>;
 
+/// The number of bits shared between a Bitcoin secret key (with secp256k1) and a Monero secret key
+/// (with Curve25519).
 pub const SHARED_KEY_BITS: usize = 252;
 
+/// The context for a Bitcoin and Monero swap.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BtcXmr;
 
@@ -88,12 +94,14 @@ impl CanonicalBytes for RingProof {
     }
 }
 
+/// Manager responsible for handling key operations (secret and public). Implements traits for
+/// handling [`Commit`], [`GenerateKey`], [`GenerateSharedKey`] and [`Sign`].
 #[derive(Clone, Debug)]
-pub struct Wallet {
+pub struct KeyManager {
     seed: Option<[u8; 32]>,
 }
 
-impl Wallet {
+impl KeyManager {
     pub fn new(seed: [u8; 32]) -> Self {
         Self { seed: Some(seed) }
     }
@@ -181,7 +189,7 @@ impl Wallet {
     }
 }
 
-impl GenerateKey<monero::PublicKey, AccordantKeyId> for Wallet {
+impl GenerateKey<monero::PublicKey, AccordantKeyId> for KeyManager {
     fn get_pubkey(&self, key_id: AccordantKeyId) -> Result<monero::PublicKey, crypto::Error> {
         match key_id {
             AccordantKeyId::Spend => Ok(monero::PublicKey::from_private_key(
@@ -192,7 +200,7 @@ impl GenerateKey<monero::PublicKey, AccordantKeyId> for Wallet {
     }
 }
 
-impl GenerateSharedKey<monero::PrivateKey> for Wallet {
+impl GenerateSharedKey<monero::PrivateKey> for KeyManager {
     fn get_shared_key(&self, key_id: SharedKeyId) -> Result<monero::PrivateKey, crypto::Error> {
         if let Some(seed) = self.seed {
             match key_id.id() {
@@ -209,14 +217,14 @@ impl GenerateSharedKey<monero::PrivateKey> for Wallet {
     }
 }
 
-impl GenerateKey<bitcoin::PublicKey, ArbitratingKeyId> for Wallet {
+impl GenerateKey<bitcoin::PublicKey, ArbitratingKeyId> for KeyManager {
     fn get_pubkey(&self, key_id: ArbitratingKeyId) -> Result<bitcoin::PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
         Ok(self.get_btc_privkey(key_id)?.public_key(&secp))
     }
 }
 
-impl GenerateSharedKey<bitcoin::PrivateKey> for Wallet {
+impl GenerateSharedKey<bitcoin::PrivateKey> for KeyManager {
     fn get_shared_key(&self, _key_id: SharedKeyId) -> Result<bitcoin::PrivateKey, crypto::Error> {
         // No shared key for bitcoin
         Err(crypto::Error::UnsupportedKey)
@@ -226,7 +234,7 @@ impl GenerateSharedKey<bitcoin::PrivateKey> for Wallet {
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, EncryptedSignature>
-    for Wallet
+    for KeyManager
 {
     fn sign_with_key(
         &self,
@@ -332,13 +340,13 @@ impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, Encry
     }
 }
 
-impl Commit<Hash> for Wallet {
+impl Commit<Hash> for KeyManager {
     fn commit_to<T: AsRef<[u8]>>(&self, value: T) -> Hash {
         Hash::hash(value.as_ref())
     }
 }
 
-impl ProveCrossGroupDleq<bitcoin::PublicKey, monero::PublicKey, RingProof> for Wallet {
+impl ProveCrossGroupDleq<bitcoin::PublicKey, monero::PublicKey, RingProof> for KeyManager {
     /// Generate the proof and the two public keys: the arbitrating public key, also called the
     /// adaptor public key, and the accordant public spend key.
     fn generate(

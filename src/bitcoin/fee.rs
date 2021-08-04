@@ -5,7 +5,7 @@ use bitcoin::Amount;
 use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
 use crate::consensus::{self, CanonicalBytes};
 
-use crate::chain::bitcoin::{transaction, Bitcoin, Strategy};
+use crate::bitcoin::{transaction, Bitcoin, Strategy};
 
 use std::str::FromStr;
 

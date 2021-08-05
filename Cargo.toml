@@ -23,7 +23,7 @@ rpc = []
 serde = ["serde_crate", "bitcoin/use-serde", "monero/serde_support"]
 
 [dependencies]
-amplify = "3.7.1"
+amplify = "3"
 hex = "0.4.3"
 tiny-keccak = { version = "2", features = ["keccak"] }
 fixed-hash = { version = "0.7.0", default-features = false }

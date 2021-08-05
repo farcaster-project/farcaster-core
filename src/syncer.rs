@@ -220,19 +220,14 @@ impl fmt::Display for BroadcastTransaction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display(Debug)]
 pub enum Task {
     Abort(Abort),
     WatchHeight(WatchHeight),
     WatchAddress(WatchAddress),
     WatchTransaction(WatchTransaction),
     BroadcastTransaction(BroadcastTransaction),
-}
-
-impl fmt::Display for Task {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "task")
-    }
 }
 
 impl Encodable for Task {
@@ -445,19 +440,14 @@ impl fmt::Display for TransactionBroadcasted {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
+#[display(Debug)]
 pub enum Event {
     HeightChanged(HeightChanged),
     AddressTransaction(AddressTransaction),
     TransactionConfirmations(TransactionConfirmations),
     TransactionBroadcasted(TransactionBroadcasted),
     TaskAborted(TaskAborted),
-}
-
-impl fmt::Display for Event {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "task")
-    }
 }
 
 impl Encodable for Event {

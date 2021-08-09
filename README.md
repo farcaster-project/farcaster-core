@@ -3,6 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/farcaster_core.svg)](https://crates.io/crates/farcaster_core)
 [![Documentation](https://docs.rs/farcaster_core/badge.svg)](https://docs.rs/farcaster_core)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+![MSRV](https://img.shields.io/badge/MSRV-1.54.0-blue)
 
 # Farcaster Core Library
 Farcaster atomic swaps project core library implementing in Rust:

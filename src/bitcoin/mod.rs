@@ -4,8 +4,10 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use bitcoin::secp256k1::Signature;
-use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoin::secp256k1::{
+    key::{PublicKey, SecretKey},
+    Signature,
+};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 use bitcoin::Amount;
@@ -91,28 +93,22 @@ impl<S: Strategy> Onchain for Bitcoin<S> {
     type Transaction = bitcoin::Transaction;
 }
 
-impl CanonicalBytes for PrivateKey {
+impl CanonicalBytes for SecretKey {
     fn as_canonical_bytes(&self) -> Vec<u8> {
-        self.to_bytes()
+        (&self.as_ref()[..]).into()
     }
 
     fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
     where
         Self: Sized,
     {
-        let key =
-            bitcoin::secp256k1::SecretKey::from_slice(bytes).map_err(consensus::Error::new)?;
-        Ok(PrivateKey {
-            compressed: true,
-            network: bitcoin::Network::Bitcoin,
-            key,
-        })
+        SecretKey::from_slice(bytes).map_err(consensus::Error::new)
     }
 }
 
 impl CanonicalBytes for PublicKey {
     fn as_canonical_bytes(&self) -> Vec<u8> {
-        self.to_bytes()
+        self.serialize().as_ref().into()
     }
 
     fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>

@@ -52,17 +52,12 @@ macro_rules! new_address {
             compressed: true,
             key: pair.1,
         };
-        let private_key = key::PrivateKey {
-            compressed: true,
-            network: Network::Regtest,
-            key: pair.0,
-        };
 
         // Generate pay-to-pubkey-hash address
         (
             Address::p2pkh(&public_key, Network::Regtest),
-            public_key,
-            private_key,
+            pair.1,
+            pair.0,
         )
     }};
 }

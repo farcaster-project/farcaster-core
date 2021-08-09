@@ -77,15 +77,19 @@ impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Cancel> {
         let script = Builder::new()
             .push_opcode(opcodes::all::OP_IF)
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
-            .push_key(&punish_lock.success.alice)
-            .push_key(&punish_lock.success.bob)
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(
+                punish_lock.success.alice,
+            ))
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(
+                punish_lock.success.bob,
+            ))
             .push_opcode(opcodes::all::OP_PUSHNUM_2)
             .push_opcode(opcodes::all::OP_CHECKMULTISIG)
             .push_opcode(opcodes::all::OP_ELSE)
             .push_int(punish_lock.timelock.as_u32().into())
             .push_opcode(opcodes::all::OP_CSV)
             .push_opcode(opcodes::all::OP_DROP)
-            .push_key(&punish_lock.failure)
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(punish_lock.failure))
             .push_opcode(opcodes::all::OP_CHECKSIG)
             .push_opcode(opcodes::all::OP_ENDIF)
             .into_script();

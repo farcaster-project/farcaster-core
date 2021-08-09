@@ -7,15 +7,16 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
 use crate::script;
-use crate::transaction::{Buyable, Error as FError, Lockable};
+use crate::transaction::{Cancelable, Error as FError, Refundable};
 
+use crate::chain::bitcoin::segwitv0::SegwitV0;
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::chain::bitcoin::Bitcoin;
 
 #[derive(Debug)]
-pub struct Buy;
+pub struct Refund;
 
-impl SubTransaction for Buy {
+impl SubTransaction for Refund {
     fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), FError> {
         let script = psbt.inputs[0]
             .witness_script
@@ -59,33 +60,33 @@ impl SubTransaction for Buy {
                 .ok_or(FError::MissingSignature)?
                 .clone(),
             vec![1],             // OP_TRUE
-            script.into_bytes(), // swaplock script
+            script.into_bytes(), // cancel script
         ]);
 
         Ok(())
     }
 }
 
-impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
+impl Refundable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Refund> {
     fn initialize(
-        prev: &impl Lockable<Bitcoin, MetadataOutput>,
-        _lock: script::DataLock<Bitcoin>,
-        destination_target: Address,
+        prev: &impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput>,
+        _punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
+        refund_target: Address,
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;
 
-        let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
+        let unsigned_tx = bitcoin::Transaction {
             version: 2,
             lock_time: 0,
             input: vec![TxIn {
                 previous_output: output_metadata.out_point,
-                script_sig: bitcoin::blockdata::script::Script::default(),
+                script_sig: bitcoin::Script::default(),
                 sequence: 0,
                 witness: vec![],
             }],
             output: vec![TxOut {
                 value: output_metadata.tx_out.value,
-                script_pubkey: destination_target.script_pubkey(),
+                script_pubkey: refund_target.script_pubkey(),
             }],
         };
 
@@ -105,8 +106,8 @@ impl Buyable<Bitcoin, MetadataOutput> for Tx<Buy> {
 
     fn verify_template(
         &self,
-        _lock: script::DataLock<Bitcoin>,
-        _destination_target: Address,
+        _punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
+        _refund_target: Address,
     ) -> Result<(), FError> {
         // FIXME
         Ok(())

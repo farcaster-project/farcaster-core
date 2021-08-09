@@ -1,52 +1,67 @@
 //! Defines and implements all the traits for Bitcoin
 
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
+use std::fmt::Debug;
+use std::marker::PhantomData;
+
 use bitcoin::secp256k1::Signature;
 use bitcoin::util::key::{PrivateKey, PublicKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 use bitcoin::Amount;
 
-use crate::blockchain::{self, Asset, Onchain, Timelock, Transactions};
+use crate::blockchain::{self, Asset, Onchain, Timelock};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures};
-use crate::role::Arbitrating;
 
-use transaction::{Buy, Cancel, Funding, Lock, Punish, Refund, Tx};
-
-use std::fmt::Debug;
-use std::str::FromStr;
-
-pub mod address;
-pub mod amount;
+pub(crate) mod address;
+pub(crate) mod amount;
 pub mod fee;
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+pub mod segwitv0;
 pub mod tasks;
 pub mod timelock;
 pub mod transaction;
 
+/// Bitcoin blockchain using SegWit version 0 transaction outputs and ECDSA cryptography. This type
+/// is experimental because it uses ECDSA Adaptor Signatures that are not ready for production.
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+pub type BitcoinSegwitV0 = Bitcoin<segwitv0::SegwitV0>;
+
+/// Helper type enumerating over all Bitcoin inner variants available.
+#[non_exhaustive]
+pub enum Btc {
+    #[cfg(feature = "experimental")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+    SegwitV0(BitcoinSegwitV0),
+}
+
+/// Variations of a Bitcoin implementation. Strategy allows different Bitcoin implementations based
+/// on, e.g., the SegWit version such as [`SegwitV0`][segwitv0::SegwitV0].
+pub trait Strategy: Clone + Copy + Debug {}
+
+/// The generic blockchain implementation of Bitcoin. [`Bitcoin`] takes a generic parameter
+/// [`Strategy`] to allow different definition of Bitcoin such as different SegWit version (v0, v1)
+/// or even different type of cryptography (v1 with on-chain scripts or v1 with MuSig2 off-chain
+/// multisigs).
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
-pub struct Bitcoin;
+pub struct Bitcoin<S: Strategy> {
+    _e: PhantomData<S>,
+}
 
-impl Arbitrating for Bitcoin {}
-
-impl FromStr for Bitcoin {
-    type Err = consensus::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Bitcoin" => Ok(Self),
-            _ => Err(consensus::Error::UnknownType),
-        }
+impl<S: Strategy> Bitcoin<S> {
+    pub fn new() -> Self {
+        Self { _e: PhantomData }
     }
 }
 
-impl Asset for Bitcoin {
+impl<S: Strategy> Asset for Bitcoin<S> {
     /// Type for the traded asset unit
     type AssetUnit = Amount;
 
     fn from_u32(bytes: u32) -> Option<Self> {
         match bytes {
-            0x80000000 => Some(Self),
+            0x80000000 => Some(Self::new()),
             _ => None,
         }
     }
@@ -56,56 +71,23 @@ impl Asset for Bitcoin {
     }
 }
 
-impl blockchain::Address for Bitcoin {
+impl<S: Strategy> blockchain::Address for Bitcoin<S> {
     /// Defines the address format for the arbitrating blockchain
     type Address = Address;
 }
 
-impl Timelock for Bitcoin {
+impl<S: Strategy> Timelock for Bitcoin<S> {
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock = timelock::CSVTimelock;
 }
 
-impl Onchain for Bitcoin {
+impl<S: Strategy> Onchain for Bitcoin<S> {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
     type PartialTransaction = PartiallySignedTransaction;
 
     /// Defines the finalized transaction format for the arbitrating blockchain
     type Transaction = bitcoin::Transaction;
-}
-
-impl Transactions for Bitcoin {
-    type Metadata = transaction::MetadataOutput;
-
-    type Funding = Funding;
-    type Lock = Tx<Lock>;
-    type Buy = Tx<Buy>;
-    type Cancel = Tx<Cancel>;
-    type Refund = Tx<Refund>;
-    type Punish = Tx<Punish>;
-}
-
-impl Keys for Bitcoin {
-    /// Private key type for the blockchain
-    type PrivateKey = PrivateKey;
-
-    /// Public key type for the blockchain
-    type PublicKey = PublicKey;
-
-    fn extra_keys() -> Vec<u16> {
-        // No extra key
-        vec![]
-    }
-}
-
-impl SharedPrivateKeys for Bitcoin {
-    type SharedPrivateKey = PrivateKey;
-
-    fn shared_keys() -> Vec<SharedKeyId> {
-        // No shared key in Bitcoin, transparent ledger
-        vec![]
-    }
 }
 
 impl CanonicalBytes for PrivateKey {
@@ -138,12 +120,6 @@ impl CanonicalBytes for PublicKey {
     {
         PublicKey::from_slice(bytes).map_err(consensus::Error::new)
     }
-}
-
-impl Signatures for Bitcoin {
-    type Message = Sha256dHash;
-    type Signature = Signature;
-    type AdaptorSignature = Signature;
 }
 
 impl CanonicalBytes for Signature {

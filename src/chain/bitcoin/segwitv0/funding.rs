@@ -6,6 +6,7 @@ use bitcoin::Address;
 use crate::blockchain::Network;
 use crate::transaction::{Error as FError, Fundable, Linkable};
 
+use crate::chain::bitcoin::segwitv0::SegwitV0;
 use crate::chain::bitcoin::transaction::{Error, MetadataOutput};
 use crate::chain::bitcoin::Bitcoin;
 
@@ -59,7 +60,7 @@ impl Linkable<MetadataOutput> for Funding {
     }
 }
 
-impl Fundable<Bitcoin, MetadataOutput> for Funding {
+impl Fundable<Bitcoin<SegwitV0>, MetadataOutput> for Funding {
     fn initialize(pubkey: PublicKey, network: Network) -> Result<Self, FError> {
         Ok(Funding {
             pubkey: Some(pubkey),

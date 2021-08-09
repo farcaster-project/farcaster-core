@@ -1,33 +1,52 @@
+use crate::chain::monero::{self as xmr};
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{
     self, AccordantKeyId, ArbitratingKeyId, Commit, Commitment, GenerateKey, GenerateSharedKey,
-    ProveCrossGroupDleq, SharedKeyId, Sign,
+    ProveCrossGroupDleq, SharedKeyId,
 };
-use crate::swap::Swap;
-
-use crate::chain::bitcoin::transaction::sign_hash;
-use crate::chain::bitcoin::Bitcoin;
-use crate::chain::monero::{self as xmr, Monero};
+#[cfg(feature = "experimental")]
+use crate::{chain::bitcoin::BitcoinSegwitV0, chain::monero::Monero, crypto::Sign, swap::Swap};
 
 use monero::cryptonote::hash::Hash;
 
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
+#[cfg(feature = "experimental")]
+use ecdsa_fun::{
+    adaptor::{Adaptor, EncryptedSignature, HashTranscript},
+    fun::{Point, Scalar},
+    nonce, ECDSA,
+};
+#[cfg(feature = "experimental")]
+use rand::rngs::ThreadRng;
+#[cfg(feature = "experimental")]
+use rand_chacha::ChaCha20Rng;
+#[cfg(feature = "experimental")]
+use sha2::Sha256;
+
+#[cfg(feature = "experimental")]
+use bitcoin::{hashes::sha256d::Hash as Sha256dHash, secp256k1::Message, secp256k1::Signature};
+
 use bitcoin::secp256k1::key::SecretKey;
-use bitcoin::secp256k1::Message;
 use bitcoin::secp256k1::Secp256k1;
-use bitcoin::secp256k1::Signature;
 use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
 
 use std::str::FromStr;
+
+#[cfg(feature = "experimental")]
+type Transcript = HashTranscript<Sha256, ChaCha20Rng>;
+
+#[cfg(feature = "experimental")]
+type NonceGen = nonce::Synthetic<Sha256, nonce::GlobalRng<ThreadRng>>;
 
 pub const SHARED_KEY_BITS: usize = 252;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BtcXmr;
 
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl Swap for BtcXmr {
     /// The arbitrating blockchain
-    type Ar = Bitcoin;
+    type Ar = BitcoinSegwitV0;
 
     /// The accordant blockchain
     type Ac = Monero;
@@ -128,6 +147,22 @@ impl Wallet {
             .into_iter()
             .filter_map(|id| self.get_btc_privkey(id).ok())
             .find(|privkey| bitcoin::PublicKey::from_private_key(&secp, privkey) == *pubkey)
+            .or_else(|| {
+                let secp = Secp256k1::new();
+                let spend = self.private_spend_from_seed().ok()?;
+                let bytes = spend.to_bytes();
+                let adaptor = SecretKey::from_slice(&bytes).ok()?;
+                let key = bitcoin::PrivateKey {
+                    compressed: true,
+                    network: bitcoin::Network::Bitcoin,
+                    key: adaptor,
+                };
+                if bitcoin::PublicKey::from_private_key(&secp, &key) == *pubkey {
+                    Some(key)
+                } else {
+                    None
+                }
+            })
             .ok_or(crypto::Error::UnsupportedKey)
     }
 
@@ -188,13 +223,26 @@ impl GenerateSharedKey<bitcoin::PrivateKey> for Wallet {
     }
 }
 
-impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, Signature> for Wallet {
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, EncryptedSignature>
+    for Wallet
+{
     fn sign_with_key(
         &self,
         key: &bitcoin::PublicKey,
         msg: Sha256dHash,
     ) -> Result<Signature, crypto::Error> {
-        sign_hash(msg, &self.get_btc_privkey_by_pub(key)?.key).map_err(|e| crypto::Error::new(e))
+        let secret_key = Scalar::from(self.get_btc_privkey_by_pub(key)?.key);
+        let message_hash: &[u8; 32] = {
+            use bitcoin::hashes::Hash;
+            msg.as_inner()
+        };
+
+        let nonce_gen = nonce::Synthetic::<Sha256, nonce::GlobalRng<ThreadRng>>::default();
+        let ecdsa = ECDSA::new(nonce_gen);
+
+        Ok(ecdsa.sign(&secret_key, &message_hash).into())
     }
 
     fn verify_signature(
@@ -211,38 +259,76 @@ impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, Signa
 
     fn adaptor_sign_with_key(
         &self,
-        key: &bitcoin::PublicKey,
-        _adaptor: &bitcoin::PublicKey,
+        signing_key: &bitcoin::PublicKey,
+        adaptor_key: &bitcoin::PublicKey,
         msg: Sha256dHash,
-    ) -> Result<Signature, crypto::Error> {
-        // FIXME this ignore the adaptor
-        sign_hash(msg, &self.get_btc_privkey_by_pub(key)?.key).map_err(|e| crypto::Error::new(e))
+    ) -> Result<EncryptedSignature, crypto::Error> {
+        let adaptor = Adaptor::<Transcript, NonceGen>::default();
+        let secret_signing_key = Scalar::from(self.get_btc_privkey_by_pub(signing_key)?.key);
+        let encryption_key = Point::from(adaptor_key.key);
+        let message_hash: &[u8; 32] = {
+            use bitcoin::hashes::Hash;
+            msg.as_inner()
+        };
+
+        Ok(adaptor.encrypted_sign(&secret_signing_key, &encryption_key, &message_hash))
     }
 
     fn verify_adaptor_signature(
         &self,
-        key: &bitcoin::PublicKey,
-        _adaptor: &bitcoin::PublicKey,
+        signing_key: &bitcoin::PublicKey,
+        adaptor_key: &bitcoin::PublicKey,
         msg: Sha256dHash,
-        sig: &Signature,
+        adaptor_sig: &EncryptedSignature,
     ) -> Result<(), crypto::Error> {
-        // FIXME this ignore the adaptor
-        let secp = Secp256k1::new();
-        let message = Message::from_slice(&msg).expect("Hash is always ok");
-        secp.verify(&message, &sig, &key.key)
-            .map_err(|e| crypto::Error::new(e))
+        let adaptor = Adaptor::<Transcript, NonceGen>::default();
+        let verification_key = Point::from(signing_key.key);
+        let encryption_key = Point::from(adaptor_key.key);
+        let message_hash: &[u8; 32] = {
+            use bitcoin::hashes::Hash;
+            msg.as_inner()
+        };
+
+        match adaptor.verify_encrypted_signature(
+            &verification_key,
+            &encryption_key,
+            &message_hash,
+            &adaptor_sig,
+        ) {
+            true => Ok(()),
+            false => Err(crypto::Error::InvalidAdaptorSignature),
+        }
     }
 
     fn adapt_signature(
         &self,
-        _key: &bitcoin::PublicKey,
-        sig: Signature,
+        adaptor_key: &bitcoin::PublicKey,
+        adaptor_sig: EncryptedSignature,
     ) -> Result<Signature, crypto::Error> {
-        Ok(sig)
+        let adaptor = Adaptor::<Transcript, NonceGen>::default();
+        let decryption_key = Scalar::from(self.get_btc_privkey_by_pub(adaptor_key)?.key);
+
+        Ok(adaptor
+            .decrypt_signature(&decryption_key, adaptor_sig.clone())
+            .into())
     }
 
-    fn recover_key(&self, _sig: Signature, _adapted_sig: Signature) -> bitcoin::PrivateKey {
-        todo!()
+    fn recover_key(
+        &self,
+        adaptor_key: &bitcoin::PublicKey,
+        sig: Signature,
+        adapted_sig: EncryptedSignature,
+    ) -> bitcoin::PrivateKey {
+        let adaptor = Adaptor::<Transcript, NonceGen>::default();
+        let encryption_key = Point::from(adaptor_key.key);
+        let signature = ecdsa_fun::Signature::from(sig);
+
+        match adaptor.recover_decryption_key(&encryption_key, &signature, &adapted_sig) {
+            Some(decryption_key) => {
+                bitcoin::PrivateKey::new(decryption_key.into(), bitcoin::Network::Bitcoin)
+            }
+            None => panic!("signature is not the decryption of our original encrypted signature"),
+        }
     }
 }
 

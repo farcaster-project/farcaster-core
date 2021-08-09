@@ -20,7 +20,10 @@ edition = "2018"
 
 [features]
 rpc = []
+experimental = ["ecdsa_fun", "rand", "sha2", "rand_chacha", "bincode"]
 serde = ["serde_crate", "bitcoin/use-serde", "monero/serde_support"]
+
+default = ["experimental"]
 
 [dependencies]
 amplify = "3"
@@ -33,6 +36,12 @@ lightning_encoding = "0.4.0-beta.1"
 thiserror = "1.0.24"
 serde_crate = { package = "serde", version = "1", features = ["derive"], optional = true }
 internet2 = { git = "https://github.com/zkao/rust-internet2", branch = "farcaster" }
+
+rand = { version = "0.8.4", optional = true }
+ecdsa_fun = { version = "0.6", default-features = false, features = ["all"], optional = true }
+sha2 = { version = "0.9", optional = true }
+rand_chacha = { version = "0.3.1", optional = true }
+bincode = { version = "1.3.3", optional = true }
 
 # blockchain specific
 bitcoin = "0.26"

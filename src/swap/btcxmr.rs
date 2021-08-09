@@ -28,8 +28,10 @@ use sha2::Sha256;
 #[cfg(feature = "experimental")]
 use bitcoin::{hashes::sha256d::Hash as Sha256dHash, secp256k1::Message, secp256k1::Signature};
 
-use bitcoin::secp256k1::key::SecretKey;
-use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::{
+    key::{PublicKey, SecretKey},
+    Secp256k1,
+};
 use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
 
 use std::str::FromStr;
@@ -110,10 +112,7 @@ impl KeyManager {
         Self { seed: None }
     }
 
-    pub fn get_btc_privkey(
-        &self,
-        key_id: ArbitratingKeyId,
-    ) -> Result<bitcoin::PrivateKey, crypto::Error> {
+    pub fn get_btc_privkey(&self, key_id: ArbitratingKeyId) -> Result<SecretKey, crypto::Error> {
         let secp = Secp256k1::new();
         if let Some(seed) = self.seed {
             let master_key = ExtendedPrivKey::new_master(bitcoin::Network::Bitcoin, &seed)
@@ -132,16 +131,13 @@ impl KeyManager {
                         .derive_priv(&secp, &DerivationPath::from_str("m/0/1'/5").unwrap()),
                     ArbitratingKeyId::Extra(_) => Err(crypto::Error::UnsupportedKey)?,
                 };
-            Ok(key.map_err(|e| crypto::Error::new(e))?.private_key)
+            Ok(key.map_err(|e| crypto::Error::new(e))?.private_key.key)
         } else {
             Err(crypto::Error::UnsupportedKey)
         }
     }
 
-    pub fn get_btc_privkey_by_pub(
-        &self,
-        pubkey: &bitcoin::PublicKey,
-    ) -> Result<bitcoin::PrivateKey, crypto::Error> {
+    pub fn get_btc_privkey_by_pub(&self, pubkey: &PublicKey) -> Result<SecretKey, crypto::Error> {
         let secp = Secp256k1::new();
         let all_keys = vec![
             ArbitratingKeyId::Fund,
@@ -154,18 +150,13 @@ impl KeyManager {
         all_keys
             .into_iter()
             .filter_map(|id| self.get_btc_privkey(id).ok())
-            .find(|privkey| bitcoin::PublicKey::from_private_key(&secp, privkey) == *pubkey)
+            .find(|privkey| PublicKey::from_secret_key(&secp, privkey) == *pubkey)
             .or_else(|| {
                 let secp = Secp256k1::new();
                 let spend = self.private_spend_from_seed().ok()?;
                 let bytes = spend.to_bytes();
-                let adaptor = SecretKey::from_slice(&bytes).ok()?;
-                let key = bitcoin::PrivateKey {
-                    compressed: true,
-                    network: bitcoin::Network::Bitcoin,
-                    key: adaptor,
-                };
-                if bitcoin::PublicKey::from_private_key(&secp, &key) == *pubkey {
+                let key = SecretKey::from_slice(&bytes).ok()?;
+                if PublicKey::from_secret_key(&secp, &key) == *pubkey {
                     Some(key)
                 } else {
                     None
@@ -217,15 +208,18 @@ impl GenerateSharedKey<monero::PrivateKey> for KeyManager {
     }
 }
 
-impl GenerateKey<bitcoin::PublicKey, ArbitratingKeyId> for KeyManager {
-    fn get_pubkey(&self, key_id: ArbitratingKeyId) -> Result<bitcoin::PublicKey, crypto::Error> {
+impl GenerateKey<PublicKey, ArbitratingKeyId> for KeyManager {
+    fn get_pubkey(&self, key_id: ArbitratingKeyId) -> Result<PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
-        Ok(self.get_btc_privkey(key_id)?.public_key(&secp))
+        Ok(PublicKey::from_secret_key(
+            &secp,
+            &self.get_btc_privkey(key_id)?,
+        ))
     }
 }
 
-impl GenerateSharedKey<bitcoin::PrivateKey> for KeyManager {
-    fn get_shared_key(&self, _key_id: SharedKeyId) -> Result<bitcoin::PrivateKey, crypto::Error> {
+impl GenerateSharedKey<SecretKey> for KeyManager {
+    fn get_shared_key(&self, _key_id: SharedKeyId) -> Result<SecretKey, crypto::Error> {
         // No shared key for bitcoin
         Err(crypto::Error::UnsupportedKey)
     }
@@ -233,15 +227,9 @@ impl GenerateSharedKey<bitcoin::PrivateKey> for KeyManager {
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, EncryptedSignature>
-    for KeyManager
-{
-    fn sign_with_key(
-        &self,
-        key: &bitcoin::PublicKey,
-        msg: Sha256dHash,
-    ) -> Result<Signature, crypto::Error> {
-        let secret_key = Scalar::from(self.get_btc_privkey_by_pub(key)?.key);
+impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for KeyManager {
+    fn sign_with_key(&self, key: &PublicKey, msg: Sha256dHash) -> Result<Signature, crypto::Error> {
+        let secret_key = Scalar::from(self.get_btc_privkey_by_pub(key)?);
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -255,25 +243,25 @@ impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, Encry
 
     fn verify_signature(
         &self,
-        key: &bitcoin::PublicKey,
+        key: &PublicKey,
         msg: Sha256dHash,
         sig: &Signature,
     ) -> Result<(), crypto::Error> {
         let secp = Secp256k1::new();
         let message = Message::from_slice(&msg).expect("Hash is always ok");
-        secp.verify(&message, &sig, &key.key)
+        secp.verify(&message, &sig, &key)
             .map_err(|e| crypto::Error::new(e))
     }
 
     fn adaptor_sign_with_key(
         &self,
-        signing_key: &bitcoin::PublicKey,
-        adaptor_key: &bitcoin::PublicKey,
+        signing_key: &PublicKey,
+        adaptor_key: &PublicKey,
         msg: Sha256dHash,
     ) -> Result<EncryptedSignature, crypto::Error> {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let secret_signing_key = Scalar::from(self.get_btc_privkey_by_pub(signing_key)?.key);
-        let encryption_key = Point::from(adaptor_key.key);
+        let secret_signing_key = Scalar::from(self.get_btc_privkey_by_pub(signing_key)?);
+        let encryption_key = Point::from(adaptor_key.clone());
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -284,14 +272,14 @@ impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, Encry
 
     fn verify_adaptor_signature(
         &self,
-        signing_key: &bitcoin::PublicKey,
-        adaptor_key: &bitcoin::PublicKey,
+        signing_key: &PublicKey,
+        adaptor_key: &PublicKey,
         msg: Sha256dHash,
         adaptor_sig: &EncryptedSignature,
     ) -> Result<(), crypto::Error> {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let verification_key = Point::from(signing_key.key);
-        let encryption_key = Point::from(adaptor_key.key);
+        let verification_key = Point::from(signing_key.clone());
+        let encryption_key = Point::from(adaptor_key.clone());
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -310,11 +298,11 @@ impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, Encry
 
     fn adapt_signature(
         &self,
-        adaptor_key: &bitcoin::PublicKey,
+        adaptor_key: &PublicKey,
         adaptor_sig: EncryptedSignature,
     ) -> Result<Signature, crypto::Error> {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let decryption_key = Scalar::from(self.get_btc_privkey_by_pub(adaptor_key)?.key);
+        let decryption_key = Scalar::from(self.get_btc_privkey_by_pub(adaptor_key)?);
 
         Ok(adaptor
             .decrypt_signature(&decryption_key, adaptor_sig.clone())
@@ -323,18 +311,16 @@ impl Sign<bitcoin::PublicKey, bitcoin::PrivateKey, Sha256dHash, Signature, Encry
 
     fn recover_key(
         &self,
-        adaptor_key: &bitcoin::PublicKey,
+        adaptor_key: &PublicKey,
         sig: Signature,
         adapted_sig: EncryptedSignature,
-    ) -> bitcoin::PrivateKey {
+    ) -> SecretKey {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let encryption_key = Point::from(adaptor_key.key);
+        let encryption_key = Point::from(adaptor_key.clone());
         let signature = ecdsa_fun::Signature::from(sig);
 
         match adaptor.recover_decryption_key(&encryption_key, &signature, &adapted_sig) {
-            Some(decryption_key) => {
-                bitcoin::PrivateKey::new(decryption_key.into(), bitcoin::Network::Bitcoin)
-            }
+            Some(decryption_key) => decryption_key.into(),
             None => panic!("signature is not the decryption of our original encrypted signature"),
         }
     }
@@ -346,12 +332,10 @@ impl Commit<Hash> for KeyManager {
     }
 }
 
-impl ProveCrossGroupDleq<bitcoin::PublicKey, monero::PublicKey, RingProof> for KeyManager {
+impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager {
     /// Generate the proof and the two public keys: the arbitrating public key, also called the
     /// adaptor public key, and the accordant public spend key.
-    fn generate(
-        &self,
-    ) -> Result<(monero::PublicKey, bitcoin::PublicKey, RingProof), crypto::Error> {
+    fn generate(&self) -> Result<(monero::PublicKey, PublicKey, RingProof), crypto::Error> {
         let spend = self.private_spend_from_seed()?;
         let adaptor = self.project_over()?;
 
@@ -365,18 +349,12 @@ impl ProveCrossGroupDleq<bitcoin::PublicKey, monero::PublicKey, RingProof> for K
 
     /// Project the accordant sepnd secret key over the arbitrating curve to get the public key
     /// used as the adaptor public key.
-    fn project_over(&self) -> Result<bitcoin::PublicKey, crypto::Error> {
+    fn project_over(&self) -> Result<PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
         let spend = self.private_spend_from_seed()?;
         let bytes = spend.to_bytes(); // FIXME warn this copy the priv key
         let adaptor = SecretKey::from_slice(&bytes).map_err(|e| crypto::Error::new(e))?;
-
-        Ok(bitcoin::PrivateKey {
-            compressed: true,
-            network: bitcoin::Network::Bitcoin,
-            key: adaptor,
-        }
-        .public_key(&secp))
+        Ok(PublicKey::from_secret_key(&secp, &adaptor))
     }
 
     /// Verify the proof given the two public keys: the accordant spend public key and the
@@ -384,7 +362,7 @@ impl ProveCrossGroupDleq<bitcoin::PublicKey, monero::PublicKey, RingProof> for K
     fn verify(
         &self,
         _public_spend: &monero::PublicKey,
-        _adaptor: &bitcoin::PublicKey,
+        _adaptor: &PublicKey,
         _proof: RingProof,
     ) -> Result<(), crypto::Error> {
         todo!()

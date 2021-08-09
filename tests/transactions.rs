@@ -73,12 +73,12 @@ macro_rules! setup_txs {
         let msg = refund
             .generate_witness_message(ScriptPath::Success)
             .unwrap();
-        let sig = sign_hash(msg, &secret_a1.key).unwrap();
+        let sig = sign_hash(msg, &secret_a1).unwrap();
         refund.add_witness(pubkey_a1, sig).unwrap();
         let msg = refund
             .generate_witness_message(ScriptPath::Success)
             .unwrap();
-        let sig = sign_hash(msg, &secret_b1.key).unwrap();
+        let sig = sign_hash(msg, &secret_b1).unwrap();
         refund.add_witness(pubkey_b1, sig).unwrap();
 
         //
@@ -93,12 +93,12 @@ macro_rules! setup_txs {
         let msg = cancel
             .generate_witness_message(ScriptPath::Failure)
             .unwrap();
-        let sig = sign_hash(msg, &secret_a2.key).unwrap();
+        let sig = sign_hash(msg, &secret_a2).unwrap();
         cancel.add_witness(pubkey_a2, sig).unwrap();
         let msg = cancel
             .generate_witness_message(ScriptPath::Failure)
             .unwrap();
-        let sig = sign_hash(msg, &secret_b2.key).unwrap();
+        let sig = sign_hash(msg, &secret_b2).unwrap();
         cancel.add_witness(pubkey_b2, sig).unwrap();
 
         //
@@ -120,10 +120,10 @@ macro_rules! setup_txs {
         // Co-Sign buy
         //
         let msg = buy.generate_witness_message(ScriptPath::Success).unwrap();
-        let sig = sign_hash(msg, &secret_a1.key).unwrap();
+        let sig = sign_hash(msg, &secret_a1).unwrap();
         buy.add_witness(pubkey_a1, sig).unwrap();
         let msg = buy.generate_witness_message(ScriptPath::Success).unwrap();
-        let sig = sign_hash(msg, &secret_b1.key).unwrap();
+        let sig = sign_hash(msg, &secret_b1).unwrap();
         buy.add_witness(pubkey_b1, sig).unwrap();
 
         //
@@ -136,7 +136,7 @@ macro_rules! setup_txs {
         // Sign lock tx
         //
         let msg = lock.generate_witness_message(ScriptPath::Success).unwrap();
-        let sig = sign_hash(msg, &secret_a1.key).unwrap();
+        let sig = sign_hash(msg, &secret_a1).unwrap();
         lock.add_witness(pubkey_a1, sig).unwrap();
         let lock_finalized =
             Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut lock).unwrap();
@@ -157,7 +157,7 @@ macro_rules! setup_txs {
         let msg = punish
             .generate_witness_message(ScriptPath::Failure)
             .unwrap();
-        let sig = sign_hash(msg, &secret_a2.key).unwrap();
+        let sig = sign_hash(msg, &secret_a2).unwrap();
         punish.add_witness(pubkey_a2, sig).unwrap();
 
         //

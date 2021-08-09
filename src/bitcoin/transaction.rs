@@ -7,7 +7,11 @@ use bitcoin::util::address;
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 #[cfg(feature = "experimental")]
-use bitcoin::{hashes::sha256d::Hash, secp256k1::Signature, util::key::PublicKey, Amount};
+use bitcoin::{
+    hashes::sha256d::Hash,
+    secp256k1::{key::PublicKey, Signature},
+    Amount,
+};
 
 use thiserror::Error;
 
@@ -186,6 +190,7 @@ where
             .ok_or(FError::new(Error::MissingSigHashType))?;
         let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
+        let pubkey = bitcoin::util::ecdsa::PublicKey::new(pubkey);
         self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
         Ok(())
     }

@@ -19,9 +19,11 @@ use crate::role::Arbitrating;
 use bitcoin::blockdata::script::Script;
 use bitcoin::blockdata::transaction::SigHashType;
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
-use bitcoin::secp256k1::{Message, Secp256k1, Signature, Signing};
+use bitcoin::secp256k1::{
+    key::{PublicKey, SecretKey},
+    Message, Secp256k1, Signature, Signing,
+};
 use bitcoin::util::bip143::SigHashCache;
-use bitcoin::util::key::{PrivateKey, PublicKey};
 
 use ecdsa_fun::adaptor::EncryptedSignature;
 
@@ -99,7 +101,7 @@ impl Transactions for Bitcoin<SegwitV0> {
 
 impl Keys for Bitcoin<SegwitV0> {
     /// Private key type for the blockchain
-    type PrivateKey = PrivateKey;
+    type PrivateKey = SecretKey;
 
     /// Public key type for the blockchain
     type PublicKey = PublicKey;
@@ -111,7 +113,7 @@ impl Keys for Bitcoin<SegwitV0> {
 }
 
 impl SharedPrivateKeys for Bitcoin<SegwitV0> {
-    type SharedPrivateKey = PrivateKey;
+    type SharedPrivateKey = SecretKey;
 
     fn shared_keys() -> Vec<SharedKeyId> {
         // No shared key in Bitcoin, transparent ledger

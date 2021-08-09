@@ -30,26 +30,31 @@ This library is twofold: providing a flexible framework to add specific blockcha
 - `protocol_message`: generic types exchanged between daemon running a swap toghether.
 - `role`: role definition (trade and swap) and implementation over the generic framework.
 - `script`: generic types for transaction data management.
-- `swap`: swap trait definition and utility types.
+- `swap`: swap trait definition, utility types, and swap instance like Btc/Xmr.
 - `syncer`: generic task types and errors.
 - `transaction`: transaction traits to implement for building and validating the arbitrating set of transaction.
 
-The blockchain specific support is added under the `chain` module.
+The blockchain specific support is added under the the following modules:
 
-- `chain/bitcoin`: support for Bitcoin, implementation of all required traits from the framework, e.g. the `Arbitrating` trait in `role` module.
-- `chain/monero`: support for Monero, implementation of all required traits from the framework, e.g. the `Accordant` trait in `role` module.
-- `chain/pairs/btcxmr`: definition of a swap between Bitcoin from `chain/bitcoin` and Monero from `chain/monero`.
+- `bitcoin`: support for Bitcoin, implementation of all required traits from the framework, e.g. the `Arbitrating` trait in `role` module.
+- `monero`: support for Monero, implementation of all required traits from the framework, e.g. the `Accordant` trait in `role` module.
+- `swap/btcxmr`: definition of a swap between Bitcoin from `bitcoin` and Monero from `monero` implementations.
 
 ### Adding blockchain support
 To add a blockchain implementation you must implements `Aribtrating` or `Accordant` trait on your blockchain definition, the trait implemented depends on its blockchain on-chain features, see [RFCs](https://github.com/farcaster-project/RFCs) for more details.
 
-To add support for Bitcoin we implement the `Arbitrating` trait on our definition of `Bitcoin`.
+To add support for Bitcoin we implement the `Arbitrating` trait on our definition of `Bitcoin`. The implementation contains a strategy allowing variation in SegWit versions or with cryptographic protocols. An `experimental` feature include `SegwitV0` implementation with ECDSA and SegWit v0 experimental support.
 
 ```rust
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
-pub struct Bitcoin { ... };
+pub struct Bitcoin<S: Strategy> { ... };
 
-impl Arbitrating for Bitcoin {}
+#[derive(Clone, Debug, Copy, Eq, PartialEq)]
+pub struct SegwitV0;
+
+impl Strategy for SegwitV0 {}
+
+impl Arbitrating for Bitcoin<SegwitV0> {}
 ```
 
 The implementation is void but requires a list of traits such as (see `src/role.rs`):
@@ -65,8 +70,7 @@ pub trait Arbitrating:
     + Timelock
     + Transactions
     + SharedPrivateKeys
-    + Clone
-    + Eq
+    + ...
 {
 }
 ```
@@ -74,19 +78,19 @@ pub trait Arbitrating:
 By implementing all the required traits on Bitcoin we associate Bitcoin external concrete types used in the framework logic.
 
 ```rust
-impl blockchain::Asset for Bitcoin {
+impl<S: Strategy> blockchain::Asset for Bitcoin<S> {
     /// Type for the traded asset unit for a blockchain.
     type AssetUnit = bitcoin::Amount;
 
     ...
 }
 
-impl blockchain::Address for Bitcoin {
+impl<S: Strategy> blockchain::Address for Bitcoin<S> {
     /// Defines the address format for the arbitrating blockchain
     type Address = bitcoin::Address;
 }
 
-impl blockchain::Timelock for Bitcoin {
+impl<S: Strategy> blockchain::Timelock for Bitcoin<S> {
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock = bitcoin::timelock::CSVTimelock;
 }
@@ -95,7 +99,7 @@ impl blockchain::Timelock for Bitcoin {
 Some traits only associate types, some carry more logic such as `Keys` in `crypto` module that defines the type of keys (public and private) and the number of extra keys needed during the swap. This is useful when off-chain cryptographic protocols such as MuSig2 is used in the implementation and requires extra keys, e.g. nonces.
 
 ```rust
-impl crypto::Keys for Bitcoin {
+impl crypto::Keys for Bitcoin<SegwitV0> {
     /// Private key type for the blockchain
     type PrivateKey = bitcoin::PrivateKey;
 
@@ -112,7 +116,7 @@ impl crypto::Keys for Bitcoin {
 For an arbitrating implementation transactions are required through `Onchain` and `Transactions` traits, former associate types for partial and final transaction and latter give concrete implementation for every type of transaction.
 
 ```rust
-impl blockchain::Onchain for Bitcoin {
+impl<S: Strategy> blockchain::Onchain for Bitcoin<S> {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
     type PartialTransaction = bitcoin::PartiallySignedTransaction;
@@ -121,7 +125,7 @@ impl blockchain::Onchain for Bitcoin {
     type Transaction = bitcoin::Transaction;
 }
 
-impl blockchain::Transactions for Bitcoin {
+impl blockchain::Transactions for Bitcoin<SegwitV0> {
     type Metadata = transaction::MetadataOutput;
 
     type Funding = Funding;

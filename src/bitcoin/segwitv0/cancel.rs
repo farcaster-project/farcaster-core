@@ -10,9 +10,9 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use crate::script;
 use crate::transaction::{Cancelable, Error as FError, Lockable};
 
-use crate::chain::bitcoin::segwitv0::SegwitV0;
-use crate::chain::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::chain::bitcoin::Bitcoin;
+use crate::bitcoin::segwitv0::SegwitV0;
+use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
+use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Cancel;

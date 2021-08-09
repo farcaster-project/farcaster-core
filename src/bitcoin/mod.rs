@@ -1,4 +1,5 @@
-//! Defines and implements all the traits for Bitcoin
+//! Implementation for the Bitcoin blockchain as an arbitrating blockchain in a swap, with multiple
+//! strategies (ECDSA, Taproot, Taproot+MuSig2).
 
 use std::fmt::Debug;
 use std::marker::PhantomData;

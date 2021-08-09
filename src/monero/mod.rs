@@ -1,4 +1,4 @@
-//! Defines and implements all the traits for Monero
+//! Implementation for the Monero blockchain as an accordant blockchain in a swap.
 
 use crate::blockchain::{self, Asset};
 use crate::consensus::{self, CanonicalBytes};
@@ -13,8 +13,11 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 pub mod tasks;
 
+/// The identifier for the only shared private key on the Monero side: the secret view key.
 pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
 
+/// The implementation of Monero with all the traits necessary to comply with [`Accordant`]
+/// blockchain role.
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
 

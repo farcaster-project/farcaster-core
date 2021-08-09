@@ -1,4 +1,4 @@
-use farcaster_core::chain::pairs::btcxmr::{BtcXmr, Wallet};
+use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
 use farcaster_core::blockchain::FeePolitic;
 use farcaster_core::bundle::{AliceParameters, BobParameters};
@@ -49,23 +49,23 @@ fn init_alice() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>, SwapId) {
 #[test]
 fn create_alice_parameters() {
     let (alice, _, pub_offer, swap_id) = init_alice();
-    let wallet = Wallet::new([
+    let key_manager = KeyManager::new([
         32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10,
         9, 8, 7, 6, 5, 4, 3, 2, 1,
     ]);
 
-    let alice_params = alice.generate_parameters(&wallet, &pub_offer).unwrap();
+    let alice_params = alice.generate_parameters(&key_manager, &pub_offer).unwrap();
 
     test_strict_ser!(alice_params, AliceParameters<BtcXmr>);
 
     let commit_alice_params =
-        CommitAliceParameters::commit_to_bundle(swap_id, &wallet, alice_params.clone());
+        CommitAliceParameters::commit_to_bundle(swap_id, &key_manager, alice_params.clone());
 
     test_strict_ser!(commit_alice_params, CommitAliceParameters<BtcXmr>);
 
     let reveal_alice_params: RevealAliceParameters<BtcXmr> = (swap_id, alice_params).into();
     assert!(commit_alice_params
-        .verify_with_reveal(&wallet, reveal_alice_params.clone())
+        .verify_with_reveal(&key_manager, reveal_alice_params.clone())
         .is_ok());
 
     test_strict_ser!(reveal_alice_params, RevealAliceParameters<BtcXmr>);
@@ -75,23 +75,23 @@ fn create_alice_parameters() {
 fn create_bob_parameters() {
     let (_, bob, pub_offer, swap_id) = init_alice();
 
-    let wallet = Wallet::new([
+    let key_manager = KeyManager::new([
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32,
     ]);
 
-    let bob_params = bob.generate_parameters(&wallet, &pub_offer).unwrap();
+    let bob_params = bob.generate_parameters(&key_manager, &pub_offer).unwrap();
 
     test_strict_ser!(bob_params, BobParameters<BtcXmr>);
 
     let commit_bob_params =
-        CommitBobParameters::commit_to_bundle(swap_id, &wallet, bob_params.clone());
+        CommitBobParameters::commit_to_bundle(swap_id, &key_manager, bob_params.clone());
 
     test_strict_ser!(commit_bob_params, CommitBobParameters<BtcXmr>);
 
     let reveal_bob_params: RevealBobParameters<_> = (swap_id, bob_params).into();
     assert!(commit_bob_params
-        .verify_with_reveal(&wallet, reveal_bob_params.clone())
+        .verify_with_reveal(&key_manager, reveal_bob_params.clone())
         .is_ok());
 
     test_strict_ser!(reveal_bob_params, RevealBobParameters<BtcXmr>);
@@ -101,30 +101,30 @@ fn create_bob_parameters() {
 fn tampered_reveal_must_fail() {
     let (_, bob, pub_offer, swap_id) = init_alice();
 
-    let wallet = Wallet::new([
+    let key_manager = KeyManager::new([
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32,
     ]);
 
-    let wallet2 = Wallet::new([
+    let key_manager2 = KeyManager::new([
         32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10,
         9, 8, 7, 6, 5, 4, 3, 2, 1,
     ]);
 
-    let bob_params = bob.generate_parameters(&wallet, &pub_offer).unwrap();
+    let bob_params = bob.generate_parameters(&key_manager, &pub_offer).unwrap();
 
-    // Commit to Bob first wallet
+    // Commit to Bob first key_manager
     let commit_bob_params =
-        CommitBobParameters::commit_to_bundle(swap_id, &wallet, bob_params.clone());
+        CommitBobParameters::commit_to_bundle(swap_id, &key_manager, bob_params.clone());
     // Reveal other params
     let reveal_bob_params: RevealBobParameters<_> = (
         swap_id,
-        bob.generate_parameters(&wallet2, &pub_offer).unwrap(),
+        bob.generate_parameters(&key_manager2, &pub_offer).unwrap(),
     )
         .into();
     // MUST error since we reveal other parameters
     assert!(commit_bob_params
-        .verify_with_reveal(&wallet, reveal_bob_params)
+        .verify_with_reveal(&key_manager, reveal_bob_params)
         .is_err());
 }
 
@@ -132,27 +132,28 @@ fn tampered_reveal_must_fail() {
 fn missing_commitment_in_vec() {
     let (_, bob, pub_offer, swap_id) = init_alice();
 
-    let wallet = Wallet::new([
+    let key_manager = KeyManager::new([
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32,
     ]);
 
-    let bob_params = bob.generate_parameters(&wallet, &pub_offer).unwrap();
+    let bob_params = bob.generate_parameters(&key_manager, &pub_offer).unwrap();
     let mut partial_params = bob_params.clone();
     // Remove the private view key
     partial_params.accordant_shared_keys = vec![];
 
     // Commit to Bob partial parameter, without the accordant shared view key
-    let commit_bob_params = CommitBobParameters::commit_to_bundle(swap_id, &wallet, partial_params);
+    let commit_bob_params =
+        CommitBobParameters::commit_to_bundle(swap_id, &key_manager, partial_params);
     // Reveal all the params, with the accordant shared view key
     let reveal_bob_params: RevealBobParameters<_> = (
         swap_id,
-        bob.generate_parameters(&wallet, &pub_offer).unwrap(),
+        bob.generate_parameters(&key_manager, &pub_offer).unwrap(),
     )
         .into();
     // MUST error since we reveal params not committed
     assert!(commit_bob_params
-        .verify_with_reveal(&wallet, reveal_bob_params)
+        .verify_with_reveal(&key_manager, reveal_bob_params)
         .is_err());
 }
 

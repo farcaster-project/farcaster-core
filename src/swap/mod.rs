@@ -1,4 +1,5 @@
-//! Defines the high level of a swap between a Arbitrating blockchain and an Accordant blockchain.
+//! Defines the high level of a swap between a Arbitrating blockchain and a Accordant blockchain
+//! and its concrete instances of swaps.
 
 use std::fmt::Debug;
 use std::io;
@@ -8,6 +9,8 @@ use crate::crypto::Commitment;
 use crate::role::{Accordant, Arbitrating};
 
 use lightning_encoding::strategies::AsStrict;
+
+pub mod btcxmr;
 
 fixed_hash::construct_fixed_hash!(
     /// A unique swap identifier represented as an 32 bytes hash.

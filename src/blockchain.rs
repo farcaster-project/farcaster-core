@@ -1,7 +1,8 @@
-//! Defines the interface a blockchain must implement
+//! Defines the behaviours a blockchain must implement to participate in a swap.
 //!
-//! A blockchain must identify the block chain (or equivalent), e.g. with the genesis hash, and the
-//! asset, e.g. for Etherum blockchain assets can be eth or dai.
+//! A blockchain must identify itself with a 32 bits indetifier as defined in [SLIP
+//! 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
+//! or must not conflict with any registered entity.
 
 use std::error;
 use std::fmt::{self, Debug};
@@ -22,14 +23,14 @@ pub trait Address {
 }
 
 /// Defines the type for a blockchain timelock, this type is used when manipulating transactions
-/// and is carried in the [Offer](crate::negotiation::Offer) to fix the two timelocks.
+/// and is carried in the [`Offer`](crate::negotiation::Offer) to fix the two timelocks.
 pub trait Timelock {
     /// Defines the type of timelock used for the arbitrating transactions.
     type Timelock: Copy + PartialEq + Eq + Debug + fmt::Display + CanonicalBytes;
 }
 
 /// Defines the asset identifier for a blockchain and its associated asset unit type, it is carried
-/// in the [Offer](crate::negotiation::Offer) to fix exchanged amounts.
+/// in the [`Offer`](crate::negotiation::Offer) to fix exchanged amounts.
 pub trait Asset: Copy + Debug {
     /// Type for the traded asset unit for a blockchain.
     type AssetUnit: Copy + Eq + Debug + CanonicalBytes;
@@ -54,8 +55,8 @@ pub trait Onchain {
     type Transaction: Clone + Debug + CanonicalBytes;
 }
 
-/// Fix the types for all arbitrating transactions needed for the swap: [Fundable], [Lockable],
-/// [Buyable], [Cancelable], [Refundable], and [Punishable] transactions.
+/// Fix the types for all arbitrating transactions needed for the swap: [`Fundable`], [`Lockable`],
+/// [`Buyable`], [`Cancelable`], [`Refundable`], and [`Punishable`] transactions.
 pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
     /// The returned type of the consumable output and the `base_on` transaction method, used to
     /// reference the funds and chain other transactions on it. This must contain all necessary
@@ -107,9 +108,9 @@ pub enum FeeStrategy<T>
 where
     T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
 {
-    /// A fixed strategy with the exact amount to set
+    /// A fixed strategy with the exact amount to set.
     Fixed(T),
-    /// A range with a minimum and maximum (inclusive) possible fees
+    /// A range with a minimum and maximum (inclusive) possible fees.
     Range(Range<T>),
 }
 
@@ -255,12 +256,12 @@ impl FromStr for FeePolitic {
 }
 
 /// Enable fee management for an arbitrating blockchain. This trait require implementing the
-/// [Onchain] trait to have access to transaction associated type and the [Asset] trait for
+/// [`Onchain`] trait to have access to transaction associated type and the [`Asset`] trait for
 /// returning the amount of fee set on a transaction. The fee is carried in the
-/// [Offer](crate::negotiation::Offer) through a [FeeStrategy] to fix the strategy to apply on
+/// [`Offer`](crate::negotiation::Offer) through a [`FeeStrategy`] to fix the strategy to apply on
 /// transactions.
 pub trait Fee: Onchain + Asset {
-    /// Type for describing the fee of a blockchain
+    /// Type for describing the fee of a blockchain.
     type FeeUnit: Clone + PartialOrd + PartialEq + Eq + fmt::Display + Debug + CanonicalBytes;
 
     /// Calculates and sets the fee on the given transaction and return the amount of fee set in
@@ -301,11 +302,11 @@ impl FromStr for Network {
     serde(crate = "serde_crate")
 )]
 pub enum Network {
-    /// Represents a real asset on his valuable network
+    /// Represents a real asset on his valuable network.
     Mainnet,
-    /// Represents non-valuable assets on test networks
+    /// Represents non-valuable assets on test networks.
     Testnet,
-    /// Local and private testnets
+    /// Local and private testnets.
     Local,
 }
 
@@ -335,7 +336,7 @@ impl_strict_encoding!(Network);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain::bitcoin::fee::SatPerVByte;
+    use crate::bitcoin::fee::SatPerVByte;
 
     #[test]
     fn parse_fee_politic() {

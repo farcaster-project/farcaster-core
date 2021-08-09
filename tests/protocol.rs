@@ -1,5 +1,5 @@
-use farcaster_core::chain::bitcoin::segwitv0::FundingTx;
-use farcaster_core::chain::pairs::btcxmr::{BtcXmr, Wallet};
+use farcaster_core::bitcoin::segwitv0::FundingTx;
+use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
 use farcaster_core::blockchain::{FeePolitic, Network};
 use farcaster_core::consensus::deserialize;
@@ -55,12 +55,12 @@ fn init() -> (
 fn execute_offline_protocol() {
     let (alice, bob, pub_offer, funding_tx) = init();
 
-    let alice_wallet = Wallet::new([
+    let alice_key_manager = KeyManager::new([
         32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10,
         9, 8, 7, 6, 5, 4, 3, 2, 1,
     ]);
 
-    let bob_wallet = Wallet::new([
+    let bob_key_manager = KeyManager::new([
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32,
     ]);
@@ -71,30 +71,32 @@ fn execute_offline_protocol() {
     // Commit/Reveal round
     //
     let alice_params = alice
-        .generate_parameters(&alice_wallet, &pub_offer)
+        .generate_parameters(&alice_key_manager, &pub_offer)
         .unwrap();
     let commit_alice_params =
-        CommitAliceParameters::commit_to_bundle(swap_id, &alice_wallet, alice_params.clone());
+        CommitAliceParameters::commit_to_bundle(swap_id, &alice_key_manager, alice_params.clone());
 
-    let bob_params = bob.generate_parameters(&bob_wallet, &pub_offer).unwrap();
+    let bob_params = bob
+        .generate_parameters(&bob_key_manager, &pub_offer)
+        .unwrap();
     let commit_bob_params =
-        CommitBobParameters::commit_to_bundle(swap_id, &bob_wallet, bob_params.clone());
+        CommitBobParameters::commit_to_bundle(swap_id, &bob_key_manager, bob_params.clone());
 
     // Reveal
     let reveal_alice_params: RevealAliceParameters<BtcXmr> = (swap_id, alice_params.clone()).into();
     let reveal_bob_params: RevealBobParameters<BtcXmr> = (swap_id, bob_params.clone()).into();
 
     assert!(commit_alice_params
-        .verify_with_reveal(&bob_wallet, reveal_alice_params)
+        .verify_with_reveal(&bob_key_manager, reveal_alice_params)
         .is_ok());
     assert!(commit_bob_params
-        .verify_with_reveal(&alice_wallet, reveal_bob_params)
+        .verify_with_reveal(&alice_key_manager, reveal_bob_params)
         .is_ok());
 
     //
     // Create core arb transactions
     //
-    let funding_key = bob_wallet.get_pubkey(ArbitratingKeyId::Fund).unwrap();
+    let funding_key = bob_key_manager.get_pubkey(ArbitratingKeyId::Fund).unwrap();
     let mut funding = FundingTx::initialize(funding_key, Network::Local).unwrap();
     funding.update(funding_tx).unwrap();
 
@@ -102,18 +104,30 @@ fn execute_offline_protocol() {
         .core_arbitrating_transactions(&alice_params, &bob_params, funding, &pub_offer)
         .unwrap();
     let _bob_cosign_cancel = bob
-        .cosign_arbitrating_cancel(&bob_wallet, &bob_params, &core)
+        .cosign_arbitrating_cancel(&bob_key_manager, &bob_params, &core)
         .unwrap();
 
     let adaptor_refund = alice
-        .sign_adaptor_refund(&alice_wallet, &alice_params, &bob_params, &core, &pub_offer)
+        .sign_adaptor_refund(
+            &alice_key_manager,
+            &alice_params,
+            &bob_params,
+            &core,
+            &pub_offer,
+        )
         .unwrap();
     let _alice_cosign_cancel = alice
-        .cosign_arbitrating_cancel(&alice_wallet, &alice_params, &bob_params, &core, &pub_offer)
+        .cosign_arbitrating_cancel(
+            &alice_key_manager,
+            &alice_params,
+            &bob_params,
+            &core,
+            &pub_offer,
+        )
         .unwrap();
 
     bob.validate_adaptor_refund(
-        &bob_wallet,
+        &bob_key_manager,
         &alice_params,
         &bob_params,
         &core,
@@ -121,15 +135,21 @@ fn execute_offline_protocol() {
     )
     .unwrap();
     let adaptor_buy = bob
-        .sign_adaptor_buy(&bob_wallet, &alice_params, &bob_params, &core, &pub_offer)
+        .sign_adaptor_buy(
+            &bob_key_manager,
+            &alice_params,
+            &bob_params,
+            &core,
+            &pub_offer,
+        )
         .unwrap();
     let _signed_lock = bob
-        .sign_arbitrating_lock(&bob_wallet, &bob_wallet, &core)
+        .sign_arbitrating_lock(&bob_key_manager, &bob_key_manager, &core)
         .unwrap();
 
     alice
         .validate_adaptor_buy(
-            &alice_wallet,
+            &alice_key_manager,
             &alice_params,
             &bob_params,
             &core,
@@ -139,7 +159,7 @@ fn execute_offline_protocol() {
         .unwrap();
     let _fully_sign_buy = alice
         .fully_sign_buy(
-            &alice_wallet,
+            &alice_key_manager,
             &alice_params,
             &bob_params,
             &core,

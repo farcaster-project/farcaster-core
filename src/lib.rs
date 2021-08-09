@@ -24,12 +24,13 @@ use thiserror::Error;
 #[macro_use]
 pub mod consensus;
 
+pub mod bitcoin;
 pub mod blockchain;
 pub mod bundle;
-pub mod chain;
 pub mod crypto;
 pub mod events;
 pub mod instruction;
+pub mod monero;
 pub mod negotiation;
 pub mod protocol_message;
 pub mod role;

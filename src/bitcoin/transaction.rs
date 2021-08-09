@@ -11,7 +11,7 @@ use bitcoin::{hashes::sha256d::Hash, secp256k1::Signature, util::key::PublicKey,
 
 use thiserror::Error;
 
-use crate::chain::bitcoin::{Bitcoin, Strategy};
+use crate::bitcoin::{Bitcoin, Strategy};
 use crate::consensus::{self, CanonicalBytes};
 #[cfg(feature = "experimental")]
 use crate::transaction::Transaction;
@@ -19,7 +19,7 @@ use crate::transaction::{Broadcastable, Error as FError, Finalizable, Linkable};
 
 #[cfg(feature = "experimental")]
 use crate::{
-    chain::bitcoin::segwitv0::{signature_hash, SegwitV0},
+    bitcoin::segwitv0::{signature_hash, SegwitV0},
     script::ScriptPath,
     transaction::Witnessable,
 };

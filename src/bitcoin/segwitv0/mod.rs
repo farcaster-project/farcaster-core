@@ -4,12 +4,12 @@ use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::str::FromStr;
 
-use crate::chain::bitcoin::segwitv0::{
+use crate::bitcoin::segwitv0::{
     buy::Buy, cancel::Cancel, funding::Funding, lock::Lock, punish::Punish, refund::Refund,
 };
-use crate::chain::bitcoin::transaction::TxInRef;
-use crate::chain::bitcoin::transaction::{MetadataOutput, Tx};
-use crate::chain::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Strategy};
+use crate::bitcoin::transaction::TxInRef;
+use crate::bitcoin::transaction::{MetadataOutput, Tx};
+use crate::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Strategy};
 
 use crate::blockchain::Transactions;
 use crate::consensus::{self, CanonicalBytes};

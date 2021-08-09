@@ -242,6 +242,18 @@ pub enum FeePolitic {
     Conservative,
 }
 
+impl FromStr for FeePolitic {
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Aggressive" | "aggressive" => Ok(FeePolitic::Aggressive),
+            "Conservative" | "conservative" => Ok(FeePolitic::Conservative),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
 /// Enable fee management for an arbitrating blockchain. This trait require implementing the
 /// [Onchain] trait to have access to transaction associated type and the [Asset] trait for
 /// returning the amount of fee set on a transaction. The fee is carried in the
@@ -324,6 +336,14 @@ impl_strict_encoding!(Network);
 mod tests {
     use super::*;
     use crate::chain::bitcoin::fee::SatPerVByte;
+
+    #[test]
+    fn parse_fee_politic() {
+        for s in ["Aggressive", "aggressive", "Conservative", "conservative"].iter() {
+            let parse = FeePolitic::from_str(s);
+            assert!(parse.is_ok());
+        }
+    }
 
     #[test]
     fn display_fee_strategy() {

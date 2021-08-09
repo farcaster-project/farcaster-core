@@ -130,9 +130,9 @@ impl<Ctx: Swap> Offer<Ctx> {
         }
     }
 
-    /// Return the future swap role for the given negotiation role.
-    pub fn swap_role(&self, nego_role: &TradeRole) -> SwapRole {
-        match nego_role {
+    /// Return the future swap role for the given trade role.
+    pub fn swap_role(&self, trade_role: &TradeRole) -> SwapRole {
+        match trade_role {
             TradeRole::Maker => self.maker_role,
             TradeRole::Taker => self.maker_role.other(),
         }
@@ -448,9 +448,9 @@ impl<Ctx: Swap> std::hash::Hash for PublicOffer<Ctx> {
 }
 
 impl<Ctx: Swap> PublicOffer<Ctx> {
-    /// Return the future swap role for the given negotiation role.
-    pub fn swap_role(&self, nego_role: &TradeRole) -> SwapRole {
-        self.offer.swap_role(nego_role)
+    /// Return the future swap role for the given trade role.
+    pub fn swap_role(&self, trade_role: &TradeRole) -> SwapRole {
+        self.offer.swap_role(trade_role)
     }
 }
 

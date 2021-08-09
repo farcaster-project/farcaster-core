@@ -11,7 +11,7 @@ use bitcoin::{hashes::sha256d::Hash, secp256k1::Signature, util::key::PublicKey,
 
 use thiserror::Error;
 
-use crate::chain::bitcoin::{Bitcoin, Engine};
+use crate::chain::bitcoin::{Bitcoin, Strategy};
 use crate::consensus::{self, CanonicalBytes};
 #[cfg(feature = "experimental")]
 use crate::transaction::Transaction;
@@ -118,10 +118,10 @@ where
     }
 }
 
-impl<T, E> Broadcastable<Bitcoin<E>> for Tx<T>
+impl<T, S> Broadcastable<Bitcoin<S>> for Tx<T>
 where
     T: SubTransaction,
-    E: Engine,
+    S: Strategy,
 {
     fn extract(&self) -> bitcoin::blockdata::transaction::Transaction {
         self.psbt.clone().extract_tx()

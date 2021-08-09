@@ -5,7 +5,7 @@ use bitcoin::Amount;
 use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
 use crate::consensus::{self, CanonicalBytes};
 
-use crate::chain::bitcoin::{transaction, Bitcoin, Engine};
+use crate::chain::bitcoin::{transaction, Bitcoin, Strategy};
 
 use std::str::FromStr;
 
@@ -70,7 +70,7 @@ fn get_available_input_sat(tx: &PartiallySignedTransaction) -> Result<Amount, Fe
     ))
 }
 
-impl<E: Engine> Fee for Bitcoin<E> {
+impl<S: Strategy> Fee for Bitcoin<S> {
     type FeeUnit = SatPerVByte;
 
     /// Calculates and sets the fees on the given transaction and return the fees set

@@ -9,7 +9,7 @@ use crate::chain::bitcoin::segwitv0::{
 };
 use crate::chain::bitcoin::transaction::TxInRef;
 use crate::chain::bitcoin::transaction::{MetadataOutput, Tx};
-use crate::chain::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Engine};
+use crate::chain::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Strategy};
 
 use crate::blockchain::Transactions;
 use crate::consensus::{self, CanonicalBytes};
@@ -54,7 +54,7 @@ pub type RefundTx = Tx<Refund>;
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
 pub struct SegwitV0;
 
-impl Engine for SegwitV0 {}
+impl Strategy for SegwitV0 {}
 
 impl FromStr for SegwitV0 {
     type Err = consensus::Error;

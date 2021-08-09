@@ -36,26 +36,26 @@ pub enum Btc {
     SegwitV0(BitcoinSegwitV0),
 }
 
-/// Variations of a Bitcoin implementation. Engine allows different Bitcoin implementations based
+/// Variations of a Bitcoin implementation. Strategy allows different Bitcoin implementations based
 /// on, e.g., the SegWit version such as [`SegwitV0`][segwitv0::SegwitV0].
-pub trait Engine: Clone + Copy + Debug {}
+pub trait Strategy: Clone + Copy + Debug {}
 
 /// The generic blockchain implementation of Bitcoin. [`Bitcoin`] takes a generic parameter
-/// [`Engine`] to allow different definition of Bitcoin such as different SegWit version (v0, v1)
+/// [`Strategy`] to allow different definition of Bitcoin such as different SegWit version (v0, v1)
 /// or even different type of cryptography (v1 with on-chain scripts or v1 with MuSig2 off-chain
 /// multisigs).
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
-pub struct Bitcoin<E: Engine> {
-    _e: PhantomData<E>,
+pub struct Bitcoin<S: Strategy> {
+    _e: PhantomData<S>,
 }
 
-impl<E: Engine> Bitcoin<E> {
+impl<S: Strategy> Bitcoin<S> {
     pub fn new() -> Self {
         Self { _e: PhantomData }
     }
 }
 
-impl<E: Engine> Asset for Bitcoin<E> {
+impl<S: Strategy> Asset for Bitcoin<S> {
     /// Type for the traded asset unit
     type AssetUnit = Amount;
 
@@ -71,17 +71,17 @@ impl<E: Engine> Asset for Bitcoin<E> {
     }
 }
 
-impl<E: Engine> blockchain::Address for Bitcoin<E> {
+impl<S: Strategy> blockchain::Address for Bitcoin<S> {
     /// Defines the address format for the arbitrating blockchain
     type Address = Address;
 }
 
-impl<E: Engine> Timelock for Bitcoin<E> {
+impl<S: Strategy> Timelock for Bitcoin<S> {
     /// Defines the type of timelock used for the arbitrating transactions
     type Timelock = timelock::CSVTimelock;
 }
 
-impl<E: Engine> Onchain for Bitcoin<E> {
+impl<S: Strategy> Onchain for Bitcoin<S> {
     /// Defines the transaction format used to transfer partial transaction between participant for
     /// the arbitrating blockchain
     type PartialTransaction = PartiallySignedTransaction;

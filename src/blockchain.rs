@@ -1,4 +1,5 @@
-//! Defines the behaviours a blockchain must implement to participate in a swap.
+//! Defines types used to characterize a swap and behaviours a blockchain must implement to
+//! participate in a swap, either as an arbitrating or an accordant blockchain.
 //!
 //! A blockchain must identify itself with a 32 bits indetifier as defined in [SLIP
 //! 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
@@ -45,13 +46,14 @@ pub trait Asset: Copy + Debug {
     fn to_u32(&self) -> u32;
 }
 
-/// Defines the types a blockchain needs to interact onchain, i.e. the transaction types.
+/// Defines the types a blockchain needs to interact on-chain, i.e. the transaction exchanged
+/// between participants and used over the network.
 pub trait Onchain {
     /// Defines the transaction format used to transfer partial transaction between participant for
-    /// the arbitrating blockchain
+    /// the arbitrating blockchain.
     type PartialTransaction: Clone + Debug + CanonicalBytes;
 
-    /// Defines the finalized transaction format for the arbitrating blockchain
+    /// Defines the finalized transaction format for the arbitrating blockchain.
     type Transaction: Clone + Debug + CanonicalBytes;
 }
 
@@ -93,7 +95,8 @@ where
 }
 
 /// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
-/// a fee strategy can be: fixed or range.
+/// a fee strategy can be: fixed or range. When the fee strategy allows multiple possibilities, a
+/// [`FeePolitic`] is used to determine what to apply.
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
@@ -228,7 +231,7 @@ impl FeeStrategyError {
     }
 }
 
-/// Defines how to set the fee when a strategy allows multiple possibilities.
+/// Defines how to set the fee when a [`FeeStrategy`] allows multiple possibilities.
 #[derive(Debug, Clone, Copy, Display)]
 #[display(Debug)]
 #[cfg_attr(
@@ -237,9 +240,9 @@ impl FeeStrategyError {
     serde(crate = "serde_crate")
 )]
 pub enum FeePolitic {
-    /// Set the fee at the minimum allowed by the strategy
+    /// Set the fee at the minimum allowed by the strategy.
     Aggressive,
-    /// Set the fee at the maximum allowed by the strategy
+    /// Set the fee at the maximum allowed by the strategy.
     Conservative,
 }
 

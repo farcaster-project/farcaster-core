@@ -58,12 +58,12 @@ pub struct SegwitV0;
 
 impl Strategy for SegwitV0 {}
 
-impl FromStr for SegwitV0 {
+impl FromStr for Bitcoin<SegwitV0> {
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SegwitV0" | "ECDSA" => Ok(Self),
+            "SegwitV0" | "ECDSA" => Ok(Self::new()),
             _ => Err(consensus::Error::UnknownType),
         }
     }
@@ -200,9 +200,9 @@ mod tests {
 
     #[test]
     fn from_string() {
-        let parse = SegwitV0::from_str("SegwitV0");
+        let parse = Bitcoin::<SegwitV0>::from_str("SegwitV0");
         assert!(parse.is_ok());
-        let parse = SegwitV0::from_str("ECDSA");
+        let parse = Bitcoin::<SegwitV0>::from_str("ECDSA");
         assert!(parse.is_ok());
     }
 }

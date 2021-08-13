@@ -1,3 +1,7 @@
+//! Transaction fee unit type and implementation. Defines the [`SatPerVByte`] unit used in methods
+//! that set the fee and check the fee on transactions given a [`FeeStrategy`] and a
+//! [`FeePolitic`].
+
 use bitcoin::blockdata::transaction::TxOut;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
@@ -9,19 +13,31 @@ use crate::bitcoin::{transaction, Bitcoin, Strategy};
 
 use std::str::FromStr;
 
+/// An amount of Bitcoin (internally in satoshis) representing the number of satoshis per virtual
+/// byte a transaction must use for its fee. A [`FeeStrategy`] can use one of more of this type
+/// depending of its complexity (fixed, range, etc).
 #[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Display)]
 #[display("{0} per vByte")]
 pub struct SatPerVByte(Amount);
 
 impl SatPerVByte {
-    pub fn from_sat(satoshi: u64) -> Self {
-        SatPerVByte(Amount::from_sat(satoshi))
+    /// Create a fee quantity per virtual byte of given satoshis.
+    pub fn from_sat(satoshis: u64) -> Self {
+        SatPerVByte(Amount::from_sat(satoshis))
     }
 
+    /// Return the number of satoshis per virtual byte to use for calculating the fee.
     pub fn as_sat(&self) -> u64 {
         self.0.as_sat()
     }
 
+    /// Create a fee quantity per virtual byte of given `bitcoin` crate amount.
+    pub fn from_native_unit(amount: Amount) -> Self {
+        SatPerVByte(amount)
+    }
+
+    /// Return the number of bitcoins per virtual byte to use for calculating the fee as the native
+    /// `bitcoin` crate amount.
     pub fn as_native_unit(&self) -> Amount {
         self.0
     }

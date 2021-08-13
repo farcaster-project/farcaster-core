@@ -1,13 +1,21 @@
+//! Addendum structures carried through tasks needed by Bitcoin syncers to handle them in the
+//! Bitcoin blockchain context.
+
 use crate::consensus::{self, Decodable, Encodable};
 
 use std::io;
 
+/// Empty addendum type for Bitcoin syncer height task.
 pub struct BtcHeightAddendum {}
 
+/// Addendum for Bitcoin syncer address task.
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct BtcAddressAddendum {
+    /// The address the syncer will watch and query.
     pub address: String,
+    /// The blockchain height where to start the query.
     pub from_height: u64,
+    /// The associated script pubkey used by server like Electrum.
     pub script_pubkey: Vec<u8>,
 }
 

@@ -1,3 +1,5 @@
+//! Timelock unit and `OP_CODE` to use in Bitcoin transactions and scripts.
+
 use crate::consensus::{self, CanonicalBytes};
 
 use std::fmt::Debug;
@@ -14,15 +16,18 @@ impl FromStr for CSVTimelock {
     }
 }
 
+/// An `OP_CSV` value (32-bits integer) to use in transactions and scripts.
 #[derive(PartialEq, Eq, PartialOrd, Clone, Debug, Copy, Display)]
 #[display("OP_CSV: {0}")]
 pub struct CSVTimelock(u32);
 
 impl CSVTimelock {
+    /// Create a new raw check sequence verify timelock of given value.
     pub fn new(timelock: u32) -> Self {
         Self(timelock)
     }
 
+    /// Return the value of the check sequence verify.
     pub fn as_u32(&self) -> u32 {
         self.0
     }

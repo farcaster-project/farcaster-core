@@ -1,3 +1,5 @@
+//! Bitcoin transactions framework. This module contains types shared across strategies.
+
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
@@ -17,17 +19,17 @@ use thiserror::Error;
 
 use crate::bitcoin::{Bitcoin, Strategy};
 use crate::consensus::{self, CanonicalBytes};
-#[cfg(feature = "experimental")]
-use crate::transaction::Transaction;
 use crate::transaction::{Broadcastable, Error as FError, Finalizable, Linkable};
 
 #[cfg(feature = "experimental")]
 use crate::{
     bitcoin::segwitv0::{signature_hash, SegwitV0},
     script::ScriptPath,
-    transaction::Witnessable,
+    transaction::{Transaction, Witnessable},
 };
 
+/// Concrete error type generated when manipulating Bitcoin transactions. The error can come from
+/// more specialized context such as `Psbt`, `Address`, or `secp256k1`.
 #[derive(Error, Debug)]
 pub enum Error {
     /// Multi-input transaction is not supported
@@ -56,17 +58,25 @@ impl From<Error> for FError {
     }
 }
 
+/// A reference to some transaction output used to build new transaction on top of it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetadataOutput {
+    /// A reference to the transaction output with `txid` and `vout` index.
     pub out_point: OutPoint,
+    /// A transaction output which defines the value (in satoshis) and the `script_pubkey`.
     pub tx_out: TxOut,
     pub script_pubkey: Option<Script>,
 }
 
+/// Defines the inner behaviour of a generic transaction [`Tx`].
 pub trait SubTransaction: Debug {
+    /// Defines the behaviour for finalizing the `PartiallySignedTransaction` from a generic
+    /// transaction [`Tx`].
     fn finalize(psbt: &mut PartiallySignedTransaction) -> Result<(), FError>;
 }
 
+/// A general purpose Bitcoin transaction used in a swap context. This implements
+/// [`crate::transaction`] traits.
 #[derive(Debug)]
 pub struct Tx<T: SubTransaction> {
     pub(crate) psbt: PartiallySignedTransaction,

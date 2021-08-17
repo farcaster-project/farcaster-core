@@ -45,7 +45,7 @@ bincode = { version = "1.3.3", optional = true }
 
 # blockchain specific
 bitcoin = "0.26"
-monero = { version = "0.13" }
+monero = { version = "0.14" }
 
 [dev-dependencies]
 bitcoincore-rpc = "0.13.0"

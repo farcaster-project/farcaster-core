@@ -1,5 +1,5 @@
-//! Tasks and events used for the daemon to instruct the syncer on what info to track
-//! Events returned by syncers to the daemon to update the blockchain states.
+//! Tasks used for the daemon to instruct syncers what state to track on-chain and events returned
+//! by syncers to the daemon to update its blockchain state representation.
 
 use std::error;
 use std::fmt;

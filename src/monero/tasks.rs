@@ -1,9 +1,13 @@
+//! Extra data carried through tasks specific to Monero.
+
 use crate::consensus::{self, Decodable, Encodable};
 
 use std::io;
 
+/// Empty addendum for height watching task.
 pub struct XmrHeightAddendum {}
 
+/// Keys and height required to watch and parse transactions linked to some address.
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct XmrAddressAddendum {
     pub spend_key: [u8; 32],

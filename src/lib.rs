@@ -28,7 +28,6 @@ pub mod bitcoin;
 pub mod blockchain;
 pub mod bundle;
 pub mod crypto;
-pub mod events;
 pub mod instruction;
 pub mod monero;
 pub mod negotiation;

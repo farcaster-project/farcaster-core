@@ -1,4 +1,5 @@
-//! Negotiation phase utilities
+//! Negotiation helpers and structures. Buyer and seller helpers to create offer and public offers
+//! allowing agreement on assets, quantities and parameters of a swap among maker and taker.
 
 use internet2::RemoteNodeAddr;
 use thiserror::Error;
@@ -11,11 +12,10 @@ use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable
 use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
 
-/// First six magic bytes of a public offer
+/// First six magic bytes of a public offer.
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
-/// A public offer version containing the version and the activated features if
-/// any.
+/// A public offer version containing the version and the activated features if any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
 #[display("v{0}")]
 #[cfg_attr(
@@ -26,17 +26,17 @@ pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 pub struct Version(u16);
 
 impl Version {
-    /// Create a new version 1 public offer
+    /// Create a new version 1 public offer.
     pub fn new_v1() -> Self {
         Self::new(1)
     }
 
-    /// Create a public offer from a raw version and feature `u16`
+    /// Create a public offer from a raw version and feature `u16`.
     pub fn new(version: u16) -> Self {
         Version(version)
     }
 
-    /// Version and features as `u16`
+    /// Version and features as `u16`.
     pub fn to_u16(&self) -> u16 {
         self.0
     }
@@ -78,29 +78,30 @@ impl OfferId {
     }
 }
 
-/// An offer is created by a Maker before the start of his daemon, it references all the data
-/// needed to know what the trade look likes from a Taker perspective. The daemon start when the
-/// Maker is ready to finalyze his offer, transforming the offer into a public offer which contains
-/// the data needed to a Taker to connect to the Maker's daemon.
+/// An offer is created by a [`TradeRole::Maker`] before the start of his daemon, it references all
+/// the data needed to parametrize a trade and be validated from a [`TradeRole::Taker`]
+/// perspective. The daemon start when the maker is ready to finalyze his offer, transforming the
+/// offer into a [`PublicOffer`] which contains the data needed to a taker to connect to the
+/// maker's daemon.
 #[derive(Debug, Clone, Eq)]
 pub struct Offer<Ctx: Swap> {
-    /// Type of offer and network to use
+    /// Type of offer and network to use.
     pub network: Network,
-    /// The chosen arbitrating blockchain
+    /// The chosen arbitrating blockchain.
     pub arbitrating_blockchain: Ctx::Ar,
-    /// The chosen accordant blockchain
+    /// The chosen accordant blockchain.
     pub accordant_blockchain: Ctx::Ac,
-    /// Amount of arbitrating assets to exchanged
+    /// Amount of arbitrating assets to exchanged.
     pub arbitrating_amount: <Ctx::Ar as Asset>::AssetUnit,
-    /// Amount of accordant assets to exchanged
+    /// Amount of accordant assets to exchanged.
     pub accordant_amount: <Ctx::Ac as Asset>::AssetUnit,
-    /// The cancel timelock parameter of the arbitrating blockchain
+    /// The cancel timelock parameter of the arbitrating blockchain.
     pub cancel_timelock: <Ctx::Ar as Timelock>::Timelock,
-    /// The punish timelock parameter of the arbitrating blockchain
+    /// The punish timelock parameter of the arbitrating blockchain.
     pub punish_timelock: <Ctx::Ar as Timelock>::Timelock,
-    /// The chosen fee strategy for the arbitrating transactions
+    /// The chosen fee strategy for the arbitrating transactions.
     pub fee_strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>,
-    /// The future maker swap role
+    /// The future maker swap role.
     pub maker_role: SwapRole,
 }
 
@@ -121,7 +122,7 @@ impl<Ctx: Swap> std::hash::Hash for Offer<Ctx> {
 }
 
 impl<Ctx: Swap> Offer<Ctx> {
-    /// Transform the offer in a public offer of [Version] 1
+    /// Transform the offer in a public offer of [`Version`] 1.
     pub fn to_public_v1(self, daemon_service: RemoteNodeAddr) -> PublicOffer<Ctx> {
         PublicOffer {
             version: Version::new_v1(),
@@ -208,11 +209,12 @@ where
 
 impl_strict_encoding!(Offer<Ctx>, Ctx: Swap);
 
-/// Helper to create an offer from an arbitrating asset buyer perspective.
+/// Helper to create an offer from an arbitrating asset buyer perspective. Only works only for
+/// buying [`Arbitrating`] assets with some [`Accordant`] assets.  The reverse is not implemented
+/// for the [`Buy`] helper, use the [`Sell`] helper instead.
 ///
-/// **This helper works only for buying Arbitrating assets with some Accordant
-/// assets**. The reverse is not implemented for the [Buy] helper. You should
-/// use the [Sell] helper.
+/// [`Arbitrating`]: crate::role::Arbitrating
+/// [`Accordant`]: crate::role::Accordant
 pub struct Buy<Ctx>(BuilderState<Ctx>)
 where
     Ctx: Swap;
@@ -221,8 +223,8 @@ impl<Ctx> Buy<Ctx>
 where
     Ctx: Swap,
 {
-    /// Defines the asset and its amount the maker will receive in exchange of
-    /// the asset and amount defined in the `with` method.
+    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
+    /// defined in the `with` method.
     pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Asset>::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating_blockchain = Some(asset);
@@ -230,15 +232,15 @@ where
         buy
     }
 
-    /// Defines the asset and its amount the maker will send to get the assets
-    /// defined in the `some` method.
+    /// Defines the asset and its amount the maker will send to get the assets defined in the
+    /// `some` method.
     pub fn with(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Asset>::AssetUnit) -> Self {
         self.0.accordant_blockchain = Some(asset);
         self.0.accordant_amount = Some(amount);
         self
     }
 
-    /// Sets the timelocks for the proposed offer
+    /// Sets the timelocks for the proposed offer.
     pub fn with_timelocks(
         mut self,
         cancel: <Ctx::Ar as Timelock>::Timelock,
@@ -249,23 +251,23 @@ where
         self
     }
 
-    /// Sets the fee strategy for the proposed offer
+    /// Sets the fee strategy for the proposed offer.
     pub fn with_fee(mut self, strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>) -> Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
 
-    /// Sets the network for the proposed offer
+    /// Sets the network for the proposed offer.
     pub fn on(mut self, network: Network) -> Self {
         self.0.network = Some(network);
         self
     }
 
-    /// Transform the internal state into an offer if all parameters have been
-    /// set properly, otherwise return `None`.
+    /// Transform the internal state into an offer if all parameters have been set properly,
+    /// otherwise return `None`.
     ///
-    /// This function automatically sets the maker swap role as **Alice** to
-    /// comply with the buy contract.
+    /// This function automatically sets the maker swap role as [`SwapRole::Alice`] to comply with
+    /// the buy contract.
     pub fn to_offer(mut self) -> Option<Offer<Ctx>> {
         self.0.maker_role = Some(SwapRole::Alice);
         Some(Offer {
@@ -282,11 +284,12 @@ where
     }
 }
 
-/// Helper to create an offer from an arbitrating asset seller perspective.
+/// Helper to create an offer from an arbitrating asset seller perspective. Only works only for
+/// selling [`Arbitrating`] assets for some [`Accordant`] assets.  The reverse is not implemented
+/// for the [`Sell`] helper, use the [`Buy`] helper instead.
 ///
-/// **This helper works only for selling Arbitrating assets for some Accordant
-/// assets**. The reverse is not implemented for the [Sell] helper. You should
-/// use the [Buy] helper.
+/// [`Arbitrating`]: crate::role::Arbitrating
+/// [`Accordant`]: crate::role::Accordant
 pub struct Sell<Ctx>(BuilderState<Ctx>)
 where
     Ctx: Swap;
@@ -295,8 +298,8 @@ impl<Ctx> Sell<Ctx>
 where
     Ctx: Swap,
 {
-    /// Defines the asset and its amount the maker will send to get the assets
-    /// defined in the `for_some` method.
+    /// Defines the asset and its amount the maker will send to get the assets defined in the
+    /// `for_some` method.
     pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Asset>::AssetUnit) -> Self {
         let mut buy = Self(BuilderState::default());
         buy.0.arbitrating_blockchain = Some(asset);
@@ -304,15 +307,15 @@ where
         buy
     }
 
-    /// Defines the asset and its amount the maker will receive in exchange of
-    /// the asset and amount defined in the `some` method.
+    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
+    /// defined in the `some` method.
     pub fn for_some(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Asset>::AssetUnit) -> Self {
         self.0.accordant_blockchain = Some(asset);
         self.0.accordant_amount = Some(amount);
         self
     }
 
-    /// Sets the timelocks for the proposed offer
+    /// Sets the timelocks for the proposed offer.
     pub fn with_timelocks(
         mut self,
         cancel: <Ctx::Ar as Timelock>::Timelock,
@@ -323,23 +326,23 @@ where
         self
     }
 
-    /// Sets the fee strategy for the proposed offer
+    /// Sets the fee strategy for the proposed offer.
     pub fn with_fee(mut self, strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>) -> Self {
         self.0.fee_strategy = Some(strategy);
         self
     }
 
-    /// Sets the network for the proposed offer
+    /// Sets the network for the proposed offer.
     pub fn on(mut self, network: Network) -> Self {
         self.0.network = Some(network);
         self
     }
 
-    /// Transform the internal state into an offer if all parameters have been
-    /// set properly, otherwise return `None`.
+    /// Transform the internal state into an offer if all parameters have been set properly,
+    /// otherwise return `None`.
     ///
-    /// This function automatically sets the maker swap role as **Bob** to
-    /// comply with the buy contract.
+    /// This function automatically sets the maker swap role as [`SwapRole::Bob`] to comply with
+    /// the buy contract.
     pub fn to_offer(mut self) -> Option<Offer<Ctx>> {
         self.0.maker_role = Some(SwapRole::Bob);
         Some(Offer {
@@ -401,22 +404,22 @@ impl PublicOfferId {
     }
 }
 
-/// A public offer is shared across maker's prefered network to signal is
-/// willing of trading some assets at some conditions. The assets and condition
-/// are defined in the offer, the make peer connection information are happen to
-/// the offer the create a public offer.
+/// A public offer is shared across [`TradeRole::Maker`]'s prefered network to signal is willing of
+/// trading some assets at some conditions. The assets and condition are defined in the [`Offer`],
+/// maker peer connection information are contained in the public offer.
 #[derive(Debug, Clone, Eq)]
 pub struct PublicOffer<Ctx: Swap> {
-    /// The public offer version
+    /// The public offer version.
     pub version: Version,
-    /// The content of the offer
+    /// The content of the offer.
     pub offer: Offer<Ctx>,
-    /// Address of the listening daemon's peer
+    /// Address of the listening daemon's peer.
     pub daemon_service: RemoteNodeAddr,
 }
 
 impl<Ctx: Swap> PublicOffer<Ctx> {
-    /// Generate the [`OfferId`] from the offer.
+    /// Generate the [`PublicOfferId`] from the offer. Serialized the public offer with consensus
+    /// encoding and return the keccak hash result with [`PublicOfferId`].
     pub fn id(&self) -> PublicOfferId {
         let mut keccak = Keccak::v256();
         let mut out = [0u8; 32];

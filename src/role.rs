@@ -1,4 +1,6 @@
-//! Roles during negotiation and swap phases, blockchain roles, and network definitions.
+//! Roles used to distinguish participants and blockchains during negotiation and swap phases.
+//! Defines the trading roles and swap roles distributed among participants and blockchain roles
+//! implemented on Bitcoin, Monero, etc.
 
 use std::fmt::Debug;
 use std::io;
@@ -24,8 +26,8 @@ use crate::transaction::{
 };
 use crate::Error;
 
-/// Defines the possible roles during the negotiation phase. Any negotiation role can transition
-/// into any swap role when negotiation is done.
+/// Possible roles during the negotiation phase. Any negotiation role can transition into any swap
+/// role when negotiation is completed, the transition is described in the public offer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
@@ -93,8 +95,8 @@ impl ToString for TradeRole {
     }
 }
 
-/// Defines the possible roles during the swap phase. When negotitation is done negotitation role
-/// will transition into swap role.
+/// Possible roles during the swap phase. When negotitation phase is completed [`TradeRole`] will
+/// transition into swap role according to the [`PublicOffer`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
@@ -162,8 +164,8 @@ impl ToString for SwapRole {
     }
 }
 
-/// Alice, the swap role, is the role starting with accordant blockchain assets and exchange them
-/// for arbitrating blockchain assets.
+/// Alice, a [`SwapRole`], starts with [`Accordant`] blockchain assets and exchange them for
+/// [`Arbitrating`] blockchain assets.
 #[derive(Debug, Clone)]
 pub struct Alice<Ctx: Swap> {
     /// An arbitrating address where, if successfully executed, the funds exchanged will be sent to
@@ -743,8 +745,8 @@ where
     }
 }
 
-/// Bob, the swap role, is the role starting with arbitrating blockchain assets and exchange them
-/// for accordant blockchain assets.
+/// Bob, a [`SwapRole`], starts with [`Arbitrating`] blockchain assets and exchange them for
+/// [`Accordant`] blockchain assets.
 #[derive(Debug, Clone)]
 pub struct Bob<Ctx: Swap> {
     /// An arbitrating address where, if unsuccessfully executed, the funds exchanged will be sent

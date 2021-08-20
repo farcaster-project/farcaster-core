@@ -1,7 +1,11 @@
-//! A bundle is an aggregate of 1 or more datum generally related to each others.
+//! A bundle is an aggregate of data contextually related to each others needed by the swap daemon
+//! and/or swap client. Bundles are used during the different steps of the swap by both Alice and
+//! Bob client/daemon.
 //!
-//! Datum are succinct and are used to convey atomic chunk of data (datum) between clients and
-//! daemons. Bundles are used during the different steps of the swap by both Alice and Bob.
+//! In general a bundle will be created by a client, will transit through its own daemon to then be
+//! served over the network as a protocol message. The counter-party daemon will receive the bundle
+//! and forward it to its client, completing a full round of communication between between Alice
+//! and Bob clients.
 
 use std::io;
 
@@ -11,8 +15,12 @@ use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElem
 use crate::protocol_message;
 use crate::swap::Swap;
 
-/// Provides the (counter-party) daemon with all the information required for the initialization
-/// step of a swap.
+/// Alice parameters required for the initialization step of a swap and used to generate the
+/// [`CommitAliceParameters`] and [`RevealAliceParameters`] protocol messages in the commit/reveal
+/// round.
+///
+/// [`CommitAliceParameters`]: protocol_message::CommitAliceParameters
+/// [`RevealAliceParameters`]: protocol_message::RevealAliceParameters
 #[derive(Debug, Clone, Display)]
 #[display(Debug)]
 pub struct AliceParameters<Ctx: Swap> {
@@ -123,8 +131,12 @@ where
     }
 }
 
-/// Provides the (counter-party) daemon with all the information required for the initialization
-/// step of a swap.
+/// Bob parameters required for the initialization step of a swap and used to generate the
+/// [`CommitBobParameters`] and [`RevealBobParameters`] protocol messages in the commit/reveal
+/// round.
+///
+/// [`CommitBobParameters`]: protocol_message::CommitBobParameters
+/// [`RevealBobParameters`]: protocol_message::RevealBobParameters
 #[derive(Debug, Clone, Display)]
 #[display(Debug)]
 pub struct BobParameters<Ctx: Swap> {
@@ -229,12 +241,13 @@ where
     }
 }
 
-/// Provides daemon with a signature on the unsigned cancel (d) transaction. Two signature are
-/// needed, one come from the protocol message [`CoreArbitratingSetup`] and the second from the
-/// [`RefundProcedureSignatures`].
+/// Provides daemon with a signature on the unsigned [`Cancelable`] transaction. Two signatures are
+/// generated for the co-signed transaction, one come from the protocol message
+/// [`CoreArbitratingSetup`] and the second from the [`RefundProcedureSignatures`].
 ///
 /// [`CoreArbitratingSetup`]: protocol_message::CoreArbitratingSetup
 /// [`RefundProcedureSignatures`]: protocol_message::RefundProcedureSignatures
+/// [`Cancelable`]: crate::transaction::Cancelable
 #[derive(Debug, Clone, Display)]
 #[display("Cancel signature: {cancel_sig}")]
 pub struct CosignedArbitratingCancel<S>
@@ -289,7 +302,10 @@ where
     }
 }
 
-/// Provides Bob's daemon the funding transaction for building the core arbritrating transactions.
+/// Provides Bob's daemon the [`Fundable`] transaction for building the transactions contained in
+/// [`CoreArbitratingTransactions`] bundle, later used to create protocol messages.
+///
+/// [`Fundable`]: crate::transaction::Fundable
 #[derive(Debug, Clone, Display)]
 #[display(funding_tx_fmt)]
 pub struct FundingTransaction<T>
@@ -328,7 +344,10 @@ where
 
 impl_strict_encoding!(FundingTransaction<T>, T: Onchain);
 
-/// Provides Bob's daemon or Alice's clients the core set of arbritrating transactions.
+/// Provides Bob's daemon or Alice's clients the core set of arbritrating transactions present in
+/// [`CoreArbitratingSetup`].
+///
+/// [`CoreArbitratingSetup`]: protocol_message::CoreArbitratingSetup
 #[derive(Debug, Clone, Display)]
 #[display(core_arbitrating_tx_fmt)]
 pub struct CoreArbitratingTransactions<T>
@@ -389,8 +408,11 @@ where
     }
 }
 
-/// Provides Bob's daemon or Alice's client with an adaptor signature for the unsigned buy (c)
-/// transaction.
+/// Provides Bob's daemon or Alice's daemon/client with an adaptor (i.e. encrypted) signature for
+/// the unsigned [`Buyable`] transaction. After verification, Alice will return a
+/// [`FullySignedBuy`] bundle containing the adapted (i.e. decrypted) signature.
+///
+/// [`Buyable`]: crate::transaction::Buyable
 #[derive(Debug, Clone, Display)]
 #[display(signed_adaptor_buy_fmt)]
 pub struct SignedAdaptorBuy<T>
@@ -441,8 +463,11 @@ where
 
 impl_strict_encoding!(SignedAdaptorBuy<T>, T: Signatures + Onchain);
 
-/// Provides Alice's daemon or Bob's clients with the two signatures on the unsigned buy (c)
-/// transaction.
+/// Provides Alice's daemon or Bob's daemon/client with the two signatures on the unsigned
+/// [`Buyable`] transaction. Alice's standard signature and the adapted (i.e. decrypted) version of
+/// Bob's adaptor (i.e. encrypted) signature with Alice's key.
+///
+/// [`Buyable`]: crate::transaction::Buyable
 #[derive(Debug, Clone, Display)]
 #[display("Buy signature: {buy_sig}, Buy adapted: {buy_adapted_sig}")]
 pub struct FullySignedBuy<S>
@@ -481,8 +506,11 @@ where
 
 impl_strict_encoding!(FullySignedBuy<S>, S: Signatures);
 
-/// Provides Alice's daemon or Bob's clients with a signature on the unsigned refund (e)
-/// transaction.
+/// Provides Alice's daemon or Bob's daemon/client with an adaptor (i.e. encrypted) signature on
+/// the unsigned [`Refundable`] transaction.. After verification, Bob will return a
+/// [`FullySignedRefund`] bundle containing the adapted (i.e. decrypted) signature.
+///
+/// [`Refundable`]: crate::transaction::Refundable
 #[derive(Debug, Clone, Display)]
 #[display("Refund adaptor: {refund_adaptor_sig}")]
 pub struct SignedAdaptorRefund<S>
@@ -529,8 +557,11 @@ where
     }
 }
 
-/// Provides Bob's daemon or Alice's clients with the two signatures on the unsigned refund (e)
-/// transaction.
+/// Provides Bob's daemon or Alice's daemon/client with the two signatures on the unsigned
+/// [`Refundable`] transaction. Bob's standard signature and the adapted (i.e. decrypted) version of
+/// Alice's adaptor (i.e. encrypted) signature with Bob's key.
+///
+/// [`Refundable`]: crate::transaction::Refundable
 #[derive(Debug, Clone, Display)]
 #[display("Refund signature: {refund_sig}, Refund adapted: {refund_adapted_sig}")]
 pub struct FullySignedRefund<S>
@@ -569,7 +600,10 @@ where
 
 impl_strict_encoding!(FullySignedRefund<S>, S: Signatures);
 
-/// Provides Bob's daemon with the signature on the unsigned lock (b) transaction.
+/// Provides Bob's daemon with the signature on the unsigned [`Lockable`] transaction present in
+/// [`CoreArbitratingTransactions`].
+///
+/// [`Lockable`]: crate::transaction::Lockable
 #[derive(Debug, Clone, Display)]
 #[display("Lock signature: {lock_sig}")]
 pub struct SignedArbitratingLock<S>
@@ -601,7 +635,10 @@ where
 
 impl_strict_encoding!(SignedArbitratingLock<S>, S: Signatures);
 
-/// Provides Alice's daemon with the signature on the unsigned punish (f) transaction.
+/// Provides Alice's daemon with the signature on the unsigned [`Punishable`] transaction, ready
+/// for broadcast.
+///
+/// [`Punishable`]: crate::transaction::Punishable
 #[derive(Debug, Clone, Display)]
 #[display(fully_signed_punish_fmt)]
 pub struct FullySignedPunish<T>

@@ -1,4 +1,5 @@
-//! Protocol messages exchanged between swap daemons
+//! Protocol messages exchanged between swap daemons at each step of the swap protocol. These
+//! messages are untrusted and must be validated uppon reception by each swap participant.
 
 use std::io;
 
@@ -51,32 +52,32 @@ fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
         .map(|_| ())
 }
 
-/// `commit_alice_session_params` forces Alice to commit to the result of her cryptographic setup
-/// before receiving Bob's setup. This is done to remove adaptive behavior.
+/// Forces Alice to commit to the result of her cryptographic setup before receiving Bob's setup.
+/// This is done to remove adaptive behavior in the cryptographic parameters.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct CommitAliceParameters<Ctx: Swap> {
-    /// The swap identifier related to this message
+    /// The swap identifier related to this message.
     pub swap_id: SwapId,
-    /// Commitment to the buy public key
+    /// Commitment to the buy public key.
     pub buy: Ctx::Commitment,
-    /// Commitment to the cancel public key
+    /// Commitment to the cancel public key.
     pub cancel: Ctx::Commitment,
-    /// Commitment to the refund public key
+    /// Commitment to the refund public key.
     pub refund: Ctx::Commitment,
-    /// Commitment to the punish public key
+    /// Commitment to the punish public key.
     pub punish: Ctx::Commitment,
-    /// Commitment to the adaptor public key
+    /// Commitment to the adaptor public key.
     pub adaptor: Ctx::Commitment,
-    /// Commitments to the extra arbitrating public keys
+    /// Commitments to the extra arbitrating public keys.
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, Ctx::Commitment>>,
-    /// Commitments to the arbitrating shared keys
+    /// Commitments to the arbitrating shared keys.
     pub arbitrating_shared_keys: Vec<TaggedElement<SharedKeyId, Ctx::Commitment>>,
-    /// Commitment to the spend public key
+    /// Commitment to the spend public key.
     pub spend: Ctx::Commitment,
-    /// Commitments to the extra accordant public keys
+    /// Commitments to the extra accordant public keys.
     pub extra_accordant_keys: Vec<TaggedElement<u16, Ctx::Commitment>>,
-    /// Commitments to the accordant shared keys
+    /// Commitments to the accordant shared keys.
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Ctx::Commitment>>,
 }
 
@@ -187,30 +188,30 @@ where
     type Strategy = AsStrict;
 }
 
-/// `commit_bob_session_params` forces Bob to commit to the result of his cryptographic setup
-/// before receiving Alice's setup. This is done to remove adaptive behavior.
+/// Forces Bob to commit to the result of his cryptographic setup before receiving Alice's setup.
+/// This is done to remove adaptive behavior in the cryptographic parameters.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct CommitBobParameters<Ctx: Swap> {
-    /// The swap identifier related to this message
+    /// The swap identifier related to this message.
     pub swap_id: SwapId,
-    /// Commitment to the buy public key
+    /// Commitment to the buy public key.
     pub buy: Ctx::Commitment,
-    /// Commitment to the cancel public key
+    /// Commitment to the cancel public key.
     pub cancel: Ctx::Commitment,
-    /// Commitment to the refund public key
+    /// Commitment to the refund public key.
     pub refund: Ctx::Commitment,
-    /// Commitment to the adaptor public key
+    /// Commitment to the adaptor public key.
     pub adaptor: Ctx::Commitment,
-    /// Commitments to the extra arbitrating public keys
+    /// Commitments to the extra arbitrating public keys.
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, Ctx::Commitment>>,
-    /// Commitments to the arbitrating shared keys
+    /// Commitments to the arbitrating shared keys.
     pub arbitrating_shared_keys: Vec<TaggedElement<SharedKeyId, Ctx::Commitment>>,
-    /// Commitment to the spend public key
+    /// Commitment to the spend public key.
     pub spend: Ctx::Commitment,
-    /// Commitments to the extra accordant public keys
+    /// Commitments to the extra accordant public keys.
     pub extra_accordant_keys: Vec<TaggedElement<u16, Ctx::Commitment>>,
-    /// Commitments to the accordant shared keys
+    /// Commitments to the accordant shared keys.
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Ctx::Commitment>>,
 }
 
@@ -320,38 +321,37 @@ where
 // TODO: Add more common data to reveal, e.g. help to ensure that both node uses the same value for
 // fee
 
-/// `reveal_alice_session_params` reveals the parameters commited by the
-/// `commit_alice_session_params` message.
+/// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct RevealAliceParameters<Ctx: Swap> {
-    /// The swap identifier related to this message
+    /// The swap identifier related to this message.
     pub swap_id: SwapId,
-    /// Reveal the buy public key
+    /// Reveal the buy public key.
     pub buy: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the cancel public key
+    /// Reveal the cancel public key.
     pub cancel: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the refund public key
+    /// Reveal the refund public key.
     pub refund: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the punish public key
+    /// Reveal the punish public key.
     pub punish: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the adaptor public key
+    /// Reveal the adaptor public key.
     pub adaptor: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the vector of extra arbitrating public keys
+    /// Reveal the vector of extra arbitrating public keys.
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
-    /// Reveal the vector of extra arbitrating shared keys
+    /// Reveal the vector of extra arbitrating shared keys.
     pub arbitrating_shared_keys:
         Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
-    /// Reveal the spend public key
+    /// Reveal the spend public key.
     pub spend: <Ctx::Ac as Keys>::PublicKey,
-    /// Reveal the vector of extra accordant public keys
+    /// Reveal the vector of extra accordant public keys.
     pub extra_accordant_keys: Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
-    /// Reveal the vector of extra accordant shared keys
+    /// Reveal the vector of extra accordant shared keys.
     pub accordant_shared_keys:
         Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
-    /// Reveal the destination address
+    /// Reveal the destination address.
     pub address: <Ctx::Ar as Address>::Address,
-    /// Reveal the cross-group discrete logarithm zero-knowledge proof
+    /// Reveal the cross-group discrete logarithm zero-knowledge proof.
     pub proof: Ctx::Proof,
 }
 
@@ -441,36 +441,35 @@ where
     }
 }
 
-/// `reveal_bob_session_params` reveals the parameters commited by the `commit_bob_session_params`
-/// message.
+/// Reveals the parameters commited by the [`CommitBobParameters`] protocol message.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct RevealBobParameters<Ctx: Swap> {
-    /// The swap identifier related to this message
+    /// The swap identifier related to this message.
     pub swap_id: SwapId,
-    /// Reveal the buy public key
+    /// Reveal the buy public key.
     pub buy: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the cancel public key
+    /// Reveal the cancel public key.
     pub cancel: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the refund public key
+    /// Reveal the refund public key.
     pub refund: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the adaptor public key
+    /// Reveal the adaptor public key.
     pub adaptor: <Ctx::Ar as Keys>::PublicKey,
-    /// Reveal the vector of extra arbitrating public keys
+    /// Reveal the vector of extra arbitrating public keys.
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
-    /// Reveal the vector of extra arbitrating shared keys
+    /// Reveal the vector of extra arbitrating shared keys.
     pub arbitrating_shared_keys:
         Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
-    /// Reveal the spend public key
+    /// Reveal the spend public key.
     pub spend: <Ctx::Ac as Keys>::PublicKey,
-    /// Reveal the vector of extra accordant public keys
+    /// Reveal the vector of extra accordant public keys.
     pub extra_accordant_keys: Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
-    /// Reveal the vector of extra accordant shared keys
+    /// Reveal the vector of extra accordant shared keys.
     pub accordant_shared_keys:
         Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
-    /// The refund Bitcoin address
+    /// The refund Bitcoin address.
     pub address: <Ctx::Ar as Address>::Address,
-    /// The cross-group discrete logarithm zero-knowledge proof
+    /// The cross-group discrete logarithm zero-knowledge proof.
     pub proof: Ctx::Proof,
 }
 
@@ -555,20 +554,27 @@ where
     }
 }
 
-/// `core_arbitrating_setup` sends the `lock (b)`, `cancel (d)` and `refund (e)` arbritrating
-/// transactions from Bob to Alice, as well as Bob's signature for the `cancel (d)` transaction.
+/// Sends the [`Lockable`], [`Cancelable`] and [`Refundable`] arbritrating transactions from
+/// [`SwapRole::Bob`] to [`SwapRole::Alice`], as well as Bob's signature for the [`Cancelable`]
+/// transaction.
+///
+/// [`SwapRole::Alice`]: crate::role::SwapRole::Alice
+/// [`SwapRole::Bob`]: crate::role::SwapRole::Bob
+/// [`Lockable`]: crate::transaction::Lockable
+/// [`Cancelable`]: crate::transaction::Cancelable
+/// [`Refundable`]: crate::transaction::Refundable
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct CoreArbitratingSetup<Ctx: Swap> {
-    /// The swap identifier related to this message
+    /// The swap identifier related to this message.
     pub swap_id: SwapId,
-    /// The arbitrating `lock (b)` transaction
+    /// The arbitrating `lock (b)` transaction.
     pub lock: <Ctx::Ar as Onchain>::PartialTransaction,
-    /// The arbitrating `cancel (d)` transaction
+    /// The arbitrating `cancel (d)` transaction.
     pub cancel: <Ctx::Ar as Onchain>::PartialTransaction,
-    /// The arbitrating `refund (e)` transaction
+    /// The arbitrating `refund (e)` transaction.
     pub refund: <Ctx::Ar as Onchain>::PartialTransaction,
-    /// The `Bc` `cancel (d)` signature
+    /// The `Bc` `cancel (d)` signature.
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
 }
 
@@ -643,17 +649,22 @@ where
     }
 }
 
-/// `refund_procedure_signatures` is intended to transmit Alice's signature for the `cancel (d)`
-/// transaction and Alice's adaptor signature for the `refund (e)` transaction. Uppon reception Bob
-/// must validate the signatures.
+/// Protocol message is intended to transmit [`SwapRole::Alice`]'s signature for the [`Cancelable`]
+/// transaction and Alice's adaptor signature for the [`Refundable`] transaction. Uppon reception
+/// [`SwapRole::Bob`] must validate the signatures.
+///
+/// [`SwapRole::Alice`]: crate::role::SwapRole::Alice
+/// [`SwapRole::Bob`]: crate::role::SwapRole::Bob
+/// [`Cancelable`]: crate::transaction::Cancelable
+/// [`Refundable`]: crate::transaction::Refundable
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct RefundProcedureSignatures<Ctx: Swap> {
-    /// The swap identifier related to this message
+    /// The swap identifier related to this message.
     pub swap_id: SwapId,
-    /// The `Ac` `cancel (d)` signature
+    /// The `Ac` `cancel (d)` signature.
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
-    /// The `Ar(Tb)` `refund (e)` adaptor signature
+    /// The `Ar(Tb)` `refund (e)` adaptor signature.
     pub refund_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
 }
 
@@ -722,17 +733,20 @@ where
     }
 }
 
-/// `buy_procedure_signature`is intended to transmit Bob's adaptor signature for the `buy (c)`
+/// Protocol message intended to transmit [`SwapRole::Bob`]'s adaptor signature for the [`Buyable`]
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
+///
+/// [`SwapRole::Bob`]: crate::role::SwapRole::Bob
+/// [`Buyable`]: crate::transaction::Buyable
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct BuyProcedureSignature<Ctx: Swap> {
-    /// The swap identifier related to this message
+    /// The swap identifier related to this message.
     pub swap_id: SwapId,
-    /// The arbitrating `buy (c)` transaction
+    /// The arbitrating `buy (c)` transaction.
     pub buy: <Ctx::Ar as Onchain>::PartialTransaction,
-    /// The `Bb(Ta)` `buy (c)` adaptor signature
+    /// The `Bb(Ta)` `buy (c)` adaptor signature.
     pub buy_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
 }
 
@@ -790,14 +804,16 @@ where
     }
 }
 
-/// `abort` is an `OPTIONAL` courtesy message from either swap partner to inform the counterparty
+/// Optional courtesy message from either [`SwapRole`] to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
+///
+/// [`SwapRole`]: crate::role::SwapRole
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct Abort {
-    /// The swap identifier related to this message
+    /// The swap identifier related to this message.
     pub swap_id: SwapId,
-    /// OPTIONAL `body`: error code | string
+    /// OPTIONAL `body`: error string.
     pub error_body: Option<String>,
 }
 

@@ -53,13 +53,14 @@ pub struct Bitcoin<S: Strategy> {
 }
 
 impl<S: Strategy> Bitcoin<S> {
+    /// Create a new Bitcoin for the defined strategy.
     pub fn new() -> Self {
         Self { _e: PhantomData }
     }
 }
 
 impl<S: Strategy> Asset for Bitcoin<S> {
-    /// Type for the traded asset unit
+    /// Type for quantifying the traded asset.
     type AssetUnit = Amount;
 
     fn from_u32(bytes: u32) -> Option<Self> {
@@ -75,21 +76,21 @@ impl<S: Strategy> Asset for Bitcoin<S> {
 }
 
 impl<S: Strategy> blockchain::Address for Bitcoin<S> {
-    /// Defines the address format for the arbitrating blockchain
+    /// Defines the address format used in Bitcoin.
     type Address = Address;
 }
 
 impl<S: Strategy> Timelock for Bitcoin<S> {
-    /// Defines the type of timelock used for the arbitrating transactions
+    /// Defines the type of timelock used in Bitcoin.
     type Timelock = timelock::CSVTimelock;
 }
 
 impl<S: Strategy> Onchain for Bitcoin<S> {
-    /// Defines the transaction format used to transfer partial transaction between participant for
-    /// the arbitrating blockchain
+    /// Defines the transaction format used to transfer partial transaction between participants in
+    /// Bitcoin.
     type PartialTransaction = PartiallySignedTransaction;
 
-    /// Defines the finalized transaction format for the arbitrating blockchain
+    /// Defines the finalized transaction format for Bitcoin used by the syncers.
     type Transaction = bitcoin::Transaction;
 }
 

@@ -1,9 +1,11 @@
-//! Script mechanism used to create the arbitration on one blockchain
+//! Data structures used in scripts to create the arbitration engine on a blockchain.
 
 use crate::blockchain::Timelock;
 use crate::crypto::Keys;
 
-/// Represent a public key-pair, one key per swap role in the system.
+/// Store public keys for swap participants, one public key per [`SwapRole`] in the protocol.
+///
+/// [`SwapRole`]: crate::role::SwapRole
 #[derive(Debug, Clone, Display)]
 #[display("Alice: {alice}, Bob: {bob}")]
 #[cfg_attr(
@@ -15,7 +17,9 @@ pub struct DoubleKeys<T>
 where
     T: Keys,
 {
+    /// Public key associated to Alice swap role.
     pub alice: T::PublicKey,
+    /// Public key associated to Bob swap role.
     pub bob: T::PublicKey,
 }
 
@@ -23,13 +27,13 @@ impl<T> DoubleKeys<T>
 where
     T: Keys,
 {
-    /// Create a new key pair
+    /// Store public keys for swap participant.
     pub fn new(alice: T::PublicKey, bob: T::PublicKey) -> Self {
         Self { alice, bob }
     }
 }
 
-/// Define the path in a script with its associated data.
+/// Define the path selected for a failable script.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
 #[display(Debug)]
 #[cfg_attr(
@@ -44,8 +48,11 @@ pub enum ScriptPath {
     Failure,
 }
 
-/// The data used to create a lock and remove the double spending problem and create a mutually
-/// agreed refundable path.
+/// Store Alice and Bob public keys for the sucessful and failure paths and the timelock value used
+/// to create a lock and remove the double spending problem and create a mutually agreed refundable
+/// path used in [`Buyable`].
+///
+/// [`Buyable`]: crate::transaction::Buyable
 #[derive(Debug, Clone, Display)]
 #[display("Timelock: {timelock}, Success: <{success}>, Failure: <{failure}>")]
 pub struct DataLock<T>
@@ -57,8 +64,11 @@ where
     pub failure: DoubleKeys<T>,
 }
 
-/// The data used to create a lock and remove the double spending problem and create an unilateral
-/// punishment mechanism.
+/// Store Alice and Bob public keys for the sucessful and failure paths and the timelock value used
+/// to create a lock and remove the double spending problem and create an unilateral punishment
+/// mechanisms in [`Cancelable`].
+///
+/// [`Cancelable`]: crate::transaction::Cancelable
 #[derive(Debug, Clone, Display)]
 #[display("Timelock: {timelock}, Success: <{success}>, Failure: {failure}")]
 pub struct DataPunishableLock<T>

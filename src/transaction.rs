@@ -1,4 +1,5 @@
-//! Arbitrating transaction module
+//! Arbitrating transaction traits used as the on-chain arbitration engine on the arbitrating
+//! blockchain. These traits define the steps allowed in the arbitration engine enforced on-chain.
 
 use std::error;
 use std::fmt::Debug;

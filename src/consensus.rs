@@ -1,9 +1,9 @@
-//! Farcaster consensus encoding used to strictly encode and decode data such as public offers
-//! amoung swap participants.
+//! Farcaster consensus encoding used to strictly encode and decode data such as public offers,
+//! bundles or other messages defined in the RFCs.
 //!
-//! Implementation on blockchain foreign types must follow the strict consensus encoding from the
-//! blockchain itself, Farcaster core will then wrap the serialization and treat it as a lenght
-//! prefixed vector of bytes when needed.
+//! Implementation on blockchain foreign types with [`CanonicalBytes`] must follow the strict
+//! consensus encoding from the blockchain itself, Farcaster core will then wrap the serialization
+//! and treat it as a lenght prefixed vector of bytes when needed.
 
 use hex::encode as hex_encode;
 use thiserror::Error;
@@ -12,8 +12,8 @@ use std::error;
 use std::io;
 use std::str;
 
-/// Encoding and decoding errors and data transformation errors (when converting data from protocol
-/// messages into datum messages).
+/// Encoding and decoding errors and data transformation errors (when converting data from one
+/// message type to another).
 #[derive(Error, Debug)]
 pub enum Error {
     /// The type is not defined in the consensus.
@@ -37,7 +37,8 @@ pub enum Error {
 }
 
 impl Error {
-    /// Creates a new transaction error of type other with an arbitrary payload.
+    /// Creates a new error of type [`Self::Other`] with an arbitrary payload. Useful to carry
+    /// lower-level errors.
     pub fn new<E>(error: E) -> Self
     where
         E: Into<Box<dyn error::Error + Send + Sync>>,
@@ -60,21 +61,23 @@ impl Error {
     }
 }
 
-/// Data that can be represented in a canonical bytes format.
-///
-/// The implementer MUST use the strict encoding dictated by the blockchain consensus without any
-/// lenght prefix. Lenght prefix is done by Farcaster core after during the serialization.
+/// Data represented in a canonical bytes format. The implementer **MUST** use the strict encoding
+/// dictated by the blockchain consensus without any lenght prefix. Lenght prefix is done by
+/// Farcaster core during the serialization. This trait is required on foreign types used inside
+/// core messages (bundles, protocol messages, etc).
 pub trait CanonicalBytes {
     /// Returns the canonical bytes representation of the element.
     fn as_canonical_bytes(&self) -> Vec<u8>;
 
-    /// Parse a normally canonical bytes representation of an element and return it.
+    /// Parse a supposedly canonical bytes representation of an element and return it, return an
+    /// error if not canonical.
     fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
     where
         Self: Sized;
 }
 
-/// Encode an object into a vector
+/// Encode an object into a vector of bytes. The vector can be [`deserialize`] to retreive the
+/// data.
 pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
     let mut encoder = Vec::new();
     let len = data.consensus_encode(&mut encoder).unwrap();
@@ -82,13 +85,13 @@ pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
     encoder
 }
 
-/// Encode an object into a hex-encoded string
+/// Encode an object into a hex-encoded string.
 pub fn serialize_hex<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> String {
     hex_encode(serialize(data))
 }
 
-/// Deserialize an object from a vector, will error if said deserialization
-/// doesn't consume the entire vector.
+/// Deserialize an object from a vector of bytes, will error if said deserialization doesn't
+/// consume the entire vector.
 pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
     let (rv, consumed) = deserialize_partial(data)?;
 
@@ -102,8 +105,8 @@ pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
     }
 }
 
-/// Deserialize an object from a vector, but will not report an error if said deserialization
-/// doesn't consume the entire vector.
+/// Deserialize an object from a vector of bytes, but will not report an error if said
+/// deserialization doesn't consume the entire vector.
 pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Error> {
     let mut decoder = io::Cursor::new(data);
     let rv = Decodable::consensus_decode(&mut decoder)?;
@@ -112,16 +115,18 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
     Ok((rv, consumed))
 }
 
-/// Data which can be encoded in a consensus-consistent way.
+/// Data which can be encoded in a consensus-consistent way. Used to implement `StrictEncode` on
+/// messages passed around by the node.
 pub trait Encodable {
-    /// Encode an object with a well-defined format, should only ever error if
-    /// the underlying encoder errors.
+    /// Encode an object with a well-defined format, should only ever error if the underlying
+    /// encoder errors.
     ///
     /// The only errors returned are errors propagated from the writer.
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error>;
 }
 
-/// Data which can be encoded in a consensus-consistent way.
+/// Data which can be decoded in a consensus-consistent way. Used to implement `StrictDecode` on
+/// messages passed around by the node.
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error>;

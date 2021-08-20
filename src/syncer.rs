@@ -1,4 +1,5 @@
-//! Tasks used for the daemon to instruct the syncer on what info to track
+//! Tasks used for the daemon to instruct syncers what state to track on-chain and events returned
+//! by syncers to the daemon to update its blockchain state representation.
 
 use std::error;
 use std::fmt;
@@ -8,7 +9,8 @@ use thiserror::Error;
 
 use crate::consensus::{self, Decodable, Encodable};
 
-/// Errors when manipulating tasks
+/// Errors encountered when manipulating tasks in syncers. [`Self::Other`] can carry out errors
+/// from external sources.
 #[derive(Error, Debug)]
 pub enum Error {
     /// The task lifetime is expired.
@@ -49,6 +51,9 @@ impl From<std::io::Error> for Error {
     }
 }
 
+/// Syncers syncronize swaps with the blockchains by receiving [`Task`], processing them, and
+/// producing [`Event`] in return. A [`Task`] while processed can produce any amount of [`Event`]
+/// until the task is [`Task::Abort`] or the task completed with its last event.
 pub trait Syncer {
     fn abort(&mut self, task: Abort) -> Result<(), Error>;
     fn watch_height(&mut self, task: WatchHeight) -> Result<(), Error>;
@@ -220,6 +225,8 @@ impl fmt::Display for BroadcastTransaction {
     }
 }
 
+/// Tasks created by the daemon and handle by syncers to process a blockchain and generate
+/// [`Event`] back to the syncer.
 #[derive(Debug, Clone, Display)]
 #[display(Debug)]
 pub enum Task {
@@ -440,13 +447,18 @@ impl fmt::Display for TransactionBroadcasted {
     }
 }
 
+/// Events returned by syncers to the daemon to update the blockchain states.  Events are
+/// identified with a unique 32-bits integer that match the [`Task`] id.
 #[derive(Debug, Clone, Display)]
 #[display(Debug)]
 pub enum Event {
+    /// Notify the daemon the blockchain height changed.
     HeightChanged(HeightChanged),
     AddressTransaction(AddressTransaction),
     TransactionConfirmations(TransactionConfirmations),
     TransactionBroadcasted(TransactionBroadcasted),
+    /// Notify the daemon the task has been aborted with success or failure. Carries the status for
+    /// the task abortion.
     TaskAborted(TaskAborted),
 }
 

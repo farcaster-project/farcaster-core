@@ -96,7 +96,7 @@ where
 
 /// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
 /// a fee strategy can be: fixed or range. When the fee strategy allows multiple possibilities, a
-/// [`FeePolitic`] is used to determine what to apply.
+/// [`FeePriority`] is used to determine what to apply.
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
@@ -239,20 +239,20 @@ impl FeeStrategyError {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub enum FeePolitic {
+pub enum FeePriority {
     /// Set the fee at the minimum allowed by the strategy.
-    Aggressive,
+    Low,
     /// Set the fee at the maximum allowed by the strategy.
-    Conservative,
+    High,
 }
 
-impl FromStr for FeePolitic {
+impl FromStr for FeePriority {
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Aggressive" | "aggressive" => Ok(FeePolitic::Aggressive),
-            "Conservative" | "conservative" => Ok(FeePolitic::Conservative),
+            "Low" | "low" => Ok(FeePriority::Low),
+            "High" | "high" => Ok(FeePriority::High),
             _ => Err(consensus::Error::UnknownType),
         }
     }
@@ -272,7 +272,7 @@ pub trait Fee: Onchain + Asset {
     fn set_fee(
         tx: &mut Self::PartialTransaction,
         strategy: &FeeStrategy<Self::FeeUnit>,
-        politic: FeePolitic,
+        politic: FeePriority,
     ) -> Result<Self::AssetUnit, FeeStrategyError>;
 
     /// Validates that the fee for the given transaction are set accordingly to the strategy.
@@ -343,8 +343,8 @@ mod tests {
 
     #[test]
     fn parse_fee_politic() {
-        for s in ["Aggressive", "aggressive", "Conservative", "conservative"].iter() {
-            let parse = FeePolitic::from_str(s);
+        for s in ["High", "high", "Low", "low"].iter() {
+            let parse = FeePriority::from_str(s);
             assert!(parse.is_ok());
         }
     }

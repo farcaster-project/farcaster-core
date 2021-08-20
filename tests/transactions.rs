@@ -38,7 +38,7 @@ macro_rules! setup_txs {
         };
 
         let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
-        let politic = FeePolitic::Aggressive;
+        let politic = FeePriority::Low;
 
         let mut lock = LockTx::initialize(&funding, datalock.clone(), target_amount).unwrap();
 

@@ -1,6 +1,6 @@
 //! Transaction fee unit type and implementation. Defines the [`SatPerVByte`] unit used in methods
 //! that set the fee and check the fee on transactions given a [`FeeStrategy`] and a
-//! [`FeePolitic`].
+//! [`FeePriority`].
 //!
 //! ```rust
 //! use farcaster_core::bitcoin::fee::SatPerVByte;
@@ -22,7 +22,7 @@ use bitcoin::util::amount::Denomination;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
 
-use crate::blockchain::{Fee, FeePolitic, FeeStrategy, FeeStrategyError};
+use crate::blockchain::{Fee, FeePriority, FeeStrategy, FeeStrategyError};
 use crate::consensus::{self, CanonicalBytes};
 
 use crate::bitcoin::{transaction, Bitcoin, Strategy};
@@ -124,7 +124,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
     fn set_fee(
         tx: &mut PartiallySignedTransaction,
         strategy: &FeeStrategy<SatPerVByte>,
-        politic: FeePolitic,
+        politic: FeePriority,
     ) -> Result<Amount, FeeStrategyError> {
         if tx.global.unsigned_tx.output.len() != 1 {
             return Err(FeeStrategyError::new(
@@ -143,8 +143,8 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         let fee_amount = match strategy {
             FeeStrategy::Fixed(sat_per_vbyte) => sat_per_vbyte.as_native_unit().checked_mul(weight),
             FeeStrategy::Range(range) => match politic {
-                FeePolitic::Aggressive => range.start.as_native_unit().checked_mul(weight),
-                FeePolitic::Conservative => range.end.as_native_unit().checked_mul(weight),
+                FeePriority::Low => range.start.as_native_unit().checked_mul(weight),
+                FeePriority::High => range.end.as_native_unit().checked_mul(weight),
             },
         }
         .ok_or_else(|| FeeStrategyError::AmountOfFeeTooHigh)?;

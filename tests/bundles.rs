@@ -1,6 +1,6 @@
 use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
-use farcaster_core::blockchain::FeePolitic;
+use farcaster_core::blockchain::FeePriority;
 use farcaster_core::bundle::{AliceParameters, BobParameters};
 use farcaster_core::consensus::deserialize;
 use farcaster_core::negotiation::PublicOffer;
@@ -31,7 +31,7 @@ fn init_alice() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>, SwapId) {
     let destination_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
         .expect("Parsable address")
         .into();
-    let fee_politic = FeePolitic::Aggressive;
+    let fee_politic = FeePriority::Low;
     let alice: Alice<BtcXmr> = Alice::new(destination_address, fee_politic);
     let refund_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
         .expect("Parsable address")

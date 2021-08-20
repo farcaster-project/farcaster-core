@@ -24,14 +24,13 @@ This library is twofold: providing a flexible framework to add specific blockcha
 - `bundle`: generic types for inter-microservice communication, bonds to arbitrating and accordant traits.
 - `consensus`: encoding and decoding implementation for all types in the crate.
 - `crypto`: traits and generic types to define cryptographic interactions (wallet capability, commit/reveal scheme, signature and key types, etc).
-- `events`: generic types and definition of blockchain events fired by syncers in the microservice architecture.
 - `instruction`: generic types for inter-microservice communication.
 - `negotiation`: generic types and utilities for handling the negotiation phase.
 - `protocol_message`: generic types exchanged between daemon running a swap toghether.
 - `role`: role definition (trade and swap) and implementation over the generic framework.
 - `script`: generic types for transaction data management.
 - `swap`: swap trait definition, utility types, and swap instance like Btc/Xmr.
-- `syncer`: generic task types and errors.
+- `syncer`: tasks, blockchain events, and errors used by syncers in the microservice architecture.
 - `transaction`: transaction traits to implement for building and validating the arbitrating set of transaction.
 
 The blockchain specific support is added under the the following modules:

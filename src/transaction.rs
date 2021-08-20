@@ -98,10 +98,10 @@ where
     fn output_amount(&self) -> T::AssetUnit;
 }
 
-/// Defines the transaction IDs for serialization and network communication.
+/// Defines the transaction Farcaster IDs for serialization and network communication.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
 #[display(Debug)]
-pub enum TxId {
+pub enum TxLabel {
     /// Represents the first transaction created outside of the system by an external wallet to
     /// fund the swap on the arbitrating blockchain.
     Funding,
@@ -118,28 +118,28 @@ pub enum TxId {
     Punish,
 }
 
-impl Encodable for TxId {
+impl Encodable for TxLabel {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
-            TxId::Funding => 0x01u16.consensus_encode(writer),
-            TxId::Lock => 0x02u16.consensus_encode(writer),
-            TxId::Buy => 0x03u16.consensus_encode(writer),
-            TxId::Cancel => 0x04u16.consensus_encode(writer),
-            TxId::Refund => 0x05u16.consensus_encode(writer),
-            TxId::Punish => 0x06u16.consensus_encode(writer),
+            TxLabel::Funding => 0x01u16.consensus_encode(writer),
+            TxLabel::Lock => 0x02u16.consensus_encode(writer),
+            TxLabel::Buy => 0x03u16.consensus_encode(writer),
+            TxLabel::Cancel => 0x04u16.consensus_encode(writer),
+            TxLabel::Refund => 0x05u16.consensus_encode(writer),
+            TxLabel::Punish => 0x06u16.consensus_encode(writer),
         }
     }
 }
 
-impl Decodable for TxId {
+impl Decodable for TxLabel {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         match Decodable::consensus_decode(d)? {
-            0x01u16 => Ok(TxId::Funding),
-            0x02u16 => Ok(TxId::Lock),
-            0x03u16 => Ok(TxId::Buy),
-            0x04u16 => Ok(TxId::Cancel),
-            0x05u16 => Ok(TxId::Refund),
-            0x06u16 => Ok(TxId::Punish),
+            0x01u16 => Ok(TxLabel::Funding),
+            0x02u16 => Ok(TxLabel::Lock),
+            0x03u16 => Ok(TxLabel::Buy),
+            0x04u16 => Ok(TxLabel::Cancel),
+            0x05u16 => Ok(TxLabel::Refund),
+            0x06u16 => Ok(TxLabel::Punish),
             _ => Err(consensus::Error::UnknownType),
         }
     }
@@ -258,8 +258,8 @@ where
     fn raw(tx: T::Transaction) -> Result<Self, Error>;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxId {
-        TxId::Funding
+    fn get_id(&self) -> TxLabel {
+        TxLabel::Funding
     }
 }
 
@@ -304,8 +304,8 @@ where
     }
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxId {
-        TxId::Lock
+    fn get_id(&self) -> TxLabel {
+        TxLabel::Lock
     }
 }
 
@@ -341,8 +341,8 @@ where
     ) -> Result<(), Error>;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxId {
-        TxId::Buy
+    fn get_id(&self) -> TxLabel {
+        TxLabel::Buy
     }
 }
 
@@ -378,8 +378,8 @@ where
     ) -> Result<(), Error>;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxId {
-        TxId::Cancel
+    fn get_id(&self) -> TxLabel {
+        TxLabel::Cancel
     }
 }
 
@@ -414,8 +414,8 @@ where
     ) -> Result<(), Error>;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxId {
-        TxId::Refund
+    fn get_id(&self) -> TxLabel {
+        TxLabel::Refund
     }
 }
 
@@ -449,7 +449,7 @@ where
     ) -> Result<Self, Error>;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxId {
-        TxId::Punish
+    fn get_id(&self) -> TxLabel {
+        TxLabel::Punish
     }
 }

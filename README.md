@@ -12,10 +12,13 @@ Farcaster atomic swaps project core library implementing in Rust:
 
 - [x] Farcaster swap offers
 - [x] Swap roles and trade roles
-- [x] Transactions templates to implement on-chain behaviours
+- [ ] Transactions templates to implement on-chain behaviours
 - [ ] Signature and cryptographic utilities
+  - [x] `experimental` ECDSA adaptor signatures (with `ecdsa_fun`)
+  - [ ] Cross-group discrete logarithm proof system
+  - [ ] Schnorr adaptor signature
 - [x] Messages exchanged between [farcaster-node](https://github.com/farcaster-project/farcaster-node)'s microservices
-- [ ] Tasks and blockchain events used by syncers
+- [x] Tasks and blockchain events used by syncers
 
 ## Core framework
 This library is twofold: providing a flexible framework to add specific blockchain support and implementing these specific blockchain. The framework is accessible in all module at the root of the crate:

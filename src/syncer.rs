@@ -126,13 +126,15 @@ pub struct WatchAddress {
     pub id: i32,
     pub lifetime: u64,
     pub addendum: Vec<u8>,
+    pub include_tx: Boolean,
 }
 
 impl Encodable for WatchAddress {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
         let mut len = self.id.consensus_encode(s)?;
         len += self.lifetime.consensus_encode(s)?;
-        Ok(len + self.addendum.consensus_encode(s)?)
+        len += self.addendum.consensus_encode(s)?;
+        Ok(len + self.include_tx.consensus_encode(s)?)
     }
 }
 
@@ -142,6 +144,7 @@ impl Decodable for WatchAddress {
             id: i32::consensus_decode(d)?,
             lifetime: u64::consensus_decode(d)?,
             addendum: Vec::<u8>::consensus_decode(d)?,
+            include_tx: Boolean::consensus_decode(d)?,
         })
     }
 }
@@ -151,6 +154,42 @@ impl_strict_encoding!(WatchAddress);
 impl fmt::Display for WatchAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "watchaddress")
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Boolean {
+    True,
+    False,
+}
+
+impl Encodable for Boolean {
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        match self {
+            Boolean::True => Ok(0x01u8.consensus_encode(s)?),
+            Boolean::False => Ok(0x00u8.consensus_encode(s)?),
+        }
+    }
+}
+
+impl Decodable for Boolean {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x01u8 => Ok(Boolean::True),
+            0x00u8 => Ok(Boolean::False),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl_strict_encoding!(Boolean);
+
+impl From<Boolean> for bool {
+    fn from(w: Boolean) -> bool {
+        match w {
+            Boolean::True => true,
+            Boolean::False => false,
+        }
     }
 }
 
@@ -341,6 +380,7 @@ pub struct AddressTransaction {
     pub hash: Vec<u8>,
     pub amount: u64,
     pub block: Vec<u8>,
+    pub tx: Vec<u8>,
 }
 
 impl Encodable for AddressTransaction {
@@ -348,7 +388,8 @@ impl Encodable for AddressTransaction {
         let mut len = self.id.consensus_encode(s)?;
         len += self.hash.consensus_encode(s)?;
         len += self.amount.consensus_encode(s)?;
-        Ok(len + self.block.consensus_encode(s)?)
+        len + self.block.consensus_encode(s)?;
+        Ok(len + self.tx.consensus_encode(s)?)
     }
 }
 
@@ -359,6 +400,7 @@ impl Decodable for AddressTransaction {
             hash: Vec::<u8>::consensus_decode(d)?,
             amount: u64::consensus_decode(d)?,
             block: Vec::<u8>::consensus_decode(d)?,
+            tx: Vec::<u8>::consensus_decode(d)?,
         })
     }
 }

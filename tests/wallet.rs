@@ -6,7 +6,7 @@ use farcaster_core::crypto::{ArbitratingKeyId, GenerateKey, ProveCrossGroupDleq,
 use farcaster_core::swap::btcxmr::*;
 
 #[test]
-fn test() {
+fn key_manager_and_recover_secret() {
     let mut rng = rand::thread_rng();
     let seed: [u8; 32] = rng.gen();
 

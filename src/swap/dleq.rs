@@ -1,11 +1,10 @@
 use curve25519_dalek::{
-    constants::ED25519_BASEPOINT_POINT,
-    edwards::EdwardsPoint as ed25519Point,
+    constants::ED25519_BASEPOINT_POINT as G, edwards::EdwardsPoint as ed25519Point,
     scalar::Scalar as ed25519Scalar,
 };
 
 #[cfg(feature = "experimental")]
-use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar, G};
+use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar, G as H};
 #[cfg(feature = "experimental")]
 use secp256kfun::marker::*;
 
@@ -50,14 +49,14 @@ struct DLEQProof {
 impl DLEQProof {
     fn generate(x: [u8; 32]) -> Self {
         let x_ed25519 = ed25519Scalar::from_bits(x);
-        let xg_p = x_ed25519 * ED25519_BASEPOINT_POINT;
+        let xg_p = x_ed25519 * G;
 
         // TODO: do properly
         let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes(x)
             .unwrap()
             .mark::<NonZero>()
             .expect("x is zero");
-        let xh_p = secp256k1Point::from_scalar_mul(G, &mut x_secp256k1).mark::<Normal>();
+        let xh_p = secp256k1Point::from_scalar_mul(H, &mut x_secp256k1).mark::<Normal>();
 
         DLEQProof {
             xg_p,

@@ -9,28 +9,34 @@ use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar, G};
 #[cfg(feature = "experimental")]
 use secp256kfun::marker::*;
 
-struct PedersenCommitment<Point> {
-    commitment: Point
+struct PedersenCommitment<Point, Scalar> {
+    commitment: Point,
+    // commit_target: Scalar,
+    blinder: Scalar
 }
 
 // temporary implementations - we don't ultimately want these default values
-impl Default for PedersenCommitment<ed25519Point> {
+impl Default for PedersenCommitment<ed25519Point, ed25519Scalar> {
     fn default() -> Self {
-        PedersenCommitment {commitment: ed25519Point::default()}
+
+        PedersenCommitment {commitment: ed25519Point::default(),
+                            blinder: ed25519Scalar::default(),
+}
     }
 }
 
-impl Default for PedersenCommitment<secp256k1Point> {
+impl Default for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
     fn default() -> Self {
-        PedersenCommitment {commitment: secp256k1Point::random(&mut rand::thread_rng())}
+        PedersenCommitment {commitment: secp256k1Point::random(&mut rand::thread_rng()),
+                            blinder: secp256k1Scalar::random(&mut rand::thread_rng())}
     }
 }
 
 struct DLEQProof {
     xg_p: ed25519Point,
     xh_p: secp256k1Point,
-    c_g: Vec<PedersenCommitment<ed25519Point>>,
-    c_h: Vec<PedersenCommitment<secp256k1Point>>,
+    c_g: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>,
+    c_h: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>,
     e_g_0: Vec<ed25519Scalar>,
     e_h_0: Vec<secp256k1Scalar>,
     e_g_1: Vec<ed25519Scalar>,
@@ -56,8 +62,8 @@ impl DLEQProof {
         DLEQProof {
             xg_p,
             xh_p,
-            c_g: vec![PedersenCommitment::<ed25519Point>::default()],
-            c_h: vec![PedersenCommitment::<secp256k1Point>::default()],
+            c_g: vec![PedersenCommitment::<ed25519Point, ed25519Scalar>::default()],
+            c_h: vec![PedersenCommitment::<secp256k1Point, secp256k1Scalar>::default()],
             e_g_0: vec![ed25519Scalar::default()],
             e_h_0: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
             e_g_1: vec![ed25519Scalar::default()],

@@ -10,6 +10,7 @@ use crate::role::{Accordant, Arbitrating};
 use lightning_encoding::strategies::AsStrict;
 
 pub mod btcxmr;
+pub mod dleq;
 
 fixed_hash::construct_fixed_hash!(
     /// A unique swap identifier represented as an 32 bytes hash.
@@ -40,7 +41,7 @@ impl lightning_encoding::Strategy for SwapId {
     type Strategy = AsStrict;
 }
 
-/// Specifie the context of a swap, fixing the arbitrating blockchain, the accordant blockchain and
+/// Specify the context of a swap, fixing the arbitrating blockchain, the accordant blockchain and
 /// the link between them.
 pub trait Swap: Debug + Clone {
     /// The arbitrating blockchain concrete implementation used for the swap.

@@ -1,9 +1,13 @@
-use curve25519_dalek::{edwards::EdwardsPoint as ed25519Point, scalar::Scalar as ed25519Scalar};
+use curve25519_dalek::{
+    constants::ED25519_BASEPOINT_POINT,
+    edwards::EdwardsPoint as ed25519Point,
+    scalar::Scalar as ed25519Scalar,
+};
 
 #[cfg(feature = "experimental")]
-use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar};
-
-use crate::consensus::CanonicalBytes;
+use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar, G};
+#[cfg(feature = "experimental")]
+use secp256kfun::marker::*;
 
 struct DLEQProof {
     xg_p: ed25519Point,
@@ -22,9 +26,19 @@ struct DLEQProof {
 
 impl DLEQProof {
     fn generate(x: [u8; 32]) -> Self {
+        let x_ed25519 = ed25519Scalar::from_bits(x);
+        let xg_p = x_ed25519 * ED25519_BASEPOINT_POINT;
+
+        // TODO: do properly
+        let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes(x)
+            .unwrap()
+            .mark::<NonZero>()
+            .expect("x is zero");
+        let xh_p = secp256k1Point::from_scalar_mul(G, &mut x_secp256k1).mark::<Normal>();
+
         DLEQProof {
-            xg_p: ed25519Point::default(),
-            xh_p: secp256k1Point::random(&mut rand::thread_rng()),
+            xg_p,
+            xh_p,
             c_g: vec![ed25519Point::default()],
             c_h: vec![secp256k1Point::random(&mut rand::thread_rng())],
             e_g_0: vec![ed25519Scalar::default()],

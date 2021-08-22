@@ -22,7 +22,7 @@ edition = "2018"
 
 [features]
 rpc = []
-experimental = ["ecdsa_fun", "rand", "sha2", "rand_chacha", "bincode"]
+experimental = ["ecdsa_fun", "secp256kfun", "rand", "sha2", "rand_chacha", "bincode"]
 taproot = []
 serde = ["serde_crate", "bitcoin/use-serde", "monero/serde_support", "inet2_addr/serde"]
 
@@ -43,6 +43,7 @@ inet2_addr = { version = "0.4.0", default-features = false, features = ["tor", "
 # crypto libs
 rand = { version = "0.8.4", optional = true }
 ecdsa_fun = { version = "0.6", default-features = false, features = ["all"], optional = true }
+secp256kfun = { version = "0.6", default-features = false, features = ["all"], optional = true }
 sha2 = { version = "0.9", optional = true }
 rand_chacha = { version = "0.3.1", optional = true }
 bincode = { version = "1.3.3", optional = true }

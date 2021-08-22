@@ -3,6 +3,11 @@ use curve25519_dalek::{
     scalar::Scalar as ed25519Scalar,
 };
 
+// this is disgusting and must be removed asap
+fn G_p() -> ed25519Point {
+    monero::util::key::H.point.decompress().unwrap()
+    }
+
 #[cfg(feature = "experimental")]
 use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar, G as H};
 #[cfg(feature = "experimental")]
@@ -11,23 +16,39 @@ use secp256kfun::marker::*;
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
     // commit_target: Scalar,
-    blinder: Scalar
+    blinder: Scalar,
 }
 
 // temporary implementations - we don't ultimately want these default values
 impl Default for PedersenCommitment<ed25519Point, ed25519Scalar> {
     fn default() -> Self {
-
-        PedersenCommitment {commitment: ed25519Point::default(),
-                            blinder: ed25519Scalar::default(),
-}
+        PedersenCommitment {
+            commitment: ed25519Point::default(),
+            blinder: ed25519Scalar::default(),
+        }
     }
 }
 
 impl Default for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
     fn default() -> Self {
-        PedersenCommitment {commitment: secp256k1Point::random(&mut rand::thread_rng()),
-                            blinder: secp256k1Scalar::random(&mut rand::thread_rng())}
+        PedersenCommitment {
+            commitment: secp256k1Point::random(&mut rand::thread_rng()),
+            blinder: secp256k1Scalar::random(&mut rand::thread_rng()),
+        }
+    }
+}
+
+impl From<[u8; 32]> for PedersenCommitment<ed25519Point, ed25519Scalar> {
+    fn from(x: [u8; 32]) -> PedersenCommitment<ed25519Point, ed25519Scalar> {
+        let mut csprng = rand_alt::rngs::OsRng;
+        let blinder = ed25519Scalar::random(&mut csprng);
+
+        let commitment = ed25519Scalar::from_bits(x) * G_p() + blinder * G;
+
+        PedersenCommitment {
+            commitment,
+            blinder,
+            }
     }
 }
 

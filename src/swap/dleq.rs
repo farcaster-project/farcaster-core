@@ -19,3 +19,22 @@ struct DLEQProof {
     b_0: Vec<ed25519Scalar>,
     b_1: Vec<secp256k1Scalar>,
 }
+
+impl DLEQProof {
+    fn generate(x: [u8; 32]) -> Self {
+        DLEQProof {
+            xg_p: ed25519Point::default(),
+            xh_p: secp256k1Point::random(&mut rand::thread_rng()),
+            c_g: vec![ed25519Point::default()],
+            c_h: vec![secp256k1Point::random(&mut rand::thread_rng())],
+            e_g_0: vec![ed25519Scalar::default()],
+            e_h_0: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
+            e_g_1: vec![ed25519Scalar::default()],
+            e_h_1: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
+            a_0: vec![ed25519Scalar::default()],
+            a_1: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
+            b_0: vec![ed25519Scalar::default()],
+            b_1: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
+        }
+    }
+}

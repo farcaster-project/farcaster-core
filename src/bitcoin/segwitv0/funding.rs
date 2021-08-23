@@ -101,4 +101,11 @@ impl Fundable<Bitcoin<SegwitV0>, MetadataOutput> for Funding {
             seen_tx: Some(tx),
         })
     }
+
+    fn was_seen(&self) -> bool {
+        match self.seen_tx {
+            Some(_) => true,
+            None => false,
+        }
+    }
 }

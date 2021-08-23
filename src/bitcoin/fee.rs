@@ -1,8 +1,24 @@
 //! Transaction fee unit type and implementation. Defines the [`SatPerVByte`] unit used in methods
 //! that set the fee and check the fee on transactions given a [`FeeStrategy`] and a
 //! [`FeePolitic`].
+//!
+//! ```rust
+//! use farcaster_core::bitcoin::fee::SatPerVByte;
+//!
+//!# fn main() -> Result<(), farcaster_core::consensus::Error> {
+//! // Parse a Bitcoin amount suffixed with '/vByte'
+//! let rate = "100 satoshi/vByte".parse::<SatPerVByte>()?;
+//! // ...also work with any other valid Bitcoin denomination
+//! let rate = "0.000001 BTC/vByte".parse::<SatPerVByte>()?;
+//!
+//! // Always displayed as 'statoshi/vByte'
+//! assert_eq!("100 satoshi/vByte", format!("{}", rate));
+//!# Ok(())
+//!# }
+//! ```
 
 use bitcoin::blockdata::transaction::TxOut;
+use bitcoin::util::amount::Denomination;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
 
@@ -17,8 +33,16 @@ use std::str::FromStr;
 /// byte a transaction must use for its fee. A [`FeeStrategy`] can use one of more of this type
 /// depending of its complexity (fixed, range, etc).
 #[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Display)]
-#[display("{0} per vByte")]
+#[display(display_sats_per_vbyte)]
 pub struct SatPerVByte(Amount);
+
+fn display_sats_per_vbyte(rate: &SatPerVByte) -> String {
+    format!(
+        "{}/vByte",
+        rate.as_native_unit()
+            .to_string_with_denomination(Denomination::Satoshi)
+    )
+}
 
 impl SatPerVByte {
     /// Create a fee quantity per virtual byte of given satoshis.
@@ -62,10 +86,17 @@ impl FromStr for SatPerVByte {
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let x = s
-            .parse::<u64>()
-            .map_err(|_| consensus::Error::ParseFailed("Failed to parse amount"))?;
-        Ok(Self(Amount::from_sat(x)))
+        let parts = s.split("/").collect::<Vec<&str>>();
+        if parts.len() != 2 {
+            return Err(consensus::Error::ParseFailed(
+                "SatPerVByte format is not respected",
+            ));
+        }
+        let amount = parts[0].parse::<Amount>().map_err(consensus::Error::new)?;
+        match parts[1] {
+            "vByte" => Ok(Self(amount)),
+            _ => Err(consensus::Error::ParseFailed("SatPerVByte parse failed"))?,
+        }
     }
 }
 
@@ -156,5 +187,36 @@ impl<S: Strategy> Fee for Bitcoin<S> {
             FeeStrategy::Fixed(fee_strat) => &effective_sat_per_vbyte == fee_strat,
             FeeStrategy::Range(range) => range.contains(&effective_sat_per_vbyte),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_sats_per_vbyte() {
+        for s in [
+            "0.0001 BTC/vByte",
+            "100 satoshi/vByte",
+            "10 satoshi/vByte",
+            "1 satoshi/vByte",
+        ]
+        .iter()
+        {
+            let parse = SatPerVByte::from_str(s);
+            assert!(parse.is_ok());
+        }
+        // MUST fail
+        for s in ["100 satoshis/vByte", "1 satoshi", "100 vByte"].iter() {
+            let parse = SatPerVByte::from_str(s);
+            assert!(parse.is_err());
+        }
+    }
+
+    #[test]
+    fn display_sats_per_vbyte() {
+        let fee_rate = SatPerVByte::from_sat(100);
+        assert_eq!(format!("{}", fee_rate), format!("100 satoshi/vByte"));
     }
 }

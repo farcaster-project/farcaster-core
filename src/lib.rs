@@ -45,7 +45,6 @@
 //! - **experimental**: enable experimental cryptography, i.e. not battle tested nor peer reviewed
 //! and not intended for production use.
 
-
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // Coding conventions
 #![forbid(unsafe_code)]

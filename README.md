@@ -6,13 +6,13 @@
 ![MSRV](https://img.shields.io/badge/MSRV-1.54.0-blue)
 
 # Farcaster Core Library
-Farcaster atomic swaps project core library implementing in Rust:
-
 :warning: **This library is a :construction: work in progress :construction: and does not implement everything yet, nor is suitable for production use.**
 
-- [x] Farcaster swap offers
+The Farcaster atomic swaps project core library aim to implement in Rust the following functionnalities needed to build a swap node:
+
+- [x] Swap offers
 - [x] Swap roles and trade roles
-- [ ] Transactions templates to implement on-chain behaviours
+- [ ] Transaction templates implementing on-chain behaviours (arbitration)
 - [ ] Signature and cryptographic utilities
   - [x] `experimental` ECDSA adaptor signatures (with `ecdsa_fun`)
   - [ ] Cross-group discrete logarithm proof system
@@ -21,31 +21,37 @@ Farcaster atomic swaps project core library implementing in Rust:
 - [x] Tasks and blockchain events used by syncers
 
 ## Core framework
-This library is twofold: providing a flexible framework to add specific blockchain support and implementing these specific blockchain. The framework is accessible in all module at the root of the crate:
+This library is twofold: providing a flexible framework to add specific blockchain support and implementing these specific blockchain. The framework is accessible in modules at the root of the crate:
 
 - `blockchain`: generic types and constraint traits for on-chain behavior.
-- `bundle`: generic types for inter-microservice communication, bonds to arbitrating and accordant traits.
+- `bundle`: generic types for inter-microservice communication, bonded to arbitrating and accordant traits.
 - `consensus`: encoding and decoding implementation for all types in the crate.
 - `crypto`: traits and generic types to define cryptographic interactions (wallet capability, commit/reveal scheme, signature and key types, etc).
-- `instruction`: generic types for inter-microservice communication.
+- `instruction`: types for inter-microservice communication.
 - `negotiation`: generic types and utilities for handling the negotiation phase.
-- `protocol_message`: generic types exchanged between daemon running a swap toghether.
+- `protocol_message`: generic types exchanged between daemons running a swap toghether.
 - `role`: role definition (trade and swap) and implementation over the generic framework.
 - `script`: generic types for transaction data management.
 - `swap`: swap trait definition, utility types, and swap instance like Btc/Xmr.
 - `syncer`: tasks, blockchain events, and errors used by syncers in the microservice architecture.
-- `transaction`: transaction traits to implement for building and validating the arbitrating set of transaction.
+- `transaction`: transaction traits for building and validating the arbitrating set of transaction.
 
 The blockchain specific support is added under the the following modules:
 
 - `bitcoin`: support for Bitcoin, implementation of all required traits from the framework, e.g. the `Arbitrating` trait in `role` module.
 - `monero`: support for Monero, implementation of all required traits from the framework, e.g. the `Accordant` trait in `role` module.
-- `swap/btcxmr`: definition of a swap between Bitcoin from `bitcoin` and Monero from `monero` implementations.
+- `swap/btcxmr`: definition of a swap between `bitcoin` and `monero` modules.
+
+### Features
+As default the `experimental` feature is enable.
+
+- **serde**: enable serde implementation on some of the types in the library.
+- **experimental**: enable experimental cryptography, i.e. not battle tested nor peer reviewed and not intended for production use.
 
 ### Adding blockchain support
 To add a blockchain implementation you must implements `Aribtrating` or `Accordant` trait on your blockchain definition, the trait implemented depends on its blockchain on-chain features, see [RFCs](https://github.com/farcaster-project/RFCs) for more details.
 
-To add support for Bitcoin we implement the `Arbitrating` trait on our definition of `Bitcoin`. The implementation contains a strategy allowing variation in SegWit versions or with cryptographic protocols. An `experimental` feature include `SegwitV0` implementation with ECDSA and SegWit v0 experimental support.
+To add support for Bitcoin we implement the `Arbitrating` trait on our definition of `Bitcoin`. The implementation contains a strategy allowing variations in SegWit versions or with cryptographic protocols. An `experimental` feature include `SegwitV0` implementation that supports ECDSA for SegWit v0.
 
 ```rust
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
@@ -59,7 +65,7 @@ impl Strategy for SegwitV0 {}
 impl Arbitrating for Bitcoin<SegwitV0> {}
 ```
 
-The implementation is void but requires a list of traits such as (see `src/role.rs`):
+The implementation of `Arbitrating` is void but requires a list of other traits (see `src/role.rs`):
 
 ```rust
 pub trait Arbitrating:
@@ -77,7 +83,7 @@ pub trait Arbitrating:
 }
 ```
 
-By implementing all the required traits on Bitcoin we associate Bitcoin external concrete types used in the framework logic.
+By implementing all the required traits on our Bitcoin definition we associate external concrete types used later in the framework logic.
 
 ```rust
 impl<S: Strategy> blockchain::Asset for Bitcoin<S> {

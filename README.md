@@ -145,6 +145,11 @@ impl blockchain::Transactions for Bitcoin<SegwitV0> {
 }
 ```
 
-# About
+## Release Notes
+See [CHANGELOG.md](CHANGELOG.md).
 
+## About
 This work is part of the Farcaster cross-chain atomic swap project, see [Farcaster Project](https://github.com/farcaster-project).
+
+## Licensing
+The code in this project is licensed under the [LGPL-3.0 License ](LICENSE)

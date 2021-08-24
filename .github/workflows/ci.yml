@@ -24,6 +24,25 @@ jobs:
     - name: Run Clippy
       run: cargo clippy --workspace --all-targets
 
+  build_doc:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust Nightly
+      uses: actions-rs/toolchain@v1.0.7
+      with:
+        toolchain: nightly
+        override: true
+        profile: minimal
+
+    - name: Build rust doc
+      run: cargo doc --all-features --no-deps
+      env:
+        RUSTDOCFLAGS: "--cfg docsrs"
+
   build:
 
     strategy:

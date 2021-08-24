@@ -1,7 +1,7 @@
 [package]
 name = "farcaster_core"
 description = "Farcaster project core library, blockchain atomic swaps."
-keywords = ["farcaster", "atomic swap", "bitcoin", "monero"]
+keywords = ["farcaster", "atomicswap", "bitcoin", "monero"]
 version = "0.1.0"
 authors = ["Farcaster Devs"]
 license = "LGPL-3.0"

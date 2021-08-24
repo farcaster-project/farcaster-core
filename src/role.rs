@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use std::io;
 use std::str::FromStr;
 
-use crate::blockchain::{Address, Asset, Fee, FeePolitic, Onchain, Timelock, Transactions};
+use crate::blockchain::{Address, Asset, Fee, FeePriority, Onchain, Timelock, Transactions};
 use crate::bundle::{
     AliceParameters, BobParameters, CoreArbitratingTransactions, CosignedArbitratingCancel,
     FullySignedBuy, FullySignedPunish, FullySignedRefund, SignedAdaptorBuy, SignedAdaptorRefund,
@@ -171,7 +171,7 @@ pub struct Alice<Ctx: Swap> {
     /// An arbitrating address where, if successfully executed, the funds exchanged will be sent to
     pub destination_address: <Ctx::Ar as Address>::Address,
     /// The fee politic to apply during the swap fee calculation
-    pub fee_politic: FeePolitic,
+    pub fee_politic: FeePriority,
 }
 
 struct ValidatedCoreTransactions<Ctx: Swap> {
@@ -189,7 +189,7 @@ where
     /// Create a new role for Alice with the local parameters.
     pub fn new(
         destination_address: <Ctx::Ar as Address>::Address,
-        fee_politic: FeePolitic,
+        fee_politic: FeePriority,
     ) -> Self {
         Self {
             destination_address,
@@ -753,12 +753,12 @@ pub struct Bob<Ctx: Swap> {
     /// back to
     pub refund_address: <Ctx::Ar as Address>::Address,
     /// The fee politic to apply during the swap fee calculation
-    pub fee_politic: FeePolitic,
+    pub fee_politic: FeePriority,
 }
 
 impl<Ctx: Swap> Bob<Ctx> {
     /// Create a new [`Bob`] role with the local parameters.
-    pub fn new(refund_address: <Ctx::Ar as Address>::Address, fee_politic: FeePolitic) -> Self {
+    pub fn new(refund_address: <Ctx::Ar as Address>::Address, fee_politic: FeePriority) -> Self {
         Self {
             refund_address,
             fee_politic,
@@ -880,7 +880,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///  * Alice's public keys present in Alice's parameters bundle: [`AliceParameters`]
     ///  * Bob's public keys present in Bob's parameters bundle: [`BobParameters`]
     ///  * The [`Fundable`] transaction
-    ///  * The [`FeeStrategy`] and the [`FeePolitic`]
+    ///  * The [`FeeStrategy`] and the [`FeePriority`]
     ///
     /// The lock transaction is initialized by passing the [`DataLock`] structure, then the cancel
     /// transaction is initialized based on the lock transaction with the [`DataPunishableLock`]
@@ -889,7 +889,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// # Transaction Fee
     ///
     /// The fee on each transactions are set according to the [`FeeStrategy`] specified in the
-    /// public offer and the [`FeePolitic`] in `self`.
+    /// public offer and the [`FeePriority`] in `self`.
     ///
     /// [`FeeStrategy`]: crate::blockchain::FeeStrategy
     ///

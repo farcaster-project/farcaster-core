@@ -1,7 +1,7 @@
 use farcaster_core::bitcoin::segwitv0::FundingTx;
 use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
-use farcaster_core::blockchain::{FeePolitic, Network};
+use farcaster_core::blockchain::{FeePriority, Network};
 use farcaster_core::consensus::deserialize;
 use farcaster_core::crypto::{ArbitratingKeyId, GenerateKey};
 use farcaster_core::negotiation::PublicOffer;
@@ -26,7 +26,7 @@ fn init() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>) {
     let destination_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
         .expect("Parsable address")
         .into();
-    let fee_politic = FeePolitic::Aggressive;
+    let fee_politic = FeePriority::Low;
     let alice: Alice<BtcXmr> = Alice::new(destination_address, fee_politic);
     let refund_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
         .expect("Parsable address")

@@ -86,7 +86,7 @@ impl FromStr for SatPerVByte {
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts = s.split("/").collect::<Vec<&str>>();
+        let parts = s.split('/').collect::<Vec<&str>>();
         if parts.len() != 2 {
             return Err(consensus::Error::ParseFailed(
                 "SatPerVByte format is not respected",
@@ -95,7 +95,7 @@ impl FromStr for SatPerVByte {
         let amount = parts[0].parse::<Amount>().map_err(consensus::Error::new)?;
         match parts[1] {
             "vByte" => Ok(Self(amount)),
-            _ => Err(consensus::Error::ParseFailed("SatPerVByte parse failed"))?,
+            _ => Err(consensus::Error::ParseFailed("SatPerVByte parse failed")),
         }
     }
 }
@@ -132,7 +132,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
             ));
         }
 
-        let input_sum = get_available_input_sat(&tx)?;
+        let input_sum = get_available_input_sat(tx)?;
 
         // FIXME This does not account for witnesses
         // currently the fees are wrong
@@ -147,12 +147,12 @@ impl<S: Strategy> Fee for Bitcoin<S> {
                 FeePriority::High => range.end.as_native_unit().checked_mul(weight),
             },
         }
-        .ok_or_else(|| FeeStrategyError::AmountOfFeeTooHigh)?;
+        .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
 
         // Apply the fee on the first output
         tx.global.unsigned_tx.output[0].value = input_sum
             .checked_sub(fee_amount)
-            .ok_or_else(|| FeeStrategyError::NotEnoughAssets)?
+            .ok_or(FeeStrategyError::NotEnoughAssets)?
             .as_sat();
 
         // Return the fee amount set in native blockchain asset unit
@@ -170,11 +170,11 @@ impl<S: Strategy> Fee for Bitcoin<S> {
             ));
         }
 
-        let input_sum = get_available_input_sat(&tx)?.as_sat();
+        let input_sum = get_available_input_sat(tx)?.as_sat();
         let output_sum = tx.global.unsigned_tx.output[0].value;
         let fee = input_sum
             .checked_sub(output_sum)
-            .ok_or_else(|| FeeStrategyError::AmountOfFeeTooHigh)?;
+            .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
         let weight = tx.global.unsigned_tx.get_weight() as u64;
 
         let effective_sat_per_vbyte = SatPerVByte::from_sat(
@@ -217,6 +217,6 @@ mod tests {
     #[test]
     fn display_sats_per_vbyte() {
         let fee_rate = SatPerVByte::from_sat(100);
-        assert_eq!(format!("{}", fee_rate), format!("100 satoshi/vByte"));
+        assert_eq!(format!("{}", fee_rate), "100 satoshi/vByte".to_string());
     }
 }

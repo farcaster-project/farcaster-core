@@ -55,9 +55,8 @@ impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
 
         let output_metadata = prev.get_consumable_output()?;
 
-        match output_metadata.tx_out.value < target_amount.as_sat() {
-            true => Err(FError::NotEnoughAssets)?,
-            false => (),
+        if output_metadata.tx_out.value < target_amount.as_sat() {
+            return Err(FError::NotEnoughAssets);
         }
 
         let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
@@ -99,21 +98,21 @@ impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
     fn verify_template(&self, lock: script::DataLock<Bitcoin<SegwitV0>>) -> Result<(), FError> {
         (self.psbt.global.unsigned_tx.version == 2)
             .then(|| 0)
-            .ok_or_else(|| FError::WrongTemplate)?;
+            .ok_or(FError::WrongTemplate)?;
         (self.psbt.global.unsigned_tx.lock_time == 0)
             .then(|| 0)
-            .ok_or_else(|| FError::WrongTemplate)?;
+            .ok_or(FError::WrongTemplate)?;
         (self.psbt.global.unsigned_tx.input.len() == 1)
             .then(|| 0)
-            .ok_or_else(|| FError::WrongTemplate)?;
+            .ok_or(FError::WrongTemplate)?;
         (self.psbt.global.unsigned_tx.output.len() == 1)
             .then(|| 0)
-            .ok_or_else(|| FError::WrongTemplate)?;
+            .ok_or(FError::WrongTemplate)?;
 
         let txin = &self.psbt.global.unsigned_tx.input[0];
         (txin.sequence == (1 << 31) as u32)
             .then(|| 0)
-            .ok_or_else(|| FError::WrongTemplate)?;
+            .ok_or(FError::WrongTemplate)?;
 
         let txout = &self.psbt.global.unsigned_tx.output[0];
         let script = Builder::new()
@@ -136,7 +135,7 @@ impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
             .into_script();
         (txout.script_pubkey == script.to_v0_p2wsh())
             .then(|| 0)
-            .ok_or_else(|| FError::WrongTemplate)?;
+            .ok_or(FError::WrongTemplate)?;
 
         Ok(())
     }

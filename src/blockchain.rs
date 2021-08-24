@@ -352,11 +352,14 @@ mod tests {
     #[test]
     fn display_fee_strategy() {
         let strategy = FeeStrategy::Fixed(SatPerVByte::from_sat(100));
-        assert_eq!(format!("{}", strategy), format!("Fixed: 100 satoshi/vByte"));
+        assert_eq!(
+            format!("{}", strategy),
+            "Fixed: 100 satoshi/vByte".to_string()
+        );
         let strategy = FeeStrategy::Range(SatPerVByte::from_sat(50)..SatPerVByte::from_sat(150));
         assert_eq!(
             format!("{}", strategy),
-            format!("Range: from 50 satoshi/vByte to 150 satoshi/vByte")
+            "Range: from 50 satoshi/vByte to 150 satoshi/vByte".to_string()
         )
     }
 }

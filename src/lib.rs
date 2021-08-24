@@ -104,3 +104,7 @@ pub enum Error {
     #[error("Syncer error: {0}")]
     Syncer(#[from] syncer::Error),
 }
+
+/// Result of an high level computation such as in Alice and Bob roles executing the protocol,
+/// wraps the crate level [`enum@Error`] type.
+pub type Res<T> = Result<T, Error>;

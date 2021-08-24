@@ -116,7 +116,7 @@ impl KeyManager {
         let secp = Secp256k1::new();
         if let Some(seed) = self.seed {
             let master_key = ExtendedPrivKey::new_master(bitcoin::Network::Bitcoin, &seed)
-                .map_err(|e| crypto::Error::new(e))?;
+                .map_err(crypto::Error::new)?;
             let key =
                 match key_id {
                     ArbitratingKeyId::Fund => master_key
@@ -129,9 +129,9 @@ impl KeyManager {
                         .derive_priv(&secp, &DerivationPath::from_str("m/0/1'/4").unwrap()),
                     ArbitratingKeyId::Punish => master_key
                         .derive_priv(&secp, &DerivationPath::from_str("m/0/1'/5").unwrap()),
-                    ArbitratingKeyId::Extra(_) => Err(crypto::Error::UnsupportedKey)?,
+                    ArbitratingKeyId::Extra(_) => return Err(crypto::Error::UnsupportedKey),
                 };
-            Ok(key.map_err(|e| crypto::Error::new(e))?.private_key.key)
+            Ok(key.map_err(crypto::Error::new)?.private_key.key)
         } else {
             Err(crypto::Error::UnsupportedKey)
         }
@@ -173,7 +173,7 @@ impl KeyManager {
             let mut key = Hash::hash(&bytes).to_fixed_bytes();
             key[31] &= 0b0000_1111; // Chop off bits that might be greater than the curve modulus
 
-            monero::PrivateKey::from_slice(&key).map_err(|e| crypto::Error::new(e))
+            monero::PrivateKey::from_slice(&key).map_err(crypto::Error::new)
         } else {
             Err(crypto::Error::UnsupportedKey)
         }
@@ -238,7 +238,7 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         let nonce_gen = nonce::Synthetic::<Sha256, nonce::GlobalRng<ThreadRng>>::default();
         let ecdsa = ECDSA::new(nonce_gen);
 
-        Ok(ecdsa.sign(&secret_key, &message_hash).into())
+        Ok(ecdsa.sign(&secret_key, message_hash).into())
     }
 
     fn verify_signature(
@@ -249,8 +249,7 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
     ) -> Result<(), crypto::Error> {
         let secp = Secp256k1::new();
         let message = Message::from_slice(&msg).expect("Hash is always ok");
-        secp.verify(&message, &sig, &key)
-            .map_err(|e| crypto::Error::new(e))
+        secp.verify(&message, sig, key).map_err(crypto::Error::new)
     }
 
     fn adaptor_sign_with_key(
@@ -261,13 +260,13 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
     ) -> Result<EncryptedSignature, crypto::Error> {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
         let secret_signing_key = Scalar::from(self.get_btc_privkey_by_pub(signing_key)?);
-        let encryption_key = Point::from(adaptor_key.clone());
+        let encryption_key = Point::from(*adaptor_key);
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
         };
 
-        Ok(adaptor.encrypted_sign(&secret_signing_key, &encryption_key, &message_hash))
+        Ok(adaptor.encrypted_sign(&secret_signing_key, &encryption_key, message_hash))
     }
 
     fn verify_adaptor_signature(
@@ -278,8 +277,8 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         adaptor_sig: &EncryptedSignature,
     ) -> Result<(), crypto::Error> {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let verification_key = Point::from(signing_key.clone());
-        let encryption_key = Point::from(adaptor_key.clone());
+        let verification_key = Point::from(*signing_key);
+        let encryption_key = Point::from(*adaptor_key);
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -288,8 +287,8 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         match adaptor.verify_encrypted_signature(
             &verification_key,
             &encryption_key,
-            &message_hash,
-            &adaptor_sig,
+            message_hash,
+            adaptor_sig,
         ) {
             true => Ok(()),
             false => Err(crypto::Error::InvalidAdaptorSignature),
@@ -305,7 +304,7 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         let decryption_key = Scalar::from(self.get_btc_privkey_by_pub(adaptor_key)?);
 
         Ok(adaptor
-            .decrypt_signature(&decryption_key, adaptor_sig.clone())
+            .decrypt_signature(&decryption_key, adaptor_sig)
             .into())
     }
 
@@ -316,7 +315,7 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         adapted_sig: EncryptedSignature,
     ) -> SecretKey {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let encryption_key = Point::from(adaptor_key.clone());
+        let encryption_key = Point::from(*adaptor_key);
         let signature = ecdsa_fun::Signature::from(sig);
 
         match adaptor.recover_decryption_key(&encryption_key, &signature, &adapted_sig) {
@@ -353,7 +352,7 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager
         let secp = Secp256k1::new();
         let spend = self.private_spend_from_seed()?;
         let bytes = spend.to_bytes(); // FIXME warn this copy the priv key
-        let adaptor = SecretKey::from_slice(&bytes).map_err(|e| crypto::Error::new(e))?;
+        let adaptor = SecretKey::from_slice(&bytes).map_err(crypto::Error::new)?;
         Ok(PublicKey::from_secret_key(&secp, &adaptor))
     }
 

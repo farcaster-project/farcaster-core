@@ -59,6 +59,12 @@ impl<S: Strategy> Bitcoin<S> {
     }
 }
 
+impl<S: Strategy> Default for Bitcoin<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<S: Strategy> Asset for Bitcoin<S> {
     /// Type for quantifying the traded asset.
     type AssetUnit = Amount;

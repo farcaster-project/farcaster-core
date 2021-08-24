@@ -23,14 +23,12 @@ fn init() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>) {
                873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
                000000000000000000000260700";
 
-    let destination_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
-        .expect("Parsable address")
-        .into();
+    let destination_address =
+        Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").expect("Parsable address");
     let fee_politic = FeePriority::Low;
     let alice: Alice<BtcXmr> = Alice::new(destination_address, fee_politic);
-    let refund_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
-        .expect("Parsable address")
-        .into();
+    let refund_address =
+        Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").expect("Parsable address");
     let bob: Bob<BtcXmr> = Bob::new(refund_address, fee_politic);
 
     let pub_offer: PublicOffer<BtcXmr> =

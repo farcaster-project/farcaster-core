@@ -110,9 +110,7 @@ where
 
     fn based_on(&self) -> MetadataOutput {
         MetadataOutput {
-            out_point: self.psbt.global.unsigned_tx.input[0]
-                .previous_output
-                .clone(),
+            out_point: self.psbt.global.unsigned_tx.input[0].previous_output,
             tx_out: self.psbt.inputs[0].witness_utxo.clone().unwrap(), // FIXME
             script_pubkey: self.psbt.inputs[0].witness_script.clone(),
         }
@@ -189,7 +187,7 @@ where
 
         let sighash_type = self.psbt.inputs[0]
             .sighash_type
-            .ok_or(FError::new(Error::MissingSigHashType))?;
+            .ok_or_else(|| FError::new(Error::MissingSigHashType))?;
 
         Ok(signature_hash(txin, &script, value, sighash_type))
     }
@@ -197,7 +195,7 @@ where
     fn add_witness(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
         let sighash_type = self.psbt.inputs[0]
             .sighash_type
-            .ok_or(FError::new(Error::MissingSigHashType))?;
+            .ok_or_else(|| FError::new(Error::MissingSigHashType))?;
         let mut full_sig = sig.serialize_der().to_vec();
         full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
         let pubkey = bitcoin::util::ecdsa::PublicKey::new(pubkey);

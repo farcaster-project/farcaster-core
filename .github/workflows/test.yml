@@ -1,4 +1,4 @@
-name: CI
+name: Test
 
 on:
   push:
@@ -10,64 +10,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-
-  static_analysis:
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Run Rustfmt
-      run: cargo fmt -- --check
-
-    - name: Run Clippy
-      run: cargo clippy --workspace --all-targets
-
-  build_doc:
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Install Rust Nightly
-      uses: actions-rs/toolchain@v1.0.7
-      with:
-        toolchain: nightly
-        override: true
-        profile: minimal
-
-    - name: Build rust doc
-      run: cargo doc --all-features --no-deps
-      env:
-        RUSTDOCFLAGS: "--cfg docsrs"
-
-  build:
-
-    strategy:
-      matrix:
-        rust: [
-            stable,
-            nightly
-        ]
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Install Rust ${{ matrix.rust }}
-      uses: actions-rs/toolchain@v1.0.7
-      with:
-        toolchain: ${{ matrix.rust }}
-        override: true
-        profile: minimal
-
-    - uses: Swatinem/rust-cache@v1.3.0
-
-    - name: Build
-      run: cargo build --verbose
 
   test:
 

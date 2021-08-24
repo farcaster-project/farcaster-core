@@ -1,4 +1,4 @@
-[![Build Status](https://img.shields.io/github/workflow/status/farcaster-project/farcaster-core/CI/main)](https://github.com/farcaster-project/farcaster-core/actions/workflows/ci.yml)
+[![Build Status](https://img.shields.io/github/workflow/status/farcaster-project/farcaster-core/Build/main)](https://github.com/farcaster-project/farcaster-core/actions/workflows/build.yml)
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance)
 [![Crates.io](https://img.shields.io/crates/v/farcaster_core.svg)](https://crates.io/crates/farcaster_core)
 [![Documentation](https://docs.rs/farcaster_core/badge.svg)](https://docs.rs/farcaster_core)

@@ -560,7 +560,7 @@ fn test_event_encoding() {
     let event = Event::HeightChanged(height_changed);
     let mut encoder = Vec::new();
     event.consensus_encode(&mut encoder).unwrap();
-    let mut res = std::io::Cursor::new(encoder.clone());
+    let mut res = std::io::Cursor::new(encoder);
     let event_decoded = Event::consensus_decode(&mut res).unwrap();
     match event_decoded {
         Event::HeightChanged(height_changed) => {
@@ -573,14 +573,14 @@ fn test_event_encoding() {
 
     let transaction_broadcasted = TransactionBroadcasted {
         id: 12312,
-        tx_len: 05,
+        tx_len: 5,
         tx: vec![42, 42, 42, 42, 42],
         success_broadcast: 1,
     };
     let event_broadcasted = Event::TransactionBroadcasted(transaction_broadcasted);
     let mut encoding = Vec::new();
     event_broadcasted.consensus_encode(&mut encoding).unwrap();
-    let mut res_broad = std::io::Cursor::new(encoding.clone());
+    let mut res_broad = std::io::Cursor::new(encoding);
     let broadcasted_decoded = Event::consensus_decode(&mut res_broad).unwrap();
     match broadcasted_decoded {
         Event::TransactionBroadcasted(transaction_broadcasted) => {

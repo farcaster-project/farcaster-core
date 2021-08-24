@@ -130,6 +130,15 @@ where
     }
 }
 
+/// A vector of `T` tagged elements `E`.
+pub type TaggedElements<T, E> = Vec<TaggedElement<T, E>>;
+
+/// A vector of [`u16`] tagged keys of type `E`.
+pub type TaggedExtraKeys<E> = Vec<TaggedElement<u16, E>>;
+
+/// A vector of shared keys tagged with [`SharedKeyId`] of type `E`.
+pub type TaggedSharedKeys<E> = Vec<TaggedElement<SharedKeyId, E>>;
+
 /// List of all possible arbitrating keys as defined for the base protocol in the RFCs. Extra keys
 /// can be defined with [`Self::Extra`] variant and an `u16` identifier. Those keys can be used for
 /// extra off-chain protocol such as multi-signature or multi-party computation schemes.

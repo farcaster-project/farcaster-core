@@ -136,7 +136,7 @@ impl CanonicalBytes for EncryptedSignature {
     where
         Self: Sized,
     {
-        bincode::deserialize::<EncryptedSignature>(&bytes).map_err(consensus::Error::new)
+        bincode::deserialize::<EncryptedSignature>(bytes).map_err(consensus::Error::new)
     }
 }
 
@@ -144,8 +144,8 @@ impl CanonicalBytes for EncryptedSignature {
 /// input.
 ///
 /// [bip-143]: https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-pub fn signature_hash<'a>(
-    txin: TxInRef<'a>,
+pub fn signature_hash(
+    txin: TxInRef,
     script: &Script,
     value: u64,
     sighash_type: SigHashType,
@@ -158,9 +158,9 @@ pub fn signature_hash<'a>(
 /// Computes the [`BIP-143`][bip-143] compliant signature for the given input.
 ///
 /// [bip-143]: https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-pub fn sign_input<'a, C>(
+pub fn sign_input<C>(
     context: &mut Secp256k1<C>,
-    txin: TxInRef<'a>,
+    txin: TxInRef,
     script: &Script,
     value: u64,
     sighash_type: SigHashType,

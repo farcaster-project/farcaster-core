@@ -25,9 +25,9 @@ impl Linkable<MetadataOutput> for Funding {
     fn get_consumable_output(&self) -> Result<MetadataOutput, FError> {
         // Create a **COMPRESSED** ECDSA public key.
         let pubkey = match self.pubkey {
-            Some(pubkey) => Ok(bitcoin::util::ecdsa::PublicKey::new(pubkey)),
-            None => Err(FError::MissingPublicKey),
-        }?;
+            Some(pubkey) => bitcoin::util::ecdsa::PublicKey::new(pubkey),
+            None => return Err(FError::MissingPublicKey),
+        };
 
         let (script_pubkey, network) = match self.network {
             Some(Network::Mainnet) => (
@@ -42,7 +42,7 @@ impl Linkable<MetadataOutput> for Funding {
                 Address::p2wpkh(&pubkey, BtcNetwork::Regtest),
                 BtcNetwork::Regtest,
             ),
-            None => Err(FError::MissingNetwork)?,
+            None => return Err(FError::MissingNetwork),
         };
 
         // Safety: we can unwrap here as `Address::p2wpkh` only returns an error when
@@ -61,7 +61,7 @@ impl Linkable<MetadataOutput> for Funding {
                     tx_out: tx_out.clone(),
                     script_pubkey: Some(Address::p2pkh(&pubkey, network).script_pubkey()),
                 })
-                .ok_or_else(|| FError::MissingUTXO),
+                .ok_or(FError::MissingUTXO),
             // The transaction has not been see yet, cannot infer the UTXO
             None => Err(FError::MissingOnchainTransaction),
         }
@@ -111,9 +111,6 @@ impl Fundable<Bitcoin<SegwitV0>, MetadataOutput> for Funding {
     }
 
     fn was_seen(&self) -> bool {
-        match self.seen_tx {
-            Some(_) => true,
-            None => false,
-        }
+        self.seen_tx.is_some()
     }
 }

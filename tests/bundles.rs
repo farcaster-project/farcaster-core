@@ -28,14 +28,12 @@ fn init_alice() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>, SwapId) {
                27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
                00000000000000000000000260700";
 
-    let destination_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
-        .expect("Parsable address")
-        .into();
+    let destination_address =
+        Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").expect("Parsable address");
     let fee_politic = FeePriority::Low;
     let alice: Alice<BtcXmr> = Alice::new(destination_address, fee_politic);
-    let refund_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
-        .expect("Parsable address")
-        .into();
+    let refund_address =
+        Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").expect("Parsable address");
     let bob: Bob<BtcXmr> = Bob::new(refund_address, fee_politic);
 
     let pub_offer: PublicOffer<BtcXmr> =
@@ -115,7 +113,7 @@ fn tampered_reveal_must_fail() {
 
     // Commit to Bob first key_manager
     let commit_bob_params =
-        CommitBobParameters::commit_to_bundle(swap_id, &key_manager, bob_params.clone());
+        CommitBobParameters::commit_to_bundle(swap_id, &key_manager, bob_params);
     // Reveal other params
     let reveal_bob_params: RevealBobParameters<_> = (
         swap_id,
@@ -138,7 +136,7 @@ fn missing_commitment_in_vec() {
     ]);
 
     let bob_params = bob.generate_parameters(&key_manager, &pub_offer).unwrap();
-    let mut partial_params = bob_params.clone();
+    let mut partial_params = bob_params;
     // Remove the private view key
     partial_params.accordant_shared_keys = vec![];
 

@@ -7,7 +7,7 @@ use crate::blockchain::{Address, Onchain};
 use crate::bundle;
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
-    self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement,
+    self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement, TaggedElements,
 };
 use crate::swap::{Swap, SwapId};
 use crate::Error;
@@ -16,9 +16,9 @@ use lightning_encoding::{strategies::AsStrict, Strategy};
 
 fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
-    keys: &Vec<TaggedElement<T, K>>,
-) -> Vec<TaggedElement<T, C>> {
-    keys.into_iter()
+    keys: &[TaggedElement<T, K>],
+) -> TaggedElements<T, C> {
+    keys.iter()
         .map(|tagged_key| {
             TaggedElement::new(
                 tagged_key.tag().clone(),
@@ -31,7 +31,7 @@ fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
 fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: Vec<TaggedElement<T, K>>,
-    commitments: &Vec<TaggedElement<T, C>>,
+    commitments: &[TaggedElement<T, C>],
 ) -> Result<(), Error> {
     keys.into_iter()
         .map(|tagged_key| {
@@ -44,7 +44,7 @@ fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
                             tagged_key.elem().as_canonical_bytes(),
                             tagged_commitment.elem().clone(),
                         )
-                        .map_err(|e| Error::Crypto(e))
+                        .map_err(Error::Crypto)
                 })
                 .ok_or(Error::Crypto(crypto::Error::InvalidCommitment))
         })
@@ -728,7 +728,7 @@ where
         Self {
             swap_id: bundles.0,
             cancel_sig: bundles.1.cancel_sig.clone(),
-            refund_adaptor_sig: bundles.2.refund_adaptor_sig.clone(),
+            refund_adaptor_sig: bundles.2.refund_adaptor_sig,
         }
     }
 }
@@ -799,7 +799,7 @@ where
         Self {
             swap_id: bundle.0,
             buy: bundle.1.buy.clone(),
-            buy_adaptor_sig: bundle.1.buy_adaptor_sig.clone(),
+            buy_adaptor_sig: bundle.1.buy_adaptor_sig,
         }
     }
 }

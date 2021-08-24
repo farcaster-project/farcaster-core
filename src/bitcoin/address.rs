@@ -12,9 +12,7 @@ impl CanonicalBytes for Address {
     where
         Self: Sized,
     {
-        Ok(
-            Address::from_str(str::from_utf8(bytes).map_err(consensus::Error::new)?)
-                .map_err(consensus::Error::new)?,
-        )
+        Address::from_str(str::from_utf8(bytes).map_err(consensus::Error::new)?)
+            .map_err(consensus::Error::new)
     }
 }

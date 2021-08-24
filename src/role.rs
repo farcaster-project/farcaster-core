@@ -14,8 +14,8 @@ use crate::bundle::{
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
-    AccordantKeyId, ArbitratingKeyId, Keys, SharedKeyId, SharedPrivateKeys, Sign, Signatures,
-    TaggedElement, Wallet,
+    AccordantKeyId, ArbitratingKeyId, Keys, SharedPrivateKeys, Sign, Signatures, TaggedElement,
+    TaggedExtraKeys, TaggedSharedKeys, Wallet,
 };
 use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
@@ -24,7 +24,7 @@ use crate::transaction::{
     Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction,
     Witnessable,
 };
-use crate::Error;
+use crate::Res;
 
 /// Possible roles during the negotiation phase. Any negotiation role can transition into any swap
 /// role when negotiation is completed, the transition is described in the public offer.
@@ -222,21 +222,18 @@ where
             Ctx::Proof,
         >,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Result<AliceParameters<Ctx>, Error> {
-        let extra_arbitrating_keys: Result<
-            Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
-            Error,
-        > = <Ctx::Ar as Keys>::extra_keys()
-            .into_iter()
-            .map(|tag| {
-                let key = wallet.get_pubkey(ArbitratingKeyId::Extra(tag))?;
-                Ok(TaggedElement::new(tag, key))
-            })
-            .collect();
+    ) -> Res<AliceParameters<Ctx>> {
+        let extra_arbitrating_keys: Res<TaggedExtraKeys<<Ctx::Ar as Keys>::PublicKey>> =
+            <Ctx::Ar as Keys>::extra_keys()
+                .into_iter()
+                .map(|tag| {
+                    let key = wallet.get_pubkey(ArbitratingKeyId::Extra(tag))?;
+                    Ok(TaggedElement::new(tag, key))
+                })
+                .collect();
 
-        let arbitrating_shared_keys: Result<
-            Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
-            Error,
+        let arbitrating_shared_keys: Res<
+            TaggedSharedKeys<<Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>,
         > = <Ctx::Ar as SharedPrivateKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
@@ -245,20 +242,17 @@ where
             })
             .collect();
 
-        let extra_accordant_keys: Result<
-            Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
-            Error,
-        > = <Ctx::Ac as Keys>::extra_keys()
-            .into_iter()
-            .map(|tag| {
-                let key = wallet.get_pubkey(AccordantKeyId::Extra(tag))?;
-                Ok(TaggedElement::new(tag, key))
-            })
-            .collect();
+        let extra_accordant_keys: Res<TaggedExtraKeys<<Ctx::Ac as Keys>::PublicKey>> =
+            <Ctx::Ac as Keys>::extra_keys()
+                .into_iter()
+                .map(|tag| {
+                    let key = wallet.get_pubkey(AccordantKeyId::Extra(tag))?;
+                    Ok(TaggedElement::new(tag, key))
+                })
+                .collect();
 
-        let accordant_shared_keys: Result<
-            Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
-            Error,
+        let accordant_shared_keys: Res<
+            TaggedSharedKeys<<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>,
         > = <Ctx::Ac as SharedPrivateKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
@@ -335,7 +329,7 @@ where
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Result<SignedAdaptorRefund<Ctx::Ar>, Error> {
+    ) -> Res<SignedAdaptorRefund<Ctx::Ar>> {
         // Verifies the core arbitrating transactions.
         let ValidatedCoreTransactions { refund, .. } =
             self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
@@ -345,7 +339,7 @@ where
         let key = &alice_parameters.refund;
         let adaptor = &bob_parameters.adaptor;
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.adaptor_sign_with_key(&key, &adaptor, msg)?;
+        let sig = wallet.adaptor_sign_with_key(key, adaptor, msg)?;
 
         Ok(SignedAdaptorRefund {
             refund_adaptor_sig: sig,
@@ -392,7 +386,7 @@ where
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Result<CosignedArbitratingCancel<Ctx::Ar>, Error> {
+    ) -> Res<CosignedArbitratingCancel<Ctx::Ar>> {
         // Verifies the core arbitrating transactions.
         let ValidatedCoreTransactions { cancel, .. } =
             self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
@@ -400,7 +394,7 @@ where
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
         let key = &alice_parameters.cancel;
-        let sig = wallet.sign_with_key(&key, msg)?;
+        let sig = wallet.sign_with_key(key, msg)?;
 
         Ok(CosignedArbitratingCancel { cancel_sig: sig })
     }
@@ -447,7 +441,7 @@ where
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
         adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
-    ) -> Result<(), Error> {
+    ) -> Res<()> {
         // Verifies the core arbitrating transactions.
         let ValidatedCoreTransactions {
             lock, data_lock, ..
@@ -464,7 +458,7 @@ where
 
         buy.is_build_on_top_of(&lock)?;
         buy.verify_template(data_lock, self.destination_address.clone())?;
-        <Ctx::Ar as Fee>::validate_fee(buy.as_partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(buy.as_partial(), fee_strategy)?;
 
         // Verify the adaptor buy witness
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
@@ -528,7 +522,7 @@ where
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
         adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
-    ) -> Result<FullySignedBuy<Ctx::Ar>, Error> {
+    ) -> Res<FullySignedBuy<Ctx::Ar>> {
         // Verifies the core arbitrating transactions.
         let ValidatedCoreTransactions {
             lock, data_lock, ..
@@ -545,16 +539,16 @@ where
 
         buy.is_build_on_top_of(&lock)?;
         buy.verify_template(data_lock, self.destination_address.clone())?;
-        <Ctx::Ar as Fee>::validate_fee(buy.as_partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(buy.as_partial(), fee_strategy)?;
 
         // Generate the witness message to sign and sign with the buy key.
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
         let key = &alice_parameters.buy;
-        let sig = wallet.sign_with_key(&key, msg)?;
+        let sig = wallet.sign_with_key(key, msg)?;
 
         // Retreive the adaptor public key and the counter-party adaptor witness.
         let key = &alice_parameters.adaptor;
-        let adapted_sig = wallet.adapt_signature(&key, adaptor_buy.buy_adaptor_sig.clone())?;
+        let adapted_sig = wallet.adapt_signature(key, adaptor_buy.buy_adaptor_sig.clone())?;
 
         Ok(FullySignedBuy {
             buy_sig: sig,
@@ -607,7 +601,7 @@ where
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Result<FullySignedPunish<Ctx::Ar>, Error> {
+    ) -> Res<FullySignedPunish<Ctx::Ar>> {
         // Verifies the core arbitrating transactions.
         let ValidatedCoreTransactions {
             cancel,
@@ -625,12 +619,12 @@ where
             >>::initialize(&cancel, punish_lock, self.destination_address.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        <Ctx::Ar as Fee>::set_fee(punish.as_partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(punish.as_partial_mut(), fee_strategy, self.fee_politic)?;
 
         // Generate the witness message to sign and sign with the punish key.
         let msg = punish.generate_witness_message(ScriptPath::Failure)?;
         let key = &alice_parameters.punish;
-        let punish_sig = wallet.sign_with_key(&key, msg)?;
+        let punish_sig = wallet.sign_with_key(key, msg)?;
 
         Ok(FullySignedPunish {
             punish: punish.to_partial(),
@@ -638,7 +632,7 @@ where
         })
     }
 
-    pub fn recover_accordant_assets(&self) -> Result<(), Error> {
+    pub fn recover_accordant_assets(&self) -> Res<()> {
         todo!()
     }
 
@@ -659,7 +653,7 @@ where
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Result<ValidatedCoreTransactions<Ctx>, Error> {
+    ) -> Res<ValidatedCoreTransactions<Ctx>> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_lock = core.lock.clone();
@@ -692,7 +686,7 @@ where
         lock.verify_target_amount(target_amount)?;
         // Validate that the transaction follows the strategy.
         let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::validate_fee(lock.as_partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(lock.as_partial(), fee_strategy)?;
 
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
@@ -720,7 +714,7 @@ where
         cancel.is_build_on_top_of(&lock)?;
         cancel.verify_template(data_lock.clone(), punish_lock.clone())?;
         // Validate the fee strategy
-        <Ctx::Ar as Fee>::validate_fee(cancel.as_partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(cancel.as_partial(), fee_strategy)?;
 
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
@@ -733,7 +727,7 @@ where
         let refund_address = bob_parameters.refund_address.clone();
         refund.verify_template(punish_lock.clone(), refund_address)?;
         // Validate the fee strategy
-        <Ctx::Ar as Fee>::validate_fee(refund.as_partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(refund.as_partial(), fee_strategy)?;
 
         Ok(ValidatedCoreTransactions {
             lock,
@@ -790,21 +784,18 @@ impl<Ctx: Swap> Bob<Ctx> {
             Ctx::Proof,
         >,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Result<BobParameters<Ctx>, Error> {
-        let extra_arbitrating_keys: Result<
-            Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
-            Error,
-        > = <Ctx::Ar as Keys>::extra_keys()
-            .into_iter()
-            .map(|tag| {
-                let key = wallet.get_pubkey(ArbitratingKeyId::Extra(tag))?;
-                Ok(TaggedElement::new(tag, key))
-            })
-            .collect();
+    ) -> Res<BobParameters<Ctx>> {
+        let extra_arbitrating_keys: Res<TaggedExtraKeys<<Ctx::Ar as Keys>::PublicKey>> =
+            <Ctx::Ar as Keys>::extra_keys()
+                .into_iter()
+                .map(|tag| {
+                    let key = wallet.get_pubkey(ArbitratingKeyId::Extra(tag))?;
+                    Ok(TaggedElement::new(tag, key))
+                })
+                .collect();
 
-        let arbitrating_shared_keys: Result<
-            Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
-            Error,
+        let arbitrating_shared_keys: Res<
+            TaggedSharedKeys<<Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>,
         > = <Ctx::Ar as SharedPrivateKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
@@ -813,20 +804,17 @@ impl<Ctx: Swap> Bob<Ctx> {
             })
             .collect();
 
-        let extra_accordant_keys: Result<
-            Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
-            Error,
-        > = <Ctx::Ac as Keys>::extra_keys()
-            .into_iter()
-            .map(|tag| {
-                let key = wallet.get_pubkey(AccordantKeyId::Extra(tag))?;
-                Ok(TaggedElement::new(tag, key))
-            })
-            .collect();
+        let extra_accordant_keys: Res<TaggedExtraKeys<<Ctx::Ac as Keys>::PublicKey>> =
+            <Ctx::Ac as Keys>::extra_keys()
+                .into_iter()
+                .map(|tag| {
+                    let key = wallet.get_pubkey(AccordantKeyId::Extra(tag))?;
+                    Ok(TaggedElement::new(tag, key))
+                })
+                .collect();
 
-        let accordant_shared_keys: Result<
-            Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
-            Error,
+        let accordant_shared_keys: Res<
+            TaggedSharedKeys<<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>,
         > = <Ctx::Ac as SharedPrivateKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
@@ -899,7 +887,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         bob_parameters: &BobParameters<Ctx>,
         funding: impl Fundable<Ctx::Ar, <Ctx::Ar as Transactions>::Metadata>,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Result<CoreArbitratingTransactions<Ctx::Ar>, Error> {
+    ) -> Res<CoreArbitratingTransactions<Ctx::Ar>> {
         // Initialize the fundable transaction to build the lockable transaction on top of it.
         //
         // The fundable transaction `funding` contains all the logic to build on top of a
@@ -935,7 +923,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Ensure that the transaction contains enough assets to pass the fee validation latter.
         let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::validate_fee(lock.as_partial(), &fee_strategy)?;
+        <Ctx::Ar as Fee>::validate_fee(lock.as_partial(), fee_strategy)?;
 
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
@@ -960,7 +948,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         >>::initialize(&lock, cancel_lock, punish_lock.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        <Ctx::Ar as Fee>::set_fee(cancel.as_partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(cancel.as_partial_mut(), fee_strategy, self.fee_politic)?;
 
         // Initialize the refund transaction for the cancel transaction, moving the funds out of
         // the punishable lock to Bob's refund address.
@@ -970,7 +958,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         >>::initialize(&cancel, punish_lock, self.refund_address.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
-        <Ctx::Ar as Fee>::set_fee(refund.as_partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(refund.as_partial_mut(), fee_strategy, self.fee_politic)?;
 
         Ok(CoreArbitratingTransactions {
             lock: lock.to_partial(),
@@ -1009,7 +997,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         >,
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
-    ) -> Result<CosignedArbitratingCancel<Ctx::Ar>, Error> {
+    ) -> Res<CosignedArbitratingCancel<Ctx::Ar>> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_cancel = core.cancel.clone();
@@ -1020,7 +1008,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
         let key = &bob_parameters.cancel;
-        let sig = wallet.sign_with_key(&key, msg)?;
+        let sig = wallet.sign_with_key(key, msg)?;
 
         Ok(CosignedArbitratingCancel { cancel_sig: sig })
     }
@@ -1068,7 +1056,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         adaptor_refund: &SignedAdaptorRefund<Ctx::Ar>,
-    ) -> Result<(), Error> {
+    ) -> Res<()> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_refund = core.refund.clone();
@@ -1140,7 +1128,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Result<SignedAdaptorBuy<Ctx::Ar>, Error> {
+    ) -> Res<SignedAdaptorBuy<Ctx::Ar>> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_lock = core.lock.clone();
@@ -1178,14 +1166,14 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Set the fees according to the strategy in the offer and the local politic.
         let fee_strategy = &public_offer.offer.fee_strategy;
-        <Ctx::Ar as Fee>::set_fee(buy.as_partial_mut(), &fee_strategy, self.fee_politic)?;
+        <Ctx::Ar as Fee>::set_fee(buy.as_partial_mut(), fee_strategy, self.fee_politic)?;
 
         // Generate the witness message to sign and adaptor sign with the buy key and the
         // counter-party adaptor.
         let key = &bob_parameters.buy;
         let adaptor = &alice_parameters.adaptor;
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.adaptor_sign_with_key(&key, &adaptor, msg)?;
+        let sig = wallet.adaptor_sign_with_key(key, adaptor, msg)?;
 
         Ok(SignedAdaptorBuy {
             buy: buy.to_partial(),
@@ -1232,7 +1220,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             Ctx::Proof,
         >,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
-    ) -> Result<SignedArbitratingLock<Ctx::Ar>, Error> {
+    ) -> Res<SignedArbitratingLock<Ctx::Ar>> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_lock = core.lock.clone();
@@ -1296,7 +1284,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         bob_parameters: &BobParameters<Ctx>,
         core: CoreArbitratingTransactions<Ctx::Ar>,
         signed_adaptor_refund: &SignedAdaptorRefund<Ctx::Ar>,
-    ) -> Result<FullySignedRefund<Ctx::Ar>, Error> {
+    ) -> Res<FullySignedRefund<Ctx::Ar>> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_refund = core.refund;
@@ -1307,11 +1295,11 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Generate the witness message to sign and sign with the refund key.
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
         let key = &bob_parameters.refund;
-        let sig = wallet.sign_with_key(&key, msg)?;
+        let sig = wallet.sign_with_key(key, msg)?;
 
         let key = &bob_parameters.adaptor;
         let adapted_sig =
-            wallet.adapt_signature(&key, signed_adaptor_refund.refund_adaptor_sig.clone())?;
+            wallet.adapt_signature(key, signed_adaptor_refund.refund_adaptor_sig.clone())?;
 
         Ok(FullySignedRefund {
             refund_sig: sig,
@@ -1319,7 +1307,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    pub fn recover_accordant_assets(&self) -> Result<(), Error> {
+    pub fn recover_accordant_assets(&self) -> Res<()> {
         todo!()
     }
 }

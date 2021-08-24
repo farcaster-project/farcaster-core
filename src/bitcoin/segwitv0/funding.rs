@@ -1,3 +1,5 @@
+//! Implementation for handeling the funding transaction on-chain.
+
 use bitcoin::blockdata::transaction::{OutPoint, Transaction};
 use bitcoin::network::constants::Network as BtcNetwork;
 use bitcoin::secp256k1::key::PublicKey;
@@ -10,6 +12,8 @@ use crate::bitcoin::segwitv0::SegwitV0;
 use crate::bitcoin::transaction::{Error, MetadataOutput};
 use crate::bitcoin::Bitcoin;
 
+/// Manages the steps to handle on-chain funding. Receives the public key derived from the key
+/// manager, receives the network of operations and the raw funding transaction when seen.
 #[derive(Debug, Clone)]
 pub struct Funding {
     pubkey: Option<PublicKey>,
@@ -19,18 +23,32 @@ pub struct Funding {
 
 impl Linkable<MetadataOutput> for Funding {
     fn get_consumable_output(&self) -> Result<MetadataOutput, FError> {
+        // Create a **COMPRESSED** ECDSA public key.
         let pubkey = match self.pubkey {
             Some(pubkey) => Ok(bitcoin::util::ecdsa::PublicKey::new(pubkey)),
             None => Err(FError::MissingPublicKey),
         }?;
 
-        let script_pubkey = match self.network {
-            Some(Network::Mainnet) => Address::p2pkh(&pubkey, BtcNetwork::Bitcoin),
-            Some(Network::Testnet) => Address::p2pkh(&pubkey, BtcNetwork::Testnet),
-            Some(Network::Local) => Address::p2pkh(&pubkey, BtcNetwork::Regtest),
+        let (script_pubkey, network) = match self.network {
+            Some(Network::Mainnet) => (
+                Address::p2wpkh(&pubkey, BtcNetwork::Bitcoin),
+                BtcNetwork::Bitcoin,
+            ),
+            Some(Network::Testnet) => (
+                Address::p2wpkh(&pubkey, BtcNetwork::Testnet),
+                BtcNetwork::Testnet,
+            ),
+            Some(Network::Local) => (
+                Address::p2wpkh(&pubkey, BtcNetwork::Regtest),
+                BtcNetwork::Regtest,
+            ),
             None => Err(FError::MissingNetwork)?,
-        }
-        .script_pubkey();
+        };
+
+        // Safety: we can unwrap here as `Address::p2wpkh` only returns an error when
+        // uncompressed public key is provided, but we construct the public key and we
+        // ensure it is compressed.
+        let script_pubkey = script_pubkey.unwrap().script_pubkey();
 
         match &self.seen_tx {
             Some(t) => t
@@ -41,7 +59,7 @@ impl Linkable<MetadataOutput> for Funding {
                 .map(|(ix, tx_out)| MetadataOutput {
                     out_point: OutPoint::new(t.txid(), ix as u32),
                     tx_out: tx_out.clone(),
-                    script_pubkey: Some(script_pubkey),
+                    script_pubkey: Some(Address::p2pkh(&pubkey, network).script_pubkey()),
                 })
                 .ok_or_else(|| FError::MissingUTXO),
             // The transaction has not been see yet, cannot infer the UTXO

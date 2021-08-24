@@ -29,7 +29,7 @@ use ecdsa_fun::adaptor::EncryptedSignature;
 
 mod buy;
 mod cancel;
-mod funding;
+pub mod funding;
 mod lock;
 mod punish;
 mod refund;

@@ -395,7 +395,7 @@ impl Encodable for AddressTransaction {
         let mut len = self.id.consensus_encode(s)?;
         len += self.hash.consensus_encode(s)?;
         len += self.amount.consensus_encode(s)?;
-        len + self.block.consensus_encode(s)?;
+        len += self.block.consensus_encode(s)?;
         Ok(len + self.tx.consensus_encode(s)?)
     }
 }

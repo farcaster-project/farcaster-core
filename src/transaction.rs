@@ -254,6 +254,9 @@ where
     /// system by an external wallet, the txid is not known in advance.
     fn update(&mut self, tx: T::Transaction) -> Result<(), Error>;
 
+    /// Boolean indicating whether the transaction was seen
+    fn was_seen(&self) -> bool;
+
     /// Create a raw funding structure based only on the transaction seen on-chain.
     fn raw(tx: T::Transaction) -> Result<Self, Error>;
 

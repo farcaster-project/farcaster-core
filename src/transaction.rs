@@ -15,6 +15,9 @@ use crate::script::{DataLock, DataPunishableLock, ScriptPath};
 /// A list specifying general categories of transaction error.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Missing UTXO.
+    #[error("Missing UTXO")]
+    MissingUTXO,
     /// Missing signature data.
     #[error("Missing signature")]
     MissingSignature,

@@ -12,29 +12,17 @@ use farcaster_core::role::{Alice, Bob};
 use farcaster_core::swap::SwapId;
 use farcaster_core::transaction::Fundable;
 
-use bitcoin::Address;
+use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
+use bitcoin::{Address, Transaction};
 
 use std::str::FromStr;
 
-fn init() -> (
-    Alice<BtcXmr>,
-    Bob<BtcXmr>,
-    PublicOffer<BtcXmr>,
-    bitcoin::Transaction,
-) {
+fn init() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>) {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
                a00000004000a00000001080014000000000000000203b31a0a70343bb46f3db3768296ac5027f9\
                873921b37f852860c690063ff9e4c90000000000000000000000000000000000000000000000000\
                000000000000000000000260700";
 
-    let funding_tx = "020000000001010000000000000000000000000000000000000000000000000000000000\
-               000000ffffffff03510101ffffffff0200f2052a0100000016001490d2e860d4e51f68857d65bfa\
-               7d0da32dd6c9b350000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c\
-               690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000\
-               000000000000000000000000000";
-
-    let funding_tx: bitcoin::Transaction =
-        bitcoin::consensus::encode::deserialize(&hex::decode(funding_tx).unwrap()).unwrap();
     let destination_address = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk")
         .expect("Parsable address")
         .into();
@@ -48,12 +36,12 @@ fn init() -> (
     let pub_offer: PublicOffer<BtcXmr> =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
 
-    (alice, bob, pub_offer, funding_tx)
+    (alice, bob, pub_offer)
 }
 
 #[test]
 fn execute_offline_protocol() {
-    let (alice, bob, pub_offer, funding_tx) = init();
+    let (alice, bob, pub_offer) = init();
 
     let alice_key_manager = KeyManager::new([
         32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10,
@@ -94,12 +82,32 @@ fn execute_offline_protocol() {
         .is_ok());
 
     //
-    // Create core arb transactions
+    // Get Funding Address and Transaction
     //
     let funding_key = bob_key_manager.get_pubkey(ArbitratingKeyId::Fund).unwrap();
     let mut funding = FundingTx::initialize(funding_key, Network::Local).unwrap();
+    let funding_address = funding.get_address().unwrap();
+
+    let funding_tx = Transaction {
+        version: 2,
+        lock_time: 0,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: bitcoin::blockdata::script::Script::default(),
+            sequence: (1 << 31) as u32, // activate disable flag on CSV
+            witness: vec![],
+        }],
+        output: vec![TxOut {
+            value: 123456789,
+            script_pubkey: funding_address.script_pubkey(),
+        }],
+    };
+
     funding.update(funding_tx).unwrap();
 
+    //
+    // Create core arb transactions
+    //
     let core = bob
         .core_arbitrating_transactions(&alice_params, &bob_params, funding, &pub_offer)
         .unwrap();

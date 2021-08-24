@@ -21,7 +21,7 @@ edition = "2018"
 [features]
 rpc = []
 experimental = ["ecdsa_fun", "rand", "sha2", "rand_chacha", "bincode"]
-serde = ["serde_crate", "bitcoin/use-serde", "monero/serde_support"]
+serde = ["serde_crate", "bitcoin/use-serde", "monero/serde_support", "inet2_addr/serde"]
 
 default = ["experimental"]
 
@@ -35,7 +35,7 @@ strict_encoding_derive = "=1.0.0"
 lightning_encoding = "0.4.0-beta.1"
 thiserror = "1.0.24"
 serde_crate = { package = "serde", version = "1", features = ["derive"], optional = true }
-internet2 = { git = "https://github.com/zkao/rust-internet2", branch = "farcaster" }
+inet2_addr = { version = "0.4.0", default-features = false, features = ["tor", "strict_encoding"] }
 
 rand = { version = "0.8.4", optional = true }
 ecdsa_fun = { version = "0.6", default-features = false, features = ["all"], optional = true }
@@ -51,7 +51,6 @@ monero = { version = "0.14" }
 bitcoincore-rpc = "0.13.0"
 rand_core = { version = "^0.6.3", features = ["getrandom"] }
 secp256k1 = { version = "0.20.1", features = ["rand-std"] }
-internet2 = { git = "https://github.com/zkao/rust-internet2", branch = "farcaster" }
 lazy_static = "1.4.0"
 
 [package.metadata.docs.rs]

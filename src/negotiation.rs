@@ -1,7 +1,8 @@
 //! Negotiation helpers and structures. Buyer and seller helpers to create offer and public offers
 //! allowing agreement on assets, quantities and parameters of a swap among maker and taker.
 
-use internet2::RemoteNodeAddr;
+use bitcoin::secp256k1::PublicKey;
+use inet2_addr::InetSocketAddr;
 use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
 
@@ -123,11 +124,16 @@ impl<Ctx: Swap> std::hash::Hash for Offer<Ctx> {
 
 impl<Ctx: Swap> Offer<Ctx> {
     /// Transform the offer in a public offer of [`Version`] 1.
-    pub fn to_public_v1(self, daemon_service: RemoteNodeAddr) -> PublicOffer<Ctx> {
+    pub fn to_public_v1(
+        self,
+        node_id: PublicKey,
+        peer_address: InetSocketAddr,
+    ) -> PublicOffer<Ctx> {
         PublicOffer {
             version: Version::new_v1(),
             offer: self,
-            daemon_service,
+            node_id,
+            peer_address,
         }
     }
 
@@ -413,8 +419,11 @@ pub struct PublicOffer<Ctx: Swap> {
     pub version: Version,
     /// The content of the offer.
     pub offer: Offer<Ctx>,
-    /// Address of the listening daemon's peer.
-    pub daemon_service: RemoteNodeAddr,
+    /// Node public key, used both as an ID and encryption key for per-session ECDH.
+    pub node_id: PublicKey,
+    /// Address of the listening daemon's peer. An internet socket address, which consists of an IP
+    /// or Tor address and a port number.
+    pub peer_address: InetSocketAddr,
 }
 
 impl<Ctx: Swap> PublicOffer<Ctx> {
@@ -487,14 +496,14 @@ where
         let mut len = OFFER_MAGIC_BYTES.consensus_encode(s)?;
         len += self.version.consensus_encode(s)?;
         len += self.offer.consensus_encode(s)?;
-        len += strict_encoding::StrictEncode::strict_encode(&self.daemon_service, s).map_err(
-            |_| {
+        len += self.node_id.as_canonical_bytes().consensus_encode(s)?;
+        len +=
+            strict_encoding::StrictEncode::strict_encode(&self.peer_address, s).map_err(|_| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
                     "Failed to encode RemoteNodeAddr",
                 )
-            },
-        )?;
+            })?;
         Ok(len)
     }
 }
@@ -511,7 +520,8 @@ where
         Ok(PublicOffer {
             version: Decodable::consensus_decode(d)?,
             offer: Decodable::consensus_decode(d)?,
-            daemon_service: strict_encoding::StrictDecode::strict_decode(d)
+            node_id: PublicKey::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            peer_address: strict_encoding::StrictDecode::strict_decode(d)
                 .map_err(consensus::Error::new)?,
         })
     }

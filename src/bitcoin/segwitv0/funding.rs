@@ -19,41 +19,31 @@ pub struct Funding {
 
 impl Linkable<MetadataOutput> for Funding {
     fn get_consumable_output(&self) -> Result<MetadataOutput, FError> {
+        let pubkey = match self.pubkey {
+            Some(pubkey) => Ok(bitcoin::util::ecdsa::PublicKey::new(pubkey)),
+            None => Err(FError::MissingPublicKey),
+        }?;
+
+        let script_pubkey = match self.network {
+            Some(Network::Mainnet) => Address::p2pkh(&pubkey, BtcNetwork::Bitcoin),
+            Some(Network::Testnet) => Address::p2pkh(&pubkey, BtcNetwork::Testnet),
+            Some(Network::Local) => Address::p2pkh(&pubkey, BtcNetwork::Regtest),
+            None => Err(FError::MissingNetwork)?,
+        }
+        .script_pubkey();
+
         match &self.seen_tx {
-            Some(t) => {
-                // More than one UTXO is not supported
-                match t.output.len() {
-                    1 => (),
-                    2 =>
-                    // Check if coinbase transaction
-                    {
-                        if !t.is_coin_base() {
-                            return Err(FError::new(Error::MultiUTXOUnsuported));
-                        }
-                    }
-                    _ => return Err(FError::new(Error::MultiUTXOUnsuported)),
-                }
-
-                let pubkey = match self.pubkey {
-                    Some(pubkey) => Ok(bitcoin::util::ecdsa::PublicKey::new(pubkey)),
-                    None => Err(FError::MissingPublicKey),
-                }?;
-
-                // vout is always 0 because output len is 1
-                Ok(MetadataOutput {
-                    out_point: OutPoint::new(t.txid(), 0),
-                    tx_out: t.output[0].clone(),
-                    script_pubkey: Some(
-                        match self.network {
-                            Some(Network::Mainnet) => Address::p2pkh(&pubkey, BtcNetwork::Bitcoin),
-                            Some(Network::Testnet) => Address::p2pkh(&pubkey, BtcNetwork::Testnet),
-                            Some(Network::Local) => Address::p2pkh(&pubkey, BtcNetwork::Regtest),
-                            None => Err(FError::MissingNetwork)?,
-                        }
-                        .script_pubkey(),
-                    ),
+            Some(t) => t
+                .output
+                .iter()
+                .enumerate()
+                .find(|(_, tx_out)| tx_out.script_pubkey == script_pubkey)
+                .map(|(ix, tx_out)| MetadataOutput {
+                    out_point: OutPoint::new(t.txid(), ix as u32),
+                    tx_out: tx_out.clone(),
+                    script_pubkey: Some(script_pubkey),
                 })
-            }
+                .ok_or_else(|| FError::MissingUTXO),
             // The transaction has not been see yet, cannot infer the UTXO
             None => Err(FError::MissingOnchainTransaction),
         }

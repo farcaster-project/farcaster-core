@@ -1,6 +1,7 @@
 [package]
 name = "farcaster_core"
-description = "Farcaster project core library."
+description = "Farcaster project core library, blockchain atomic swaps."
+keywords = ["farcaster", "atomic swap", "bitcoin", "monero"]
 version = "0.1.0"
 authors = ["Farcaster Devs"]
 license = "LGPL-3.0"
@@ -11,6 +12,7 @@ readme = "README.md"
 include = [
     "src/*",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
 ]
 
@@ -37,6 +39,7 @@ thiserror = "1.0.24"
 serde_crate = { package = "serde", version = "1", features = ["derive"], optional = true }
 inet2_addr = { version = "0.4.0", default-features = false, features = ["tor", "strict_encoding"] }
 
+# crypto libs
 rand = { version = "0.8.4", optional = true }
 ecdsa_fun = { version = "0.6", default-features = false, features = ["all"], optional = true }
 sha2 = { version = "0.9", optional = true }

@@ -20,6 +20,9 @@ The Farcaster atomic swaps project core library aim to implement in Rust the fol
 - [x] Messages exchanged between [farcaster-node](https://github.com/farcaster-project/farcaster-node)'s microservices
 - [x] Tasks and blockchain events used by syncers
 
+## Documentation
+Currently can be found on [docs.rs/farcaster_core](https://docs.rs/farcaster_core). All possible improvments, to add usage examples and to expand on existing docs would be extremely appreciated.
+
 ## Core framework
 This library is twofold: providing a flexible framework to add specific blockchain support and implementing these specific blockchain. The framework is accessible in modules at the root of the crate:
 

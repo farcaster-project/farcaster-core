@@ -23,9 +23,10 @@ edition = "2018"
 [features]
 rpc = []
 experimental = ["ecdsa_fun", "rand", "sha2", "rand_chacha", "bincode"]
+taproot = []
 serde = ["serde_crate", "bitcoin/use-serde", "monero/serde_support", "inet2_addr/serde"]
 
-default = ["experimental"]
+default = ["experimental", "taproot"]
 
 [dependencies]
 amplify = "3"

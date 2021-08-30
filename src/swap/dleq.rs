@@ -25,14 +25,14 @@ struct PedersenCommitment<Point, Scalar> {
 }
 
 // temporary implementations - we don't ultimately want these default values
-impl Default for PedersenCommitment<ed25519Point, ed25519Scalar> {
-    fn default() -> Self {
-        PedersenCommitment {
-            commitment: ed25519Point::default(),
-            blinder: ed25519Scalar::default(),
-        }
-    }
-}
+// impl Default for PedersenCommitment<ed25519Point, ed25519Scalar> {
+//     fn default() -> Self {
+//         PedersenCommitment {
+//             commitment: ed25519Point::default(),
+//             blinder: ed25519Scalar::default(),
+//         }
+//     }
+// }
 
 impl Default for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
     fn default() -> Self {
@@ -137,7 +137,7 @@ impl DLEQProof {
         DLEQProof {
             xg_p,
             xh_p,
-            c_g: vec![PedersenCommitment::<ed25519Point, ed25519Scalar>::default()],
+            c_g: key_commitment(x),
             c_h: vec![PedersenCommitment::<secp256k1Point, secp256k1Scalar>::default()],
             e_g_0: vec![ed25519Scalar::default()],
             e_h_0: vec![secp256k1Scalar::random(&mut rand::thread_rng())],

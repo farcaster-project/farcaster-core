@@ -97,7 +97,11 @@ fn key_commitment(x: [u8; 32]) -> Vec<PedersenCommitment<ed25519Point, ed25519Sc
     let mut commitment: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> = x_bits.iter().take(x_bits.len() - 1).enumerate().map(|(index, bit)| (*bit, index).into()).collect();
     let commitment_last = 
         x_bits.get(x_bits.len() - 1).unwrap();
-    let blinder_last = commitment.iter().fold(curve25519_dalek::scalar::Scalar::zero(), |acc, x| acc - x.blinder);
+    let commitment_last_value = match *commitment_last {
+        true => ed25519Scalar::one(),
+        false => ed25519Scalar::zero(),
+    };
+    let blinder_last = commitment.iter().fold(ed25519Scalar::zero(), |acc, x| acc - x.blinder);
     commitment.push((*commitment_last, blinder_last).into());
     commitment
 }
@@ -149,8 +153,7 @@ impl DLEQProof {
 
 #[test]
 fn pedersen_commitment_works() {
-    let mut x: [u8; 32] = rand::thread_rng().gen();
-    x[31] = u8::min(x[31], 127);
+    let x: [u8; 32] = rand::thread_rng().gen();
     let x_bits = bitvec::prelude::BitSlice::<bitvec::order::Lsb0, u8>::from_slice(&x).unwrap();
     let key_commitment = key_commitment(x);
     let commitment_acc = key_commitment.iter().fold(ed25519Point::identity(), |acc, bit_commitment| acc + bit_commitment.commitment);

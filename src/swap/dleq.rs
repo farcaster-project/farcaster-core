@@ -78,6 +78,35 @@ impl From<(bool, ed25519Scalar)> for PedersenCommitment<ed25519Point, ed25519Sca
     }
 }
 
+impl From<(bool, usize)> for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
+    fn from((bit, index): (bool, usize)) -> PedersenCommitment<secp256k1Point, secp256k1Scalar> {
+        let mut csprng = rand_alt::rngs::OsRng;
+        let blinder = ed25519Scalar::random(&mut csprng);
+
+        let one: u256 = u256::from(1u32);
+        let order = one << index;
+
+        let commitment = match bit {
+            false => blinder * G,
+            true => G_p() * ed25519Scalar::from_bits(order.to_le_bytes()) + blinder * G,
+        };
+
+        PedersenCommitment::default()
+    }
+}
+
+impl From<(bool, ed25519Scalar)> for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
+    fn from((bit, blinder): (bool, ed25519Scalar)) -> PedersenCommitment<secp256k1Point, secp256k1Scalar> {
+
+        let commitment = match bit {
+            false => blinder * G,
+            true => G_p() + blinder * G,
+        };
+
+        PedersenCommitment::default()
+    }
+}
+
 fn key_commitment(x: [u8; 32]) -> Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> {
     let x_bits = bitvec::prelude::BitSlice::<bitvec::order::Lsb0, u8>::from_slice(&x).unwrap();
     let mut commitment: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> = x_bits.iter().take(x_bits.len() - 1).enumerate().map(|(index, bit)| (*bit, index).into()).collect();

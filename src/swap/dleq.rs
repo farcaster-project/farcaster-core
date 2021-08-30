@@ -43,20 +43,6 @@ impl Default for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
     }
 }
 
-impl From<[u8; 32]> for PedersenCommitment<ed25519Point, ed25519Scalar> {
-    fn from(x: [u8; 32]) -> PedersenCommitment<ed25519Point, ed25519Scalar> {
-        let mut csprng = rand_alt::rngs::OsRng;
-        let blinder = ed25519Scalar::random(&mut csprng);
-
-        let commitment = ed25519Scalar::from_bits(x) * G_p() + blinder * G;
-
-        PedersenCommitment {
-            commitment,
-            blinder,
-            }
-    }
-}
-
 impl From<(bool, usize)> for PedersenCommitment<ed25519Point, ed25519Scalar> {
     fn from((bit, index): (bool, usize)) -> PedersenCommitment<ed25519Point, ed25519Scalar> {
         let mut csprng = rand_alt::rngs::OsRng;

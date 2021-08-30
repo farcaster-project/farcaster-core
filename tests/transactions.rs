@@ -23,12 +23,42 @@ macro_rules! setup_txs {
         let (_, pubkey_b2, secret_b2) = new_address!();
 
         let mut funding = FundingTx::initialize(pubkey_a1, Network::Local).unwrap();
+
+        //
+        // Create a wallet, mined funds, send to funding address with multiple UTXOs
+        //
+        if let Err(_) = rpc::CLIENT.create_wallet("test_wallet", Some(false), None, None, None) {
+            let wallets = rpc::CLIENT.list_wallets().unwrap();
+            if wallets.len() == 0 {
+                rpc::CLIENT.load_wallet("test_wallet").unwrap();
+            }
+            if wallets.len() > 1 {
+                panic!("More than one wallet loaded!");
+            }
+        }
+
+        let wallet_address = rpc::CLIENT.get_new_address(None, None).unwrap();
+        rpc::CLIENT.generate_to_address(4, &wallet_address).unwrap();
+        mine!(100);
+        let target_swap_amount = bitcoin::Amount::from_btc(8.0).unwrap();
+
         let address = funding.get_address().unwrap();
+        let txid = rpc::CLIENT
+            .send_to_address(
+                &address,
+                target_swap_amount,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-        let funding_tx_seen = fund_address!(address);
+        let funding_tx_seen: bitcoin::Transaction = rpc::CLIENT.get_by_id(&txid).unwrap();
         // Minimum of fee of 122 sat
-        let target_amount = Amount::from_sat(funding_tx_seen.output[0].value - 122);
-
+        let target_amount = Amount::from_sat(target_swap_amount.as_sat() - 122);
         funding.update(funding_tx_seen).unwrap();
 
         let datalock = DataLock {

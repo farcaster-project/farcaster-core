@@ -4,6 +4,7 @@ cd ..
 ID=$(docker run --rm -d -p 18443:18443 coblox/bitcoin-core\
     -regtest\
     -server\
+    -fallbackfee=0.00001\
     -rpcbind=0.0.0.0\
     -rpcallowip=0.0.0.0/0\
     -rpcuser=test\

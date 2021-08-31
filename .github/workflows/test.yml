@@ -54,6 +54,7 @@ jobs:
           NETWORK: regtest
           RPC_USER: ci
           RPC_PASS: ci
+          FALLBACKFEE: "0.00001"
         ports:
           - 18443:18443
 

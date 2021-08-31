@@ -169,7 +169,9 @@ impl<T> Witnessable<Bitcoin<SegwitV0>> for Tx<T>
 where
     T: SubTransaction,
 {
-    // FIXME this assume only one input
+    /// ## Safety
+    /// This function is used for generating the witness message for all transactions but not
+    /// funding. So implying only 1 input is valid as all templates only have 1 input.
     fn generate_witness_message(&self, _path: ScriptPath) -> Result<Hash, FError> {
         let unsigned_tx = self.psbt.global.unsigned_tx.clone();
         let txin = TxInRef::new(&unsigned_tx, 0);

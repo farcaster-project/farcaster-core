@@ -3,8 +3,7 @@ use bitvec::prelude::*;
 
 use curve25519_dalek::{
     constants::ED25519_BASEPOINT_POINT as G, edwards::EdwardsPoint as ed25519Point,
-    scalar::Scalar as ed25519Scalar,
-    traits::Identity,
+    scalar::Scalar as ed25519Scalar, traits::Identity,
 };
 
 use rand::Rng;
@@ -12,12 +11,12 @@ use rand::Rng;
 // this is disgusting and must be removed asap
 fn G_p() -> ed25519Point {
     monero::util::key::H.point.decompress().unwrap()
-    }
+}
 
 #[cfg(feature = "experimental")]
 use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar, G as H};
 #[cfg(feature = "experimental")]
-use secp256kfun::marker::*;
+use secp256kfun::{g, marker::*};
 
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
@@ -59,13 +58,14 @@ impl From<(bool, usize)> for PedersenCommitment<ed25519Point, ed25519Scalar> {
         PedersenCommitment {
             commitment,
             blinder,
-            }
+        }
     }
 }
 
 impl From<(bool, ed25519Scalar)> for PedersenCommitment<ed25519Point, ed25519Scalar> {
-    fn from((bit, blinder): (bool, ed25519Scalar)) -> PedersenCommitment<ed25519Point, ed25519Scalar> {
-
+    fn from(
+        (bit, blinder): (bool, ed25519Scalar),
+    ) -> PedersenCommitment<ed25519Point, ed25519Scalar> {
         let commitment = match bit {
             false => blinder * G,
             true => G_p() + blinder * G,
@@ -80,15 +80,14 @@ impl From<(bool, ed25519Scalar)> for PedersenCommitment<ed25519Point, ed25519Sca
 
 impl From<(bool, usize)> for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
     fn from((bit, index): (bool, usize)) -> PedersenCommitment<secp256k1Point, secp256k1Scalar> {
-        let mut csprng = rand_alt::rngs::OsRng;
-        let blinder = ed25519Scalar::random(&mut csprng);
+        let blinder = secp256k1Scalar::random(&mut rand::thread_rng());
 
         let one: u256 = u256::from(1u32);
         let order = one << index;
 
         let commitment = match bit {
-            false => blinder * G,
             true => G_p() * ed25519Scalar::from_bits(order.to_le_bytes()) + blinder * G,
+            false => g!(blinder * H),
         };
 
         PedersenCommitment::default()
@@ -96,8 +95,9 @@ impl From<(bool, usize)> for PedersenCommitment<secp256k1Point, secp256k1Scalar>
 }
 
 impl From<(bool, ed25519Scalar)> for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
-    fn from((bit, blinder): (bool, ed25519Scalar)) -> PedersenCommitment<secp256k1Point, secp256k1Scalar> {
-
+    fn from(
+        (bit, blinder): (bool, ed25519Scalar),
+    ) -> PedersenCommitment<secp256k1Point, secp256k1Scalar> {
         let commitment = match bit {
             false => blinder * G,
             true => G_p() + blinder * G,
@@ -109,14 +109,20 @@ impl From<(bool, ed25519Scalar)> for PedersenCommitment<secp256k1Point, secp256k
 
 fn key_commitment(x: [u8; 32]) -> Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> {
     let x_bits = bitvec::prelude::BitSlice::<bitvec::order::Lsb0, u8>::from_slice(&x).unwrap();
-    let mut commitment: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> = x_bits.iter().take(x_bits.len() - 1).enumerate().map(|(index, bit)| (*bit, index).into()).collect();
-    let commitment_last = 
-        x_bits.get(x_bits.len() - 1).unwrap();
+    let mut commitment: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> = x_bits
+        .iter()
+        .take(x_bits.len() - 1)
+        .enumerate()
+        .map(|(index, bit)| (*bit, index).into())
+        .collect();
+    let commitment_last = x_bits.get(x_bits.len() - 1).unwrap();
     let commitment_last_value = match *commitment_last {
         true => ed25519Scalar::one(),
         false => ed25519Scalar::zero(),
     };
-    let blinder_last = commitment.iter().fold(ed25519Scalar::zero(), |acc, x| acc - x.blinder);
+    let blinder_last = commitment
+        .iter()
+        .fold(ed25519Scalar::zero(), |acc, x| acc - x.blinder);
     commitment.push((*commitment_last, blinder_last).into());
     commitment
 }
@@ -170,14 +176,25 @@ impl DLEQProof {
 fn pedersen_commitment_works() {
     let x: [u8; 32] = rand::thread_rng().gen();
     let key_commitment = key_commitment(x);
-    let commitment_acc = key_commitment.iter().fold(ed25519Point::identity(), |acc, bit_commitment| acc + bit_commitment.commitment);
-    assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G_p(), commitment_acc);
+    let commitment_acc = key_commitment
+        .iter()
+        .fold(ed25519Point::identity(), |acc, bit_commitment| {
+            acc + bit_commitment.commitment
+        });
+    assert_eq!(
+        ed25519Scalar::from_bytes_mod_order(x) * G_p(),
+        commitment_acc
+    );
 }
 
 #[test]
 fn blinders_sum_to_zero() {
     let x: [u8; 32] = rand::thread_rng().gen();
     let key_commitment = key_commitment(x);
-    let blinder_acc = key_commitment.iter().fold(ed25519Scalar::zero(), |acc, bit_commitment| acc + bit_commitment.blinder);
+    let blinder_acc = key_commitment
+        .iter()
+        .fold(ed25519Scalar::zero(), |acc, bit_commitment| {
+            acc + bit_commitment.blinder
+        });
     assert_eq!(blinder_acc, ed25519Scalar::zero());
 }

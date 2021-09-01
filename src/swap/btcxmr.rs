@@ -1,12 +1,14 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
+use crate::blockchain::Blockchain;
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{
-    self, AccordantKeyId, ArbitratingKeyId, Commit, Commitment, GenerateKey, GenerateSharedKey,
+    self,
+    slip10::{ChildNumber, DerivationPath, Ed25519ExtSecretKey, Secp256k1ExtSecretKey},
+    AccordantKeyId, ArbitratingKeyId, GenerateKey, GenerateSharedKey, KeccakCommitment,
     ProveCrossGroupDleq, SharedKeyId,
 };
-use crate::monero::{self as xmr};
 #[cfg(feature = "experimental")]
 use crate::{bitcoin::BitcoinSegwitV0, crypto::Sign, monero::Monero, swap::Swap};
 
@@ -32,8 +34,8 @@ use bitcoin::secp256k1::{
     key::{PublicKey, SecretKey},
     Secp256k1,
 };
-use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
 
+use std::collections::HashMap;
 use std::str::FromStr;
 
 #[cfg(feature = "experimental")]
@@ -42,42 +44,25 @@ type Transcript = HashTranscript<Sha256, ChaCha20Rng>;
 #[cfg(feature = "experimental")]
 type NonceGen = nonce::Synthetic<Sha256, nonce::GlobalRng<ThreadRng>>;
 
-/// The number of bits shared between a Bitcoin secret key (with secp256k1) and a Monero secret key
-/// (with Curve25519).
-pub const SHARED_KEY_BITS: usize = 252;
+/// Index, used as hardned derivation, to derive standard keys defined in the protocol for Bitcoin
+/// and Monero.
+pub const STD_KEY_DERIVE_INDEX: u32 = 0;
+/// Index, used as hardned derivation, to derive extra keys for Bitcoin and Monero.
+pub const EXTRA_KEY_DERIVE_INDEX: u32 = 1;
+/// Index, used as hardned derivation, to derive shared secret keys for Bitcoin and Monero.
+pub const SHARED_KEY_DERIVE_INDEX: u32 = 2;
 
 /// The context for a Bitcoin and Monero swap.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BtcXmr;
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl Swap for BtcXmr {
-    /// The arbitrating blockchain
     type Ar = BitcoinSegwitV0;
-
-    /// The accordant blockchain
     type Ac = Monero;
-
-    /// The proof system to link both cryptographic groups
     type Proof = RingProof;
-}
-
-impl Commitment for BtcXmr {
-    type Commitment = Hash;
-}
-
-impl CanonicalBytes for Hash {
-    fn as_canonical_bytes(&self) -> Vec<u8> {
-        self.to_bytes().into()
-    }
-
-    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
-    where
-        Self: Sized,
-    {
-        Ok(Self::from_slice(bytes))
-    }
+    type Commitment = KeccakCommitment;
 }
 
 #[derive(Clone, Debug)]
@@ -96,140 +81,201 @@ impl CanonicalBytes for RingProof {
     }
 }
 
+/// Retrieve the derivation path of something. Might be a blockchain, a type of key, anything that
+/// can contribute to the full derivation path of a key.
+pub trait Derivation {
+    /// Returns the derivation path contribution of the element.
+    fn derivation_path(&self) -> Result<DerivationPath, crypto::Error>;
+}
+
+impl Derivation for Blockchain {
+    fn derivation_path(&self) -> Result<DerivationPath, crypto::Error> {
+        Ok(match self {
+            Blockchain::Bitcoin => DerivationPath::from_str("m/44'/0'").unwrap(),
+            Blockchain::Monero => DerivationPath::from_str("m/44'/128'").unwrap(),
+        })
+    }
+}
+
+impl Derivation for ArbitratingKeyId {
+    fn derivation_path(&self) -> Result<DerivationPath, crypto::Error> {
+        let std_key_index = ChildNumber::from_hardened_idx(STD_KEY_DERIVE_INDEX).unwrap();
+        let key_path = match self {
+            ArbitratingKeyId::Fund => [std_key_index, ChildNumber::from_hardened_idx(1).unwrap()],
+            // Use the same key for buy and cancel
+            ArbitratingKeyId::Buy | ArbitratingKeyId::Cancel => {
+                [std_key_index, ChildNumber::from_hardened_idx(2).unwrap()]
+            }
+            // Use the same key for refund and punish
+            ArbitratingKeyId::Refund | ArbitratingKeyId::Punish => {
+                [std_key_index, ChildNumber::from_hardened_idx(3).unwrap()]
+            }
+            ArbitratingKeyId::Extra(i) => [
+                ChildNumber::from_hardened_idx(EXTRA_KEY_DERIVE_INDEX).unwrap(),
+                ChildNumber::from_hardened_idx(*i as u32).map_err(crypto::Error::new)?,
+            ],
+        };
+        Ok(key_path.as_ref().into())
+    }
+}
+
+impl Derivation for AccordantKeyId {
+    fn derivation_path(&self) -> Result<DerivationPath, crypto::Error> {
+        let std_key_index = ChildNumber::from_hardened_idx(STD_KEY_DERIVE_INDEX).unwrap();
+        let key_path = match self {
+            AccordantKeyId::Spend => [std_key_index, ChildNumber::from_hardened_idx(1).unwrap()],
+            AccordantKeyId::Extra(i) => [
+                ChildNumber::from_hardened_idx(EXTRA_KEY_DERIVE_INDEX).unwrap(),
+                ChildNumber::from_hardened_idx(*i as u32).map_err(crypto::Error::new)?,
+            ],
+        };
+        Ok(key_path.as_ref().into())
+    }
+}
+
+impl Derivation for SharedKeyId {
+    fn derivation_path(&self) -> Result<DerivationPath, crypto::Error> {
+        let shared_key_index = ChildNumber::from_hardened_idx(SHARED_KEY_DERIVE_INDEX).unwrap();
+        let idx = ChildNumber::from_hardened_idx(self.id() as u32).map_err(crypto::Error::new)?;
+        Ok([shared_key_index, idx].as_ref().into())
+    }
+}
+
 /// Manager responsible for handling key operations (secret and public). Implements traits for
-/// handling [`Commit`], [`GenerateKey`], [`GenerateSharedKey`] and [`Sign`].
-#[derive(Clone, Debug)]
+/// handling [`GenerateKey`], [`GenerateSharedKey`] and [`Sign`].
+#[derive(Debug)]
 pub struct KeyManager {
-    seed: Option<[u8; 32]>,
+    /// The master 32-bytes seed used to derive all the keys for all the swaps.
+    master_seed: [u8; 32],
+    /// The swap identifier used in the derivation.
+    swap_index: ChildNumber,
+    /// The master secp256k1 seed.
+    bitcoin_master_key: Secp256k1ExtSecretKey,
+    /// The master ed25519 seed.
+    monero_master_key: Ed25519ExtSecretKey,
+    /// A list of already derived keys for secp256k1 by derivation path.
+    bitcoin_derivations: HashMap<DerivationPath, SecretKey>,
+    /// A list of already derived monero keys for ed25519 by derivation path.
+    monero_derivations: HashMap<DerivationPath, monero::PrivateKey>,
 }
 
 impl KeyManager {
-    pub fn new(seed: [u8; 32]) -> Self {
-        Self { seed: Some(seed) }
+    /// Generate the derivation path of a key, computed as:
+    /// `m/44'/{blockchain}'/{swap_index}'/{key_type}'/{key_idx}'`.
+    pub fn get_derivation_path(
+        &self,
+        blockchain: Blockchain,
+        key_id: &impl Derivation,
+    ) -> Result<DerivationPath, crypto::Error> {
+        let path = blockchain.derivation_path()?;
+        let path = path.extend(&[self.swap_index]);
+        Ok(path.extend(&key_id.derivation_path()?))
     }
 
-    pub fn new_keyless() -> Self {
-        Self { seed: None }
-    }
-
-    pub fn get_btc_privkey(&self, key_id: ArbitratingKeyId) -> Result<SecretKey, crypto::Error> {
-        let secp = Secp256k1::new();
-        if let Some(seed) = self.seed {
-            let master_key = ExtendedPrivKey::new_master(bitcoin::Network::Bitcoin, &seed)
-                .map_err(crypto::Error::new)?;
-            let key =
-                match key_id {
-                    ArbitratingKeyId::Fund => master_key
-                        .derive_priv(&secp, &DerivationPath::from_str("m/0/1'/1").unwrap()),
-                    ArbitratingKeyId::Buy => master_key
-                        .derive_priv(&secp, &DerivationPath::from_str("m/0/1'/2").unwrap()),
-                    ArbitratingKeyId::Cancel => master_key
-                        .derive_priv(&secp, &DerivationPath::from_str("m/0/1'/3").unwrap()),
-                    ArbitratingKeyId::Refund => master_key
-                        .derive_priv(&secp, &DerivationPath::from_str("m/0/1'/4").unwrap()),
-                    ArbitratingKeyId::Punish => master_key
-                        .derive_priv(&secp, &DerivationPath::from_str("m/0/1'/5").unwrap()),
-                    ArbitratingKeyId::Extra(_) => return Err(crypto::Error::UnsupportedKey),
-                };
-            Ok(key.map_err(crypto::Error::new)?.private_key.key)
-        } else {
-            Err(crypto::Error::UnsupportedKey)
-        }
-    }
-
-    pub fn get_btc_privkey_by_pub(&self, pubkey: &PublicKey) -> Result<SecretKey, crypto::Error> {
-        let secp = Secp256k1::new();
-        let all_keys = vec![
-            ArbitratingKeyId::Fund,
-            ArbitratingKeyId::Buy,
-            ArbitratingKeyId::Cancel,
-            ArbitratingKeyId::Refund,
-            ArbitratingKeyId::Punish,
-        ];
-        // This is very ineficient as we generate all keys (known) each time
-        all_keys
-            .into_iter()
-            .filter_map(|id| self.get_btc_privkey(id).ok())
-            .find(|privkey| PublicKey::from_secret_key(&secp, privkey) == *pubkey)
-            .or_else(|| {
+    /// Try to retreive the secret key internally if already generated, if the key is not found
+    /// derive the secret key and save it internally.
+    pub fn get_or_derive_bitcoin_key(
+        &mut self,
+        key_id: &impl Derivation,
+    ) -> Result<SecretKey, crypto::Error> {
+        let path = self.get_derivation_path(Blockchain::Bitcoin, key_id)?;
+        self.bitcoin_derivations
+            .get(&path)
+            // Option<Result<SecretKey, _>>
+            .map(|key| Ok(*key))
+            // Some(Ok(_)) => Ok(_)
+            // None => || { ... } => Result<SecretKey, crypto::Error>
+            .unwrap_or_else(|| {
                 let secp = Secp256k1::new();
-                let spend = self.private_spend_from_seed().ok()?;
-                let bytes = spend.to_bytes();
-                let key = SecretKey::from_slice(&bytes).ok()?;
-                if PublicKey::from_secret_key(&secp, &key) == *pubkey {
-                    Some(key)
-                } else {
-                    None
+                match self.bitcoin_master_key.derive_priv(&secp, &path) {
+                    Ok(key) => {
+                        self.bitcoin_derivations.insert(path, key.secret_key);
+                        Ok(key.secret_key)
+                    }
+                    Err(e) => Err(e.into()),
                 }
             })
-            .ok_or(crypto::Error::UnsupportedKey)
     }
 
-    pub fn private_spend_from_seed(&self) -> Result<monero::PrivateKey, crypto::Error> {
-        if let Some(seed) = self.seed {
-            let mut bytes = Vec::from(b"farcaster_priv_spend".as_ref());
-            bytes.extend_from_slice(&seed);
+    /// Try to retreive the secret key internally if already generated, if the key is not found
+    /// derive the secret key and save it internally.
+    pub fn get_or_derive_monero_key(
+        &mut self,
+        key_id: &impl Derivation,
+    ) -> Result<monero::PrivateKey, crypto::Error> {
+        let path = self.get_derivation_path(Blockchain::Monero, key_id)?;
+        self.monero_derivations
+            .get(&path)
+            // Option<Result<PrivateKey, _>>
+            .map(|key| Ok(*key))
+            // Some(Ok(_)) => Ok(_)
+            // None => || { ... } => Result<PrivateKey, crypto::Error>
+            .unwrap_or_else(|| {
+                let key_seed = self
+                    .monero_master_key
+                    .derive_priv(&path)
+                    .expect("Path does not contain non-hardened derivation")
+                    .secret_key;
+                let secret_key = Hash::from_slice(&key_seed).as_scalar();
 
-            let mut key = Hash::hash(&bytes).to_fixed_bytes();
-            key[31] &= 0b0000_1111; // Chop off bits that might be greater than the curve modulus
+                self.monero_derivations.insert(path, secret_key);
+                Ok(secret_key)
+            })
+    }
 
-            monero::PrivateKey::from_slice(&key).map_err(crypto::Error::new)
-        } else {
-            Err(crypto::Error::UnsupportedKey)
-        }
+    /// Create a new key manager with the provided master seed, returns an error if the swap index is
+    /// not within `[0, 2^31 - 1]`.
+    pub fn new(seed: [u8; 32], swap_index: u32) -> Result<Self, crypto::Error> {
+        Ok(Self {
+            master_seed: seed,
+            swap_index: ChildNumber::from_hardened_idx(swap_index).map_err(crypto::Error::new)?,
+            bitcoin_master_key: Secp256k1ExtSecretKey::new_master(seed.as_ref()),
+            monero_master_key: Ed25519ExtSecretKey::new_master(seed.as_ref()),
+            bitcoin_derivations: HashMap::new(),
+            monero_derivations: HashMap::new(),
+        })
     }
 }
 
 impl GenerateKey<monero::PublicKey, AccordantKeyId> for KeyManager {
-    fn get_pubkey(&self, key_id: AccordantKeyId) -> Result<monero::PublicKey, crypto::Error> {
-        match key_id {
-            AccordantKeyId::Spend => Ok(monero::PublicKey::from_private_key(
-                &self.private_spend_from_seed()?,
-            )),
-            AccordantKeyId::Extra(_) => Err(crypto::Error::UnsupportedKey),
-        }
+    fn get_pubkey(&mut self, key_id: AccordantKeyId) -> Result<monero::PublicKey, crypto::Error> {
+        let secret_key = self.get_or_derive_monero_key(&key_id)?;
+        Ok(monero::PublicKey::from_private_key(&secret_key))
     }
 }
 
 impl GenerateSharedKey<monero::PrivateKey> for KeyManager {
-    fn get_shared_key(&self, key_id: SharedKeyId) -> Result<monero::PrivateKey, crypto::Error> {
-        if let Some(seed) = self.seed {
-            match key_id.id() {
-                xmr::SHARED_VIEW_KEY_ID => {
-                    let mut bytes = Vec::from(b"farcaster_priv_view".as_ref());
-                    bytes.extend_from_slice(&seed);
-                    Ok(Hash::hash(&bytes).as_scalar())
-                }
-                _ => Err(crypto::Error::UnsupportedKey),
-            }
-        } else {
-            Err(crypto::Error::UnsupportedKey)
-        }
+    fn get_shared_key(&mut self, key_id: SharedKeyId) -> Result<monero::PrivateKey, crypto::Error> {
+        self.get_or_derive_monero_key(&key_id)
     }
 }
 
 impl GenerateKey<PublicKey, ArbitratingKeyId> for KeyManager {
-    fn get_pubkey(&self, key_id: ArbitratingKeyId) -> Result<PublicKey, crypto::Error> {
+    fn get_pubkey(&mut self, key_id: ArbitratingKeyId) -> Result<PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
-        Ok(PublicKey::from_secret_key(
-            &secp,
-            &self.get_btc_privkey(key_id)?,
-        ))
+        let secret_key = self.get_or_derive_bitcoin_key(&key_id)?;
+
+        Ok(PublicKey::from_secret_key(&secp, &secret_key))
     }
 }
 
 impl GenerateSharedKey<SecretKey> for KeyManager {
-    fn get_shared_key(&self, _key_id: SharedKeyId) -> Result<SecretKey, crypto::Error> {
-        // No shared key for bitcoin
-        Err(crypto::Error::UnsupportedKey)
+    fn get_shared_key(&mut self, key_id: SharedKeyId) -> Result<SecretKey, crypto::Error> {
+        self.get_or_derive_bitcoin_key(&key_id)
     }
 }
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for KeyManager {
-    fn sign_with_key(&self, key: &PublicKey, msg: Sha256dHash) -> Result<Signature, crypto::Error> {
-        let secret_key = Scalar::from(self.get_btc_privkey_by_pub(key)?);
+    fn sign_with_key(
+        &mut self,
+        key: ArbitratingKeyId,
+        msg: Sha256dHash,
+    ) -> Result<Signature, crypto::Error> {
+        let secret_key = self.get_or_derive_bitcoin_key(&key)?;
+
+        let secret_key = Scalar::from(secret_key);
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -253,42 +299,44 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
     }
 
     fn adaptor_sign_with_key(
-        &self,
-        signing_key: &PublicKey,
-        adaptor_key: &PublicKey,
+        &mut self,
+        key: ArbitratingKeyId,
+        adaptor: &PublicKey,
         msg: Sha256dHash,
     ) -> Result<EncryptedSignature, crypto::Error> {
-        let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let secret_signing_key = Scalar::from(self.get_btc_privkey_by_pub(signing_key)?);
-        let encryption_key = Point::from(*adaptor_key);
+        let secret_key = self.get_or_derive_bitcoin_key(&key)?;
+
+        let engine = Adaptor::<Transcript, NonceGen>::default();
+        let secret_signing_key = Scalar::from(secret_key);
+        let encryption_key = Point::from(*adaptor);
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
         };
 
-        Ok(adaptor.encrypted_sign(&secret_signing_key, &encryption_key, message_hash))
+        Ok(engine.encrypted_sign(&secret_signing_key, &encryption_key, message_hash))
     }
 
     fn verify_adaptor_signature(
         &self,
-        signing_key: &PublicKey,
-        adaptor_key: &PublicKey,
+        key: &PublicKey,
+        adaptor: &PublicKey,
         msg: Sha256dHash,
-        adaptor_sig: &EncryptedSignature,
+        sig: &EncryptedSignature,
     ) -> Result<(), crypto::Error> {
-        let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let verification_key = Point::from(*signing_key);
-        let encryption_key = Point::from(*adaptor_key);
+        let engine = Adaptor::<Transcript, NonceGen>::default();
+        let verification_key = Point::from(*key);
+        let encryption_key = Point::from(*adaptor);
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
         };
 
-        match adaptor.verify_encrypted_signature(
+        match engine.verify_encrypted_signature(
             &verification_key,
             &encryption_key,
             message_hash,
-            adaptor_sig,
+            sig,
         ) {
             true => Ok(()),
             false => Err(crypto::Error::InvalidAdaptorSignature),
@@ -296,16 +344,18 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
     }
 
     fn adapt_signature(
-        &self,
-        adaptor_key: &PublicKey,
-        adaptor_sig: EncryptedSignature,
+        &mut self,
+        key: AccordantKeyId,
+        sig: EncryptedSignature,
     ) -> Result<Signature, crypto::Error> {
-        let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let decryption_key = Scalar::from(self.get_btc_privkey_by_pub(adaptor_key)?);
+        let secret_key = self.get_or_derive_monero_key(&key)?;
+        let secret_key =
+            SecretKey::from_slice(secret_key.as_bytes()).map_err(crypto::Error::new)?;
 
-        Ok(adaptor
-            .decrypt_signature(&decryption_key, adaptor_sig)
-            .into())
+        let adaptor = Adaptor::<Transcript, NonceGen>::default();
+        let decryption_key = Scalar::from(secret_key);
+
+        Ok(adaptor.decrypt_signature(&decryption_key, sig).into())
     }
 
     fn recover_key(
@@ -325,17 +375,12 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
     }
 }
 
-impl Commit<Hash> for KeyManager {
-    fn commit_to<T: AsRef<[u8]>>(&self, value: T) -> Hash {
-        Hash::hash(value.as_ref())
-    }
-}
-
+// FIXME: this is a dummy implementation that does nothing
 impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager {
     /// Generate the proof and the two public keys: the arbitrating public key, also called the
     /// adaptor public key, and the accordant public spend key.
-    fn generate(&self) -> Result<(monero::PublicKey, PublicKey, RingProof), crypto::Error> {
-        let spend = self.private_spend_from_seed()?;
+    fn generate(&mut self) -> Result<(monero::PublicKey, PublicKey, RingProof), crypto::Error> {
+        let spend = self.get_or_derive_monero_key(&AccordantKeyId::Spend)?;
         let adaptor = self.project_over()?;
 
         Ok((
@@ -348,10 +393,10 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager
 
     /// Project the accordant sepnd secret key over the arbitrating curve to get the public key
     /// used as the adaptor public key.
-    fn project_over(&self) -> Result<PublicKey, crypto::Error> {
+    fn project_over(&mut self) -> Result<PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
-        let spend = self.private_spend_from_seed()?;
-        let bytes = spend.to_bytes(); // FIXME warn this copy the priv key
+        let spend = self.get_or_derive_monero_key(&AccordantKeyId::Spend)?;
+        let bytes = spend.to_bytes();
         let adaptor = SecretKey::from_slice(&bytes).map_err(crypto::Error::new)?;
         Ok(PublicKey::from_secret_key(&secp, &adaptor))
     }
@@ -359,7 +404,7 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager
     /// Verify the proof given the two public keys: the accordant spend public key and the
     /// arbitrating adaptor public key.
     fn verify(
-        &self,
+        &mut self,
         _public_spend: &monero::PublicKey,
         _adaptor: &PublicKey,
         _proof: RingProof,

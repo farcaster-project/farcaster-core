@@ -214,7 +214,7 @@ where
     ///
     pub fn generate_parameters(
         &self,
-        wallet: &impl Wallet<
+        wallet: &mut impl Wallet<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
             <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey,
@@ -318,7 +318,7 @@ where
     ///
     pub fn sign_adaptor_refund(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
@@ -336,10 +336,9 @@ where
 
         // Generate the witness message to sign and adaptor sign with the refund key and the
         // counter-party adaptor.
-        let key = &alice_parameters.refund;
         let adaptor = &bob_parameters.adaptor;
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.adaptor_sign_with_key(key, adaptor, msg)?;
+        let sig = wallet.adaptor_sign_with_key(ArbitratingKeyId::Refund, adaptor, msg)?;
 
         Ok(SignedAdaptorRefund {
             refund_adaptor_sig: sig,
@@ -375,7 +374,7 @@ where
     ///
     pub fn cosign_arbitrating_cancel(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
@@ -393,8 +392,7 @@ where
 
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
-        let key = &alice_parameters.cancel;
-        let sig = wallet.sign_with_key(key, msg)?;
+        let sig = wallet.sign_with_key(ArbitratingKeyId::Cancel, msg)?;
 
         Ok(CosignedArbitratingCancel { cancel_sig: sig })
     }
@@ -429,7 +427,7 @@ where
     ///
     pub fn validate_adaptor_buy(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
@@ -510,7 +508,7 @@ where
     ///
     pub fn fully_sign_buy(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
@@ -543,12 +541,11 @@ where
 
         // Generate the witness message to sign and sign with the buy key.
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
-        let key = &alice_parameters.buy;
-        let sig = wallet.sign_with_key(key, msg)?;
+        let sig = wallet.sign_with_key(ArbitratingKeyId::Buy, msg)?;
 
         // Retreive the adaptor public key and the counter-party adaptor witness.
-        let key = &alice_parameters.adaptor;
-        let adapted_sig = wallet.adapt_signature(key, adaptor_buy.buy_adaptor_sig.clone())?;
+        let adapted_sig =
+            wallet.adapt_signature(AccordantKeyId::Spend, adaptor_buy.buy_adaptor_sig.clone())?;
 
         Ok(FullySignedBuy {
             buy_sig: sig,
@@ -590,7 +587,7 @@ where
     ///
     pub fn fully_sign_punish(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
@@ -623,8 +620,7 @@ where
 
         // Generate the witness message to sign and sign with the punish key.
         let msg = punish.generate_witness_message(ScriptPath::Failure)?;
-        let key = &alice_parameters.punish;
-        let punish_sig = wallet.sign_with_key(key, msg)?;
+        let punish_sig = wallet.sign_with_key(ArbitratingKeyId::Punish, msg)?;
 
         Ok(FullySignedPunish {
             punish: punish.to_partial(),
@@ -776,7 +772,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn generate_parameters(
         &self,
-        wallet: &impl Wallet<
+        wallet: &mut impl Wallet<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
             <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey,
@@ -988,14 +984,13 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn cosign_arbitrating_cancel(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
         >,
-        bob_parameters: &BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
     ) -> Res<CosignedArbitratingCancel<Ctx::Ar>> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
@@ -1007,8 +1002,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
-        let key = &bob_parameters.cancel;
-        let sig = wallet.sign_with_key(key, msg)?;
+        let sig = wallet.sign_with_key(ArbitratingKeyId::Cancel, msg)?;
 
         Ok(CosignedArbitratingCancel { cancel_sig: sig })
     }
@@ -1045,7 +1039,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn validate_adaptor_refund(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
@@ -1117,7 +1111,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn sign_adaptor_buy(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
@@ -1170,10 +1164,9 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and adaptor sign with the buy key and the
         // counter-party adaptor.
-        let key = &bob_parameters.buy;
         let adaptor = &alice_parameters.adaptor;
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.adaptor_sign_with_key(key, adaptor, msg)?;
+        let sig = wallet.adaptor_sign_with_key(ArbitratingKeyId::Buy, adaptor, msg)?;
 
         Ok(SignedAdaptorBuy {
             buy: buy.to_partial(),
@@ -1205,19 +1198,12 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn sign_arbitrating_lock(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
-        >,
-        key_wallet: &impl Wallet<
-            <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ac as Keys>::PublicKey,
-            <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey,
-            <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
-            Ctx::Proof,
         >,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
     ) -> Res<SignedArbitratingLock<Ctx::Ar>> {
@@ -1230,8 +1216,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the fund key.
         let msg = lock.generate_witness_message(ScriptPath::Success)?;
-        let key = key_wallet.get_pubkey(ArbitratingKeyId::Fund)?;
-        let sig = wallet.sign_with_key(&key, msg)?;
+        let sig = wallet.sign_with_key(ArbitratingKeyId::Fund, msg)?;
 
         Ok(SignedArbitratingLock { lock_sig: sig })
     }
@@ -1252,14 +1237,6 @@ impl<Ctx: Swap> Bob<Ctx> {
     /// [`CoreArbitratingTransactions`] bundle is created by Bob and does not require any extra
     /// validation.
     ///
-    /// _Previously verified data_:
-    ///  * `alice_parameters`: Alice's adaptor signature in [`SignedAdaptorRefund`] bundle
-    ///  * `signed_adaptor_refund`: Verified by [`validate_adaptor_refund`]
-    ///
-    /// _Trusted data_:
-    ///  * `ar_engine`, `ac_engine`: Bob's arbitrating and accordant seeds
-    ///  * `core`: Core arbitrating transactions bundle
-    ///
     /// # Execution
     ///
     ///  * Parse the [`Refundable`] partial transaction in [`CoreArbitratingTransactions`]
@@ -1274,14 +1251,13 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn fully_sign_refund(
         &self,
-        wallet: &impl Sign<
+        wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ar as Keys>::PrivateKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
         >,
-        bob_parameters: &BobParameters<Ctx>,
         core: CoreArbitratingTransactions<Ctx::Ar>,
         signed_adaptor_refund: &SignedAdaptorRefund<Ctx::Ar>,
     ) -> Res<FullySignedRefund<Ctx::Ar>> {
@@ -1294,12 +1270,12 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the refund key.
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
-        let key = &bob_parameters.refund;
-        let sig = wallet.sign_with_key(key, msg)?;
+        let sig = wallet.sign_with_key(ArbitratingKeyId::Refund, msg)?;
 
-        let key = &bob_parameters.adaptor;
-        let adapted_sig =
-            wallet.adapt_signature(key, signed_adaptor_refund.refund_adaptor_sig.clone())?;
+        let adapted_sig = wallet.adapt_signature(
+            AccordantKeyId::Spend,
+            signed_adaptor_refund.refund_adaptor_sig.clone(),
+        )?;
 
         Ok(FullySignedRefund {
             refund_sig: sig,

@@ -2,11 +2,13 @@
 //! sign, etc) used to create the generic framework for supporting multiple blockchains under the
 //! same interface.
 
+use std::convert::TryInto;
 use std::error;
 use std::fmt::{self, Debug};
 use std::io;
 
 use thiserror::Error;
+use tiny_keccak::{Hasher, Keccak};
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 
@@ -20,6 +22,9 @@ pub enum Error {
     /// The signature does not pass the validation tests.
     #[error("The signature does not pass the validation")]
     InvalidSignature,
+    /// The adaptor key is not valid.
+    #[error("The adaptor key is not valid")]
+    InvalidAdaptorKey,
     /// The adaptor signature does not pass the validation tests.
     #[error("The adaptor signature does not pass the validation")]
     InvalidAdaptorSignature,
@@ -233,6 +238,55 @@ impl Decodable for SharedKeyId {
     }
 }
 
+fixed_hash::construct_fixed_hash!(
+    /// Result of a keccak256 commitment.
+    #[cfg_attr(
+        feature = "serde",
+        derive(Serialize, Deserialize),
+        serde(crate = "serde_crate"),
+    )]
+    pub struct KeccakCommitment(32);
+);
+
+impl KeccakCommitment {
+    /// Create a null commitment hash with all zeros.
+    pub fn null_hash() -> Self {
+        Self([0u8; 32])
+    }
+
+    /// Hash a stream of bytes with the Keccak-256 hash function.
+    pub fn new(input: [u8; 32]) -> Self {
+        Self(input)
+    }
+}
+
+impl CanonicalBytes for KeccakCommitment {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        (*self).to_fixed_bytes().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Ok(Self::new(bytes.try_into().map_err(consensus::Error::new)?))
+    }
+}
+
+/// Engine to produce and validate hash commitments.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitmentEngine;
+
+impl Commit<KeccakCommitment> for CommitmentEngine {
+    fn commit_to<T: AsRef<[u8]>>(&self, value: T) -> KeccakCommitment {
+        let mut out = [0u8; 32];
+        let mut keccak = Keccak::v256();
+        keccak.update(value.as_ref());
+        keccak.finalize(&mut out);
+        KeccakCommitment::new(out)
+    }
+}
+
 /// Required for [`Arbitrating`] and [`Accordant`] blockchains to fix the cryptographic secret key
 /// and public key types. The public key type is shared across the network and used in
 /// transactions, the secret key type is used during signing operation, proofs, etc.
@@ -261,13 +315,6 @@ pub trait SharedPrivateKeys {
 
     /// Return a list of extra shared secret key identifiers to use during the setup phase.
     fn shared_keys() -> Vec<SharedKeyId>;
-}
-
-/// Required for swaps to fix the commitments type of the keys and parameters that must go through
-/// the commit/reveal scheme at the beginning of the protocol.
-pub trait Commitment {
-    /// Commitment type used in the commit/reveal scheme during swap setup.
-    type Commitment: Clone + PartialEq + Eq + Debug + fmt::Display + CanonicalBytes;
 }
 
 /// Trait required for [`Arbitrating`] blockchains to define the cryptographic message format to
@@ -320,11 +367,11 @@ pub trait GenerateKey<PublicKey, KeyId> {
     /// Retreive a specific public key by its key id. If the key cannot be derived the
     /// implementation must return an [`Error::UnsupportedKey`], otherwise `Ok(PublicKey)` is
     /// returned.
-    fn get_pubkey(&self, key_id: KeyId) -> Result<PublicKey, Error>;
+    fn get_pubkey(&mut self, key_id: KeyId) -> Result<PublicKey, Error>;
 
     /// Return a vector of public keys matching the vector of key ids. Errors on the first key that
     /// can't be derived and return an [`Error::UnsupportedKey`].
-    fn get_pubkeys(&self, key_ids: Vec<KeyId>) -> Result<Vec<PublicKey>, Error> {
+    fn get_pubkeys(&mut self, key_ids: Vec<KeyId>) -> Result<Vec<PublicKey>, Error> {
         key_ids.into_iter().map(|id| self.get_pubkey(id)).collect()
     }
 }
@@ -334,7 +381,7 @@ pub trait GenerateKey<PublicKey, KeyId> {
 pub trait GenerateSharedKey<SharedKey> {
     /// Retreive a specific shared private key by its key id. If the key cannot be derived the
     /// implementation must return an [`Error::UnsupportedKey`].
-    fn get_shared_key(&self, key_id: SharedKeyId) -> Result<SharedKey, Error>;
+    fn get_shared_key(&mut self, key_id: SharedKeyId) -> Result<SharedKey, Error>;
 }
 
 // TODO give extra keys and/or shared keys in signing methods
@@ -343,18 +390,20 @@ pub trait GenerateSharedKey<SharedKey> {
 /// adaptor sigantures based on public keys. Recover the private key through the complete
 /// adaptor/adapted signature.
 pub trait Sign<PublicKey, PrivateKey, Message, Signature, AdaptorSignature> {
-    /// Sign the message with the corresponding private key identified by the provided public key.
-    fn sign_with_key(&self, key: &PublicKey, msg: Message) -> Result<Signature, Error>;
+    /// Sign the message with the corresponding private key identified by the provided arbitrating
+    /// key identifier.
+    fn sign_with_key(&mut self, key: ArbitratingKeyId, msg: Message) -> Result<Signature, Error>;
 
     /// Verify a signature for a given message with the provided public key.
     fn verify_signature(&self, key: &PublicKey, msg: Message, sig: &Signature)
         -> Result<(), Error>;
 
-    /// Sign the message with the corresponding private key identified by the provided public key
-    /// and encrypt it (create an adaptor signature) with the provided adaptor public key.
+    /// Sign the message with the corresponding private key identified by the provided arbitrating
+    /// key identifier and encrypt it (create an adaptor signature) with the provided adaptor
+    /// public key.
     fn adaptor_sign_with_key(
-        &self,
-        key: &PublicKey,
+        &mut self,
+        key: ArbitratingKeyId,
         adaptor: &PublicKey,
         msg: Message,
     ) -> Result<AdaptorSignature, Error>;
@@ -370,8 +419,13 @@ pub trait Sign<PublicKey, PrivateKey, Message, Signature, AdaptorSignature> {
     ) -> Result<(), Error>;
 
     /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
-    /// signatures) with the corresponding private key identified by the provided public key.
-    fn adapt_signature(&self, key: &PublicKey, sig: AdaptorSignature) -> Result<Signature, Error>;
+    /// signatures) with the corresponding private key identified by the provided accordant key
+    /// identifier.
+    fn adapt_signature(
+        &mut self,
+        key: AccordantKeyId,
+        sig: AdaptorSignature,
+    ) -> Result<Signature, Error>;
 
     /// Recover the encryption key based on the adaptor signature and the decrypted signature.
     fn recover_key(
@@ -404,16 +458,16 @@ pub trait Commit<Commitment: Eq> {
 pub trait ProveCrossGroupDleq<Adaptor, PublicSpendKey, Proof> {
     /// Generate the proof and the two public keys: the arbitrating public key, also called the
     /// adaptor public key, and the accordant public spend key.
-    fn generate(&self) -> Result<(PublicSpendKey, Adaptor, Proof), Error>;
+    fn generate(&mut self) -> Result<(PublicSpendKey, Adaptor, Proof), Error>;
 
     /// Project the accordant sepnd secret key over the arbitrating curve to get the public key
     /// used as the adaptor public key.
-    fn project_over(&self) -> Result<Adaptor, Error>;
+    fn project_over(&mut self) -> Result<Adaptor, Error>;
 
     /// Verify the proof given the two public keys: the accordant spend public key and the
     /// arbitrating adaptor public key.
     fn verify(
-        &self,
+        &mut self,
         public_spend: &PublicSpendKey,
         adaptor: &Adaptor,
         proof: Proof,
@@ -593,7 +647,7 @@ pub mod slip10 {
         ) -> Result<Self, Error> {
             let mut sk = *self;
             for cnum in path.as_ref() {
-                sk = sk.ckd_priv(&secp, *cnum)?;
+                sk = sk.ckd_priv(secp, *cnum)?;
             }
             Ok(sk)
         }
@@ -628,7 +682,7 @@ pub mod slip10 {
                     Err(_) => {
                         // let I = HMAC-SHA512(Key = cpar, Data = 0x01 || IR || ser32(i) and restart at step 2.
                         hmac_engine = HmacEngine::new(&self.chain_code[..]);
-                        hmac_engine.input(&[01u8]);
+                        hmac_engine.input(&[1u8]);
                         hmac_engine.input(&hmac_result[32..]);
                         hmac_engine.input(u32::from(i).to_be_bytes().as_ref());
                         hmac_result = Hmac::from_engine(hmac_engine);
@@ -651,17 +705,17 @@ pub mod slip10 {
             &self,
             secp: &Secp256k1<C>,
         ) -> secp256k1::PublicKey {
-            secp256k1::PublicKey::from_secret_key(&secp, &self.secret_key)
+            secp256k1::PublicKey::from_secret_key(secp, &self.secret_key)
         }
 
         pub fn identifier<C: secp256k1::Signing>(&self, secp: &Secp256k1<C>) -> XpubIdentifier {
             let mut engine = XpubIdentifier::engine();
-            engine.input(self.public_key(&secp).serialize().as_ref());
+            engine.input(self.public_key(secp).serialize().as_ref());
             XpubIdentifier::from_engine(engine)
         }
 
         pub fn fingerprint<C: secp256k1::Signing>(&self, secp: &Secp256k1<C>) -> Fingerprint {
-            Fingerprint::from(&self.identifier(&secp)[0..4])
+            Fingerprint::from(&self.identifier(secp)[0..4])
         }
     }
 
@@ -775,7 +829,7 @@ pub mod slip10 {
         #[test]
         fn secp256k1_vector_1() {
             let seed = hex::decode("000102030405060708090a0b0c0d0e0f").unwrap();
-            let master = ExtSecretKey::new_master_secp256k1(&seed).unwrap();
+            let master = ExtSecretKey::new_master_secp256k1(&seed);
 
             assert_secp256k1_curve(
                 &master,
@@ -829,7 +883,7 @@ pub mod slip10 {
         #[test]
         fn secp256k1_vector_2() {
             let seed = hex::decode("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
-            let master = ExtSecretKey::new_master_secp256k1(&seed).unwrap();
+            let master = ExtSecretKey::new_master_secp256k1(&seed);
 
             assert_secp256k1_curve(
                 &master,

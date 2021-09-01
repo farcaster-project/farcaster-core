@@ -17,6 +17,11 @@ use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, 
 use crate::crypto::{Keys, Signatures};
 use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
+pub enum Blockchain {
+    Bitcoin,
+    Monero,
+}
+
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
 pub trait Address {
     /// Defines the address format for the arbitrating blockchain.

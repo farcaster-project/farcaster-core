@@ -40,6 +40,7 @@ thiserror = "1.0.24"
 serde_crate = { package = "serde", version = "1", features = ["derive"], optional = true }
 inet2_addr = { version = "0.4.0", default-features = false, features = ["tor", "strict_encoding"] }
 bitvec = { version = "0.22.3" }
+bitcoin_hashes = { version = "0.9.7" }
 
 # crypto libs
 rand = { version = "0.8.4", optional = true }

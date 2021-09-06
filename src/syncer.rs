@@ -126,7 +126,7 @@ impl fmt::Display for WatchHeight {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct WatchAddress {
     pub id: i32,
     pub lifetime: u64,
@@ -162,7 +162,7 @@ impl fmt::Display for WatchAddress {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Boolean {
     True,
     False,

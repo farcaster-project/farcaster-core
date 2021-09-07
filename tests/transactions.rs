@@ -17,10 +17,10 @@ mod rpc;
 macro_rules! setup_txs {
     () => {{
         let (_, pubkey_a1, secret_a1) = new_address!();
-        let (_, pubkey_a2, secret_a2) = new_address!();
+        //let (_, pubkey_a2, secret_a2) = new_address!();
 
         let (_, pubkey_b1, secret_b1) = new_address!();
-        let (_, pubkey_b2, secret_b2) = new_address!();
+        //let (_, pubkey_b2, secret_b2) = new_address!();
 
         let mut funding = FundingTx::initialize(pubkey_a1, Network::Local).unwrap();
 
@@ -63,8 +63,8 @@ macro_rules! setup_txs {
 
         let datalock = DataLock {
             timelock: timelock::CSVTimelock::new(10),
-            success: DoubleKeys::new(pubkey_a1, pubkey_b1),
-            failure: DoubleKeys::new(pubkey_a2, pubkey_b2),
+            success: DoubleKeys::new(&pubkey_a1, &pubkey_b1),
+            failure: DoubleKeys::new(&pubkey_a1, &pubkey_b1),
         };
 
         let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
@@ -77,8 +77,8 @@ macro_rules! setup_txs {
         //
         let datapunishablelock = DataPunishableLock {
             timelock: timelock::CSVTimelock::new(10),
-            success: DoubleKeys::new(pubkey_a1, pubkey_b1),
-            failure: pubkey_a2,
+            success: DoubleKeys::new(&pubkey_a1, &pubkey_b1),
+            failure: &pubkey_a1,
         };
 
         let mut cancel =
@@ -91,11 +91,16 @@ macro_rules! setup_txs {
         // Create refund tx
         //
         let (new_address, _, _) = new_address!();
-        let mut refund =
-            RefundTx::initialize(&cancel, datapunishablelock.clone(), new_address.into()).unwrap();
+        let mut refund = RefundTx::initialize(&cancel, new_address.clone()).unwrap();
 
         // Set the fees according to the given strategy
         BitcoinSegwitV0::set_fee(refund.as_partial_mut(), &fee, politic).unwrap();
+
+        lock.verify_template(datalock.clone()).unwrap();
+        cancel
+            .verify_template(datalock.clone(), datapunishablelock.clone())
+            .unwrap();
+        refund.verify_template(new_address.clone()).unwrap();
 
         //
         // Co-Sign refund
@@ -123,13 +128,13 @@ macro_rules! setup_txs {
         let msg = cancel
             .generate_witness_message(ScriptPath::Failure)
             .unwrap();
-        let sig = sign_hash(msg, &secret_a2).unwrap();
-        cancel.add_witness(pubkey_a2, sig).unwrap();
+        let sig = sign_hash(msg, &secret_a1).unwrap();
+        cancel.add_witness(pubkey_a1, sig).unwrap();
         let msg = cancel
             .generate_witness_message(ScriptPath::Failure)
             .unwrap();
-        let sig = sign_hash(msg, &secret_b2).unwrap();
-        cancel.add_witness(pubkey_b2, sig).unwrap();
+        let sig = sign_hash(msg, &secret_b1).unwrap();
+        cancel.add_witness(pubkey_b1, sig).unwrap();
 
         //
         // Finalize cancel
@@ -141,10 +146,12 @@ macro_rules! setup_txs {
         // Create buy tx
         //
         let (new_address, _, _) = new_address!();
-        let mut buy = BuyTx::initialize(&lock, datalock, new_address.into()).unwrap();
+        let mut buy = BuyTx::initialize(&lock, datalock.clone(), new_address.clone()).unwrap();
 
         // Set the fees according to the given strategy
         BitcoinSegwitV0::set_fee(buy.as_partial_mut(), &fee, politic).unwrap();
+
+        buy.verify_template(new_address.clone()).unwrap();
 
         //
         // Co-Sign buy
@@ -187,8 +194,8 @@ macro_rules! setup_txs {
         let msg = punish
             .generate_witness_message(ScriptPath::Failure)
             .unwrap();
-        let sig = sign_hash(msg, &secret_a2).unwrap();
-        punish.add_witness(pubkey_a2, sig).unwrap();
+        let sig = sign_hash(msg, &secret_a1).unwrap();
+        punish.add_witness(pubkey_a1, sig).unwrap();
 
         //
         // Finalize buy

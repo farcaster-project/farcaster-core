@@ -13,22 +13,22 @@ use crate::crypto::Keys;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub struct DoubleKeys<T>
+pub struct DoubleKeys<'a, T>
 where
     T: Keys,
 {
     /// Public key associated to Alice swap role.
-    pub alice: T::PublicKey,
+    pub alice: &'a T::PublicKey,
     /// Public key associated to Bob swap role.
-    pub bob: T::PublicKey,
+    pub bob: &'a T::PublicKey,
 }
 
-impl<T> DoubleKeys<T>
+impl<'a, T> DoubleKeys<'a, T>
 where
     T: Keys,
 {
     /// Store public keys for swap participant.
-    pub fn new(alice: T::PublicKey, bob: T::PublicKey) -> Self {
+    pub fn new(alice: &'a T::PublicKey, bob: &'a T::PublicKey) -> Self {
         Self { alice, bob }
     }
 }
@@ -55,13 +55,13 @@ pub enum ScriptPath {
 /// [`Buyable`]: crate::transaction::Buyable
 #[derive(Debug, Clone, Display)]
 #[display("Timelock: {timelock}, Success: <{success}>, Failure: <{failure}>")]
-pub struct DataLock<T>
+pub struct DataLock<'a, T>
 where
     T: Timelock + Keys,
 {
     pub timelock: T::Timelock,
-    pub success: DoubleKeys<T>,
-    pub failure: DoubleKeys<T>,
+    pub success: DoubleKeys<'a, T>,
+    pub failure: DoubleKeys<'a, T>,
 }
 
 /// Store Alice and Bob public keys for the sucessful and failure paths and the timelock value used
@@ -71,11 +71,11 @@ where
 /// [`Cancelable`]: crate::transaction::Cancelable
 #[derive(Debug, Clone, Display)]
 #[display("Timelock: {timelock}, Success: <{success}>, Failure: {failure}")]
-pub struct DataPunishableLock<T>
+pub struct DataPunishableLock<'a, T>
 where
     T: Timelock + Keys,
 {
     pub timelock: T::Timelock,
-    pub success: DoubleKeys<T>,
-    pub failure: T::PublicKey,
+    pub success: DoubleKeys<'a, T>,
+    pub failure: &'a T::PublicKey,
 }

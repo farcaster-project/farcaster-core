@@ -40,8 +40,8 @@ pub enum Error {
     #[error("Not enough assets to create the transaction")]
     NotEnoughAssets,
     /// Wrong transaction template.
-    #[error("Wrong transaction template")]
-    WrongTemplate,
+    #[error("Wrong transaction template: {0}")]
+    WrongTemplate(&'static str),
     /// The transaction chain validation failed
     #[error("The transaction chain validation failed")]
     InvalidTransactionChain,
@@ -340,11 +340,10 @@ where
 
     /// Verifies that the transaction is compliant with the protocol requirements and implements
     /// the correct conditions of the [`DataLock`] and the destination address.
-    fn verify_template(
-        &self,
-        lock: DataLock<T>,
-        destination_target: T::Address,
-    ) -> Result<(), Error>;
+    fn verify_template(&self, destination_target: T::Address) -> Result<(), Error>;
+
+    /// Extract the valuable witness from a transaction.
+    fn extract_witness(tx: T::Transaction) -> T::Signature;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxLabel {
@@ -405,19 +404,11 @@ where
     ///
     /// This correspond to the "creator" and initial "updater" roles in BIP 174. Creates a new
     /// transaction and fill the inputs and outputs data.
-    fn initialize(
-        prev: &impl Cancelable<T, O>,
-        punish_lock: DataPunishableLock<T>,
-        refund_target: T::Address,
-    ) -> Result<Self, Error>;
+    fn initialize(prev: &impl Cancelable<T, O>, refund_target: T::Address) -> Result<Self, Error>;
 
     /// Verifies that the transaction is compliant with the protocol requirements and implements
     /// the correct conditions of the [`DataPunishableLock`] and the refund address.
-    fn verify_template(
-        &self,
-        punish_lock: DataPunishableLock<T>,
-        refund_target: T::Address,
-    ) -> Result<(), Error>;
+    fn verify_template(&self, refund_target: T::Address) -> Result<(), Error>;
 
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxLabel {

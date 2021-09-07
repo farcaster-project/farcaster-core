@@ -14,9 +14,11 @@ use crate::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Strategy};
 use crate::blockchain::Transactions;
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures};
-use crate::role::Arbitrating;
+use crate::role::{Arbitrating, SwapRole};
+use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 
-use bitcoin::blockdata::script::Script;
+use bitcoin::blockdata::opcodes;
+use bitcoin::blockdata::script::{Builder, Instruction, Script};
 use bitcoin::blockdata::transaction::SigHashType;
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::{
@@ -72,6 +74,266 @@ impl FromStr for Bitcoin<SegwitV0> {
 impl From<BitcoinSegwitV0> for Btc {
     fn from(v: BitcoinSegwitV0) -> Self {
         Self::SegwitV0(v)
+    }
+}
+
+pub struct CoopLock {
+    a: bitcoin::util::key::PublicKey,
+    b: bitcoin::util::key::PublicKey,
+}
+
+impl CoopLock {
+    pub fn script(data: DataLock<BitcoinSegwitV0>) -> Script {
+        let DataLock {
+            success: DoubleKeys { alice, bob },
+            ..
+        } = data;
+        Builder::new()
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*alice))
+            .push_opcode(opcodes::all::OP_CHECKSIGVERIFY)
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*bob))
+            .push_opcode(opcodes::all::OP_CHECKSIG)
+            .into_script()
+    }
+
+    pub fn v0_p2wsh(data: DataLock<BitcoinSegwitV0>) -> Script {
+        Self::script(data).to_v0_p2wsh()
+    }
+
+    pub fn from_script(s: &Script) -> Result<Self, crate::transaction::Error> {
+        use crate::transaction::Error;
+        use bitcoin::blockdata::opcodes::all;
+
+        let mut ints = s.instructions();
+        // Alice pubkey
+        let bytes = ints
+            .next() // Option<Result<Inst., Err>>
+            .ok_or(Error::MissingPublicKey) // Result<Result, Inst., Err>, FErr>
+            .map_or_else(
+                // Pass the error through
+                Err,
+                |v| match v {
+                    Ok(Instruction::PushBytes(b)) => Ok(b),
+                    // Error in the script
+                    Err(e) => Err(Error::new(e)),
+                    // Not a push bytes, not a pubkey
+                    _ => Err(Error::MissingPublicKey),
+                },
+            )?;
+        let a = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
+        // Checksig verify
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_CHECKSIGVERIFY)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing CHECKSIGVERIFY opcode")),
+            })?;
+        // Bob pubkey
+        let bytes = ints
+            .next()
+            .ok_or(Error::MissingPublicKey)
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::PushBytes(b)) => Ok(b),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::MissingPublicKey),
+            })?;
+        let b = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
+        // Checksig
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_CHECKSIG)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing CHECKSIG opcode")),
+            })?;
+
+        // Script done, return an error if some error or some instruction
+        if let Some(v) = ints.next() {
+            return match v {
+                Ok(_) => Err(Error::WrongTemplate("Too many opcodes")),
+                Err(e) => Err(Error::new(e)),
+            };
+        }
+
+        Ok(Self { a, b })
+    }
+
+    pub fn get_pubkey(&self, swap_role: SwapRole) -> &bitcoin::util::key::PublicKey {
+        match swap_role {
+            SwapRole::Alice => &self.a,
+            SwapRole::Bob => &self.b,
+        }
+    }
+}
+
+pub struct PunishLock {
+    alice: bitcoin::util::key::PublicKey,
+    bob: bitcoin::util::key::PublicKey,
+    punish: bitcoin::util::key::PublicKey,
+}
+
+impl PunishLock {
+    pub fn script(data: DataPunishableLock<BitcoinSegwitV0>) -> Script {
+        let DataPunishableLock {
+            timelock,
+            success: DoubleKeys { alice, bob },
+            failure,
+        } = data;
+        Builder::new()
+            .push_opcode(opcodes::all::OP_IF)
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*alice))
+            .push_opcode(opcodes::all::OP_CHECKSIGVERIFY)
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*bob))
+            .push_opcode(opcodes::all::OP_CHECKSIG)
+            .push_opcode(opcodes::all::OP_ELSE)
+            .push_int(timelock.as_u32().into())
+            .push_opcode(opcodes::all::OP_CSV)
+            .push_opcode(opcodes::all::OP_DROP)
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*failure))
+            .push_opcode(opcodes::all::OP_CHECKSIG)
+            .push_opcode(opcodes::all::OP_ENDIF)
+            .into_script()
+    }
+
+    pub fn v0_p2wsh(data: DataPunishableLock<BitcoinSegwitV0>) -> Script {
+        Self::script(data).to_v0_p2wsh()
+    }
+
+    pub fn from_script(s: &Script) -> Result<Self, crate::transaction::Error> {
+        use crate::transaction::Error;
+        use bitcoin::blockdata::opcodes::all;
+
+        let mut ints = s.instructions();
+        // If opcode
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_IF)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing IF opcode")),
+            })?;
+        // Alice pubkey
+        let bytes = ints
+            .next() // Option<Result<Inst., Err>>
+            .ok_or(Error::MissingPublicKey) // Result<Result, Inst., Err>, FErr>
+            .map_or_else(
+                // Pass the error through
+                Err,
+                |v| match v {
+                    Ok(Instruction::PushBytes(b)) => Ok(b),
+                    // Error in the script
+                    Err(e) => Err(Error::new(e)),
+                    // Not a push bytes, not a pubkey
+                    _ => Err(Error::MissingPublicKey),
+                },
+            )?;
+        let alice = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
+        // Checksig verify
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_CHECKSIGVERIFY)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing CHECKSIGVERIFY opcode")),
+            })?;
+        // Bob pubkey
+        let bytes = ints
+            .next()
+            .ok_or(Error::MissingPublicKey)
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::PushBytes(b)) => Ok(b),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::MissingPublicKey),
+            })?;
+        let bob = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
+        // Checksig
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_CHECKSIG)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing CHECKSIG opcode")),
+            })?;
+        // Else opcode
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_ELSE)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing ELSE opcode")),
+            })?;
+        // Timelock
+        let _ = ints.next().ok_or(Error::WrongTemplate("Missing opcode"))?;
+        // CSV opcode
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_CSV)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing CSV opcode")),
+            })?;
+        // CSV opcode
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_DROP)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing DROP opcode")),
+            })?;
+        // Punish pubkey
+        let bytes = ints
+            .next()
+            .ok_or(Error::MissingPublicKey)
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::PushBytes(b)) => Ok(b),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::MissingPublicKey),
+            })?;
+        let punish = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
+        // Checksig
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_CHECKSIG)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing CHECKSIG opcode")),
+            })?;
+        // Endif opcode
+        ints.next()
+            .ok_or(Error::WrongTemplate("Missing opcode"))
+            .map_or_else(Err, |v| match v {
+                Ok(Instruction::Op(all::OP_ENDIF)) => Ok(()),
+                Err(e) => Err(Error::new(e)),
+                _ => Err(Error::WrongTemplate("Missing ENDIF opcode")),
+            })?;
+
+        // Script done, return an error if some error or some instruction
+        if let Some(v) = ints.next() {
+            return match v {
+                Ok(_) => Err(Error::WrongTemplate("Too many opcodes")),
+                Err(e) => Err(Error::new(e)),
+            };
+        }
+
+        Ok(Self { alice, bob, punish })
+    }
+
+    pub fn get_pubkey(
+        &self,
+        swap_role: SwapRole,
+        script_path: ScriptPath,
+    ) -> Option<&bitcoin::util::key::PublicKey> {
+        match script_path {
+            ScriptPath::Success => match swap_role {
+                SwapRole::Alice => Some(&self.alice),
+                SwapRole::Bob => Some(&self.bob),
+            },
+            ScriptPath::Failure => match swap_role {
+                SwapRole::Alice => Some(&self.punish),
+                SwapRole::Bob => None,
+            },
+        }
     }
 }
 

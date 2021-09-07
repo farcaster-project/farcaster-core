@@ -1,15 +1,14 @@
 use std::marker::PhantomData;
 
-use bitcoin::blockdata::script::Instruction;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
-use crate::script;
+use crate::role::SwapRole;
+use crate::script::ScriptPath;
 use crate::transaction::{Cancelable, Error as FError, Refundable};
 
-use crate::bitcoin::segwitv0::SegwitV0;
+use crate::bitcoin::segwitv0::{PunishLock, SegwitV0};
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
@@ -23,42 +22,31 @@ impl SubTransaction for Refund {
             .clone()
             .ok_or(FError::MissingWitness)?;
 
-        let mut keys = script.instructions().skip(2).take(2);
+        let swaplock = PunishLock::from_script(&script)?;
+
+        let alice_sig = psbt.inputs[0]
+            .partial_sigs
+            .get(
+                swaplock
+                    .get_pubkey(SwapRole::Alice, ScriptPath::Success)
+                    .ok_or(FError::MissingPublicKey)?,
+            )
+            .ok_or(FError::MissingSignature)?
+            .clone();
+
+        let bob_sig = psbt.inputs[0]
+            .partial_sigs
+            .get(
+                swaplock
+                    .get_pubkey(SwapRole::Bob, ScriptPath::Success)
+                    .ok_or(FError::MissingPublicKey)?,
+            )
+            .ok_or(FError::MissingSignature)?
+            .clone();
 
         psbt.inputs[0].final_script_witness = Some(vec![
-            vec![], // 0 for multisig
-            psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(
-                        keys.next()
-                            .ok_or(FError::MissingPublicKey)?
-                            .map(|i| match i {
-                                Instruction::PushBytes(b) => Ok(b),
-                                _ => Err(FError::MissingPublicKey),
-                            })
-                            .map_err(Error::from)??,
-                    )
-                    .map_err(|_| FError::MissingPublicKey)?,
-                )
-                .ok_or(FError::MissingSignature)?
-                .clone(),
-            psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(
-                        keys.next()
-                            .ok_or(FError::MissingPublicKey)?
-                            .map(|i| match i {
-                                Instruction::PushBytes(b) => Ok(b),
-                                _ => Err(FError::MissingPublicKey),
-                            })
-                            .map_err(Error::from)??,
-                    )
-                    .map_err(|_| FError::MissingPublicKey)?,
-                )
-                .ok_or(FError::MissingSignature)?
-                .clone(),
+            bob_sig,
+            alice_sig,
             vec![1],             // OP_TRUE
             script.into_bytes(), // cancel script
         ]);
@@ -70,7 +58,6 @@ impl SubTransaction for Refund {
 impl Refundable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Refund> {
     fn initialize(
         prev: &impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput>,
-        _punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
         refund_target: Address,
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;
@@ -104,12 +91,31 @@ impl Refundable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Refund> {
         })
     }
 
-    fn verify_template(
-        &self,
-        _punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
-        _refund_target: Address,
-    ) -> Result<(), FError> {
-        // FIXME
+    fn verify_template(&self, refund_target: Address) -> Result<(), FError> {
+        (self.psbt.global.unsigned_tx.version == 2)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Tx version is not 2"))?;
+        (self.psbt.global.unsigned_tx.lock_time == 0)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("LockTime is not set to 0"))?;
+        (self.psbt.global.unsigned_tx.input.len() == 1)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Number of inputs is not 1"))?;
+        (self.psbt.global.unsigned_tx.output.len() == 1)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Number of outputs is not 1"))?;
+
+        let txin = &self.psbt.global.unsigned_tx.input[0];
+        (txin.sequence == 0)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Sequence is not set to 0"))?;
+
+        let txout = &self.psbt.global.unsigned_tx.output[0];
+        let script_pubkey = refund_target.script_pubkey();
+        (txout.script_pubkey == script_pubkey)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Script pubkey does not match"))?;
+
         Ok(())
     }
 }

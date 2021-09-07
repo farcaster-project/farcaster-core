@@ -11,6 +11,11 @@ use curve25519_dalek::{
 
 use rand::Rng;
 
+fn _max_ed25519() -> u256 {
+    let two = u256::from(2u32);
+    (two << 252) + 27742317777372353535851937790883648493u128
+}
+
 // TODO: this is disgusting and must be removed asap
 fn G_p() -> ed25519Point {
     monero::util::key::H.point.decompress().unwrap()
@@ -21,11 +26,30 @@ use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar, G as H}
 #[cfg(feature = "experimental")]
 use secp256kfun::{g, s, marker::*};
 
+fn _max_secp256k1() -> u256 {
+    // let order_injected: [u8;32] = [
+    //     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    //     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+    //     0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b,
+    //     0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41
+    //     ];
+
+    // n = 2^256 − 432420386565659656852420866394968145599
+    //   = 2^256 - 2^128 - 92138019644721193389046258963199934143
+    //   = (2^256-1) - (2^128-1) - 92138019644721193389046258963199934143
+    let mut n = u256::from_be_bytes([255u8; 32]);
+    n -= u128::from_be_bytes([255u8; 16]);
+    n -= 92138019644721193389046258963199934143u128;
+
+    // assert_eq!(u256::from_be_bytes(order_injected), n);
+    n
+}
+
 // Hash to curve of the generator G as explained over here:
 // https://crypto.stackexchange.com/a/25603
 // Matches the result here:
 // https://github.com/mimblewimble/rust-secp256k1-zkp/blob/caa49992ae67f131157f6341f4e8b0b0c1e53055/src/constants.rs#L79-L136
-// TODO: this is disgusting and must be removed asap
+// TODO: this is disgusting and must be removed asap (i.e. change to constant)
 fn H_p() -> secp256k1Point {
     let hash_G: [u8; 32] =
         bitcoin_hashes::sha256::Hash::hash(&H.to_bytes_uncompressed()).into_inner();

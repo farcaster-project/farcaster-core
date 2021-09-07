@@ -4,14 +4,24 @@ use std::path::PathBuf;
 
 lazy_static::lazy_static! {
     pub static ref CLIENT: Client =  {
+        let ctx = env::var("CI").unwrap_or("false".into());
         let host = env::var("RPC_HOST").unwrap_or("127.0.0.1".into());
         let port = env::var("RPC_PORT").unwrap_or("18443".into());
-        let cookie = env::var("RPC_COOKIE").unwrap_or("/data/regtest/.cookie".into());
-        let path = PathBuf::from(cookie);
-        Client::new(
-            format!("http://{}:{}", host, port),
-            Auth::CookieFile(path),
-        ).unwrap()
+        if ctx == "false" {
+            let u = env::var("RPC_USER").unwrap();
+            let p = env::var("RPC_PASS").unwrap();
+            Client::new(
+                format!("http://{}:{}", host, port),
+                Auth::UserPass(u, p),
+            ).unwrap()
+        } else {
+            let cookie = env::var("RPC_COOKIE").unwrap_or("/data/regtest/.cookie".into());
+            let path = PathBuf::from(cookie);
+            Client::new(
+                format!("http://{}:{}", host, port),
+                Auth::CookieFile(path),
+            ).unwrap()
+        }
     };
 }
 

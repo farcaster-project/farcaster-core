@@ -220,15 +220,33 @@ struct DLEQProof {
     b_1: Vec<secp256k1Scalar>,
 }
 
+fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
+    let mut x = x;
+    let remainder = highest_bit % 8;
+    let quotient = (highest_bit - remainder) / 8;
+
+    for index in quotient..=31 {
+        x[index] = 0;
+    }
+
+    if (remainder != 0) {
+        let mask = (2 << (remainder - 1)) - 1;
+        x[quotient-1] &= mask;
+    }                       
+
+    x
+}
+
 impl DLEQProof {
     fn generate(x: [u8; 32]) -> Self {
         let highest_bit = 255;
+        let x_shaved = zeroize_highest_bits(x, highest_bit);
 
-        let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x);
+        let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
         let xg_p = x_ed25519 * G_p();
 
         // TODO: do properly
-        let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes(x)
+        let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes(x_shaved)
             .unwrap()
             .mark::<NonZero>()
             .expect("x is zero");
@@ -238,8 +256,8 @@ impl DLEQProof {
         DLEQProof {
             xg_p,
             xh_p,
-            c_g: key_commitment(x, highest_bit),
-            c_h: key_commitment_secp256k1(x, highest_bit),
+            c_g: key_commitment(x_shaved, highest_bit),
+            c_h: key_commitment_secp256k1(x_shaved, highest_bit),
             e_g_0: vec![ed25519Scalar::default()],
             e_h_0: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
             e_g_1: vec![ed25519Scalar::default()],

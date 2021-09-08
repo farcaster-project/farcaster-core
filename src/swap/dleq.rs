@@ -24,7 +24,7 @@ fn G_p() -> ed25519Point {
 #[cfg(feature = "experimental")]
 use ecdsa_fun::fun::{Point as secp256k1Point, Scalar as secp256k1Scalar, G as H};
 #[cfg(feature = "experimental")]
-use secp256kfun::{g, s, marker::*};
+use secp256kfun::{g, marker::*, s as sc};
 
 fn _max_secp256k1() -> u256 {
     // let order_injected: [u8;32] = [
@@ -205,9 +205,145 @@ fn key_commitment_secp256k1(
     };
     let blinder_last = commitment
         .iter()
-        .fold(secp256k1Scalar::zero(), |acc, x| s!(acc - x.blinder));
-    commitment.push((*commitment_last, msb_index, blinder_last.mark::<NonZero>().expect("is zero")).into());
+        .fold(secp256k1Scalar::zero(), |acc, x| sc!(acc - x.blinder));
+    commitment.push(
+        (
+            *commitment_last,
+            msb_index,
+            blinder_last.mark::<NonZero>().expect("is zero"),
+        )
+            .into(),
+    );
     commitment
+}
+
+struct RingSignature<ScalarCurveA, ScalarCurveB> {
+    e_g_i: ScalarCurveA,
+    e_h_i: ScalarCurveB,
+    a_0_i: ScalarCurveA,
+    b_0_i: ScalarCurveB,
+    a_1_i: ScalarCurveA,
+    b_1_i: ScalarCurveB,
+}
+
+impl
+    From<(
+        bool,
+        PedersenCommitment<ed25519Point, ed25519Scalar>,
+        PedersenCommitment<secp256k1Point, secp256k1Scalar>,
+    )> for RingSignature<ed25519Scalar, secp256k1Scalar>
+{
+    fn from(
+        (b_i, c_g_i, c_h_i): (
+            bool,
+            PedersenCommitment<ed25519Point, ed25519Scalar>,
+            PedersenCommitment<secp256k1Point, secp256k1Scalar>,
+        ),
+    ) -> Self {
+        let term0: [u8; 32] = c_g_i.commitment.compress().as_bytes().clone();
+        let term1: [u8; 33] = c_h_i.commitment.to_bytes();
+
+        let mut csprng = rand_alt::rngs::OsRng;
+        let j_i = ed25519Scalar::random(&mut csprng);
+        let k_i = secp256k1Scalar::random(&mut rand::thread_rng());
+
+        let term2 = (j_i * G).compress().as_bytes().clone();
+        let term3 = g!(k_i * H).mark::<Normal>().to_bytes();
+
+        if b_i {
+            let e_g_0_data: [u8; 130] = term0
+                .iter()
+                .chain(term1.iter())
+                .chain(term2.iter())
+                .chain(term3.iter())
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
+            let e_g_0 = bitcoin_hashes::sha256::Hash::hash(&e_g_0_data).into_inner();
+
+            let a_1_i = ed25519Scalar::random(&mut csprng);
+            let b_1_i = secp256k1Scalar::random(&mut rand::thread_rng());
+
+            let term2 = (a_1_i * G - ed25519Scalar::from_bytes_mod_order(e_g_0) * c_g_i.commitment)
+                .compress()
+                .as_bytes()
+                .clone();
+            let e_g_0_secp = secp256k1Scalar::from_bytes_mod_order(e_g_0);
+            let term3 = g!(b_1_i * H - e_g_0_secp * c_h_i.commitment)
+                .mark::<Normal>()
+                .mark::<NonZero>()
+                .unwrap()
+                .to_bytes();
+
+            let e_g_1_data: [u8; 130] = term0
+                .iter()
+                .chain(term1.iter())
+                .chain(term2.iter())
+                .chain(term3.iter())
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
+            let e_g_1 = bitcoin_hashes::sha256::Hash::hash(&e_g_1_data).into_inner();
+
+            let a_0_i = j_i + ed25519Scalar::from_bytes_mod_order(e_g_1) * c_g_i.blinder;
+
+            let e_g_1_secp = secp256k1Scalar::from_bytes_mod_order(e_g_1);
+            let b_0_i = sc!(k_i + e_g_1_secp * c_h_i.blinder);
+        } else {
+            let e_g_1_data: [u8; 130] = term0
+                .iter()
+                .chain(term1.iter())
+                .chain(term2.iter())
+                .chain(term3.iter())
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
+            let e_g_1 = bitcoin_hashes::sha256::Hash::hash(&e_g_1_data).into_inner();
+
+            let a_0_i = ed25519Scalar::random(&mut csprng);
+            let b_0_i = secp256k1Scalar::random(&mut rand::thread_rng());
+
+            let term2 = (a_0_i * G
+                - ed25519Scalar::from_bytes_mod_order(e_g_1) * (c_g_i.commitment - G_p()))
+            .compress()
+            .as_bytes()
+            .clone();
+            let e_g_1_secp = secp256k1Scalar::from_bytes_mod_order(e_g_1);
+            let term3 = g!(b_0_i * H - e_g_1_secp * c_h_i.commitment)
+                .mark::<Normal>()
+                .mark::<NonZero>()
+                .unwrap()
+                .to_bytes();
+
+            let e_g_0_data: [u8; 130] = term0
+                .iter()
+                .chain(term1.iter())
+                .chain(term2.iter())
+                .chain(term3.iter())
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
+            let e_g_0 = bitcoin_hashes::sha256::Hash::hash(&e_g_0_data).into_inner();
+
+            let a_1_i = j_i + ed25519Scalar::from_bytes_mod_order(e_g_0) * c_g_i.blinder;
+
+            let e_g_0_secp = secp256k1Scalar::from_bytes_mod_order(e_g_0);
+            let b_1_i = sc!(k_i + e_g_0_secp * c_h_i.blinder);
+        }
+
+        RingSignature {
+            e_g_i: ed25519Scalar::default(),
+            e_h_i: secp256k1Scalar::random(&mut rand::thread_rng()),
+            a_0_i: ed25519Scalar::default(),
+            b_0_i: secp256k1Scalar::random(&mut rand::thread_rng()),
+            a_1_i: ed25519Scalar::default(),
+            b_1_i: secp256k1Scalar::random(&mut rand::thread_rng()),
+        }
+    }
 }
 
 struct DLEQProof {
@@ -217,8 +353,6 @@ struct DLEQProof {
     c_h: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>,
     e_g_0: Vec<ed25519Scalar>,
     e_h_0: Vec<secp256k1Scalar>,
-    e_g_1: Vec<ed25519Scalar>,
-    e_h_1: Vec<secp256k1Scalar>,
     a_0: Vec<ed25519Scalar>,
     a_1: Vec<secp256k1Scalar>,
     b_0: Vec<ed25519Scalar>,
@@ -265,8 +399,6 @@ impl DLEQProof {
             c_h: key_commitment_secp256k1(x_shaved, highest_bit),
             e_g_0: vec![ed25519Scalar::default()],
             e_h_0: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
-            e_g_1: vec![ed25519Scalar::default()],
-            e_h_1: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
             a_0: vec![ed25519Scalar::default()],
             a_1: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
             b_0: vec![ed25519Scalar::default()],
@@ -316,4 +448,20 @@ fn blinders_sum_to_zero() {
             acc + bit_commitment.blinder
         });
     assert_eq!(blinder_acc, ed25519Scalar::zero());
+}
+
+#[test]
+fn ring_signature() {
+    let mut csprng = rand_alt::rngs::OsRng;
+    RingSignature::from((
+        false,
+        PedersenCommitment {
+            commitment: ed25519Scalar::random(&mut csprng) * G,
+            blinder: ed25519Scalar::random(&mut csprng),
+        },
+        PedersenCommitment {
+            commitment: secp256k1Point::random(&mut rand::thread_rng()),
+            blinder: secp256k1Scalar::random(&mut rand::thread_rng()),
+        },
+    ));
 }

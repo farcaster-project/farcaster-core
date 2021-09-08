@@ -51,16 +51,16 @@ fn _max_secp256k1() -> u256 {
 // https://github.com/mimblewimble/rust-secp256k1-zkp/blob/caa49992ae67f131157f6341f4e8b0b0c1e53055/src/constants.rs#L79-L136
 // TODO: this is disgusting and must be removed asap (i.e. change to constant)
 fn H_p() -> secp256k1Point {
-    let hash_G: [u8; 32] =
+    let hash_H: [u8; 32] =
         bitcoin_hashes::sha256::Hash::hash(&H.to_bytes_uncompressed()).into_inner();
-    let even_y_prepend_hash_G: [u8; 33] = [2u8]
+    let even_y_prepend_hash_H: [u8; 33] = [2u8]
         .iter()
-        .chain(hash_G.iter())
+        .chain(hash_H.iter())
         .cloned()
         .collect::<Vec<u8>>()
         .try_into()
         .unwrap();
-    secp256k1Point::from_bytes(even_y_prepend_hash_G).expect("Alternate basepoint is invalid")
+    secp256k1Point::from_bytes(even_y_prepend_hash_H).expect("Alternate basepoint is invalid")
     // secp256k1Point::from_bytes([2, 80, 146, 155, 116, 193, 160, 73, 84, 183, 139, 75, 96, 53, 233, 122, 94, 7, 138, 90, 15, 40, 236, 150, 213, 71, 191, 238, 154, 206, 128, 58, 192])
     // .expect("Alternate basepoint is invalid")
 }
@@ -79,8 +79,8 @@ impl From<(bool, usize)> for PedersenCommitment<ed25519Point, ed25519Scalar> {
         let order = one << index;
 
         let commitment = match bit {
-            false => blinder * G,
-            true => G_p() * ed25519Scalar::from_bits(order.to_le_bytes()) + blinder * G,
+            false => blinder * G_p(),
+            true => G * ed25519Scalar::from_bits(order.to_le_bytes()) + blinder * G_p(),
         };
 
         PedersenCommitment {
@@ -98,8 +98,8 @@ impl From<(bool, usize, ed25519Scalar)> for PedersenCommitment<ed25519Point, ed2
         let order = one << index;
 
         let commitment = match bit {
-            false => blinder * G,
-            true => G_p() * ed25519Scalar::from_bits(order.to_le_bytes()) + blinder * G,
+            false => blinder * G_p(),
+            true => G * ed25519Scalar::from_bits(order.to_le_bytes()) + blinder * G_p(),
         };
 
         PedersenCommitment {
@@ -118,14 +118,16 @@ impl From<(bool, usize)> for PedersenCommitment<secp256k1Point, secp256k1Scalar>
 
         let order_on_curve = secp256k1Scalar::from_bytes(order.to_le_bytes())
             .expect("integer greater than curve order");
-        let blinder_point = g!(blinder * H).mark::<NonZero>().unwrap();
-
         let H_p = H_p();
+        let blinder_point = g!(blinder * H_p).mark::<NonZero>().unwrap();
 
         let commitment = match bit {
-            true => g!(order_on_curve * H_p + blinder_point).mark::<NonZero>().unwrap(),
+            true => g!(order_on_curve * H + blinder_point)
+                .mark::<NonZero>()
+                .unwrap(),
             false => blinder_point,
-        }.mark::<Normal>();
+        }
+        .mark::<Normal>();
 
         PedersenCommitment {
             commitment,
@@ -145,16 +147,19 @@ impl From<(bool, usize, secp256k1Scalar)> for PedersenCommitment<secp256k1Point,
             .expect("integer greater than curve order");
 
         let H_p = H_p();
-        let blinder_point = g!(blinder * H);
+        let blinder_point = g!(blinder * H_p);
 
         let commitment = match bit {
-            true => g!(order_on_curve * H_p + blinder_point).mark::<NonZero>().unwrap(),
+            true => g!(order_on_curve * H + blinder_point)
+                .mark::<NonZero>()
+                .unwrap(),
             false => blinder_point,
-        }.mark::<Normal>();
+        }
+        .mark::<Normal>();
 
         PedersenCommitment {
             commitment,
-            blinder
+            blinder,
         }
     }
 }
@@ -243,7 +248,7 @@ impl DLEQProof {
         let x_shaved = zeroize_highest_bits(x, highest_bit);
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
-        let xg_p = x_ed25519 * G_p();
+        let xg_p = x_ed25519 * G;
 
         // TODO: do properly
         let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes(x_shaved)
@@ -281,10 +286,7 @@ fn pedersen_commitment_works() {
         .fold(ed25519Point::identity(), |acc, bit_commitment| {
             acc + bit_commitment.commitment
         });
-    assert_eq!(
-        ed25519Scalar::from_bytes_mod_order(x) * G_p(),
-        commitment_acc
-    );
+    assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);
 }
 
 #[test]
@@ -295,17 +297,13 @@ fn pedersen_commitment_sec256k1_works() {
     // x[31] &= 0b0111_1111;
     let key_commitment = key_commitment_secp256k1(x, 255);
     // let commitment_acc: secp256k1Point<Jacobian, Public, Zero> = key_commitment
-    let commitment_acc = key_commitment
-        .iter()
-        .fold(secp256k1Point::zero(), |acc, bit_commitment| g!(acc + bit_commitment.commitment).mark::<Normal>()
-        // .fold(secp256k1Point::zero().mark::<Jacobian>(), |acc, bit_commitment| g!(acc + bit_commitment.commitment)
-);
-    let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(x);
-    let H_p = H_p();
-    assert_eq!(
-        g!(x_secp256k1 * H_p),
-        commitment_acc
+    let commitment_acc = key_commitment.iter().fold(
+        secp256k1Point::zero(),
+        |acc, bit_commitment| g!(acc + bit_commitment.commitment).mark::<Normal>(), // .fold(secp256k1Point::zero().mark::<Jacobian>(), |acc, bit_commitment| g!(acc + bit_commitment.commitment)
     );
+    let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(x);
+    // let H_p = H_p();
+    assert_eq!(g!(x_secp256k1 * H), commitment_acc);
 }
 
 #[test]

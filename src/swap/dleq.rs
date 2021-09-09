@@ -362,7 +362,8 @@ fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
 
 impl DLEQProof {
     fn generate(x: [u8; 32]) -> Self {
-        let highest_bit = 255;
+        let highest_bit = 252;
+
         let x_shaved = zeroize_highest_bits(x, highest_bit);
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);

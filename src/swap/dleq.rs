@@ -218,8 +218,8 @@ fn key_commitment_secp256k1(
 }
 
 struct RingSignature<ScalarCurveA, ScalarCurveB> {
-    e_g_0_i: [u8; 32],
-    e_h_0_i: [u8; 32],
+    e_g_0_i: ScalarCurveA,
+    e_h_0_i: ScalarCurveB,
     a_0_i: ScalarCurveA,
     b_0_i: ScalarCurveB,
     a_1_i: ScalarCurveA,
@@ -261,67 +261,73 @@ impl
         let k_i = secp256k1Scalar::random(&mut rand::thread_rng());
 
         let term2 = (j_i * G).compress().as_bytes().clone();
-        let term3 = g!(k_i * H)
-            .mark::<Normal>()
-            .to_bytes();
+        let term3 = g!(k_i * H).mark::<Normal>().to_bytes();
 
-        let (e_g_0_i, a_0_i, a_1_i, b_0_i, b_1_i) = if b_i {
-            let e_g_0_i = ring_hash(term0, term1, term2, term3);
+        let (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i) = if b_i {
+            let e_0_i = ring_hash(term0, term1, term2, term3);
+            let e_g_0_i = ed25519Scalar::from_bytes_mod_order(e_0_i);
+            let e_h_0_i = secp256k1Scalar::from_bytes_mod_order(e_0_i)
+                .mark::<NonZero>()
+                .expect("is zero");
+
             let a_1_i = ed25519Scalar::random(&mut csprng);
             let b_1_i = secp256k1Scalar::random(&mut rand::thread_rng());
 
-            let term2 = (a_1_i * G - ed25519Scalar::from_bytes_mod_order(e_g_0_i) * c_g_i.commitment)
+            let term2 = (a_1_i * G - e_g_0_i * c_g_i.commitment)
                 .compress()
                 .as_bytes()
                 .clone();
-            let e_g_0_i_secp = secp256k1Scalar::from_bytes_mod_order(e_g_0_i);
-            let term3 = g!(b_1_i * H - e_g_0_i_secp * c_h_i.commitment)
+            let term3 = g!(b_1_i * H - e_h_0_i * c_h_i.commitment)
                 .mark::<Normal>()
                 .mark::<NonZero>()
                 .expect("is zero")
                 .to_bytes();
 
-            let e_g_1 = ring_hash(term0, term1, term2, term3);
+            let e_1_i = ring_hash(term0, term1, term2, term3);
+            let e_g_1_i = ed25519Scalar::from_bytes_mod_order(e_1_i);
+            let e_h_1_i = secp256k1Scalar::from_bytes_mod_order(e_1_i);
 
-            let a_0_i = j_i + ed25519Scalar::from_bytes_mod_order(e_g_1) * c_g_i.blinder;
+            let a_0_i = j_i + e_g_1_i * c_g_i.blinder;
 
-            let e_g_1_secp = secp256k1Scalar::from_bytes_mod_order(e_g_1);
-            let b_0_i = sc!(k_i + e_g_1_secp * c_h_i.blinder)
+            let b_0_i = sc!(k_i + e_h_1_i * c_h_i.blinder)
                 .mark::<NonZero>()
                 .unwrap();
-            (e_g_0_i, a_0_i, a_1_i, b_0_i, b_1_i)
+            (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i)
         } else {
-            let e_g_1 = ring_hash(term0, term1, term2, term3);
+            let e_1_i = ring_hash(term0, term1, term2, term3);
+            let e_g_1_i = ed25519Scalar::from_bytes_mod_order(e_1_i);
+            let e_h_1_i = secp256k1Scalar::from_bytes_mod_order(e_1_i);
 
             let a_0_i = ed25519Scalar::random(&mut csprng);
             let b_0_i = secp256k1Scalar::random(&mut rand::thread_rng());
 
-            let term2 = (a_0_i * G
-                - ed25519Scalar::from_bytes_mod_order(e_g_1) * (c_g_i.commitment - G_p()))
-            .compress()
-            .as_bytes()
-            .clone();
-            let e_g_1_secp = secp256k1Scalar::from_bytes_mod_order(e_g_1);
-            let term3 = g!(b_0_i * H - e_g_1_secp * c_h_i.commitment)
+            let term2 = (a_0_i * G - e_g_1_i * (c_g_i.commitment - G_p()))
+                .compress()
+                .as_bytes()
+                .clone();
+            let term3 = g!(b_0_i * H - e_h_1_i * c_h_i.commitment)
                 .mark::<Normal>()
                 .mark::<NonZero>()
                 .expect("is zero")
                 .to_bytes();
 
-            let e_g_0_i = ring_hash(term0, term1, term2, term3);
-
-            let a_1_i = j_i + ed25519Scalar::from_bytes_mod_order(e_g_0_i) * c_g_i.blinder;
-
-            let e_g_0_i_secp = secp256k1Scalar::from_bytes_mod_order(e_g_0_i);
-            let b_1_i = sc!(k_i + e_g_0_i_secp * c_h_i.blinder)
+            let e_0_i = ring_hash(term0, term1, term2, term3);
+            let e_g_0_i = ed25519Scalar::from_bytes_mod_order(e_0_i);
+            let e_h_0_i = secp256k1Scalar::from_bytes_mod_order(e_0_i)
                 .mark::<NonZero>()
-                .unwrap();
-            (e_g_0_i, a_0_i, a_1_i, b_0_i, b_1_i)
+                .expect("is zero");
+
+            let a_1_i = j_i + e_g_0_i * c_g_i.blinder;
+
+            let b_1_i = sc!(k_i + e_h_0_i * c_h_i.blinder)
+                .mark::<NonZero>()
+                .expect("is zero");
+            (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i)
         };
 
         RingSignature {
             e_g_0_i,
-            e_h_0_i: e_g_0_i,
+            e_h_0_i,
             a_0_i,
             b_0_i,
             a_1_i,

@@ -226,6 +226,19 @@ struct RingSignature<ScalarCurveA, ScalarCurveB> {
     b_1_i: ScalarCurveB,
 }
 
+fn ring_hash(term0: [u8; 32], term1: [u8; 33], term2: [u8; 32], term3: [u8; 33]) -> [u8; 32] {
+    let preimage: [u8; 130] = term0
+        .iter()
+        .chain(term1.iter())
+        .chain(term2.iter())
+        .chain(term3.iter())
+        .cloned()
+        .collect::<Vec<u8>>()
+        .try_into()
+        .unwrap();
+    bitcoin_hashes::sha256::Hash::hash(&preimage).into_inner()
+}
+
 impl
     From<(
         bool,
@@ -251,17 +264,7 @@ impl
         let term3 = g!(k_i * H).mark::<Normal>().to_bytes();
 
         if b_i {
-            let e_g_0_data: [u8; 130] = term0
-                .iter()
-                .chain(term1.iter())
-                .chain(term2.iter())
-                .chain(term3.iter())
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            let e_g_0 = bitcoin_hashes::sha256::Hash::hash(&e_g_0_data).into_inner();
-
+            let e_g_0 = ring_hash(term0, term1, term2, term3);
             let a_1_i = ed25519Scalar::random(&mut csprng);
             let b_1_i = secp256k1Scalar::random(&mut rand::thread_rng());
 
@@ -276,32 +279,14 @@ impl
                 .unwrap()
                 .to_bytes();
 
-            let e_g_1_data: [u8; 130] = term0
-                .iter()
-                .chain(term1.iter())
-                .chain(term2.iter())
-                .chain(term3.iter())
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            let e_g_1 = bitcoin_hashes::sha256::Hash::hash(&e_g_1_data).into_inner();
+            let e_g_1 = ring_hash(term0, term1, term2, term3);
 
             let a_0_i = j_i + ed25519Scalar::from_bytes_mod_order(e_g_1) * c_g_i.blinder;
 
             let e_g_1_secp = secp256k1Scalar::from_bytes_mod_order(e_g_1);
             let b_0_i = sc!(k_i + e_g_1_secp * c_h_i.blinder);
         } else {
-            let e_g_1_data: [u8; 130] = term0
-                .iter()
-                .chain(term1.iter())
-                .chain(term2.iter())
-                .chain(term3.iter())
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            let e_g_1 = bitcoin_hashes::sha256::Hash::hash(&e_g_1_data).into_inner();
+            let e_g_1 = ring_hash(term0, term1, term2, term3);
 
             let a_0_i = ed25519Scalar::random(&mut csprng);
             let b_0_i = secp256k1Scalar::random(&mut rand::thread_rng());
@@ -318,16 +303,7 @@ impl
                 .unwrap()
                 .to_bytes();
 
-            let e_g_0_data: [u8; 130] = term0
-                .iter()
-                .chain(term1.iter())
-                .chain(term2.iter())
-                .chain(term3.iter())
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            let e_g_0 = bitcoin_hashes::sha256::Hash::hash(&e_g_0_data).into_inner();
+            let e_g_0 = ring_hash(term0, term1, term2, term3);
 
             let a_1_i = j_i + ed25519Scalar::from_bytes_mod_order(e_g_0) * c_g_i.blinder;
 

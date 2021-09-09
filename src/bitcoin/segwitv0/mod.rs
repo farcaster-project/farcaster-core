@@ -83,7 +83,7 @@ impl TryFrom<Btc> for Bitcoin<SegwitV0> {
     fn try_from(v: Btc) -> Result<Self, consensus::Error> {
         match v {
             Btc::SegwitV0(v) => Ok(v),
-            //_ => Err(consensus::Error::TypeMismatch),
+            _ => Err(consensus::Error::TypeMismatch),
         }
     }
 }
@@ -100,15 +100,38 @@ impl Transactions for Bitcoin<SegwitV0> {
 }
 
 impl Keys for Bitcoin<SegwitV0> {
-    /// Private key type for the blockchain
     type PrivateKey = SecretKey;
-
-    /// Public key type for the blockchain
     type PublicKey = PublicKey;
 
     fn extra_keys() -> Vec<u16> {
         // No extra key
         vec![]
+    }
+}
+
+impl CanonicalBytes for SecretKey {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        (&self.as_ref()[..]).into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        SecretKey::from_slice(bytes).map_err(consensus::Error::new)
+    }
+}
+
+impl CanonicalBytes for PublicKey {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.serialize().as_ref().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        PublicKey::from_slice(bytes).map_err(consensus::Error::new)
     }
 }
 
@@ -125,6 +148,19 @@ impl Signatures for Bitcoin<SegwitV0> {
     type Message = Sha256dHash;
     type Signature = Signature;
     type AdaptorSignature = EncryptedSignature;
+}
+
+impl CanonicalBytes for Signature {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.serialize_compact().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
+    where
+        Self: Sized,
+    {
+        Signature::from_compact(bytes).map_err(consensus::Error::new)
+    }
 }
 
 impl CanonicalBytes for EncryptedSignature {

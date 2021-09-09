@@ -1,11 +1,10 @@
 //! Defines the high level of a swap between a Arbitrating blockchain and a Accordant blockchain
 //! and its concrete instances of swaps.
 
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::io;
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
-use crate::crypto::Commitment;
 use crate::role::{Accordant, Arbitrating};
 
 use lightning_encoding::strategies::AsStrict;
@@ -43,7 +42,7 @@ impl lightning_encoding::Strategy for SwapId {
 
 /// Specifie the context of a swap, fixing the arbitrating blockchain, the accordant blockchain and
 /// the link between them.
-pub trait Swap: Debug + Clone + Commitment {
+pub trait Swap: Debug + Clone {
     /// The arbitrating blockchain concrete implementation used for the swap.
     type Ar: Arbitrating;
 
@@ -52,4 +51,7 @@ pub trait Swap: Debug + Clone + Commitment {
 
     ///// The concrete type to link both blockchain cryptographic groups used in by the signatures.
     type Proof: Clone + Debug + CanonicalBytes;
+
+    /// Commitment type used in the commit/reveal scheme during swap setup.
+    type Commitment: Clone + PartialEq + Eq + Debug + fmt::Display + CanonicalBytes;
 }

@@ -44,6 +44,8 @@
 //! - **serde**: enable serde implementation on some of the types in the library.
 //! - **experimental**: enable experimental cryptography, i.e. not battle tested nor peer reviewed
 //! and not intended for production use.
+//! - **taproot**: enable support for Bitcoin Taproot on-chain scripts as the arbitrating engine
+//! method.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // Coding conventions

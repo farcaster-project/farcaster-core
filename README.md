@@ -50,6 +50,7 @@ As default the `experimental` feature is enable.
 
 - **serde**: enable serde implementation on some of the types in the library.
 - **experimental**: enable experimental cryptography, i.e. not battle tested nor peer reviewed and not intended for production use.
+- **taproot**: enable support for Bitcoin Taproot on-chain scripts as the arbitrating engine method.
 
 ### Adding blockchain support
 To add a blockchain implementation you must implements `Aribtrating` or `Accordant` trait on your blockchain definition, the trait implemented depends on its blockchain on-chain features, see [RFCs](https://github.com/farcaster-project/RFCs) for more details.

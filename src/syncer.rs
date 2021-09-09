@@ -318,7 +318,7 @@ impl Decodable for Task {
 
 impl_strict_encoding!(Task);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TaskAborted {
     pub id: i32,
     pub success_abort: i32,
@@ -348,7 +348,7 @@ impl fmt::Display for TaskAborted {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HeightChanged {
     pub id: i32,
     pub block: Vec<u8>,
@@ -381,7 +381,7 @@ impl fmt::Display for HeightChanged {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AddressTransaction {
     pub id: i32,
     pub hash: Vec<u8>,
@@ -420,7 +420,7 @@ impl fmt::Display for AddressTransaction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TransactionConfirmations {
     pub id: i32,
     pub block: Vec<u8>,
@@ -453,7 +453,7 @@ impl fmt::Display for TransactionConfirmations {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TransactionBroadcasted {
     pub id: i32,
     pub tx_len: i16,
@@ -491,7 +491,7 @@ impl fmt::Display for TransactionBroadcasted {
 
 /// Events returned by syncers to the daemon to update the blockchain states.  Events are
 /// identified with a unique 32-bits integer that match the [`Task`] id.
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, PartialEq)]
 #[display(Debug)]
 pub enum Event {
     /// Notify the daemon the blockchain height changed.

@@ -4,6 +4,7 @@ use amplify::num::u256;
 
 use bitcoin_hashes::{self, Hash};
 
+use bitvec::{prelude::BitSlice, order::Lsb0};
 use curve25519_dalek::{
     constants::ED25519_BASEPOINT_POINT as G, edwards::EdwardsPoint as ed25519Point,
     scalar::Scalar as ed25519Scalar, traits::Identity,
@@ -166,10 +167,9 @@ impl From<(bool, usize, secp256k1Scalar)> for PedersenCommitment<secp256k1Point,
 }
 
 fn key_commitment(
-    x: [u8; 32],
+    x_bits: &BitSlice::<Lsb0, u8>,
     msb_index: usize,
 ) -> Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> {
-    let x_bits = bitvec::prelude::BitSlice::<bitvec::order::Lsb0, u8>::from_slice(&x).unwrap();
     let mut commitment: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> = x_bits
         .iter()
         .take(msb_index)
@@ -189,10 +189,9 @@ fn key_commitment(
 }
 
 fn key_commitment_secp256k1(
-    x: [u8; 32],
+    x_bits: &BitSlice::<Lsb0, u8>,
     msb_index: usize,
 ) -> Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>> {
-    let x_bits = bitvec::prelude::BitSlice::<bitvec::order::Lsb0, u8>::from_slice(&x).unwrap();
     let mut commitment: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>> = x_bits
         .iter()
         .take(msb_index)
@@ -368,7 +367,7 @@ impl DLEQProof {
 
         let x_shaved = zeroize_highest_bits(x, highest_bit);
         let x_bits =
-            bitvec::prelude::BitSlice::<bitvec::order::Lsb0, u8>::from_slice(&x_shaved).unwrap();
+            BitSlice::<Lsb0, u8>::from_slice(&x_shaved).unwrap();
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
         let xg_p = x_ed25519 * G;
@@ -380,8 +379,8 @@ impl DLEQProof {
             .expect("x is zero");
         let xh_p = secp256k1Point::from_scalar_mul(H, &mut x_secp256k1).mark::<Normal>();
 
-        let c_g = key_commitment(x_shaved, highest_bit);
-        let c_h = key_commitment_secp256k1(x_shaved, highest_bit);
+        let c_g = key_commitment(x_bits, highest_bit);
+        let c_h = key_commitment_secp256k1(x_bits, highest_bit);
 
         let ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>> = x_bits
             .iter()
@@ -406,7 +405,8 @@ fn pedersen_commitment_works() {
     let mut x: [u8; 32] = rand::thread_rng().gen();
     // ensure 256th bit is 0
     x[31] &= 0b0111_1111;
-    let key_commitment = key_commitment(x, 255);
+    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+    let key_commitment = key_commitment(x_bits, 255);
     let commitment_acc = key_commitment
         .iter()
         .fold(ed25519Point::identity(), |acc, bit_commitment| {
@@ -421,7 +421,8 @@ fn pedersen_commitment_sec256k1_works() {
     // let mut x: [u8; 32] = rand::thread_rng().gen();
     // ensure 256th bit is 0
     // x[31] &= 0b0111_1111;
-    let key_commitment = key_commitment_secp256k1(x, 255);
+    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+    let key_commitment = key_commitment_secp256k1(x_bits, 255);
     // let commitment_acc: secp256k1Point<Jacobian, Public, Zero> = key_commitment
     let commitment_acc = key_commitment.iter().fold(
         secp256k1Point::zero(),
@@ -433,9 +434,16 @@ fn pedersen_commitment_sec256k1_works() {
 }
 
 #[test]
+fn dleq_proof_works() {
+    let x: [u8; 32] = rand::thread_rng().gen();
+    DLEQProof::generate(x);
+}
+
+#[test]
 fn blinders_sum_to_zero() {
     let x: [u8; 32] = rand::thread_rng().gen();
-    let key_commitment = key_commitment(x, 255);
+    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+    let key_commitment = key_commitment(x_bits, 255);
     let blinder_acc = key_commitment
         .iter()
         .fold(ed25519Scalar::zero(), |acc, bit_commitment| {

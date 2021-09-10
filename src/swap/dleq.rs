@@ -324,7 +324,11 @@ impl
             let term2 = *(a_1_i * G - e_g_0_i * c_g_i.commitment)
                 .compress()
                 .as_bytes();
-            let term3 = g!(b_1_i * H - e_h_0_i * c_h_i.commitment).mark::<Normal>().mark::<NonZero>().expect("is_zero").to_bytes();
+            let term3 = g!(b_1_i * H - e_h_0_i * c_h_i.commitment)
+                .mark::<Normal>()
+                .mark::<NonZero>()
+                .expect("is_zero")
+                .to_bytes();
 
             let e_1_i = ring_hash(term0, term1, term2, term3);
             let e_g_1_i = ed25519Scalar::from_bytes_mod_order(e_1_i);
@@ -479,7 +483,14 @@ fn dleq_proof_works() {
     let x: [u8; 32] = rand::thread_rng().gen();
     let dleq = DLEQProof::generate(x);
 
-    let valid_dleq: Vec<bool> = dleq.c_g.clone().iter().zip(dleq.c_h.clone()).zip(dleq.ring_signatures).map(|((c_g_i, c_h_i), ring_sig)| verify_ring_sig(*c_g_i, c_h_i, ring_sig)).collect();
+    let valid_dleq: Vec<bool> = dleq
+        .c_g
+        .clone()
+        .iter()
+        .zip(dleq.c_h.clone())
+        .zip(dleq.ring_signatures)
+        .map(|((c_g_i, c_h_i), ring_sig)| verify_ring_sig(*c_g_i, c_h_i, ring_sig))
+        .collect();
 
     println!("{:?}", valid_dleq);
     valid_dleq.iter().for_each(|verification| assert!(verification))

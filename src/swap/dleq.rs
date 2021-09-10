@@ -65,6 +65,7 @@ fn H_p() -> secp256k1Point {
     // .expect("Alternate basepoint is invalid")
 }
 
+#[derive(Copy, Clone)]
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
     blinder: Scalar,
@@ -341,12 +342,7 @@ struct DLEQProof {
     xh_p: secp256k1Point,
     c_g: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>,
     c_h: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>,
-    e_g_0: Vec<ed25519Scalar>,
-    e_h_0: Vec<secp256k1Scalar>,
-    a_0: Vec<ed25519Scalar>,
-    a_1: Vec<secp256k1Scalar>,
-    b_0: Vec<ed25519Scalar>,
-    b_1: Vec<secp256k1Scalar>,
+    ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
 }
 
 fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
@@ -371,6 +367,8 @@ impl DLEQProof {
         let highest_bit = 252;
 
         let x_shaved = zeroize_highest_bits(x, highest_bit);
+        let x_bits =
+            bitvec::prelude::BitSlice::<bitvec::order::Lsb0, u8>::from_slice(&x_shaved).unwrap();
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
         let xg_p = x_ed25519 * G;
@@ -382,18 +380,23 @@ impl DLEQProof {
             .expect("x is zero");
         let xh_p = secp256k1Point::from_scalar_mul(H, &mut x_secp256k1).mark::<Normal>();
 
+        let c_g = key_commitment(x_shaved, highest_bit);
+        let c_h = key_commitment_secp256k1(x_shaved, highest_bit);
+
+        let ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>> = x_bits
+            .iter()
+            .take(highest_bit)
+            .zip(c_g.clone())
+            .zip(c_h.clone())
+            .map(|((b_i, c_g_i), c_h_i)| RingSignature::from((*b_i, c_g_i, c_h_i)))
+            .collect();
 
         DLEQProof {
             xg_p,
             xh_p,
-            c_g: key_commitment(x_shaved, highest_bit),
-            c_h: key_commitment_secp256k1(x_shaved, highest_bit),
-            e_g_0: vec![ed25519Scalar::default()],
-            e_h_0: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
-            a_0: vec![ed25519Scalar::default()],
-            a_1: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
-            b_0: vec![ed25519Scalar::default()],
-            b_1: vec![secp256k1Scalar::random(&mut rand::thread_rng())],
+            c_g,
+            c_h,
+            ring_signatures,
         }
     }
 }

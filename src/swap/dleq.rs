@@ -324,6 +324,7 @@ impl
             let term2 = *(a_1_i * G - e_g_0_i * c_g_i.commitment)
                 .compress()
                 .as_bytes();
+            let term3 = g!(b_1_i * H - e_h_0_i * c_h_i.commitment).mark::<Normal>().mark::<NonZero>().expect("is_zero").to_bytes();
 
             let e_1_i = ring_hash(term0, term1, term2, term3);
             let e_g_1_i = ed25519Scalar::from_bytes_mod_order(e_1_i);

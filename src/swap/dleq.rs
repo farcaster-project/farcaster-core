@@ -4,7 +4,7 @@ use amplify::num::u256;
 
 use bitcoin_hashes::{self, Hash};
 
-use bitvec::{prelude::BitSlice, order::Lsb0};
+use bitvec::{order::Lsb0, prelude::BitSlice};
 use curve25519_dalek::{
     constants::ED25519_BASEPOINT_POINT as G, edwards::EdwardsPoint as ed25519Point,
     scalar::Scalar as ed25519Scalar, traits::Identity,
@@ -167,7 +167,7 @@ impl From<(bool, usize, secp256k1Scalar)> for PedersenCommitment<secp256k1Point,
 }
 
 fn key_commitment(
-    x_bits: &BitSlice::<Lsb0, u8>,
+    x_bits: &BitSlice<Lsb0, u8>,
     msb_index: usize,
 ) -> Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> {
     let mut commitment: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> = x_bits
@@ -189,7 +189,7 @@ fn key_commitment(
 }
 
 fn key_commitment_secp256k1(
-    x_bits: &BitSlice::<Lsb0, u8>,
+    x_bits: &BitSlice<Lsb0, u8>,
     msb_index: usize,
 ) -> Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>> {
     let mut commitment: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>> = x_bits
@@ -341,7 +341,7 @@ struct DLEQProof {
     xh_p: secp256k1Point,
     c_g: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>,
     c_h: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>,
-    ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
+    ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>,
 }
 
 fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
@@ -355,8 +355,8 @@ fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
 
     if (remainder != 0) {
         let mask = (2 << (remainder - 1)) - 1;
-        x[quotient-1] &= mask;
-    }                       
+        x[quotient - 1] &= mask;
+    }
 
     x
 }
@@ -366,8 +366,7 @@ impl DLEQProof {
         let highest_bit = 252;
 
         let x_shaved = zeroize_highest_bits(x, highest_bit);
-        let x_bits =
-            BitSlice::<Lsb0, u8>::from_slice(&x_shaved).unwrap();
+        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x_shaved).unwrap();
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
         let xg_p = x_ed25519 * G;

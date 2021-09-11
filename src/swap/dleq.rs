@@ -395,13 +395,13 @@ fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
     let remainder = highest_bit % 8;
     let quotient = (highest_bit - remainder) / 8;
 
-    for index in quotient..=31 {
+    for index in (quotient + 1)..=31 {
         x[index] = 0;
     }
 
     if (remainder != 0) {
         let mask = (2 << (remainder - 1)) - 1;
-        x[quotient - 1] &= mask;
+        x[quotient] &= mask;
     }
 
     x

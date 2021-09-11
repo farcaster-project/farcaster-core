@@ -15,8 +15,7 @@ const ENTROPY: bool = true;
 use rand::Rng;
 
 fn _max_ed25519() -> u256 {
-    let two = u256::from(2u32);
-    (two << 252) + 27742317777372353535851937790883648493u128
+    (u256::from(2u32) << 252) + 27742317777372353535851937790883648493u128
 }
 
 // TODO: this is disgusting and must be removed asap
@@ -83,8 +82,7 @@ impl From<(bool, usize)> for PedersenCommitment<ed25519Point, ed25519Scalar> {
             false => ed25519Scalar::zero(),
         };
 
-        let one: u256 = u256::from(1u32);
-        let order = one << index;
+        let order = u256::from(1u32) << index;
 
         let commitment = match bit {
             false => blinder * G_p(),
@@ -102,8 +100,7 @@ impl From<(bool, usize, ed25519Scalar)> for PedersenCommitment<ed25519Point, ed2
     fn from(
         (bit, index, blinder): (bool, usize, ed25519Scalar),
     ) -> PedersenCommitment<ed25519Point, ed25519Scalar> {
-        let one: u256 = u256::from(1u32);
-        let order = one << index;
+        let order = u256::from(1u32) << index;
 
         let commitment = match bit {
             false => blinder * G_p(),
@@ -125,8 +122,7 @@ impl From<(bool, usize)> for PedersenCommitment<secp256k1Point, secp256k1Scalar>
             false => secp256k1Scalar::one(),
         };
 
-        let one: u256 = u256::from(1u32);
-        let order = one << index;
+        let order = u256::from(1u32) << index;
 
         let order_on_curve = secp256k1Scalar::from_bytes(order.to_le_bytes())
             .expect("integer greater than curve order");
@@ -152,8 +148,7 @@ impl From<(bool, usize, secp256k1Scalar)> for PedersenCommitment<secp256k1Point,
     fn from(
         (bit, index, blinder): (bool, usize, secp256k1Scalar),
     ) -> PedersenCommitment<secp256k1Point, secp256k1Scalar> {
-        let one: u256 = u256::from(1u32);
-        let order = one << index;
+        let order = u256::from(1u32) << index;
 
         let order_on_curve = secp256k1Scalar::from_bytes(order.to_le_bytes())
             .expect("integer greater than curve order");
@@ -254,10 +249,9 @@ fn verify_ring_sig(
     let term0: [u8; 32] = c_g_i.commitment.compress().as_bytes().clone();
     let term1: [u8; 33] = c_h_i.commitment.to_bytes();
 
-    let one: u256 = u256::from(1u32);
-    let order = one << index;
-    let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
-        .expect("integer greater than curve order");
+    let order = u256::from(1u32) << index;
+    let order_on_secp256k1 =
+        secp256k1Scalar::from_bytes(order.to_le_bytes()).expect("integer greater than curve order");
     let H_p = H_p();
 
     // compute e_1_i
@@ -279,15 +273,19 @@ fn verify_ring_sig(
 
     // compute e_0_i
     let e_0_i = {
-        let term2: [u8; 32] = *(ring_sig.a_0_i * G_p() - e_g_1_i * (c_g_i.commitment - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
+        let term2: [u8; 32] = *(ring_sig.a_0_i * G_p()
+            - e_g_1_i
+                * (c_g_i.commitment
+                    - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
             .compress()
             .as_bytes();
 
-        let term3: [u8; 33] = g!(ring_sig.b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
-            .mark::<Normal>()
-            .mark::<NonZero>()
-            .expect("is zero")
-            .to_bytes();
+        let term3: [u8; 33] =
+            g!(ring_sig.b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
+                .mark::<Normal>()
+                .mark::<NonZero>()
+                .expect("is zero")
+                .to_bytes();
 
         ring_hash(term0, term1, term2, term3)
     };
@@ -316,8 +314,16 @@ impl
         ),
     ) -> Self {
         // first confirm that the pedersen commitments are correctly calculated
-        assert_eq!(c_g_i.commitment, PedersenCommitment::from((b_i, index, c_g_i.blinder.clone())).commitment, "incorrect pedersen commitment!");
-        assert_eq!(c_h_i.commitment, PedersenCommitment::from((b_i, index, c_h_i.blinder.clone())).commitment, "incorrect pedersen commitment!");
+        assert_eq!(
+            c_g_i.commitment,
+            PedersenCommitment::from((b_i, index, c_g_i.blinder.clone())).commitment,
+            "incorrect pedersen commitment!"
+        );
+        assert_eq!(
+            c_h_i.commitment,
+            PedersenCommitment::from((b_i, index, c_h_i.blinder.clone())).commitment,
+            "incorrect pedersen commitment!"
+        );
         let term0: [u8; 32] = c_g_i.commitment.compress().as_bytes().clone();
         let term1: [u8; 33] = c_h_i.commitment.to_bytes();
 
@@ -374,20 +380,21 @@ impl
                 .mark::<NonZero>()
                 .unwrap();
 
-            let one: u256 = u256::from(1u32);
-            let order = one << index;
+            let order = u256::from(1u32) << index;
             let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
                 .expect("integer greater than curve order");
 
-            let term2: [u8; 32] = *(a_0_i * G_p() - e_g_1_i * (c_g_i.commitment - ed25519Scalar::from_bits(order.to_le_bytes()) * G))
+            let term2: [u8; 32] = *(a_0_i * G_p()
+                - e_g_1_i * (c_g_i.commitment - ed25519Scalar::from_bits(order.to_le_bytes()) * G))
                 .compress()
                 .as_bytes();
 
-            let term3: [u8; 33] = g!(b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
-                .mark::<Normal>()
-                .mark::<NonZero>()
-                .expect("is zero")
-                .to_bytes();
+            let term3: [u8; 33] =
+                g!(b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
+                    .mark::<Normal>()
+                    .mark::<NonZero>()
+                    .expect("is zero")
+                    .to_bytes();
 
             assert_eq!(term2, term2_fabricated, "term2 bit=1 should match");
             assert_eq!(term3, term3_fabricated, "term3 bit=1 should match");
@@ -412,12 +419,14 @@ impl
                 false => secp256k1Scalar::one(),
             };
 
-            let one: u256 = u256::from(1u32);
-            let order = one << index;
+            let order = u256::from(1u32) << index;
             let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
                 .expect("integer greater than curve order");
 
-            let term2 = *(a_0_i * G_p() - e_g_1_i * (c_g_i.commitment - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
+            let term2 = *(a_0_i * G_p()
+                - e_g_1_i
+                    * (c_g_i.commitment
+                        - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
                 .compress()
                 .as_bytes();
             let term3 = g!(b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
@@ -542,7 +551,8 @@ fn pedersen_commitment_works() {
     let key_commitment = key_commitment(x_bits, 255);
     let commitment_acc = key_commitment
         .iter()
-        .fold(ed25519Point::identity(), |acc, bit_commitment| {
+        .enumerate()
+        .fold(ed25519Point::identity(), |acc, (index, bit_commitment)| {
             acc + bit_commitment.commitment
         });
     assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);
@@ -581,7 +591,6 @@ fn dleq_proof_works() {
         .map(|(((index, c_g_i), c_h_i), ring_sig)| verify_ring_sig(index, *c_g_i, c_h_i, ring_sig))
         .collect();
 
-    println!("{:?}", valid_dleq);
     valid_dleq
         .iter()
         .for_each(|verification| assert!(verification, "verification failed!"))

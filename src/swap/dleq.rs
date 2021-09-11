@@ -10,6 +10,8 @@ use curve25519_dalek::{
     scalar::Scalar as ed25519Scalar, traits::Identity,
 };
 
+const ENTROPY: bool = true;
+
 use rand::Rng;
 
 fn _max_ed25519() -> u256 {
@@ -74,8 +76,12 @@ struct PedersenCommitment<Point, Scalar> {
 
 impl From<(bool, usize)> for PedersenCommitment<ed25519Point, ed25519Scalar> {
     fn from((bit, index): (bool, usize)) -> PedersenCommitment<ed25519Point, ed25519Scalar> {
-        let mut csprng = rand_alt::rngs::OsRng;
-        let blinder = ed25519Scalar::random(&mut csprng);
+        // let mut csprng = rand_alt::rngs::OsRng;
+        // let blinder = ed25519Scalar::random(&mut csprng);
+        let blinder = match ENTROPY {
+            true => ed25519Scalar::random(&mut rand_alt::rngs::OsRng),
+            false => ed25519Scalar::zero(),
+        };
 
         let one: u256 = u256::from(1u32);
         let order = one << index;
@@ -113,7 +119,11 @@ impl From<(bool, usize, ed25519Scalar)> for PedersenCommitment<ed25519Point, ed2
 
 impl From<(bool, usize)> for PedersenCommitment<secp256k1Point, secp256k1Scalar> {
     fn from((bit, index): (bool, usize)) -> PedersenCommitment<secp256k1Point, secp256k1Scalar> {
-        let blinder = secp256k1Scalar::random(&mut rand::thread_rng());
+        // let blinder = secp256k1Scalar::random(&mut rand::thread_rng());
+        let blinder = match ENTROPY {
+            true => secp256k1Scalar::random(&mut rand::thread_rng()),
+            false => secp256k1Scalar::one(),
+        };
 
         let one: u256 = u256::from(1u32);
         let order = one << index;
@@ -304,9 +314,16 @@ impl
         let term0: [u8; 32] = c_g_i.commitment.compress().as_bytes().clone();
         let term1: [u8; 33] = c_h_i.commitment.to_bytes();
 
-        let mut csprng = rand_alt::rngs::OsRng;
-        let j_i = ed25519Scalar::random(&mut csprng);
-        let k_i = secp256k1Scalar::random(&mut rand::thread_rng());
+        // let j_i = ed25519Scalar::random(&mut csprng);
+        // let k_i = secp256k1Scalar::random(&mut rand::thread_rng());
+        let j_i = match ENTROPY {
+            true => ed25519Scalar::random(&mut rand_alt::rngs::OsRng),
+            false => ed25519Scalar::zero(),
+        };
+        let k_i = match ENTROPY {
+            true => secp256k1Scalar::random(&mut rand::thread_rng()),
+            false => secp256k1Scalar::one(),
+        };
 
         let term2 = (j_i * G).compress().as_bytes().clone();
         let term3 = g!(k_i * H).mark::<Normal>().to_bytes();
@@ -318,10 +335,18 @@ impl
                 .mark::<NonZero>()
                 .expect("is zero");
 
-            let a_1_i = ed25519Scalar::random(&mut csprng);
-            let b_1_i = secp256k1Scalar::random(&mut rand::thread_rng());
 
             let term2 = *(a_1_i * G - e_g_0_i * c_g_i.commitment)
+            // let a_1_i = ed25519Scalar::random(&mut csprng);
+            // let b_1_i = secp256k1Scalar::random(&mut rand::thread_rng());
+            let a_1_i = match ENTROPY {
+                true => ed25519Scalar::random(&mut rand_alt::rngs::OsRng),
+                false => ed25519Scalar::zero(),
+            };
+            let b_1_i = match ENTROPY {
+                true => secp256k1Scalar::random(&mut rand::thread_rng()),
+                false => secp256k1Scalar::one(),
+            };
                 .compress()
                 .as_bytes();
             let term3 = g!(b_1_i * H - e_h_0_i * c_h_i.commitment)
@@ -345,8 +370,16 @@ impl
             let e_g_1_i = ed25519Scalar::from_bytes_mod_order(e_1_i);
             let e_h_1_i = secp256k1Scalar::from_bytes_mod_order(e_1_i);
 
-            let a_0_i = ed25519Scalar::random(&mut csprng);
-            let b_0_i = secp256k1Scalar::random(&mut rand::thread_rng());
+            // let a_0_i = ed25519Scalar::random(&mut csprng);
+            // let b_0_i = secp256k1Scalar::random(&mut rand::thread_rng());
+            let a_0_i = match ENTROPY {
+                true => ed25519Scalar::random(&mut rand_alt::rngs::OsRng),
+                false => ed25519Scalar::zero(),
+            };
+            let b_0_i = match ENTROPY {
+                true => secp256k1Scalar::random(&mut rand::thread_rng()),
+                false => secp256k1Scalar::one(),
+            };
 
             let term2 = *(a_0_i * G - e_g_1_i * (c_g_i.commitment - G_p()))
                 .compress()

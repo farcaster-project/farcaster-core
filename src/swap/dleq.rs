@@ -209,10 +209,6 @@ fn key_commitment_secp256k1(
         .map(|(index, bit)| (*bit, index).into())
         .collect();
     let commitment_last = x_bits.get(msb_index).unwrap();
-    let commitment_last_value = match *commitment_last {
-        true => secp256k1Scalar::one().mark::<Zero>(),
-        false => secp256k1Scalar::zero(),
-    };
     let blinder_last = commitment
         .iter()
         .fold(secp256k1Scalar::zero(), |acc, x| sc!(acc - x.blinder));
@@ -250,6 +246,7 @@ fn ring_hash(term0: [u8; 32], term1: [u8; 33], term2: [u8; 32], term3: [u8; 33])
 }
 
 fn verify_ring_sig(
+    index: usize,
     c_g_i: PedersenCommitment<ed25519Point, ed25519Scalar>,
     c_h_i: PedersenCommitment<secp256k1Point, secp256k1Scalar>,
     ring_sig: RingSignature<ed25519Scalar, secp256k1Scalar>,
@@ -257,13 +254,19 @@ fn verify_ring_sig(
     let term0: [u8; 32] = c_g_i.commitment.compress().as_bytes().clone();
     let term1: [u8; 33] = c_h_i.commitment.to_bytes();
 
+    let one: u256 = u256::from(1u32);
+    let order = one << index;
+    let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
+        .expect("integer greater than curve order");
+    let H_p = H_p();
+
     // compute e_1_i
     let e_1_i = {
-        let term2: [u8; 32] = *(ring_sig.a_1_i * G - ring_sig.e_g_0_i * c_g_i.commitment)
+        let term2: [u8; 32] = *(ring_sig.a_1_i * G_p() - ring_sig.e_g_0_i * c_g_i.commitment)
             .compress()
             .as_bytes();
 
-        let term3: [u8; 33] = g!(ring_sig.b_1_i * H - ring_sig.e_h_0_i * c_h_i.commitment)
+        let term3: [u8; 33] = g!(ring_sig.b_1_i * H_p - ring_sig.e_h_0_i * c_h_i.commitment)
             .mark::<Normal>()
             .mark::<NonZero>()
             .expect("is zero")
@@ -276,17 +279,16 @@ fn verify_ring_sig(
 
     // compute e_0_i
     let e_0_i = {
-        let term2: [u8; 32] = *(ring_sig.a_0_i * G - e_g_1_i * (c_g_i.commitment - G_p()))
+        let term2: [u8; 32] = *(ring_sig.a_0_i * G_p() - e_g_1_i * (c_g_i.commitment - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
             .compress()
             .as_bytes();
 
-        let H_p = H_p();
-        let term3: [u8; 33] = g!(ring_sig.b_0_i * H - e_h_1_i * (c_h_i.commitment - H_p))
+        let term3: [u8; 33] = g!(ring_sig.b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
             .mark::<Normal>()
             .mark::<NonZero>()
             .expect("is zero")
             .to_bytes();
-        
+
         ring_hash(term0, term1, term2, term3)
     };
 
@@ -299,18 +301,23 @@ fn verify_ring_sig(
 
 impl
     From<(
+        usize,
         bool,
         PedersenCommitment<ed25519Point, ed25519Scalar>,
         PedersenCommitment<secp256k1Point, secp256k1Scalar>,
     )> for RingSignature<ed25519Scalar, secp256k1Scalar>
 {
     fn from(
-        (b_i, c_g_i, c_h_i): (
+        (index, b_i, c_g_i, c_h_i): (
+            usize,
             bool,
             PedersenCommitment<ed25519Point, ed25519Scalar>,
             PedersenCommitment<secp256k1Point, secp256k1Scalar>,
         ),
     ) -> Self {
+        // first confirm that the pedersen commitments are correctly calculated
+        assert_eq!(c_g_i.commitment, PedersenCommitment::from((b_i, index, c_g_i.blinder.clone())).commitment, "incorrect pedersen commitment!");
+        assert_eq!(c_h_i.commitment, PedersenCommitment::from((b_i, index, c_h_i.blinder.clone())).commitment, "incorrect pedersen commitment!");
         let term0: [u8; 32] = c_g_i.commitment.compress().as_bytes().clone();
         let term1: [u8; 33] = c_h_i.commitment.to_bytes();
 
@@ -325,18 +332,18 @@ impl
             false => secp256k1Scalar::one(),
         };
 
-        let term2 = (j_i * G).compress().as_bytes().clone();
-        let term3 = g!(k_i * H).mark::<Normal>().to_bytes();
+        let H_p = H_p();
+
+        let term2_fabricated = (j_i * G_p()).compress().as_bytes().clone();
+        let term3_fabricated = g!(k_i * H_p).mark::<Normal>().to_bytes();
 
         let (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i) = if b_i {
-            let e_0_i = ring_hash(term0, term1, term2, term3);
+            let e_0_i = ring_hash(term0, term1, term2_fabricated, term3_fabricated);
             let e_g_0_i = ed25519Scalar::from_bytes_mod_order(e_0_i);
             let e_h_0_i = secp256k1Scalar::from_bytes_mod_order(e_0_i)
                 .mark::<NonZero>()
                 .expect("is zero");
 
-
-            let term2 = *(a_1_i * G - e_g_0_i * c_g_i.commitment)
             // let a_1_i = ed25519Scalar::random(&mut csprng);
             // let b_1_i = secp256k1Scalar::random(&mut rand::thread_rng());
             let a_1_i = match ENTROPY {
@@ -347,12 +354,14 @@ impl
                 true => secp256k1Scalar::random(&mut rand::thread_rng()),
                 false => secp256k1Scalar::one(),
             };
+
+            let term2 = *(a_1_i * G_p() - e_g_0_i * c_g_i.commitment)
                 .compress()
                 .as_bytes();
-            let term3 = g!(b_1_i * H - e_h_0_i * c_h_i.commitment)
+            let term3 = g!(b_1_i * H_p - e_h_0_i * c_h_i.commitment)
                 .mark::<Normal>()
                 .mark::<NonZero>()
-                .expect("is_zero")
+                .expect("is zero")
                 .to_bytes();
 
             let e_1_i = ring_hash(term0, term1, term2, term3);
@@ -364,9 +373,31 @@ impl
             let b_0_i = sc!(k_i + e_h_1_i * c_h_i.blinder)
                 .mark::<NonZero>()
                 .unwrap();
+
+            let one: u256 = u256::from(1u32);
+            let order = one << index;
+            let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
+                .expect("integer greater than curve order");
+
+            let term2: [u8; 32] = *(a_0_i * G_p() - e_g_1_i * (c_g_i.commitment - ed25519Scalar::from_bits(order.to_le_bytes()) * G))
+                .compress()
+                .as_bytes();
+
+            let term3: [u8; 33] = g!(b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
+                .mark::<Normal>()
+                .mark::<NonZero>()
+                .expect("is zero")
+                .to_bytes();
+
+            assert_eq!(term2, term2_fabricated, "term2 bit=1 should match");
+            assert_eq!(term3, term3_fabricated, "term3 bit=1 should match");
+
+            let e_0_p = ring_hash(term0, term1, term2, term3);
+            assert_eq!(e_0_i, e_0_p, "ring hash bit=1 should match");
+
             (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i)
         } else {
-            let e_1_i = ring_hash(term0, term1, term2, term3);
+            let e_1_i = ring_hash(term0, term1, term2_fabricated, term3_fabricated);
             let e_g_1_i = ed25519Scalar::from_bytes_mod_order(e_1_i);
             let e_h_1_i = secp256k1Scalar::from_bytes_mod_order(e_1_i);
 
@@ -381,10 +412,15 @@ impl
                 false => secp256k1Scalar::one(),
             };
 
-            let term2 = *(a_0_i * G - e_g_1_i * (c_g_i.commitment - G_p()))
+            let one: u256 = u256::from(1u32);
+            let order = one << index;
+            let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
+                .expect("integer greater than curve order");
+
+            let term2 = *(a_0_i * G_p() - e_g_1_i * (c_g_i.commitment - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
                 .compress()
                 .as_bytes();
-            let term3 = g!(b_0_i * H - e_h_1_i * c_h_i.commitment)
+            let term3 = g!(b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
                 .mark::<Normal>()
                 .mark::<NonZero>()
                 .expect("is zero")
@@ -401,6 +437,24 @@ impl
             let b_1_i = sc!(k_i + e_h_0_i * c_h_i.blinder)
                 .mark::<NonZero>()
                 .expect("is zero");
+
+            // verification
+            let term2: [u8; 32] = *(a_1_i * G_p() - e_g_0_i * c_g_i.commitment)
+                .compress()
+                .as_bytes();
+
+            let term3: [u8; 33] = g!(b_1_i * H_p - e_h_0_i * c_h_i.commitment)
+                .mark::<Normal>()
+                .mark::<NonZero>()
+                .expect("is zero")
+                .to_bytes();
+
+            assert_eq!(term2, term2_fabricated, "term2 bit=0 should match");
+            assert_eq!(term3, term3_fabricated, "term3 bit=0 should match");
+
+            let e_1_p = ring_hash(term0, term1, term2, term3);
+            assert_eq!(e_1_i, e_1_p, "ring hash bit=0 should match");
+
             (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i)
         };
 
@@ -463,9 +517,10 @@ impl DLEQProof {
         let ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>> = x_bits
             .iter()
             .take(highest_bit)
+            .enumerate()
             .zip(c_g.clone())
             .zip(c_h.clone())
-            .map(|((b_i, c_g_i), c_h_i)| RingSignature::from((*b_i, c_g_i, c_h_i)))
+            .map(|(((index, b_i), c_g_i), c_h_i)| RingSignature::from((index, *b_i, c_g_i, c_h_i)))
             .collect();
 
         DLEQProof {
@@ -520,13 +575,16 @@ fn dleq_proof_works() {
         .c_g
         .clone()
         .iter()
+        .enumerate()
         .zip(dleq.c_h.clone())
         .zip(dleq.ring_signatures)
-        .map(|((c_g_i, c_h_i), ring_sig)| verify_ring_sig(*c_g_i, c_h_i, ring_sig))
+        .map(|(((index, c_g_i), c_h_i), ring_sig)| verify_ring_sig(index, *c_g_i, c_h_i, ring_sig))
         .collect();
 
     println!("{:?}", valid_dleq);
-    valid_dleq.iter().for_each(|verification| assert!(verification))
+    valid_dleq
+        .iter()
+        .for_each(|verification| assert!(verification, "verification failed!"))
 }
 
 #[test]
@@ -542,18 +600,18 @@ fn blinders_sum_to_zero() {
     assert_eq!(blinder_acc, ed25519Scalar::zero());
 }
 
-#[test]
-fn ring_signature() {
-    let mut csprng = rand_alt::rngs::OsRng;
-    RingSignature::from((
-        false,
-        PedersenCommitment {
-            commitment: ed25519Scalar::random(&mut csprng) * G,
-            blinder: ed25519Scalar::random(&mut csprng),
-        },
-        PedersenCommitment {
-            commitment: secp256k1Point::random(&mut rand::thread_rng()),
-            blinder: secp256k1Scalar::random(&mut rand::thread_rng()),
-        },
-    ));
-}
+// #[test]
+// fn ring_signature() {
+//     let mut csprng = rand_alt::rngs::OsRng;
+//     RingSignature::from((
+//         false,
+//         PedersenCommitment {
+//             commitment: ed25519Scalar::random(&mut csprng) * G,
+//             blinder: ed25519Scalar::random(&mut csprng),
+//         },
+//         PedersenCommitment {
+//             commitment: secp256k1Point::random(&mut rand::thread_rng()),
+//             blinder: secp256k1Scalar::random(&mut rand::thread_rng()),
+//         },
+//     ));
+// }

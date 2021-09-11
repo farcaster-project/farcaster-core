@@ -496,27 +496,27 @@ fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
 
 impl DLEQProof {
     fn generate(x: [u8; 32]) -> Self {
-        let highest_bit = 252;
+        // convention: start count at 0
+        let msb_index = 251;
 
-        let x_shaved = zeroize_highest_bits(x, highest_bit);
+        let x_shaved = zeroize_highest_bits(x, msb_index + 1);
         let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x_shaved).unwrap();
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
         let xg_p = x_ed25519 * G;
 
         // TODO: do properly
-        let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes(x_shaved)
-            .unwrap()
+        let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(x_shaved)
             .mark::<NonZero>()
             .expect("x is zero");
         let xh_p = secp256k1Point::from_scalar_mul(H, &mut x_secp256k1).mark::<Normal>();
 
-        let c_g = key_commitment(x_bits, highest_bit);
-        let c_h = key_commitment_secp256k1(x_bits, highest_bit);
+        let c_g = key_commitment(x_bits, msb_index);
+        let c_h = key_commitment_secp256k1(x_bits, msb_index);
 
         let ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>> = x_bits
             .iter()
-            .take(highest_bit)
+            .take(msb_index + 1)
             .enumerate()
             .zip(c_g.clone())
             .zip(c_h.clone())

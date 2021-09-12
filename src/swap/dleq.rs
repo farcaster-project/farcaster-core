@@ -340,11 +340,11 @@ impl
 
         let H_p = H_p();
 
-        let term2_fabricated = (j_i * G_p()).compress().as_bytes().clone();
-        let term3_fabricated = g!(k_i * H_p).mark::<Normal>().to_bytes();
+        let term2_generated = (j_i * G_p()).compress().as_bytes().clone();
+        let term3_generated = g!(k_i * H_p).mark::<Normal>().to_bytes();
 
         let (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i) = if b_i {
-            let e_0_i = ring_hash(term0, term1, term2_fabricated, term3_fabricated);
+            let e_0_i = ring_hash(term0, term1, term2_generated, term3_generated);
             let e_g_0_i = ed25519Scalar::from_bytes_mod_order(e_0_i);
             let e_h_0_i = secp256k1Scalar::from_bytes_mod_order(e_0_i)
                 .mark::<NonZero>()
@@ -384,27 +384,27 @@ impl
             let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
                 .expect("integer greater than curve order");
 
-            let term2: [u8; 32] = *(a_0_i * G_p()
+            let term2_calculated: [u8; 32] = *(a_0_i * G_p()
                 - e_g_1_i * (c_g_i.commitment - ed25519Scalar::from_bits(order.to_le_bytes()) * G))
                 .compress()
                 .as_bytes();
 
-            let term3: [u8; 33] =
+            let term3_calculated: [u8; 33] =
                 g!(b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
                     .mark::<Normal>()
                     .mark::<NonZero>()
                     .expect("is zero")
                     .to_bytes();
 
-            assert_eq!(term2, term2_fabricated, "term2 bit=1 should match");
-            assert_eq!(term3, term3_fabricated, "term3 bit=1 should match");
+            assert_eq!(term2_calculated, term2_generated, "term2 bit=1 should match");
+            assert_eq!(term3_calculated, term3_generated, "term3 bit=1 should match");
 
-            let e_0_p = ring_hash(term0, term1, term2, term3);
+            let e_0_p = ring_hash(term0, term1, term2_calculated, term3_calculated);
             assert_eq!(e_0_i, e_0_p, "ring hash bit=1 should match");
 
             (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i)
         } else {
-            let e_1_i = ring_hash(term0, term1, term2_fabricated, term3_fabricated);
+            let e_1_i = ring_hash(term0, term1, term2_generated, term3_generated);
             let e_g_1_i = ed25519Scalar::from_bytes_mod_order(e_1_i);
             let e_h_1_i = secp256k1Scalar::from_bytes_mod_order(e_1_i);
 
@@ -448,20 +448,20 @@ impl
                 .expect("is zero");
 
             // verification
-            let term2: [u8; 32] = *(a_1_i * G_p() - e_g_0_i * c_g_i.commitment)
+            let term2_calculated: [u8; 32] = *(a_1_i * G_p() - e_g_0_i * c_g_i.commitment)
                 .compress()
                 .as_bytes();
 
-            let term3: [u8; 33] = g!(b_1_i * H_p - e_h_0_i * c_h_i.commitment)
+            let term3_calculated: [u8; 33] = g!(b_1_i * H_p - e_h_0_i * c_h_i.commitment)
                 .mark::<Normal>()
                 .mark::<NonZero>()
                 .expect("is zero")
                 .to_bytes();
 
-            assert_eq!(term2, term2_fabricated, "term2 bit=0 should match");
-            assert_eq!(term3, term3_fabricated, "term3 bit=0 should match");
+            assert_eq!(term2_calculated, term2_generated, "term2 bit=0 should match");
+            assert_eq!(term3_calculated, term3_generated, "term3 bit=0 should match");
 
-            let e_1_p = ring_hash(term0, term1, term2, term3);
+            let e_1_p = ring_hash(term0, term1, term2_calculated, term3_calculated);
             assert_eq!(e_1_i, e_1_p, "ring hash bit=0 should match");
 
             (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i)

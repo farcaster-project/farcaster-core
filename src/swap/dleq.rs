@@ -19,6 +19,7 @@ fn _max_ed25519() -> u256 {
 }
 
 // TODO: this is disgusting and must be removed asap
+#[allow(non_snake_case)]
 fn G_p() -> ed25519Point {
     monero::util::key::H.point.decompress().unwrap()
 }
@@ -52,6 +53,7 @@ fn _max_secp256k1() -> u256 {
 // Matches the result here:
 // https://github.com/mimblewimble/rust-secp256k1-zkp/blob/caa49992ae67f131157f6341f4e8b0b0c1e53055/src/constants.rs#L79-L136
 // TODO: this is disgusting and must be removed asap (i.e. change to constant)
+#[allow(non_snake_case)]
 fn H_p() -> secp256k1Point {
     let hash_H: [u8; 32] =
         bitcoin_hashes::sha256::Hash::hash(&H.to_bytes_uncompressed()).into_inner();
@@ -126,6 +128,7 @@ impl From<(bool, usize)> for PedersenCommitment<secp256k1Point, secp256k1Scalar>
 
         let order_on_curve = secp256k1Scalar::from_bytes(order.to_le_bytes())
             .expect("integer greater than curve order");
+        #[allow(non_snake_case)]
         let H_p = H_p();
         let blinder_point = g!(blinder * H_p).mark::<NonZero>().unwrap();
 
@@ -153,6 +156,7 @@ impl From<(bool, usize, secp256k1Scalar)> for PedersenCommitment<secp256k1Point,
         let order_on_curve = secp256k1Scalar::from_bytes(order.to_le_bytes())
             .expect("integer greater than curve order");
 
+        #[allow(non_snake_case)]
         let H_p = H_p();
         let blinder_point = g!(blinder * H_p);
 
@@ -253,6 +257,7 @@ fn verify_ring_sig(
     let order = u256::from(1u32) << index;
     let order_on_secp256k1 =
         secp256k1Scalar::from_bytes(order.to_le_bytes()).expect("integer greater than curve order");
+    #[allow(non_snake_case)]
     let H_p = H_p();
 
     // compute e_1_i
@@ -339,6 +344,7 @@ impl
             false => secp256k1Scalar::one(),
         };
 
+        #[allow(non_snake_case)]
         let H_p = H_p();
 
         let term2_generated = (j_i * G_p()).compress().as_bytes().clone();
@@ -508,7 +514,7 @@ fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
         x[index] = 0;
     }
 
-    if (remainder != 0) {
+    if remainder != 0 {
         let mask = (2 << (remainder - 1)) - 1;
         x[quotient] &= mask;
     }

@@ -6,13 +6,15 @@ use bitcoin_hashes::{self, Hash};
 
 use bitvec::{order::Lsb0, prelude::BitSlice};
 use curve25519_dalek::{
-    constants::ED25519_BASEPOINT_POINT as G, edwards::EdwardsPoint as ed25519Point,
-    scalar::Scalar as ed25519Scalar, traits::Identity,
+    constants::ED25519_BASEPOINT_POINT as G, edwards::CompressedEdwardsY as ed25519PointCompressed,
+    edwards::EdwardsPoint as ed25519Point, scalar::Scalar as ed25519Scalar, traits::Identity,
 };
 
 const ENTROPY: bool = true;
 
 use rand::Rng;
+
+use sha3::{Digest, Keccak256};
 
 fn _max_ed25519() -> u256 {
     (u256::from(2u32) << 252) + 27742317777372353535851937790883648493u128
@@ -21,7 +23,13 @@ fn _max_ed25519() -> u256 {
 // TODO: this is disgusting and must be removed asap
 #[allow(non_snake_case)]
 fn G_p() -> ed25519Point {
-    monero::util::key::H.point.decompress().unwrap()
+    let mut hash_G = Keccak256::new();
+    hash_G.update(G.compress().as_bytes());
+
+    let hash_to_curve = ed25519PointCompressed::from_slice(&hash_G.finalize())
+        .decompress()
+        .unwrap();
+    ed25519Scalar::from(8u8) * hash_to_curve
 }
 
 #[cfg(feature = "experimental")]
@@ -626,6 +634,12 @@ fn blinders_sum_to_zero() {
             acc + bit_commitment.blinder
         });
     assert_eq!(blinder_acc, ed25519Scalar::zero());
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn alt_ed25519_generator_is_correct() {
+    assert_eq!(G_p(), monero::util::key::H.point.decompress().unwrap())
 }
 
 // #[test]

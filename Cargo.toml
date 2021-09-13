@@ -43,6 +43,8 @@ bitvec = { version = "0.22.3" }
 bitcoin_hashes = { version = "0.9.7" }
 
 # crypto libs
+
+sha3 = "0.9.1"
 rand = { version = "0.8.4", optional = true }
 rand_alt = { package = "rand", version = "0.7.3", features = ["std"] }
 ecdsa_fun = { version = "0.6", default-features = false, features = ["all"], optional = true }

@@ -218,6 +218,7 @@ fn key_commitment_secp256k1(
     commitment
 }
 
+#[derive(Clone)]
 struct RingSignature<ScalarCurveA, ScalarCurveB> {
     e_g_0_i: ScalarCurveA,
     e_h_0_i: ScalarCurveB,
@@ -396,8 +397,14 @@ impl
                     .expect("is zero")
                     .to_bytes();
 
-            assert_eq!(term2_calculated, term2_generated, "term2 bit=1 should match");
-            assert_eq!(term3_calculated, term3_generated, "term3 bit=1 should match");
+            assert_eq!(
+                term2_calculated, term2_generated,
+                "term2 bit=1 should match"
+            );
+            assert_eq!(
+                term3_calculated, term3_generated,
+                "term3 bit=1 should match"
+            );
 
             let e_0_p = ring_hash(term0, term1, term2_calculated, term3_calculated);
             assert_eq!(e_0_i, e_0_p, "ring hash bit=1 should match");
@@ -458,8 +465,14 @@ impl
                 .expect("is zero")
                 .to_bytes();
 
-            assert_eq!(term2_calculated, term2_generated, "term2 bit=0 should match");
-            assert_eq!(term3_calculated, term3_generated, "term3 bit=0 should match");
+            assert_eq!(
+                term2_calculated, term2_generated,
+                "term2 bit=0 should match"
+            );
+            assert_eq!(
+                term3_calculated, term3_generated,
+                "term3 bit=0 should match"
+            );
 
             let e_1_p = ring_hash(term0, term1, term2_calculated, term3_calculated);
             assert_eq!(e_1_i, e_1_p, "ring hash bit=0 should match");
@@ -540,6 +553,18 @@ impl DLEQProof {
             ring_signatures,
         }
     }
+
+    fn verify(&self) -> bool {
+        self.c_g
+            .clone()
+            .iter()
+            .enumerate()
+            .zip(self.c_h.clone())
+            .zip(self.ring_signatures.clone())
+            .all(|(((index, c_g_i), c_h_i), ring_sig)| {
+                verify_ring_sig(index, *c_g_i, c_h_i, ring_sig)
+            })
+    }
 }
 
 #[test]
@@ -581,19 +606,7 @@ fn dleq_proof_works() {
     let x: [u8; 32] = rand::thread_rng().gen();
     let dleq = DLEQProof::generate(x);
 
-    let valid_dleq: Vec<bool> = dleq
-        .c_g
-        .clone()
-        .iter()
-        .enumerate()
-        .zip(dleq.c_h.clone())
-        .zip(dleq.ring_signatures)
-        .map(|(((index, c_g_i), c_h_i), ring_sig)| verify_ring_sig(index, *c_g_i, c_h_i, ring_sig))
-        .collect();
-
-    valid_dleq
-        .iter()
-        .for_each(|verification| assert!(verification, "verification failed!"))
+    dleq.verify();
 }
 
 #[test]

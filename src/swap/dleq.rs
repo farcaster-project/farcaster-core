@@ -14,8 +14,6 @@ const ENTROPY: bool = true;
 
 use rand::Rng;
 
-use sha3::{Digest, Keccak256};
-
 fn _max_ed25519() -> u256 {
     (u256::from(2u32) << 252) + 27742317777372353535851937790883648493u128
 }
@@ -23,10 +21,9 @@ fn _max_ed25519() -> u256 {
 // TODO: this is disgusting and must be removed asap
 #[allow(non_snake_case)]
 fn G_p() -> ed25519Point {
-    let mut hash_G = Keccak256::new();
-    hash_G.update(G.compress().as_bytes());
+    let hash_G = monero::cryptonote::hash::keccak_256(G.compress().as_bytes());
 
-    let hash_to_curve = ed25519PointCompressed::from_slice(&hash_G.finalize())
+    let hash_to_curve = ed25519PointCompressed::from_slice(&hash_G)
         .decompress()
         .unwrap();
     ed25519Scalar::from(8u8) * hash_to_curve

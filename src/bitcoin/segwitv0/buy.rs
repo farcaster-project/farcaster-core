@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
+use bitcoin::secp256k1::Signature;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
@@ -11,7 +12,6 @@ use crate::transaction::{Buyable, Error as FError, Lockable};
 use crate::bitcoin::segwitv0::{CoopLock, SegwitV0};
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
-use bitcoin::secp256k1::Signature;
 
 #[derive(Debug)]
 pub struct Buy;
@@ -110,7 +110,9 @@ impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
 
     fn extract_witness(tx: bitcoin::Transaction) -> Signature {
         let TxIn { witness, .. } = &tx.input[0];
-        Signature::from_compact(witness[1].as_ref())
+        let bytes: &[u8] = witness[0].as_ref();
+        // Remove SIGHASH type at the end of the signature
+        Signature::from_der(&bytes[..bytes.len() - 1])
             .expect("Validated transaction on-chain, signature and witness position is correct.")
     }
 }

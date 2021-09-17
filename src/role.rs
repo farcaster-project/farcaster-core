@@ -625,8 +625,23 @@ where
         })
     }
 
-    pub fn recover_accordant_assets(&self) -> Res<()> {
-        todo!()
+    // TODO: transform into other private key type
+    pub fn recover_accordant_assets(
+        &self,
+        wallet: &mut impl Sign<
+            <Ctx::Ar as Keys>::PublicKey,
+            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Signatures>::Message,
+            <Ctx::Ar as Signatures>::Signature,
+            <Ctx::Ar as Signatures>::AdaptorSignature,
+        >,
+        bob_parameters: &BobParameters<Ctx>,
+        adaptor_refund: SignedAdaptorRefund<Ctx::Ar>,
+        refund_tx: <Ctx::Ar as Onchain>::Transaction,
+    ) -> <Ctx::Ar as Keys>::PrivateKey {
+        let adaptor_key = &bob_parameters.adaptor;
+        let signature = <<Ctx::Ar as Transactions>::Refund>::extract_witness(refund_tx);
+        wallet.recover_key(adaptor_key, signature, adaptor_refund.refund_adaptor_sig)
     }
 
     // Internal method to parse and validate the core arbitratring transactions received by Alice
@@ -1277,8 +1292,22 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    pub fn recover_accordant_assets(&self) -> Res<()> {
-        todo!()
+    pub fn recover_accordant_assets(
+        &self,
+        wallet: &mut impl Sign<
+            <Ctx::Ar as Keys>::PublicKey,
+            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Signatures>::Message,
+            <Ctx::Ar as Signatures>::Signature,
+            <Ctx::Ar as Signatures>::AdaptorSignature,
+        >,
+        alice_parameters: &AliceParameters<Ctx>,
+        adaptor_buy: SignedAdaptorBuy<Ctx::Ar>,
+        buy_tx: <Ctx::Ar as Onchain>::Transaction,
+    ) -> <Ctx::Ar as Keys>::PrivateKey {
+        let adaptor_key = &alice_parameters.adaptor;
+        let signature = <<Ctx::Ar as Transactions>::Buy>::extract_witness(buy_tx);
+        wallet.recover_key(adaptor_key, signature, adaptor_buy.buy_adaptor_sig)
     }
 }
 

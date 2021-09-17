@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
+use bitcoin::secp256k1::Signature;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
@@ -117,5 +118,13 @@ impl Refundable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Refund> {
             .ok_or(FError::WrongTemplate("Script pubkey does not match"))?;
 
         Ok(())
+    }
+
+    fn extract_witness(tx: bitcoin::Transaction) -> Signature {
+        let TxIn { witness, .. } = &tx.input[0];
+        let bytes: &[u8] = witness[1].as_ref();
+        // Remove SIGHASH type at the end of the signature
+        Signature::from_der(&bytes[..bytes.len() - 1])
+            .expect("Validated transaction on-chain, signature and witness position is correct.")
     }
 }

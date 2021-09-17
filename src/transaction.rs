@@ -410,6 +410,9 @@ where
     /// the correct conditions of the [`DataPunishableLock`] and the refund address.
     fn verify_template(&self, refund_target: T::Address) -> Result<(), Error>;
 
+    /// Extract the valuable witness from a transaction.
+    fn extract_witness(tx: T::Transaction) -> T::Signature;
+
     /// Return the Farcaster transaction identifier.
     fn get_id(&self) -> TxLabel {
         TxLabel::Refund

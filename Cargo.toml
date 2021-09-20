@@ -57,6 +57,7 @@ bitcoincore-rpc = "0.13.0"
 rand_core = { version = "^0.6.3", features = ["getrandom"] }
 secp256k1 = { version = "0.20.1", features = ["rand-std"] }
 lazy_static = "1.4.0"
+serde_yaml = "0.8"
 
 [package.metadata.docs.rs]
 all-features = true

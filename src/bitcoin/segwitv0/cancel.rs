@@ -1,16 +1,13 @@
 use std::marker::PhantomData;
 
-use bitcoin::blockdata::opcodes;
-use bitcoin::blockdata::script::Builder;
-use bitcoin::blockdata::script::Instruction;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::util::key::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 
+use crate::role::SwapRole;
 use crate::script;
 use crate::transaction::{Cancelable, Error as FError, Lockable};
 
-use crate::bitcoin::segwitv0::SegwitV0;
+use crate::bitcoin::segwitv0::{CoopLock, PunishLock, SegwitV0};
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
@@ -24,45 +21,21 @@ impl SubTransaction for Cancel {
             .clone()
             .ok_or(FError::MissingWitness)?;
 
-        let mut keys = script.instructions().skip(11).take(2);
+        let swaplock = CoopLock::from_script(&script)?;
 
-        psbt.inputs[0].final_script_witness = Some(vec![
-            vec![], // 0 for multisig
-            psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(
-                        keys.next()
-                            .ok_or(FError::MissingPublicKey)?
-                            .map(|i| match i {
-                                Instruction::PushBytes(b) => Ok(b),
-                                _ => Err(FError::MissingPublicKey),
-                            })
-                            .map_err(Error::from)??,
-                    )
-                    .map_err(|_| FError::MissingPublicKey)?,
-                )
-                .ok_or(FError::MissingSignature)?
-                .clone(),
-            psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(
-                        keys.next()
-                            .ok_or(FError::MissingPublicKey)?
-                            .map(|i| match i {
-                                Instruction::PushBytes(b) => Ok(b),
-                                _ => Err(FError::MissingPublicKey),
-                            })
-                            .map_err(Error::from)??,
-                    )
-                    .map_err(|_| FError::MissingPublicKey)?,
-                )
-                .ok_or(FError::MissingSignature)?
-                .clone(),
-            vec![],              // OP_FALSE
-            script.into_bytes(), // swaplock script
-        ]);
+        let alice_sig = psbt.inputs[0]
+            .partial_sigs
+            .get(swaplock.get_pubkey(SwapRole::Alice))
+            .ok_or(FError::MissingSignature)?
+            .clone();
+
+        let bob_sig = psbt.inputs[0]
+            .partial_sigs
+            .get(swaplock.get_pubkey(SwapRole::Bob))
+            .ok_or(FError::MissingSignature)?
+            .clone();
+
+        psbt.inputs[0].final_script_witness = Some(vec![bob_sig, alice_sig, script.into_bytes()]);
 
         Ok(())
     }
@@ -74,34 +47,15 @@ impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Cancel> {
         lock: script::DataLock<Bitcoin<SegwitV0>>,
         punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
     ) -> Result<Self, FError> {
-        let script = Builder::new()
-            .push_opcode(opcodes::all::OP_IF)
-            .push_opcode(opcodes::all::OP_PUSHNUM_2)
-            .push_key(&bitcoin::util::ecdsa::PublicKey::new(
-                punish_lock.success.alice,
-            ))
-            .push_key(&bitcoin::util::ecdsa::PublicKey::new(
-                punish_lock.success.bob,
-            ))
-            .push_opcode(opcodes::all::OP_PUSHNUM_2)
-            .push_opcode(opcodes::all::OP_CHECKMULTISIG)
-            .push_opcode(opcodes::all::OP_ELSE)
-            .push_int(punish_lock.timelock.as_u32().into())
-            .push_opcode(opcodes::all::OP_CSV)
-            .push_opcode(opcodes::all::OP_DROP)
-            .push_key(&bitcoin::util::ecdsa::PublicKey::new(punish_lock.failure))
-            .push_opcode(opcodes::all::OP_CHECKSIG)
-            .push_opcode(opcodes::all::OP_ENDIF)
-            .into_script();
-
+        let script = PunishLock::script(punish_lock);
         let output_metadata = prev.get_consumable_output()?;
 
-        let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
+        let unsigned_tx = bitcoin::Transaction {
             version: 2,
             lock_time: 0,
             input: vec![TxIn {
                 previous_output: output_metadata.out_point,
-                script_sig: bitcoin::blockdata::script::Script::default(),
+                script_sig: bitcoin::Script::default(),
                 sequence: lock.timelock.as_u32(),
                 witness: vec![],
             }],
@@ -130,10 +84,35 @@ impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Cancel> {
 
     fn verify_template(
         &self,
-        _lock: script::DataLock<Bitcoin<SegwitV0>>,
-        _punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
+        lock: script::DataLock<Bitcoin<SegwitV0>>,
+        punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
     ) -> Result<(), FError> {
-        // FIXME
+        (self.psbt.global.unsigned_tx.version == 2)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Tx version is not 2"))?;
+        (self.psbt.global.unsigned_tx.lock_time == 0)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("LockTime is not set to 0"))?;
+        (self.psbt.global.unsigned_tx.input.len() == 1)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Number of inputs is not 1"))?;
+        (self.psbt.global.unsigned_tx.output.len() == 1)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Number of outputs is not 1"))?;
+
+        let txin = &self.psbt.global.unsigned_tx.input[0];
+        (txin.sequence == lock.timelock.as_u32())
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate(
+                "Sequence is not set correctly for timelock",
+            ))?;
+
+        let txout = &self.psbt.global.unsigned_tx.output[0];
+        let script_pubkey = PunishLock::v0_p2wsh(punish_lock);
+        (txout.script_pubkey == script_pubkey)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Script pubkey does not match"))?;
+
         Ok(())
     }
 }

@@ -31,6 +31,11 @@ impl CSVTimelock {
     pub fn as_u32(&self) -> u32 {
         self.0
     }
+
+    /// Return the value of nSequence that disable `CHECK_SEQUENCE_VERIFY`.
+    pub fn disable() -> u32 {
+        (1 << 31) as u32
+    }
 }
 
 impl CanonicalBytes for CSVTimelock {

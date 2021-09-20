@@ -1,15 +1,15 @@
 use std::marker::PhantomData;
 
-use bitcoin::blockdata::script::Instruction;
 use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::util::key::PublicKey;
+use bitcoin::secp256k1::Signature;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
+use crate::role::SwapRole;
 use crate::script;
 use crate::transaction::{Buyable, Error as FError, Lockable};
 
-use crate::bitcoin::segwitv0::SegwitV0;
+use crate::bitcoin::segwitv0::{CoopLock, SegwitV0};
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
@@ -23,45 +23,21 @@ impl SubTransaction for Buy {
             .clone()
             .ok_or(FError::MissingWitness)?;
 
-        let mut keys = script.instructions().skip(2).take(2);
+        let swaplock = CoopLock::from_script(&script)?;
 
-        psbt.inputs[0].final_script_witness = Some(vec![
-            vec![], // 0 for multisig
-            psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(
-                        keys.next()
-                            .ok_or(FError::MissingPublicKey)?
-                            .map(|i| match i {
-                                Instruction::PushBytes(b) => Ok(b),
-                                _ => Err(FError::MissingPublicKey),
-                            })
-                            .map_err(Error::from)??,
-                    )
-                    .map_err(|_| FError::MissingPublicKey)?,
-                )
-                .ok_or(FError::MissingSignature)?
-                .clone(),
-            psbt.inputs[0]
-                .partial_sigs
-                .get(
-                    &PublicKey::from_slice(
-                        keys.next()
-                            .ok_or(FError::MissingPublicKey)?
-                            .map(|i| match i {
-                                Instruction::PushBytes(b) => Ok(b),
-                                _ => Err(FError::MissingPublicKey),
-                            })
-                            .map_err(Error::from)??,
-                    )
-                    .map_err(|_| FError::MissingPublicKey)?,
-                )
-                .ok_or(FError::MissingSignature)?
-                .clone(),
-            vec![1],             // OP_TRUE
-            script.into_bytes(), // swaplock script
-        ]);
+        let alice_sig = psbt.inputs[0]
+            .partial_sigs
+            .get(swaplock.get_pubkey(SwapRole::Alice))
+            .ok_or(FError::MissingSignature)?
+            .clone();
+
+        let bob_sig = psbt.inputs[0]
+            .partial_sigs
+            .get(swaplock.get_pubkey(SwapRole::Bob))
+            .ok_or(FError::MissingSignature)?
+            .clone();
+
+        psbt.inputs[0].final_script_witness = Some(vec![bob_sig, alice_sig, script.into_bytes()]);
 
         Ok(())
     }
@@ -75,12 +51,12 @@ impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;
 
-        let unsigned_tx = bitcoin::blockdata::transaction::Transaction {
+        let unsigned_tx = bitcoin::Transaction {
             version: 2,
             lock_time: 0,
             input: vec![TxIn {
                 previous_output: output_metadata.out_point,
-                script_sig: bitcoin::blockdata::script::Script::default(),
+                script_sig: bitcoin::Script::default(),
                 sequence: 0,
                 witness: vec![],
             }],
@@ -104,12 +80,39 @@ impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
         })
     }
 
-    fn verify_template(
-        &self,
-        _lock: script::DataLock<Bitcoin<SegwitV0>>,
-        _destination_target: Address,
-    ) -> Result<(), FError> {
-        // FIXME
+    fn verify_template(&self, destination_target: Address) -> Result<(), FError> {
+        (self.psbt.global.unsigned_tx.version == 2)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Tx version is not 2"))?;
+        (self.psbt.global.unsigned_tx.lock_time == 0)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("LockTime is not set to 0"))?;
+        (self.psbt.global.unsigned_tx.input.len() == 1)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Number of inputs is not 1"))?;
+        (self.psbt.global.unsigned_tx.output.len() == 1)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Number of outputs is not 1"))?;
+
+        let txin = &self.psbt.global.unsigned_tx.input[0];
+        (txin.sequence == 0)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Sequence is not set to 0"))?;
+
+        let txout = &self.psbt.global.unsigned_tx.output[0];
+        let script_pubkey = destination_target.script_pubkey();
+        (txout.script_pubkey == script_pubkey)
+            .then(|| 0)
+            .ok_or(FError::WrongTemplate("Script pubkey does not match"))?;
+
         Ok(())
+    }
+
+    fn extract_witness(tx: bitcoin::Transaction) -> Signature {
+        let TxIn { witness, .. } = &tx.input[0];
+        let bytes: &[u8] = witness[0].as_ref();
+        // Remove SIGHASH type at the end of the signature
+        Signature::from_der(&bytes[..bytes.len() - 1])
+            .expect("Validated transaction on-chain, signature and witness position is correct.")
     }
 }

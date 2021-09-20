@@ -174,12 +174,11 @@ pub struct Alice<Ctx: Swap> {
     pub fee_politic: FeePriority,
 }
 
-struct ValidatedCoreTransactions<Ctx: Swap> {
+struct ValidatedCoreTransactions<'a, Ctx: Swap> {
     lock: <Ctx::Ar as Transactions>::Lock,
     cancel: <Ctx::Ar as Transactions>::Cancel,
     refund: <Ctx::Ar as Transactions>::Refund,
-    data_lock: DataLock<Ctx::Ar>,
-    punish_lock: DataPunishableLock<Ctx::Ar>,
+    punish_lock: DataPunishableLock<'a, Ctx::Ar>,
 }
 
 impl<Ctx> Alice<Ctx>
@@ -441,9 +440,8 @@ where
         adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
     ) -> Res<()> {
         // Verifies the core arbitrating transactions.
-        let ValidatedCoreTransactions {
-            lock, data_lock, ..
-        } = self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+        let ValidatedCoreTransactions { lock, .. } =
+            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
 
         let fee_strategy = &public_offer.offer.fee_strategy;
 
@@ -455,7 +453,7 @@ where
         let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
 
         buy.is_build_on_top_of(&lock)?;
-        buy.verify_template(data_lock, self.destination_address.clone())?;
+        buy.verify_template(self.destination_address.clone())?;
         <Ctx::Ar as Fee>::validate_fee(buy.as_partial(), fee_strategy)?;
 
         // Verify the adaptor buy witness
@@ -522,9 +520,8 @@ where
         adaptor_buy: &SignedAdaptorBuy<Ctx::Ar>,
     ) -> Res<FullySignedBuy<Ctx::Ar>> {
         // Verifies the core arbitrating transactions.
-        let ValidatedCoreTransactions {
-            lock, data_lock, ..
-        } = self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
+        let ValidatedCoreTransactions { lock, .. } =
+            self.validate_core(alice_parameters, bob_parameters, core, public_offer)?;
 
         let fee_strategy = &public_offer.offer.fee_strategy;
 
@@ -536,7 +533,7 @@ where
         let buy = <<Ctx::Ar as Transactions>::Buy>::from_partial(partial_buy);
 
         buy.is_build_on_top_of(&lock)?;
-        buy.verify_template(data_lock, self.destination_address.clone())?;
+        buy.verify_template(self.destination_address.clone())?;
         <Ctx::Ar as Fee>::validate_fee(buy.as_partial(), fee_strategy)?;
 
         // Generate the witness message to sign and sign with the buy key.
@@ -628,8 +625,23 @@ where
         })
     }
 
-    pub fn recover_accordant_assets(&self) -> Res<()> {
-        todo!()
+    // TODO: transform into other private key type
+    pub fn recover_accordant_assets(
+        &self,
+        wallet: &mut impl Sign<
+            <Ctx::Ar as Keys>::PublicKey,
+            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Signatures>::Message,
+            <Ctx::Ar as Signatures>::Signature,
+            <Ctx::Ar as Signatures>::AdaptorSignature,
+        >,
+        bob_parameters: &BobParameters<Ctx>,
+        adaptor_refund: SignedAdaptorRefund<Ctx::Ar>,
+        refund_tx: <Ctx::Ar as Onchain>::Transaction,
+    ) -> <Ctx::Ar as Keys>::PrivateKey {
+        let adaptor_key = &bob_parameters.adaptor;
+        let signature = <<Ctx::Ar as Transactions>::Refund>::extract_witness(refund_tx);
+        wallet.recover_key(adaptor_key, signature, adaptor_refund.refund_adaptor_sig)
     }
 
     // Internal method to parse and validate the core arbitratring transactions received by Alice
@@ -643,13 +655,13 @@ where
     //  * the target amount from the offer is correct (for the lock transaction)
     //  * the fee strategy validation passes
     //
-    fn validate_core(
+    fn validate_core<'a>(
         &self,
-        alice_parameters: &AliceParameters<Ctx>,
-        bob_parameters: &BobParameters<Ctx>,
+        alice_parameters: &'a AliceParameters<Ctx>,
+        bob_parameters: &'a BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Res<ValidatedCoreTransactions<Ctx>> {
+    ) -> Res<ValidatedCoreTransactions<'a, Ctx>> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_lock = core.lock.clone();
@@ -660,11 +672,10 @@ where
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        // FIXME change dataLock to take refs
-        let alice_buy = alice_parameters.buy.clone();
-        let bob_buy = bob_parameters.buy.clone();
-        let alice_cancel = alice_parameters.cancel.clone();
-        let bob_cancel = bob_parameters.cancel.clone();
+        let alice_buy = &alice_parameters.buy;
+        let bob_buy = &bob_parameters.buy;
+        let alice_cancel = &alice_parameters.cancel;
+        let bob_cancel = &bob_parameters.cancel;
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -687,10 +698,9 @@ where
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
         // contract on the arbitrating blockchain.
-        // FIXME change dataLock to take refs
-        let alice_refund = alice_parameters.refund.clone();
-        let bob_refund = bob_parameters.refund.clone();
-        let alice_punish = alice_parameters.punish.clone();
+        let alice_refund = &alice_parameters.refund;
+        let bob_refund = &bob_parameters.refund;
+        let alice_punish = &alice_parameters.punish;
 
         // Create the data structure that represents an on-chain punishable contract for the
         // arbitrating blockchain.
@@ -721,7 +731,7 @@ where
         // Check that the refund transaction is build on top of the cancel transaction.
         refund.is_build_on_top_of(&cancel)?;
         let refund_address = bob_parameters.refund_address.clone();
-        refund.verify_template(punish_lock.clone(), refund_address)?;
+        refund.verify_template(refund_address)?;
         // Validate the fee strategy
         <Ctx::Ar as Fee>::validate_fee(refund.as_partial(), fee_strategy)?;
 
@@ -729,7 +739,6 @@ where
             lock,
             cancel,
             refund,
-            data_lock,
             punish_lock,
         })
     }
@@ -893,10 +902,10 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        let alice_buy = alice_parameters.buy.clone();
-        let bob_buy = bob_parameters.buy.clone();
-        let alice_cancel = alice_parameters.cancel.clone();
-        let bob_cancel = bob_parameters.cancel.clone();
+        let alice_buy = &alice_parameters.buy;
+        let bob_buy = &bob_parameters.buy;
+        let alice_cancel = &alice_parameters.cancel;
+        let bob_cancel = &bob_parameters.cancel;
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -924,9 +933,9 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
         // contract on the arbitrating blockchain.
-        let alice_refund = alice_parameters.refund.clone();
-        let bob_refund = bob_parameters.refund.clone();
-        let alice_punish = alice_parameters.punish.clone();
+        let alice_refund = &alice_parameters.refund;
+        let bob_refund = &bob_parameters.refund;
+        let alice_punish = &alice_parameters.punish;
 
         // Create the data structure that represents an on-chain punishable contract for the
         // arbitrating blockchain.
@@ -951,7 +960,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let mut refund = <<Ctx::Ar as Transactions>::Refund as Refundable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-        >>::initialize(&cancel, punish_lock, self.refund_address.clone())?;
+        >>::initialize(&cancel, self.refund_address.clone())?;
 
         // Set the fees according to the strategy in the offer and the local politic.
         <Ctx::Ar as Fee>::set_fee(refund.as_partial_mut(), fee_strategy, self.fee_politic)?;
@@ -1133,10 +1142,10 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        let alice_buy = alice_parameters.buy.clone();
-        let bob_buy = bob_parameters.buy.clone();
-        let alice_cancel = alice_parameters.cancel.clone();
-        let bob_cancel = bob_parameters.cancel.clone();
+        let alice_buy = &alice_parameters.buy;
+        let bob_buy = &bob_parameters.buy;
+        let alice_cancel = &alice_parameters.cancel;
+        let bob_cancel = &bob_parameters.cancel;
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -1283,8 +1292,22 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    pub fn recover_accordant_assets(&self) -> Res<()> {
-        todo!()
+    pub fn recover_accordant_assets(
+        &self,
+        wallet: &mut impl Sign<
+            <Ctx::Ar as Keys>::PublicKey,
+            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Signatures>::Message,
+            <Ctx::Ar as Signatures>::Signature,
+            <Ctx::Ar as Signatures>::AdaptorSignature,
+        >,
+        alice_parameters: &AliceParameters<Ctx>,
+        adaptor_buy: SignedAdaptorBuy<Ctx::Ar>,
+        buy_tx: <Ctx::Ar as Onchain>::Transaction,
+    ) -> <Ctx::Ar as Keys>::PrivateKey {
+        let adaptor_key = &alice_parameters.adaptor;
+        let signature = <<Ctx::Ar as Transactions>::Buy>::extract_witness(buy_tx);
+        wallet.recover_key(adaptor_key, signature, adaptor_buy.buy_adaptor_sig)
     }
 }
 

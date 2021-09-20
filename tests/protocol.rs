@@ -1,19 +1,23 @@
-use farcaster_core::bitcoin::segwitv0::FundingTx;
+use farcaster_core::bitcoin::{
+    segwitv0::{BuyTx, CancelTx, FundingTx, LockTx, PunishTx, RefundTx},
+    BitcoinSegwitV0,
+};
 use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
 use farcaster_core::blockchain::{FeePriority, Network};
 use farcaster_core::consensus::deserialize;
-use farcaster_core::crypto::{ArbitratingKeyId, CommitmentEngine, GenerateKey};
-use farcaster_core::negotiation::PublicOffer;
-use farcaster_core::protocol_message::{
-    CommitAliceParameters, CommitBobParameters, RevealAliceParameters, RevealBobParameters,
+use farcaster_core::crypto::{
+    ArbitratingKeyId, CommitmentEngine, GenerateKey, ProveCrossGroupDleq,
 };
+use farcaster_core::negotiation::PublicOffer;
+use farcaster_core::protocol_message::*;
 use farcaster_core::role::{Alice, Bob};
 use farcaster_core::swap::SwapId;
-use farcaster_core::transaction::Fundable;
+use farcaster_core::transaction::*;
 
 use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
-use bitcoin::{Address, Transaction};
+use bitcoin::secp256k1::{PublicKey, Secp256k1};
+use bitcoin::Address;
 
 use std::str::FromStr;
 
@@ -95,7 +99,7 @@ fn execute_offline_protocol() {
     let mut funding = FundingTx::initialize(funding_key, Network::Local).unwrap();
     let funding_address = funding.get_address().unwrap();
 
-    let funding_tx = Transaction {
+    let funding_tx = bitcoin::Transaction {
         version: 2,
         lock_time: 0,
         input: vec![TxIn {
@@ -118,10 +122,15 @@ fn execute_offline_protocol() {
     let core = bob
         .core_arbitrating_transactions(&alice_params, &bob_params, funding, &pub_offer)
         .unwrap();
-    let _bob_cosign_cancel = bob
+    let bob_cosign_cancel = bob
         .cosign_arbitrating_cancel(&mut bob_key_manager, &core)
         .unwrap();
 
+    let _: CoreArbitratingSetup<BtcXmr> = (swap_id, core.clone(), bob_cosign_cancel.clone()).into();
+
+    //
+    // Sign the refund procedure
+    //
     let adaptor_refund = alice
         .sign_adaptor_refund(
             &mut alice_key_manager,
@@ -131,7 +140,7 @@ fn execute_offline_protocol() {
             &pub_offer,
         )
         .unwrap();
-    let _alice_cosign_cancel = alice
+    let alice_cosign_cancel = alice
         .cosign_arbitrating_cancel(
             &mut alice_key_manager,
             &alice_params,
@@ -141,6 +150,12 @@ fn execute_offline_protocol() {
         )
         .unwrap();
 
+    let _: RefundProcedureSignatures<BtcXmr> =
+        (swap_id, alice_cosign_cancel.clone(), adaptor_refund.clone()).into();
+
+    //
+    // Validate the refund procedure and sign the buy procedure
+    //
     bob.validate_adaptor_refund(
         &mut bob_key_manager,
         &alice_params,
@@ -158,10 +173,26 @@ fn execute_offline_protocol() {
             &pub_offer,
         )
         .unwrap();
-    let _signed_lock = bob
+    let signed_lock = bob
         .sign_arbitrating_lock(&mut bob_key_manager, &core)
         .unwrap();
 
+    let mut lock = LockTx::from_partial(core.lock.clone());
+    lock.add_witness(funding_key, signed_lock.lock_sig).unwrap();
+    let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut lock).unwrap();
+
+    // ...seen arbitrating lock...
+    // ...seen accordant lock...
+
+    let _: BuyProcedureSignature<BtcXmr> = (swap_id, adaptor_buy.clone()).into();
+
+    //
+    // IF BUY PATH:
+    //
+
+    //
+    // Validate the buy procedure and complete the buy
+    //
     alice
         .validate_adaptor_buy(
             &mut alice_key_manager,
@@ -172,7 +203,7 @@ fn execute_offline_protocol() {
             &adaptor_buy,
         )
         .unwrap();
-    let _fully_sign_buy = alice
+    let fully_sign_buy = alice
         .fully_sign_buy(
             &mut alice_key_manager,
             &alice_params,
@@ -182,4 +213,108 @@ fn execute_offline_protocol() {
             &adaptor_buy,
         )
         .unwrap();
+
+    let mut buy = BuyTx::from_partial(adaptor_buy.buy.clone());
+    buy.add_witness(bob_params.buy, fully_sign_buy.buy_adapted_sig)
+        .unwrap();
+    buy.add_witness(alice_params.buy, fully_sign_buy.buy_sig)
+        .unwrap();
+    let buy_tx = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut buy).unwrap();
+
+    // ...seen buy tx on-chain...
+
+    let (xmr_public_spend, btc_adaptor_pubkey, _) = alice_key_manager
+        .generate()
+        .expect("Considered valid in tests");
+
+    let secp = Secp256k1::new();
+    let btc_adaptor_priv =
+        bob.recover_accordant_assets(&mut bob_key_manager, &alice_params, adaptor_buy, buy_tx);
+    let xmr_spend_priv = monero::PrivateKey::from_slice(btc_adaptor_priv.as_ref())
+        .expect("Valid Monero Private Key");
+
+    assert_eq!(
+        PublicKey::from_secret_key(&secp, &btc_adaptor_priv),
+        btc_adaptor_pubkey,
+    );
+    assert_eq!(
+        monero::PublicKey::from_private_key(&xmr_spend_priv),
+        xmr_public_spend,
+    );
+
+    //
+    // IF CANCEL PATH:
+    //
+
+    let mut cancel = CancelTx::from_partial(core.cancel.clone());
+    cancel
+        .add_witness(bob_params.cancel, bob_cosign_cancel.cancel_sig)
+        .unwrap();
+    cancel
+        .add_witness(alice_params.cancel, alice_cosign_cancel.cancel_sig)
+        .unwrap();
+    let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut cancel).unwrap();
+
+    // ...seen arbitrating cancel...
+
+    //
+    // IF REFUND CANCEL PATH:
+    //
+
+    let fully_signed_refund = bob
+        .fully_sign_refund(&mut bob_key_manager, core.clone(), &adaptor_refund)
+        .unwrap();
+
+    let mut refund = RefundTx::from_partial(core.refund.clone());
+    refund
+        .add_witness(alice_params.refund, fully_signed_refund.refund_adapted_sig)
+        .unwrap();
+    refund
+        .add_witness(bob_params.refund, fully_signed_refund.refund_sig)
+        .unwrap();
+    let refund_tx = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut refund).unwrap();
+
+    // ...seen refund tx on-chain...
+
+    let (xmr_public_spend, btc_adaptor_pubkey, _) = bob_key_manager
+        .generate()
+        .expect("Considered valid in tests");
+
+    let btc_adaptor_priv = alice.recover_accordant_assets(
+        &mut alice_key_manager,
+        &bob_params,
+        adaptor_refund,
+        refund_tx,
+    );
+    let xmr_spend_priv = monero::PrivateKey::from_slice(btc_adaptor_priv.as_ref())
+        .expect("Valid Monero Private Key");
+
+    assert_eq!(
+        PublicKey::from_secret_key(&secp, &btc_adaptor_priv),
+        btc_adaptor_pubkey,
+    );
+    assert_eq!(
+        monero::PublicKey::from_private_key(&xmr_spend_priv),
+        xmr_public_spend,
+    );
+
+    //
+    // IF PUNISH CANCEL PATH:
+    //
+
+    let fully_signed_punish = alice
+        .fully_sign_punish(
+            &mut alice_key_manager,
+            &alice_params,
+            &bob_params,
+            &core,
+            &pub_offer,
+        )
+        .unwrap();
+
+    let mut punish = PunishTx::from_partial(fully_signed_punish.punish);
+    punish
+        .add_witness(alice_params.punish, fully_signed_punish.punish_sig)
+        .unwrap();
+    let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut refund).unwrap();
 }

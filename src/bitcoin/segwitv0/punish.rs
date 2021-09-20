@@ -4,10 +4,12 @@ use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
+use crate::role::SwapRole;
 use crate::script;
+use crate::script::ScriptPath;
 use crate::transaction::{Cancelable, Error, Punishable};
 
-use crate::bitcoin::segwitv0::SegwitV0;
+use crate::bitcoin::segwitv0::{PunishLock, SegwitV0};
 use crate::bitcoin::transaction::{self, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
@@ -21,15 +23,21 @@ impl SubTransaction for Punish {
             .clone()
             .ok_or(Error::MissingWitness)?;
 
-        let (_, full_sig) = psbt.inputs[0]
+        let swaplock = PunishLock::from_script(&script)?;
+
+        let punish_sig = psbt.inputs[0]
             .partial_sigs
-            .iter()
-            .next()
-            .ok_or(Error::MissingSignature)?;
+            .get(
+                swaplock
+                    .get_pubkey(SwapRole::Alice, ScriptPath::Success)
+                    .ok_or(Error::MissingPublicKey)?,
+            )
+            .ok_or(Error::MissingSignature)?
+            .clone();
 
         psbt.inputs[0].final_script_witness = Some(vec![
-            full_sig.clone(), // sig
-            vec![],           // OP_FALSE
+            punish_sig,
+            vec![], // OP_FALSE
             script.into_bytes(),
         ]);
         Ok(())

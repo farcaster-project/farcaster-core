@@ -1,5 +1,8 @@
 //! Data structures used in scripts to create the arbitration engine on a blockchain.
 
+#[cfg(feature = "serde")]
+use serde::Serialize;
+
 use crate::blockchain::Timelock;
 use crate::crypto::Keys;
 
@@ -10,8 +13,11 @@ use crate::crypto::Keys;
 #[display("Alice: {alice}, Bob: {bob}")]
 #[cfg_attr(
     feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
+    derive(Serialize),
+    serde(
+        crate = "serde_crate",
+        bound(serialize = "&'a T::PublicKey: Serialize",)
+    )
 )]
 pub struct DoubleKeys<'a, T>
 where
@@ -78,4 +84,28 @@ where
     pub timelock: T::Timelock,
     pub success: DoubleKeys<'a, T>,
     pub failure: &'a T::PublicKey,
+}
+
+#[cfg(test)]
+#[cfg(feature = "serde")]
+mod tests {
+    use super::*;
+    use crate::bitcoin::BitcoinSegwitV0;
+
+    #[test]
+    fn serde_serialize_double_keys() {
+        let public_key = bitcoin::secp256k1::PublicKey::from_slice(&[
+            0x02, 0xc6, 0x6e, 0x7d, 0x89, 0x66, 0xb5, 0xc5, 0x55, 0xaf, 0x58, 0x05, 0x98, 0x9d,
+            0xa9, 0xfb, 0xf8, 0xdb, 0x95, 0xe1, 0x56, 0x31, 0xce, 0x35, 0x8c, 0x3a, 0x17, 0x10,
+            0xc9, 0x62, 0x67, 0x90, 0x63,
+        ])
+        .expect("public keys must be 33 or 65 bytes, serialized according to SEC 2");
+        let double_key = DoubleKeys::<'_, BitcoinSegwitV0>::new(&public_key, &public_key);
+        let s = serde_yaml::to_string(&double_key).unwrap();
+        let yml = r#"---
+alice: 02c66e7d8966b5c555af5805989da9fbf8db95e15631ce358c3a1710c962679063
+bob: 02c66e7d8966b5c555af5805989da9fbf8db95e15631ce358c3a1710c962679063
+"#;
+        assert_eq!(yml, s);
+    }
 }

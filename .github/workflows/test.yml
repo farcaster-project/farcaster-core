@@ -33,7 +33,7 @@ jobs:
 
     - uses: Swatinem/rust-cache@v1.3.0
 
-    - run: cargo test --verbose
+    - run: cargo test --features serde --verbose
 
   rpc-test:
     strategy:

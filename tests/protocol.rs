@@ -223,8 +223,8 @@ fn execute_offline_protocol() {
 
     // ...seen buy tx on-chain...
 
-    let (xmr_public_spend, btc_adaptor_pubkey, _) = alice_key_manager
-        .generate()
+    let (xmr_public_spend, btc_encryption_key, _) = alice_key_manager
+        .generate_proof()
         .expect("Considered valid in tests");
 
     let secp = Secp256k1::new();
@@ -235,7 +235,7 @@ fn execute_offline_protocol() {
 
     assert_eq!(
         PublicKey::from_secret_key(&secp, &btc_adaptor_priv),
-        btc_adaptor_pubkey,
+        btc_encryption_key,
     );
     assert_eq!(
         monero::PublicKey::from_private_key(&xmr_spend_priv),
@@ -276,8 +276,8 @@ fn execute_offline_protocol() {
 
     // ...seen refund tx on-chain...
 
-    let (xmr_public_spend, btc_adaptor_pubkey, _) = bob_key_manager
-        .generate()
+    let (xmr_public_spend, btc_encryption_key, _) = bob_key_manager
+        .generate_proof()
         .expect("Considered valid in tests");
 
     let btc_adaptor_priv = alice.recover_accordant_assets(
@@ -291,7 +291,7 @@ fn execute_offline_protocol() {
 
     assert_eq!(
         PublicKey::from_secret_key(&secp, &btc_adaptor_priv),
-        btc_adaptor_pubkey,
+        btc_encryption_key,
     );
     assert_eq!(
         monero::PublicKey::from_private_key(&xmr_spend_priv),

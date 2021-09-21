@@ -409,7 +409,7 @@ impl SharedSecretKeys for Bitcoin<SegwitV0> {
 impl Signatures for Bitcoin<SegwitV0> {
     type Message = Sha256dHash;
     type Signature = Signature;
-    type AdaptorSignature = EncryptedSignature;
+    type EncryptedSignature = EncryptedSignature;
 }
 
 impl CanonicalBytes for Signature {

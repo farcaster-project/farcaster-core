@@ -260,7 +260,7 @@ where
             })
             .collect();
 
-        let (spend, adaptor, proof) = wallet.generate()?;
+        let (spend, adaptor, proof) = wallet.generate_proof()?;
 
         Ok(AliceParameters {
             buy: wallet.get_pubkey(ArbitratingKeyId::Buy)?,
@@ -322,7 +322,7 @@ where
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
@@ -337,7 +337,7 @@ where
         // counter-party adaptor.
         let adaptor = &bob_parameters.adaptor;
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.adaptor_sign_with_key(ArbitratingKeyId::Refund, adaptor, msg)?;
+        let sig = wallet.encrypt_sign(ArbitratingKeyId::Refund, adaptor, msg)?;
 
         Ok(SignedAdaptorRefund {
             refund_adaptor_sig: sig,
@@ -378,7 +378,7 @@ where
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
@@ -391,7 +391,7 @@ where
 
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
-        let sig = wallet.sign_with_key(ArbitratingKeyId::Cancel, msg)?;
+        let sig = wallet.sign(ArbitratingKeyId::Cancel, msg)?;
 
         Ok(CosignedArbitratingCancel { cancel_sig: sig })
     }
@@ -431,7 +431,7 @@ where
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
@@ -458,7 +458,7 @@ where
 
         // Verify the adaptor buy witness
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
-        wallet.verify_adaptor_signature(
+        wallet.verify_encrypted_signature(
             &bob_parameters.buy,
             &alice_parameters.adaptor,
             msg,
@@ -511,7 +511,7 @@ where
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
@@ -538,11 +538,11 @@ where
 
         // Generate the witness message to sign and sign with the buy key.
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.sign_with_key(ArbitratingKeyId::Buy, msg)?;
+        let sig = wallet.sign(ArbitratingKeyId::Buy, msg)?;
 
         // Retreive the adaptor public key and the counter-party adaptor witness.
         let adapted_sig =
-            wallet.adapt_signature(AccordantKeyId::Spend, adaptor_buy.buy_adaptor_sig.clone())?;
+            wallet.decrypt_signature(AccordantKeyId::Spend, adaptor_buy.buy_adaptor_sig.clone())?;
 
         Ok(FullySignedBuy {
             buy_sig: sig,
@@ -589,7 +589,7 @@ where
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
@@ -617,7 +617,7 @@ where
 
         // Generate the witness message to sign and sign with the punish key.
         let msg = punish.generate_witness_message(ScriptPath::Failure)?;
-        let punish_sig = wallet.sign_with_key(ArbitratingKeyId::Punish, msg)?;
+        let punish_sig = wallet.sign(ArbitratingKeyId::Punish, msg)?;
 
         Ok(FullySignedPunish {
             punish: punish.to_partial(),
@@ -633,15 +633,15 @@ where
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         bob_parameters: &BobParameters<Ctx>,
         adaptor_refund: SignedAdaptorRefund<Ctx::Ar>,
         refund_tx: <Ctx::Ar as Onchain>::Transaction,
     ) -> <Ctx::Ar as Keys>::SecretKey {
-        let adaptor_key = &bob_parameters.adaptor;
+        let encryption_key = &bob_parameters.adaptor;
         let signature = <<Ctx::Ar as Transactions>::Refund>::extract_witness(refund_tx);
-        wallet.recover_key(adaptor_key, signature, adaptor_refund.refund_adaptor_sig)
+        wallet.recover_secret_key(adaptor_refund.refund_adaptor_sig, encryption_key, signature)
     }
 
     // Internal method to parse and validate the core arbitratring transactions received by Alice
@@ -828,7 +828,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             })
             .collect();
 
-        let (spend, adaptor, proof) = wallet.generate()?;
+        let (spend, adaptor, proof) = wallet.generate_proof()?;
 
         Ok(BobParameters {
             buy: wallet.get_pubkey(ArbitratingKeyId::Buy)?,
@@ -998,7 +998,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
     ) -> Res<CosignedArbitratingCancel<Ctx::Ar>> {
@@ -1011,7 +1011,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the cancel key.
         let msg = cancel.generate_witness_message(ScriptPath::Failure)?;
-        let sig = wallet.sign_with_key(ArbitratingKeyId::Cancel, msg)?;
+        let sig = wallet.sign(ArbitratingKeyId::Cancel, msg)?;
 
         Ok(CosignedArbitratingCancel { cancel_sig: sig })
     }
@@ -1053,7 +1053,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
@@ -1069,7 +1069,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Verify the adaptor refund witness
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
-        wallet.verify_adaptor_signature(
+        wallet.verify_encrypted_signature(
             &alice_parameters.refund,
             &bob_parameters.adaptor,
             msg,
@@ -1125,7 +1125,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         alice_parameters: &AliceParameters<Ctx>,
         bob_parameters: &BobParameters<Ctx>,
@@ -1175,7 +1175,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         // counter-party adaptor.
         let adaptor = &alice_parameters.adaptor;
         let msg = buy.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.adaptor_sign_with_key(ArbitratingKeyId::Buy, adaptor, msg)?;
+        let sig = wallet.encrypt_sign(ArbitratingKeyId::Buy, adaptor, msg)?;
 
         Ok(SignedAdaptorBuy {
             buy: buy.to_partial(),
@@ -1212,7 +1212,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
     ) -> Res<SignedArbitratingLock<Ctx::Ar>> {
@@ -1225,7 +1225,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the fund key.
         let msg = lock.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.sign_with_key(ArbitratingKeyId::Lock, msg)?;
+        let sig = wallet.sign(ArbitratingKeyId::Lock, msg)?;
 
         Ok(SignedArbitratingLock { lock_sig: sig })
     }
@@ -1265,7 +1265,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         core: CoreArbitratingTransactions<Ctx::Ar>,
         signed_adaptor_refund: &SignedAdaptorRefund<Ctx::Ar>,
@@ -1279,9 +1279,9 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the refund key.
         let msg = refund.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.sign_with_key(ArbitratingKeyId::Refund, msg)?;
+        let sig = wallet.sign(ArbitratingKeyId::Refund, msg)?;
 
-        let adapted_sig = wallet.adapt_signature(
+        let adapted_sig = wallet.decrypt_signature(
             AccordantKeyId::Spend,
             signed_adaptor_refund.refund_adaptor_sig.clone(),
         )?;
@@ -1299,15 +1299,15 @@ impl<Ctx: Swap> Bob<Ctx> {
             <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
-            <Ctx::Ar as Signatures>::AdaptorSignature,
+            <Ctx::Ar as Signatures>::EncryptedSignature,
         >,
         alice_parameters: &AliceParameters<Ctx>,
         adaptor_buy: SignedAdaptorBuy<Ctx::Ar>,
         buy_tx: <Ctx::Ar as Onchain>::Transaction,
     ) -> <Ctx::Ar as Keys>::SecretKey {
-        let adaptor_key = &alice_parameters.adaptor;
+        let encryption_key = &alice_parameters.adaptor;
         let signature = <<Ctx::Ar as Transactions>::Buy>::extract_witness(buy_tx);
-        wallet.recover_key(adaptor_key, signature, adaptor_buy.buy_adaptor_sig)
+        wallet.recover_secret_key(adaptor_buy.buy_adaptor_sig, encryption_key, signature)
     }
 }
 

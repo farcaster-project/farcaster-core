@@ -420,7 +420,7 @@ where
     T: Signatures + Onchain,
 {
     pub buy: T::PartialTransaction,
-    pub buy_adaptor_sig: T::AdaptorSignature,
+    pub buy_adaptor_sig: T::EncryptedSignature,
 }
 
 fn signed_adaptor_buy_fmt<T>(b: &SignedAdaptorBuy<T>) -> String
@@ -454,7 +454,7 @@ where
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
             buy: T::PartialTransaction::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            buy_adaptor_sig: T::AdaptorSignature::from_canonical_bytes(
+            buy_adaptor_sig: T::EncryptedSignature::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
         })
@@ -517,7 +517,7 @@ pub struct SignedAdaptorRefund<S>
 where
     S: Signatures,
 {
-    pub refund_adaptor_sig: S::AdaptorSignature,
+    pub refund_adaptor_sig: S::EncryptedSignature,
 }
 
 impl<S> Encodable for SignedAdaptorRefund<S>
@@ -537,7 +537,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
-            refund_adaptor_sig: S::AdaptorSignature::from_canonical_bytes(
+            refund_adaptor_sig: S::EncryptedSignature::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
         })

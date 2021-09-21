@@ -27,7 +27,7 @@ pub enum Error {
     InvalidAdaptorKey,
     /// The adaptor signature does not pass the validation tests.
     #[error("The adaptor signature does not pass the validation")]
-    InvalidAdaptorSignature,
+    InvalidEncryptedSignature,
     /// The proof does not pass the validation tests.
     #[error("The proof does not pass the validation")]
     InvalidProof,
@@ -333,7 +333,7 @@ pub trait Signatures {
 
     /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
     /// have a different format from the signature depending on the cryptographic primitives used.
-    type AdaptorSignature: Clone + Debug + fmt::Display + CanonicalBytes;
+    type EncryptedSignature: Clone + Debug + fmt::Display + CanonicalBytes;
 }
 
 /// Meta trait regrouping all the needed trait combinaisons a key manager must implement. Used when
@@ -387,53 +387,53 @@ pub trait GenerateSharedKey<SharedKey> {
 
 // TODO give extra keys and/or shared keys in signing methods
 
-/// Signature and adaptor signature generator and verifier. Produce and verify signatures and
-/// adaptor sigantures based on public keys. Recover the private key through the complete
-/// adaptor/adapted signature.
-pub trait Sign<PublicKey, SecretKey, Message, Signature, AdaptorSignature> {
+/// Signature and encrypted signature generator and verifier. Produce and verify signatures and
+/// encrypted sigantures based on public keys/key identifiers. Recover the private key through the
+/// complete encrypted/decrypted signature.
+pub trait Sign<PublicKey, SecretKey, Message, Signature, EncryptedSignature> {
     /// Sign the message with the corresponding private key identified by the provided arbitrating
     /// key identifier.
-    fn sign_with_key(&mut self, key: ArbitratingKeyId, msg: Message) -> Result<Signature, Error>;
+    fn sign(&mut self, key: ArbitratingKeyId, msg: Message) -> Result<Signature, Error>;
 
     /// Verify a signature for a given message with the provided public key.
     fn verify_signature(&self, key: &PublicKey, msg: Message, sig: &Signature)
         -> Result<(), Error>;
 
     /// Sign the message with the corresponding private key identified by the provided arbitrating
-    /// key identifier and encrypt it (create an adaptor signature) with the provided adaptor
+    /// key identifier and encrypt it (create an adaptor signature) with the provided encryption
     /// public key.
-    fn adaptor_sign_with_key(
+    fn encrypt_sign(
         &mut self,
-        key: ArbitratingKeyId,
-        adaptor: &PublicKey,
+        signing_key: ArbitratingKeyId,
+        encryption_key: &PublicKey,
         msg: Message,
-    ) -> Result<AdaptorSignature, Error>;
+    ) -> Result<EncryptedSignature, Error>;
 
-    /// Verify a adaptor signature for a given message with the provided public key and the public
-    /// adaptor key.
-    fn verify_adaptor_signature(
+    /// Verify an encrypted signature for a given message with the provided signing public key and
+    /// the public encryption key.
+    fn verify_encrypted_signature(
         &self,
-        key: &PublicKey,
-        adaptor: &PublicKey,
+        signing_key: &PublicKey,
+        encryption_key: &PublicKey,
         msg: Message,
-        sig: &AdaptorSignature,
+        sig: &EncryptedSignature,
     ) -> Result<(), Error>;
 
-    /// Finalize an adaptor signature (decrypt the signature) into an adapted signature (decrypted
-    /// signatures) with the corresponding private key identified by the provided accordant key
-    /// identifier.
-    fn adapt_signature(
+    /// Decrypt the encrypted signature with the corresponding decryption private key identified by
+    /// the provided accordant key identifier, producing a valid regular signature.
+    fn decrypt_signature(
         &mut self,
-        key: AccordantKeyId,
-        sig: AdaptorSignature,
+        decryption_key: AccordantKeyId,
+        sig: EncryptedSignature,
     ) -> Result<Signature, Error>;
 
-    /// Recover the encryption key based on the adaptor signature and the decrypted signature.
-    fn recover_key(
+    /// Recover the encryption key based on the encrypted signature, the encryption public key, and
+    /// the regular (decrypted) signature.
+    fn recover_secret_key(
         &self,
-        adaptor_key: &PublicKey,
+        encrypted_sig: EncryptedSignature,
+        encryption_key: &PublicKey,
         sig: Signature,
-        adapted_sig: AdaptorSignature,
     ) -> SecretKey;
 }
 
@@ -455,22 +455,23 @@ pub trait Commit<Commitment: Eq> {
     }
 }
 
-/// Proof generator and verifier for the cross-group projection of the accordant public spend key.
-pub trait ProveCrossGroupDleq<Adaptor, PublicSpendKey, Proof> {
-    /// Generate the proof and the two public keys: the arbitrating public key, also called the
-    /// adaptor public key, and the accordant public spend key.
-    fn generate(&mut self) -> Result<(PublicSpendKey, Adaptor, Proof), Error>;
+/// Proof generator and verifier for the cross-group projection of the accordant public spend key
+/// as an arbitrating key used to encrypt signatures.
+pub trait ProveCrossGroupDleq<EncryptionKey, AccordantSpendKey, Proof> {
+    /// Generate the proof and the two public keys: the accordant public spend key and the
+    /// arbitrating public key, also called the encryption public key,
+    fn generate_proof(&mut self) -> Result<(AccordantSpendKey, EncryptionKey, Proof), Error>;
 
     /// Project the accordant sepnd secret key over the arbitrating curve to get the public key
-    /// used as the adaptor public key.
-    fn project_over(&mut self) -> Result<Adaptor, Error>;
+    /// used as the encryption public key.
+    fn get_encryption_key(&mut self) -> Result<EncryptionKey, Error>;
 
     /// Verify the proof given the two public keys: the accordant spend public key and the
-    /// arbitrating adaptor public key.
-    fn verify(
+    /// arbitrating encryption public key.
+    fn verify_proof(
         &mut self,
-        public_spend: &PublicSpendKey,
-        adaptor: &Adaptor,
+        public_spend: &AccordantSpendKey,
+        encryption_key: &EncryptionKey,
         proof: Proof,
     ) -> Result<(), Error>;
 }

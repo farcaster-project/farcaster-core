@@ -117,7 +117,7 @@ impl SharedSecretKeys for Bitcoin<Taproot> {
 impl Signatures for Bitcoin<Taproot> {
     type Message = Sha256dHash;
     type Signature = Signature;
-    type AdaptorSignature = Signature;
+    type EncryptedSignature = Signature;
 }
 
 impl CanonicalBytes for Signature {

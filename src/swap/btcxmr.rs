@@ -268,7 +268,7 @@ impl GenerateSharedKey<SecretKey> for KeyManager {
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for KeyManager {
-    fn sign_with_key(
+    fn sign(
         &mut self,
         key: ArbitratingKeyId,
         msg: Sha256dHash,
@@ -298,17 +298,17 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         secp.verify(&message, sig, key).map_err(crypto::Error::new)
     }
 
-    fn adaptor_sign_with_key(
+    fn encrypt_sign(
         &mut self,
-        key: ArbitratingKeyId,
-        adaptor: &PublicKey,
+        signing_key: ArbitratingKeyId,
+        encryption_key: &PublicKey,
         msg: Sha256dHash,
     ) -> Result<EncryptedSignature, crypto::Error> {
-        let secret_key = self.get_or_derive_bitcoin_key(&key)?;
+        let secret_key = self.get_or_derive_bitcoin_key(&signing_key)?;
 
         let engine = Adaptor::<Transcript, NonceGen>::default();
         let secret_signing_key = Scalar::from(secret_key);
-        let encryption_key = Point::from(*adaptor);
+        let encryption_key = Point::from(*encryption_key);
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -317,16 +317,16 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         Ok(engine.encrypted_sign(&secret_signing_key, &encryption_key, message_hash))
     }
 
-    fn verify_adaptor_signature(
+    fn verify_encrypted_signature(
         &self,
-        key: &PublicKey,
-        adaptor: &PublicKey,
+        signing_key: &PublicKey,
+        encryption_key: &PublicKey,
         msg: Sha256dHash,
         sig: &EncryptedSignature,
     ) -> Result<(), crypto::Error> {
         let engine = Adaptor::<Transcript, NonceGen>::default();
-        let verification_key = Point::from(*key);
-        let encryption_key = Point::from(*adaptor);
+        let verification_key = Point::from(*signing_key);
+        let encryption_key = Point::from(*encryption_key);
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -339,16 +339,16 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
             sig,
         ) {
             true => Ok(()),
-            false => Err(crypto::Error::InvalidAdaptorSignature),
+            false => Err(crypto::Error::InvalidEncryptedSignature),
         }
     }
 
-    fn adapt_signature(
+    fn decrypt_signature(
         &mut self,
-        key: AccordantKeyId,
+        decryption_key: AccordantKeyId,
         sig: EncryptedSignature,
     ) -> Result<Signature, crypto::Error> {
-        let secret_key = self.get_or_derive_monero_key(&key)?;
+        let secret_key = self.get_or_derive_monero_key(&decryption_key)?;
         let secret_key =
             SecretKey::from_slice(secret_key.as_bytes()).map_err(crypto::Error::new)?;
 
@@ -358,17 +358,17 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         Ok(adaptor.decrypt_signature(&decryption_key, sig).into())
     }
 
-    fn recover_key(
+    fn recover_secret_key(
         &self,
-        adaptor_key: &PublicKey,
+        encrypted_sig: EncryptedSignature,
+        encryption_key: &PublicKey,
         sig: Signature,
-        adapted_sig: EncryptedSignature,
     ) -> SecretKey {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let encryption_key = Point::from(*adaptor_key);
+        let encryption_key = Point::from(*encryption_key);
         let signature = ecdsa_fun::Signature::from(sig);
 
-        match adaptor.recover_decryption_key(&encryption_key, &signature, &adapted_sig) {
+        match adaptor.recover_decryption_key(&encryption_key, &signature, &encrypted_sig) {
             Some(decryption_key) => decryption_key.into(),
             None => panic!("signature is not the decryption of our original encrypted signature"),
         }
@@ -377,11 +377,11 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
 
 // FIXME: this is a dummy implementation that does nothing
 impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager {
-    /// Generate the proof and the two public keys: the arbitrating public key, also called the
-    /// adaptor public key, and the accordant public spend key.
-    fn generate(&mut self) -> Result<(monero::PublicKey, PublicKey, RingProof), crypto::Error> {
+    fn generate_proof(
+        &mut self,
+    ) -> Result<(monero::PublicKey, PublicKey, RingProof), crypto::Error> {
         let spend = self.get_or_derive_monero_key(&AccordantKeyId::Spend)?;
-        let adaptor = self.project_over()?;
+        let adaptor = self.get_encryption_key()?;
 
         Ok((
             monero::PublicKey::from_private_key(&spend),
@@ -391,9 +391,7 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager
         ))
     }
 
-    /// Project the accordant sepnd secret key over the arbitrating curve to get the public key
-    /// used as the adaptor public key.
-    fn project_over(&mut self) -> Result<PublicKey, crypto::Error> {
+    fn get_encryption_key(&mut self) -> Result<PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
         let spend = self.get_or_derive_monero_key(&AccordantKeyId::Spend)?;
         let bytes = spend.to_bytes();
@@ -401,12 +399,10 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager
         Ok(PublicKey::from_secret_key(&secp, &adaptor))
     }
 
-    /// Verify the proof given the two public keys: the accordant spend public key and the
-    /// arbitrating adaptor public key.
-    fn verify(
+    fn verify_proof(
         &mut self,
         _public_spend: &monero::PublicKey,
-        _adaptor: &PublicKey,
+        _encryption_key: &PublicKey,
         _proof: RingProof,
     ) -> Result<(), crypto::Error> {
         todo!()

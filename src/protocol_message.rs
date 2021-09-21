@@ -665,7 +665,7 @@ pub struct RefundProcedureSignatures<Ctx: Swap> {
     /// The `Ac` `cancel (d)` signature.
     pub cancel_sig: <Ctx::Ar as Signatures>::Signature,
     /// The `Ar(Tb)` `refund (e)` adaptor signature.
-    pub refund_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
+    pub refund_adaptor_sig: <Ctx::Ar as Signatures>::EncryptedSignature,
 }
 
 impl<Ctx> Encodable for RefundProcedureSignatures<Ctx>
@@ -693,7 +693,7 @@ where
             cancel_sig: <Ctx::Ar as Signatures>::Signature::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            refund_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature::from_canonical_bytes(
+            refund_adaptor_sig: <Ctx::Ar as Signatures>::EncryptedSignature::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
         })
@@ -747,7 +747,7 @@ pub struct BuyProcedureSignature<Ctx: Swap> {
     /// The arbitrating `buy (c)` transaction.
     pub buy: <Ctx::Ar as Onchain>::PartialTransaction,
     /// The `Bb(Ta)` `buy (c)` adaptor signature.
-    pub buy_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature,
+    pub buy_adaptor_sig: <Ctx::Ar as Signatures>::EncryptedSignature,
 }
 
 impl<Ctx> Encodable for BuyProcedureSignature<Ctx>
@@ -775,7 +775,7 @@ where
             buy: <Ctx::Ar as Onchain>::PartialTransaction::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            buy_adaptor_sig: <Ctx::Ar as Signatures>::AdaptorSignature::from_canonical_bytes(
+            buy_adaptor_sig: <Ctx::Ar as Signatures>::EncryptedSignature::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
         })

@@ -158,10 +158,11 @@ pub type TaggedSharedKeys<E> = Vec<TaggedElement<SharedKeyId, E>>;
     serde(crate = "serde_crate")
 )]
 pub enum ArbitratingKeyId {
-    /// Arbitrating key used to fund the swap in [`Fundable`].
+    /// Arbitrating key used to fund the [`Lockable`] transaction through [`Fundable`].
     ///
+    /// [`Lockable`]: crate::transaction::Lockable
     /// [`Fundable`]: crate::transaction::Fundable
-    Fund,
+    Lock,
     /// Key used in the [`Buyable`] transaction.
     ///
     /// [`Buyable`]: crate::transaction::Buyable

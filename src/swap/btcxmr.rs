@@ -101,7 +101,7 @@ impl Derivation for ArbitratingKeyId {
     fn derivation_path(&self) -> Result<DerivationPath, crypto::Error> {
         let std_key_index = ChildNumber::from_hardened_idx(STD_KEY_DERIVE_INDEX).unwrap();
         let key_path = match self {
-            ArbitratingKeyId::Fund => [std_key_index, ChildNumber::from_hardened_idx(1).unwrap()],
+            ArbitratingKeyId::Lock => [std_key_index, ChildNumber::from_hardened_idx(1).unwrap()],
             // Use the same key for buy and cancel
             ArbitratingKeyId::Buy | ArbitratingKeyId::Cancel => {
                 [std_key_index, ChildNumber::from_hardened_idx(2).unwrap()]

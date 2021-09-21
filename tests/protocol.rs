@@ -95,7 +95,7 @@ fn execute_offline_protocol() {
     //
     // Get Funding Address and Transaction
     //
-    let funding_key = bob_key_manager.get_pubkey(ArbitratingKeyId::Fund).unwrap();
+    let funding_key = bob_key_manager.get_pubkey(ArbitratingKeyId::Lock).unwrap();
     let mut funding = FundingTx::initialize(funding_key, Network::Local).unwrap();
     let funding_address = funding.get_address().unwrap();
 

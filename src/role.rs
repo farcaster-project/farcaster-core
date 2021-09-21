@@ -1225,7 +1225,7 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         // Generate the witness message to sign and sign with the fund key.
         let msg = lock.generate_witness_message(ScriptPath::Success)?;
-        let sig = wallet.sign_with_key(ArbitratingKeyId::Fund, msg)?;
+        let sig = wallet.sign_with_key(ArbitratingKeyId::Lock, msg)?;
 
         Ok(SignedArbitratingLock { lock_sig: sig })
     }

@@ -7,7 +7,7 @@ use crate::blockchain::{Address, Onchain};
 use crate::bundle;
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
-    self, Commit, Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement, TaggedElements,
+    self, Commit, Keys, SharedKeyId, SharedSecretKeys, Signatures, TaggedElement, TaggedElements,
 };
 use crate::swap::{Swap, SwapId};
 use crate::Error;
@@ -341,14 +341,14 @@ pub struct RevealAliceParameters<Ctx: Swap> {
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
     /// Reveal the vector of extra arbitrating shared keys.
     pub arbitrating_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedSecretKeys>::SharedSecretKey>>,
     /// Reveal the spend public key.
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// Reveal the vector of extra accordant public keys.
     pub extra_accordant_keys: Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
     /// Reveal the vector of extra accordant shared keys.
     pub accordant_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     /// Reveal the destination address.
     pub address: <Ctx::Ar as Address>::Address,
     /// Reveal the cross-group discrete logarithm zero-knowledge proof.
@@ -459,14 +459,14 @@ pub struct RevealBobParameters<Ctx: Swap> {
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
     /// Reveal the vector of extra arbitrating shared keys.
     pub arbitrating_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedSecretKeys>::SharedSecretKey>>,
     /// Reveal the spend public key.
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     /// Reveal the vector of extra accordant public keys.
     pub extra_accordant_keys: Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
     /// Reveal the vector of extra accordant shared keys.
     pub accordant_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     /// The refund Bitcoin address.
     pub address: <Ctx::Ar as Address>::Address,
     /// The cross-group discrete logarithm zero-knowledge proof.

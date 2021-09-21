@@ -14,7 +14,7 @@ use crate::bundle::{
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
-    AccordantKeyId, ArbitratingKeyId, Keys, SharedPrivateKeys, Sign, Signatures, TaggedElement,
+    AccordantKeyId, ArbitratingKeyId, Keys, SharedSecretKeys, Sign, Signatures, TaggedElement,
     TaggedExtraKeys, TaggedSharedKeys, Wallet,
 };
 use crate::negotiation::PublicOffer;
@@ -216,8 +216,8 @@ where
         wallet: &mut impl Wallet<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
-            <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey,
-            <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
+            <Ctx::Ar as SharedSecretKeys>::SharedSecretKey,
+            <Ctx::Ac as SharedSecretKeys>::SharedSecretKey,
             Ctx::Proof,
         >,
         public_offer: &PublicOffer<Ctx>,
@@ -232,8 +232,8 @@ where
                 .collect();
 
         let arbitrating_shared_keys: Res<
-            TaggedSharedKeys<<Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>,
-        > = <Ctx::Ar as SharedPrivateKeys>::shared_keys()
+            TaggedSharedKeys<<Ctx::Ar as SharedSecretKeys>::SharedSecretKey>,
+        > = <Ctx::Ar as SharedSecretKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
                 let key = wallet.get_shared_key(tag)?;
@@ -251,8 +251,8 @@ where
                 .collect();
 
         let accordant_shared_keys: Res<
-            TaggedSharedKeys<<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>,
-        > = <Ctx::Ac as SharedPrivateKeys>::shared_keys()
+            TaggedSharedKeys<<Ctx::Ac as SharedSecretKeys>::SharedSecretKey>,
+        > = <Ctx::Ac as SharedSecretKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
                 let key = wallet.get_shared_key(tag)?;
@@ -319,7 +319,7 @@ where
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -375,7 +375,7 @@ where
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -428,7 +428,7 @@ where
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -508,7 +508,7 @@ where
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -586,7 +586,7 @@ where
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -630,7 +630,7 @@ where
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -638,7 +638,7 @@ where
         bob_parameters: &BobParameters<Ctx>,
         adaptor_refund: SignedAdaptorRefund<Ctx::Ar>,
         refund_tx: <Ctx::Ar as Onchain>::Transaction,
-    ) -> <Ctx::Ar as Keys>::PrivateKey {
+    ) -> <Ctx::Ar as Keys>::SecretKey {
         let adaptor_key = &bob_parameters.adaptor;
         let signature = <<Ctx::Ar as Transactions>::Refund>::extract_witness(refund_tx);
         wallet.recover_key(adaptor_key, signature, adaptor_refund.refund_adaptor_sig)
@@ -784,8 +784,8 @@ impl<Ctx: Swap> Bob<Ctx> {
         wallet: &mut impl Wallet<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
-            <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey,
-            <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey,
+            <Ctx::Ar as SharedSecretKeys>::SharedSecretKey,
+            <Ctx::Ac as SharedSecretKeys>::SharedSecretKey,
             Ctx::Proof,
         >,
         public_offer: &PublicOffer<Ctx>,
@@ -800,8 +800,8 @@ impl<Ctx: Swap> Bob<Ctx> {
                 .collect();
 
         let arbitrating_shared_keys: Res<
-            TaggedSharedKeys<<Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>,
-        > = <Ctx::Ar as SharedPrivateKeys>::shared_keys()
+            TaggedSharedKeys<<Ctx::Ar as SharedSecretKeys>::SharedSecretKey>,
+        > = <Ctx::Ar as SharedSecretKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
                 let key = wallet.get_shared_key(tag)?;
@@ -819,8 +819,8 @@ impl<Ctx: Swap> Bob<Ctx> {
                 .collect();
 
         let accordant_shared_keys: Res<
-            TaggedSharedKeys<<Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>,
-        > = <Ctx::Ac as SharedPrivateKeys>::shared_keys()
+            TaggedSharedKeys<<Ctx::Ac as SharedSecretKeys>::SharedSecretKey>,
+        > = <Ctx::Ac as SharedSecretKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
                 let key = wallet.get_shared_key(tag)?;
@@ -995,7 +995,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -1050,7 +1050,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -1122,7 +1122,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -1209,7 +1209,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -1262,7 +1262,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -1296,7 +1296,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
-            <Ctx::Ar as Keys>::PrivateKey,
+            <Ctx::Ar as Keys>::SecretKey,
             <Ctx::Ar as Signatures>::Message,
             <Ctx::Ar as Signatures>::Signature,
             <Ctx::Ar as Signatures>::AdaptorSignature,
@@ -1304,7 +1304,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         alice_parameters: &AliceParameters<Ctx>,
         adaptor_buy: SignedAdaptorBuy<Ctx::Ar>,
         buy_tx: <Ctx::Ar as Onchain>::Transaction,
-    ) -> <Ctx::Ar as Keys>::PrivateKey {
+    ) -> <Ctx::Ar as Keys>::SecretKey {
         let adaptor_key = &alice_parameters.adaptor;
         let signature = <<Ctx::Ar as Transactions>::Buy>::extract_witness(buy_tx);
         wallet.recover_key(adaptor_key, signature, adaptor_buy.buy_adaptor_sig)
@@ -1322,7 +1322,7 @@ pub trait Arbitrating:
     + Signatures
     + Timelock
     + Transactions
-    + SharedPrivateKeys
+    + SharedSecretKeys
     + Clone
     + Eq
 {
@@ -1330,4 +1330,4 @@ pub trait Arbitrating:
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks, it is the blockchain with the less requirements for an atomic swap.
-pub trait Accordant: Asset + Address + Keys + SharedPrivateKeys + Clone + Eq {}
+pub trait Accordant: Asset + Address + Keys + SharedSecretKeys + Clone + Eq {}

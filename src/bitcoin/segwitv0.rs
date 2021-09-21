@@ -13,7 +13,7 @@ use crate::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Strategy};
 
 use crate::blockchain::Transactions;
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures};
+use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
 use crate::role::{Arbitrating, SwapRole};
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 
@@ -362,7 +362,7 @@ impl Transactions for Bitcoin<SegwitV0> {
 }
 
 impl Keys for Bitcoin<SegwitV0> {
-    type PrivateKey = SecretKey;
+    type SecretKey = SecretKey;
     type PublicKey = PublicKey;
 
     fn extra_keys() -> Vec<u16> {
@@ -397,8 +397,8 @@ impl CanonicalBytes for PublicKey {
     }
 }
 
-impl SharedPrivateKeys for Bitcoin<SegwitV0> {
-    type SharedPrivateKey = SecretKey;
+impl SharedSecretKeys for Bitcoin<SegwitV0> {
+    type SharedSecretKey = SecretKey;
 
     fn shared_keys() -> Vec<SharedKeyId> {
         // No shared key in Bitcoin, transparent ledger

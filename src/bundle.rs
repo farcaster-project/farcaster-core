@@ -11,7 +11,7 @@ use std::io;
 
 use crate::blockchain::{Address, Fee, FeeStrategy, Onchain, Timelock};
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
-use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement};
+use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures, TaggedElement};
 use crate::protocol_message;
 use crate::swap::Swap;
 
@@ -31,11 +31,11 @@ pub struct AliceParameters<Ctx: Swap> {
     pub adaptor: <Ctx::Ar as Keys>::PublicKey,
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
     pub arbitrating_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedSecretKeys>::SharedSecretKey>>,
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     pub extra_accordant_keys: Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
     pub accordant_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     pub destination_address: <Ctx::Ar as Address>::Address,
     pub proof: Ctx::Proof,
     pub cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
@@ -146,11 +146,11 @@ pub struct BobParameters<Ctx: Swap> {
     pub adaptor: <Ctx::Ar as Keys>::PublicKey,
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
     pub arbitrating_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedSecretKeys>::SharedSecretKey>>,
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     pub extra_accordant_keys: Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
     pub accordant_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     pub refund_address: <Ctx::Ar as Address>::Address,
     pub proof: Ctx::Proof,
     pub cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,

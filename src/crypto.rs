@@ -296,7 +296,7 @@ impl Commit<KeccakCommitment> for CommitmentEngine {
 /// [`Accordant`]: crate::role::Accordant
 pub trait Keys {
     /// Secret key type used for signing and proving.
-    type PrivateKey;
+    type SecretKey;
 
     /// Public key type used in transactions.
     type PublicKey: Clone + PartialEq + Debug + fmt::Display + CanonicalBytes;
@@ -310,9 +310,9 @@ pub trait Keys {
 ///
 /// [`Arbitrating`]: crate::role::Arbitrating
 /// [`Accordant`]: crate::role::Accordant
-pub trait SharedPrivateKeys {
+pub trait SharedSecretKeys {
     /// Shareable secret key type used to parse, e.g., non-transparent blockchain.
-    type SharedPrivateKey: Clone + PartialEq + Debug + CanonicalBytes;
+    type SharedSecretKey: Clone + PartialEq + Debug + CanonicalBytes;
 
     /// Return a list of extra shared secret key identifiers to use during the setup phase.
     fn shared_keys() -> Vec<SharedKeyId>;
@@ -390,7 +390,7 @@ pub trait GenerateSharedKey<SharedKey> {
 /// Signature and adaptor signature generator and verifier. Produce and verify signatures and
 /// adaptor sigantures based on public keys. Recover the private key through the complete
 /// adaptor/adapted signature.
-pub trait Sign<PublicKey, PrivateKey, Message, Signature, AdaptorSignature> {
+pub trait Sign<PublicKey, SecretKey, Message, Signature, AdaptorSignature> {
     /// Sign the message with the corresponding private key identified by the provided arbitrating
     /// key identifier.
     fn sign_with_key(&mut self, key: ArbitratingKeyId, msg: Message) -> Result<Signature, Error>;
@@ -434,7 +434,7 @@ pub trait Sign<PublicKey, PrivateKey, Message, Signature, AdaptorSignature> {
         adaptor_key: &PublicKey,
         sig: Signature,
         adapted_sig: AdaptorSignature,
-    ) -> PrivateKey;
+    ) -> SecretKey;
 }
 
 /// Commitment generator and verifier. Generated commitments can be validated against candidates,

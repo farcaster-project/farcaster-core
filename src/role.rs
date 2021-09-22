@@ -14,8 +14,8 @@ use crate::bundle::{
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
-    AccordantKeyId, ArbitratingKeyId, Keys, SharedSecretKeys, Sign, Signatures, TaggedElement,
-    TaggedExtraKeys, TaggedSharedKeys, Wallet,
+    AccordantKeyId, ArbitratingKeyId, KeyGenerator, Keys, SharedSecretKeys, Sign, Signatures,
+    TaggedElement, TaggedExtraKeys, TaggedSharedKeys,
 };
 use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
@@ -213,7 +213,7 @@ where
     ///
     pub fn generate_parameters(
         &self,
-        wallet: &mut impl Wallet<
+        key_gen: &mut impl KeyGenerator<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
             <Ctx::Ar as SharedSecretKeys>::SharedSecretKey,
@@ -226,7 +226,7 @@ where
             <Ctx::Ar as Keys>::extra_keys()
                 .into_iter()
                 .map(|tag| {
-                    let key = wallet.get_pubkey(ArbitratingKeyId::Extra(tag))?;
+                    let key = key_gen.get_pubkey(ArbitratingKeyId::Extra(tag))?;
                     Ok(TaggedElement::new(tag, key))
                 })
                 .collect();
@@ -236,7 +236,7 @@ where
         > = <Ctx::Ar as SharedSecretKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
-                let key = wallet.get_shared_key(tag)?;
+                let key = key_gen.get_shared_key(tag)?;
                 Ok(TaggedElement::new(tag, key))
             })
             .collect();
@@ -245,7 +245,7 @@ where
             <Ctx::Ac as Keys>::extra_keys()
                 .into_iter()
                 .map(|tag| {
-                    let key = wallet.get_pubkey(AccordantKeyId::Extra(tag))?;
+                    let key = key_gen.get_pubkey(AccordantKeyId::Extra(tag))?;
                     Ok(TaggedElement::new(tag, key))
                 })
                 .collect();
@@ -255,18 +255,18 @@ where
         > = <Ctx::Ac as SharedSecretKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
-                let key = wallet.get_shared_key(tag)?;
+                let key = key_gen.get_shared_key(tag)?;
                 Ok(TaggedElement::new(tag, key))
             })
             .collect();
 
-        let (spend, adaptor, proof) = wallet.generate_proof()?;
+        let (spend, adaptor, proof) = key_gen.generate_proof()?;
 
         Ok(AliceParameters {
-            buy: wallet.get_pubkey(ArbitratingKeyId::Buy)?,
-            cancel: wallet.get_pubkey(ArbitratingKeyId::Cancel)?,
-            refund: wallet.get_pubkey(ArbitratingKeyId::Refund)?,
-            punish: wallet.get_pubkey(ArbitratingKeyId::Punish)?,
+            buy: key_gen.get_pubkey(ArbitratingKeyId::Buy)?,
+            cancel: key_gen.get_pubkey(ArbitratingKeyId::Cancel)?,
+            refund: key_gen.get_pubkey(ArbitratingKeyId::Refund)?,
+            punish: key_gen.get_pubkey(ArbitratingKeyId::Punish)?,
             adaptor,
             extra_arbitrating_keys: extra_arbitrating_keys?,
             arbitrating_shared_keys: arbitrating_shared_keys?,
@@ -781,7 +781,7 @@ impl<Ctx: Swap> Bob<Ctx> {
     ///
     pub fn generate_parameters(
         &self,
-        wallet: &mut impl Wallet<
+        key_gen: &mut impl KeyGenerator<
             <Ctx::Ar as Keys>::PublicKey,
             <Ctx::Ac as Keys>::PublicKey,
             <Ctx::Ar as SharedSecretKeys>::SharedSecretKey,
@@ -794,7 +794,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             <Ctx::Ar as Keys>::extra_keys()
                 .into_iter()
                 .map(|tag| {
-                    let key = wallet.get_pubkey(ArbitratingKeyId::Extra(tag))?;
+                    let key = key_gen.get_pubkey(ArbitratingKeyId::Extra(tag))?;
                     Ok(TaggedElement::new(tag, key))
                 })
                 .collect();
@@ -804,7 +804,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         > = <Ctx::Ar as SharedSecretKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
-                let key = wallet.get_shared_key(tag)?;
+                let key = key_gen.get_shared_key(tag)?;
                 Ok(TaggedElement::new(tag, key))
             })
             .collect();
@@ -813,7 +813,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             <Ctx::Ac as Keys>::extra_keys()
                 .into_iter()
                 .map(|tag| {
-                    let key = wallet.get_pubkey(AccordantKeyId::Extra(tag))?;
+                    let key = key_gen.get_pubkey(AccordantKeyId::Extra(tag))?;
                     Ok(TaggedElement::new(tag, key))
                 })
                 .collect();
@@ -823,17 +823,17 @@ impl<Ctx: Swap> Bob<Ctx> {
         > = <Ctx::Ac as SharedSecretKeys>::shared_keys()
             .into_iter()
             .map(|tag| {
-                let key = wallet.get_shared_key(tag)?;
+                let key = key_gen.get_shared_key(tag)?;
                 Ok(TaggedElement::new(tag, key))
             })
             .collect();
 
-        let (spend, adaptor, proof) = wallet.generate_proof()?;
+        let (spend, adaptor, proof) = key_gen.generate_proof()?;
 
         Ok(BobParameters {
-            buy: wallet.get_pubkey(ArbitratingKeyId::Buy)?,
-            cancel: wallet.get_pubkey(ArbitratingKeyId::Cancel)?,
-            refund: wallet.get_pubkey(ArbitratingKeyId::Refund)?,
+            buy: key_gen.get_pubkey(ArbitratingKeyId::Buy)?,
+            cancel: key_gen.get_pubkey(ArbitratingKeyId::Cancel)?,
+            refund: key_gen.get_pubkey(ArbitratingKeyId::Refund)?,
             adaptor,
             extra_arbitrating_keys: extra_arbitrating_keys?,
             arbitrating_shared_keys: arbitrating_shared_keys?,

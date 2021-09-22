@@ -336,13 +336,13 @@ pub trait Signatures {
     type EncryptedSignature: Clone + Debug + fmt::Display + CanonicalBytes;
 }
 
-/// Meta trait regrouping all the needed trait combinaisons a key manager must implement. Used when
-/// executing the protocol on [`Alice`] and [`Bob`] methods. This trait is auto-implemented for all
-/// `T` meeting the requirements.
+/// Meta trait regrouping all the needed trait combinaisons a key manager must implement to manage
+/// all the keys needed when executing the protocol on [`Alice`] and [`Bob`] methods. This trait is
+/// auto-implemented for all `T` meeting the requirements.
 ///
 /// [`Alice`]: crate::role::Alice
 /// [`Bob`]: crate::role::Bob
-pub trait Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:
+pub trait KeyGenerator<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:
     GenerateKey<ArPublicKey, ArbitratingKeyId>
     + GenerateKey<AcPublicKey, AccordantKeyId>
     + ProveCrossGroupDleq<ArPublicKey, AcPublicKey, Proof>
@@ -352,7 +352,7 @@ pub trait Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:
 }
 
 impl<T, ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>
-    Wallet<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof> for T
+    KeyGenerator<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof> for T
 where
     T: GenerateKey<ArPublicKey, ArbitratingKeyId>
         + GenerateKey<AcPublicKey, AccordantKeyId>

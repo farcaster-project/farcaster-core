@@ -542,11 +542,11 @@ impl DLEQProof {
         let xG_p = x_ed25519 * G;
 
         // TODO: do properly
-        let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(x_shaved)
+        let x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(x_shaved)
             .mark::<NonZero>()
             .expect("x is zero");
         #[allow(non_snake_case)]
-        let xH_p = secp256k1Point::from_scalar_mul(H, &mut x_secp256k1).mark::<Normal>();
+        let xH_p = g!(x_secp256k1 * H).mark::<Normal>();
 
         let c_g = key_commitment(x_bits, msb_index);
         let c_h = key_commitment_secp256k1(x_bits, msb_index);

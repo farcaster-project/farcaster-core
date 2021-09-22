@@ -11,7 +11,7 @@ use std::io;
 
 use crate::blockchain::{Address, Fee, FeeStrategy, Onchain, Timelock};
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
-use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures, TaggedElement};
+use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures, TaggedElement};
 use crate::protocol_message;
 use crate::swap::Swap;
 
@@ -31,11 +31,11 @@ pub struct AliceParameters<Ctx: Swap> {
     pub adaptor: <Ctx::Ar as Keys>::PublicKey,
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
     pub arbitrating_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedSecretKeys>::SharedSecretKey>>,
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     pub extra_accordant_keys: Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
     pub accordant_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     pub destination_address: <Ctx::Ar as Address>::Address,
     pub proof: Ctx::Proof,
     pub cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
@@ -146,11 +146,11 @@ pub struct BobParameters<Ctx: Swap> {
     pub adaptor: <Ctx::Ar as Keys>::PublicKey,
     pub extra_arbitrating_keys: Vec<TaggedElement<u16, <Ctx::Ar as Keys>::PublicKey>>,
     pub arbitrating_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ar as SharedSecretKeys>::SharedSecretKey>>,
     pub spend: <Ctx::Ac as Keys>::PublicKey,
     pub extra_accordant_keys: Vec<TaggedElement<u16, <Ctx::Ac as Keys>::PublicKey>>,
     pub accordant_shared_keys:
-        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedPrivateKeys>::SharedPrivateKey>>,
+        Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     pub refund_address: <Ctx::Ar as Address>::Address,
     pub proof: Ctx::Proof,
     pub cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
@@ -420,7 +420,7 @@ where
     T: Signatures + Onchain,
 {
     pub buy: T::PartialTransaction,
-    pub buy_adaptor_sig: T::AdaptorSignature,
+    pub buy_adaptor_sig: T::EncryptedSignature,
 }
 
 fn signed_adaptor_buy_fmt<T>(b: &SignedAdaptorBuy<T>) -> String
@@ -454,7 +454,7 @@ where
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
             buy: T::PartialTransaction::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            buy_adaptor_sig: T::AdaptorSignature::from_canonical_bytes(
+            buy_adaptor_sig: T::EncryptedSignature::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
         })
@@ -517,7 +517,7 @@ pub struct SignedAdaptorRefund<S>
 where
     S: Signatures,
 {
-    pub refund_adaptor_sig: S::AdaptorSignature,
+    pub refund_adaptor_sig: S::EncryptedSignature,
 }
 
 impl<S> Encodable for SignedAdaptorRefund<S>
@@ -537,7 +537,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
-            refund_adaptor_sig: S::AdaptorSignature::from_canonical_bytes(
+            refund_adaptor_sig: S::EncryptedSignature::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
         })

@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use crate::bitcoin::{Bitcoin, BitcoinTaproot, Btc, Strategy};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys, Signatures};
+use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
 //use crate::role::Arbitrating;
 
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
@@ -52,7 +52,7 @@ impl TryFrom<Btc> for Bitcoin<Taproot> {
 }
 
 impl Keys for Bitcoin<Taproot> {
-    type PrivateKey = KeyPair;
+    type SecretKey = KeyPair;
     type PublicKey = PublicKey;
 
     fn extra_keys() -> Vec<u16> {
@@ -105,8 +105,8 @@ impl CanonicalBytes for SecretSharedKey {
     }
 }
 
-impl SharedPrivateKeys for Bitcoin<Taproot> {
-    type SharedPrivateKey = SecretSharedKey;
+impl SharedSecretKeys for Bitcoin<Taproot> {
+    type SharedSecretKey = SecretSharedKey;
 
     fn shared_keys() -> Vec<SharedKeyId> {
         // No shared key in Bitcoin, transparent ledger
@@ -117,7 +117,7 @@ impl SharedPrivateKeys for Bitcoin<Taproot> {
 impl Signatures for Bitcoin<Taproot> {
     type Message = Sha256dHash;
     type Signature = Signature;
-    type AdaptorSignature = Signature;
+    type EncryptedSignature = Signature;
 }
 
 impl CanonicalBytes for Signature {

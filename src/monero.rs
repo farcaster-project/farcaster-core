@@ -3,7 +3,7 @@
 
 use crate::blockchain::{self, Asset};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedPrivateKeys};
+use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys};
 use crate::role::Accordant;
 
 use monero::util::key::{PrivateKey, PublicKey};
@@ -91,10 +91,7 @@ impl CanonicalBytes for Address {
 }
 
 impl Keys for Monero {
-    /// Private key type for the blockchain
-    type PrivateKey = PrivateKey;
-
-    /// Public key type for the blockchain
+    type SecretKey = PrivateKey;
     type PublicKey = PublicKey;
 
     fn extra_keys() -> Vec<u16> {
@@ -129,8 +126,8 @@ impl CanonicalBytes for PublicKey {
     }
 }
 
-impl SharedPrivateKeys for Monero {
-    type SharedPrivateKey = PrivateKey;
+impl SharedSecretKeys for Monero {
+    type SharedSecretKey = PrivateKey;
 
     fn shared_keys() -> Vec<SharedKeyId> {
         // Share one key: the private view key

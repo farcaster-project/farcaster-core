@@ -569,7 +569,11 @@ impl DLEQProof {
         }
     }
 
-    fn verify(&self) -> bool {
+    fn verify(&self) -> Result<(), &'static str> {
+        assert_eq!(252, self.c_g.len());
+        assert_eq!(252, self.c_h.len());
+        assert_eq!(252, self.ring_signatures.len());
+
         let commitment_agg_ed25519 = self
             .c_g
             .iter()
@@ -578,12 +582,16 @@ impl DLEQProof {
                 acc + bit_commitment.commitment
             });
 
+        if !(self.xG_p == commitment_agg_ed25519) {return Err("ed25519 commitment invalid")}
+
         let commitment_agg_secp256k1 = self
             .c_h
             .iter()
             .fold(secp256k1Point::zero(), |acc, bit_commitment| {
                 g!(acc + bit_commitment.commitment).mark::<Normal>()
             });
+
+        if !(self.xH_p == commitment_agg_secp256k1) {return Err("secp256k1 commitment invalid")}
 
         let valid_ring_signatures = self
             .c_g
@@ -596,9 +604,8 @@ impl DLEQProof {
                 verify_ring_sig(index, *c_g_i, c_h_i, ring_sig)
             });
 
-        (self.xG_p == commitment_agg_ed25519)
-            && (self.xH_p == commitment_agg_secp256k1)
-            && valid_ring_signatures
+        if !(valid_ring_signatures) {return Err("a ring signature is invalid")}
+        Ok(())
     }
 }
 
@@ -640,7 +647,7 @@ fn dleq_proof_works() {
     let x: [u8; 32] = rand::thread_rng().gen();
     let dleq = DLEQProof::generate(x);
 
-    assert!(dleq.verify());
+    assert!(dleq.verify().is_ok(), "{:?}", dleq.verify().err().unwrap());
 }
 
 #[test]

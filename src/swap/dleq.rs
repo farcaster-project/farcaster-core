@@ -26,6 +26,7 @@ fn G_p() -> ed25519Point {
     let hash_to_curve = ed25519PointCompressed::from_slice(&hash_G)
         .decompress()
         .unwrap();
+    // should be in basepoint's subgroup
     ed25519Scalar::from(8u8) * hash_to_curve
 }
 
@@ -502,9 +503,10 @@ impl
     }
 }
 
+#[allow(non_snake_case)]
 struct DLEQProof {
-    xg_p: ed25519Point,
-    xh_p: secp256k1Point,
+    xG_p: ed25519Point,
+    xH_p: secp256k1Point,
     c_g: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>,
     c_h: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>,
     ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>,
@@ -536,13 +538,15 @@ impl DLEQProof {
         let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x_shaved).unwrap();
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
-        let xg_p = x_ed25519 * G;
+        #[allow(non_snake_case)]
+        let xG_p = x_ed25519 * G;
 
         // TODO: do properly
         let mut x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(x_shaved)
             .mark::<NonZero>()
             .expect("x is zero");
-        let xh_p = secp256k1Point::from_scalar_mul(H, &mut x_secp256k1).mark::<Normal>();
+        #[allow(non_snake_case)]
+        let xH_p = secp256k1Point::from_scalar_mul(H, &mut x_secp256k1).mark::<Normal>();
 
         let c_g = key_commitment(x_bits, msb_index);
         let c_h = key_commitment_secp256k1(x_bits, msb_index);
@@ -557,8 +561,8 @@ impl DLEQProof {
             .collect();
 
         DLEQProof {
-            xg_p,
-            xh_p,
+            xG_p,
+            xH_p,
             c_g,
             c_h,
             ring_signatures,
@@ -566,7 +570,23 @@ impl DLEQProof {
     }
 
     fn verify(&self) -> bool {
-        self.c_g
+        let commitment_agg_ed25519 = self
+            .c_g
+            .iter()
+            .enumerate()
+            .fold(ed25519Point::identity(), |acc, (index, bit_commitment)| {
+                acc + bit_commitment.commitment
+            });
+
+        let commitment_agg_secp256k1 = self
+            .c_h
+            .iter()
+            .fold(secp256k1Point::zero(), |acc, bit_commitment| {
+                g!(acc + bit_commitment.commitment).mark::<Normal>()
+            });
+
+        let valid_ring_signatures = self
+            .c_g
             .clone()
             .iter()
             .enumerate()
@@ -574,7 +594,11 @@ impl DLEQProof {
             .zip(self.ring_signatures.clone())
             .all(|(((index, c_g_i), c_h_i), ring_sig)| {
                 verify_ring_sig(index, *c_g_i, c_h_i, ring_sig)
-            })
+            });
+
+        (self.xG_p == commitment_agg_ed25519)
+            && (self.xH_p == commitment_agg_secp256k1)
+            && valid_ring_signatures
     }
 }
 
@@ -608,7 +632,6 @@ fn pedersen_commitment_sec256k1_works() {
         |acc, bit_commitment| g!(acc + bit_commitment.commitment).mark::<Normal>(), // .fold(secp256k1Point::zero().mark::<Jacobian>(), |acc, bit_commitment| g!(acc + bit_commitment.commitment)
     );
     let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(x);
-    // let H_p = H_p();
     assert_eq!(g!(x_secp256k1 * H), commitment_acc);
 }
 
@@ -617,7 +640,7 @@ fn dleq_proof_works() {
     let x: [u8; 32] = rand::thread_rng().gen();
     let dleq = DLEQProof::generate(x);
 
-    dleq.verify();
+    assert!(dleq.verify());
 }
 
 #[test]

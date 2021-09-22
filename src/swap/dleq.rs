@@ -577,8 +577,7 @@ impl DLEQProof {
         let commitment_agg_ed25519 = self
             .c_g
             .iter()
-            .enumerate()
-            .fold(ed25519Point::identity(), |acc, (index, bit_commitment)| {
+            .fold(ed25519Point::identity(), |acc, bit_commitment| {
                 acc + bit_commitment.commitment
             });
 

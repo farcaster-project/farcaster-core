@@ -230,7 +230,7 @@ fn execute_offline_protocol() {
     let secp = Secp256k1::new();
     let btc_adaptor_priv =
         bob.recover_accordant_assets(&mut bob_key_manager, &alice_params, adaptor_buy, buy_tx);
-    let mut secret_bits: Vec<u8> = btc_adaptor_priv.as_ref().clone().into();
+    let mut secret_bits: Vec<u8> = (*btc_adaptor_priv.as_ref()).into();
     secret_bits.reverse();
     let xmr_spend_priv =
         monero::PrivateKey::from_slice(secret_bits.as_ref()).expect("Valid Monero Private Key");
@@ -288,7 +288,7 @@ fn execute_offline_protocol() {
         adaptor_refund,
         refund_tx,
     );
-    let mut secret_bits: Vec<u8> = btc_adaptor_priv.as_ref().clone().into();
+    let mut secret_bits: Vec<u8> = (*btc_adaptor_priv.as_ref()).into();
     secret_bits.reverse();
     let xmr_spend_priv =
         monero::PrivateKey::from_slice(secret_bits.as_ref()).expect("Valid Monero Private Key");

@@ -12,6 +12,11 @@ use tiny_keccak::{Hasher, Keccak};
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+pub mod slip10;
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 mod dleq;
 
 /// List of cryptographic errors that can be encountered in cryptographic operations such as
@@ -477,7 +482,3 @@ pub trait ProveCrossGroupDleq<EncryptionKey, AccordantSpendKey, Proof> {
         proof: Proof,
     ) -> Result<(), Error>;
 }
-
-#[cfg(feature = "experimental")]
-#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-pub mod slip10;

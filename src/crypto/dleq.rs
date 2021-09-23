@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use amplify::num::u256;
+use crate::{consensus::{self, CanonicalBytes}, crypto};
 
 use bitcoin_hashes::{self, Hash};
 
@@ -75,7 +76,7 @@ fn H_p() -> secp256k1Point {
     // .expect("Alternate basepoint is invalid")
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
     blinder: Scalar,
@@ -228,7 +229,7 @@ fn key_commitment_secp256k1(
     commitment
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct RingSignature<ScalarCurveA, ScalarCurveB> {
     e_g_0_i: ScalarCurveA,
     e_h_0_i: ScalarCurveB,
@@ -503,13 +504,27 @@ impl
     }
 }
 
+#[derive(Clone, Debug)]
 #[allow(non_snake_case)]
-struct DLEQProof {
+pub struct DLEQProof {
     xG_p: ed25519Point,
     xH_p: secp256k1Point,
     c_g: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>,
     c_h: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>,
     ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>,
+}
+
+impl CanonicalBytes for DLEQProof {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        vec![0u8]
+    }
+
+    fn from_canonical_bytes(_: &[u8]) -> Result<DLEQProof, consensus::Error>
+    where
+        Self: Sized,
+    {
+        unimplemented!()
+    }
 }
 
 fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
@@ -530,7 +545,7 @@ fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
 }
 
 impl DLEQProof {
-    fn generate(x: [u8; 32]) -> Self {
+    pub(crate) fn generate(x: [u8; 32]) -> Self {
         // convention: start count at 0
         let msb_index = 251;
 
@@ -569,7 +584,7 @@ impl DLEQProof {
         }
     }
 
-    fn verify(&self) -> Result<(), &'static str> {
+    pub(crate) fn verify(&self) -> Result<(), crypto::Error> {
         assert_eq!(252, self.c_g.len());
         assert_eq!(252, self.c_h.len());
         assert_eq!(252, self.ring_signatures.len());
@@ -581,7 +596,7 @@ impl DLEQProof {
                 acc + bit_commitment.commitment
             });
 
-        if !(self.xG_p == commitment_agg_ed25519) {return Err("ed25519 commitment invalid")}
+        if !(self.xG_p == commitment_agg_ed25519) {return Err(crypto::Error::InvalidPedersenCommitment)}
 
         let commitment_agg_secp256k1 = self
             .c_h
@@ -590,7 +605,7 @@ impl DLEQProof {
                 g!(acc + bit_commitment.commitment).mark::<Normal>()
             });
 
-        if !(self.xH_p == commitment_agg_secp256k1) {return Err("secp256k1 commitment invalid")}
+        if !(self.xH_p == commitment_agg_secp256k1) {return Err(crypto::Error::InvalidPedersenCommitment)}
 
         let valid_ring_signatures = self
             .c_g
@@ -603,7 +618,7 @@ impl DLEQProof {
                 verify_ring_sig(index, *c_g_i, c_h_i, ring_sig)
             });
 
-        if !(valid_ring_signatures) {return Err("a ring signature is invalid")}
+        if !(valid_ring_signatures) {return Err(crypto::Error::InvalidRingSignature)}
         Ok(())
     }
 }

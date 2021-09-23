@@ -17,7 +17,7 @@ use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 pub mod slip10;
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-mod dleq;
+pub mod dleq;
 
 /// List of cryptographic errors that can be encountered in cryptographic operations such as
 /// signatures, proofs, key derivation, or commitments.
@@ -41,6 +41,12 @@ pub enum Error {
     /// The commitment does not match the given value.
     #[error("The commitment does not match the given value")]
     InvalidCommitment,
+    /// The Pedersen commitment does not match the given value.
+    #[error("The Pedersen commitment does not match the given value")]
+    InvalidPedersenCommitment,
+    /// The ring signature does not recompute.
+    #[error("The ring signature does not recompute")]
+    InvalidRingSignature,
     /// SLIP10 error when manipulating extended secret keys.
     #[error("SLIP10 error: {0}")]
     Slip10(#[from] slip10::Error),
@@ -343,7 +349,7 @@ pub trait Signatures {
     type EncryptedSignature: Clone + Debug + fmt::Display + CanonicalBytes;
 }
 
-/// Meta trait regrouping all the needed trait combinaisons a key manager must implement to manage
+/// Meta trait regrouping all the needed trait combinations a key manager must implement to manage
 /// all the keys needed when executing the protocol on [`Alice`] and [`Bob`] methods. This trait is
 /// auto-implemented for all `T` meeting the requirements.
 ///
@@ -469,7 +475,7 @@ pub trait ProveCrossGroupDleq<EncryptionKey, AccordantSpendKey, Proof> {
     /// arbitrating public key, also called the encryption public key,
     fn generate_proof(&mut self) -> Result<(AccordantSpendKey, EncryptionKey, Proof), Error>;
 
-    /// Project the accordant sepnd secret key over the arbitrating curve to get the public key
+    /// Project the accordant spend secret key over the arbitrating curve to get the public key
     /// used as the encryption public key.
     fn get_encryption_key(&mut self) -> Result<EncryptionKey, Error>;
 

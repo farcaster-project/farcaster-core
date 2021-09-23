@@ -44,12 +44,12 @@ type Transcript = HashTranscript<Sha256, ChaCha20Rng>;
 #[cfg(feature = "experimental")]
 type NonceGen = nonce::Synthetic<Sha256, nonce::GlobalRng<ThreadRng>>;
 
-/// Index, used as hardned derivation, to derive standard keys defined in the protocol for Bitcoin
+/// Index, used as hardened derivation, to derive standard keys defined in the protocol for Bitcoin
 /// and Monero.
 pub const STD_KEY_DERIVE_INDEX: u32 = 1;
-/// Index, used as hardned derivation, to derive extra keys for Bitcoin and Monero.
+/// Index, used as hardened derivation, to derive extra keys for Bitcoin and Monero.
 pub const EXTRA_KEY_DERIVE_INDEX: u32 = 2;
-/// Index, used as hardned derivation, to derive shared secret keys for Bitcoin and Monero.
+/// Index, used as hardened derivation, to derive shared secret keys for Bitcoin and Monero.
 pub const SHARED_KEY_DERIVE_INDEX: u32 = 3;
 
 /// Clamping mask for the accordant spend key. The key is generated `(mod l)` which is `mod 2^252 +

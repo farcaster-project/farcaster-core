@@ -12,6 +12,8 @@ use tiny_keccak::{Hasher, Keccak};
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 
+mod dleq;
+
 /// List of cryptographic errors that can be encountered in cryptographic operations such as
 /// signatures, proofs, key derivation, or commitments.
 #[derive(Error, Debug)]

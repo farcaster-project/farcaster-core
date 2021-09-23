@@ -10,7 +10,6 @@ use crate::role::{Accordant, Arbitrating};
 use lightning_encoding::strategies::AsStrict;
 
 pub mod btcxmr;
-pub mod dleq;
 
 fixed_hash::construct_fixed_hash!(
     /// A unique swap identifier represented as an 32 bytes hash.

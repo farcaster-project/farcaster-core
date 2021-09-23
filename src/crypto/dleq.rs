@@ -507,8 +507,8 @@ impl
 #[derive(Clone, Debug)]
 #[allow(non_snake_case)]
 pub struct DLEQProof {
-    xG_p: ed25519Point,
-    xH_p: secp256k1Point,
+    pub(crate) xG_p: ed25519Point,
+    pub(crate) xH_p: secp256k1Point,
     c_g: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>,
     c_h: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>,
     ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>,

@@ -231,11 +231,11 @@ impl KeyManager {
     /// Get the monero accordant spend secret key. The key is derived from the master seed like all
     /// other keys but clamped to only 252 bits.
     pub fn get_or_derive_monero_spend_key(&mut self) -> Result<monero::PrivateKey, crypto::Error> {
-        let mut little_endian_bits = self
+        let mut little_endian_bytes = self
             .get_or_derive_monero_key(AccordantKeyId::Spend)?
             .to_bytes();
-        little_endian_bits[31] &= CLAMPING_TO_252_BITS_MASK;
-        Ok(monero::PrivateKey::from_slice(little_endian_bits.as_ref())
+        little_endian_bytes[31] &= CLAMPING_TO_252_BITS_MASK;
+        Ok(monero::PrivateKey::from_slice(little_endian_bytes.as_ref())
             .expect("Valid canonical bytes"))
     }
 
@@ -372,9 +372,9 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
             AccordantKeyId::Spend => self.get_or_derive_monero_spend_key()?,
             _ => return Err(crypto::Error::UnsupportedKey),
         };
-        let mut little_endian_secret_bits = secret_key.to_bytes();
-        little_endian_secret_bits.reverse();
-        let secret_key = SecretKey::from_slice(little_endian_secret_bits.as_ref())
+        let mut little_endian_secret_bytes = secret_key.to_bytes();
+        little_endian_secret_bytes.reverse();
+        let secret_key = SecretKey::from_slice(little_endian_secret_bytes.as_ref())
             .map_err(crypto::Error::new)?;
 
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
@@ -418,10 +418,10 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager
     fn get_encryption_key(&mut self) -> Result<PublicKey, crypto::Error> {
         let secp = Secp256k1::new();
         let secret = self.get_or_derive_monero_spend_key()?;
-        let mut little_endian_secret_bits = secret.to_bytes();
-        little_endian_secret_bits.reverse();
+        let mut little_endian_secret_bytes = secret.to_bytes();
+        little_endian_secret_bytes.reverse();
         let encryption_secret_key =
-            SecretKey::from_slice(&little_endian_secret_bits).map_err(crypto::Error::new)?;
+            SecretKey::from_slice(&little_endian_secret_bytes).map_err(crypto::Error::new)?;
         Ok(PublicKey::from_secret_key(&secp, &encryption_secret_key))
     }
 

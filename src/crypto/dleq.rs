@@ -735,9 +735,7 @@ impl DLEQProof {
         let commitment_agg_ed25519 = self
             .c_g
             .iter()
-            .fold(ed25519Point::identity(), |acc, bit_commitment| {
-                acc + bit_commitment
-            });
+            .sum();
 
         if !(self.xG_p == commitment_agg_ed25519) {
             return Err(crypto::Error::InvalidPedersenCommitment);
@@ -781,8 +779,7 @@ fn pedersen_commitment_works() {
     let key_commitment = key_commitment(x_bits, 255);
     let commitment_acc = key_commitment
         .iter()
-        .enumerate()
-        .fold(ed25519Point::identity(), |acc, (index, bit_commitment)| {
+        .fold(ed25519Point::identity(), |acc, bit_commitment| {
             acc + bit_commitment.commitment
         });
     assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);

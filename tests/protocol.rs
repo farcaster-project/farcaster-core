@@ -223,7 +223,7 @@ fn execute_offline_protocol() {
 
     // ...seen buy tx on-chain...
 
-    let (xmr_public_spend, btc_encryption_key, _) = alice_key_manager
+    let (xmr_public_spend, btc_encryption_key, dleq_proof) = alice_key_manager
         .generate_proof()
         .expect("Considered valid in tests");
 
@@ -243,6 +243,9 @@ fn execute_offline_protocol() {
         monero::PublicKey::from_private_key(&xmr_spend_priv),
         xmr_public_spend,
     );
+    assert!(bob_key_manager
+        .verify_proof(&xmr_public_spend, &btc_encryption_key, dleq_proof)
+        .is_ok());
 
     //
     // IF CANCEL PATH:
@@ -278,7 +281,7 @@ fn execute_offline_protocol() {
 
     // ...seen refund tx on-chain...
 
-    let (xmr_public_spend, btc_encryption_key, _) = bob_key_manager
+    let (xmr_public_spend, btc_encryption_key, dleq_proof) = bob_key_manager
         .generate_proof()
         .expect("Considered valid in tests");
 
@@ -301,6 +304,9 @@ fn execute_offline_protocol() {
         monero::PublicKey::from_private_key(&xmr_spend_priv),
         xmr_public_spend,
     );
+    assert!(alice_key_manager
+        .verify_proof(&xmr_public_spend, &btc_encryption_key, dleq_proof)
+        .is_ok());
 
     //
     // IF PUNISH CANCEL PATH:

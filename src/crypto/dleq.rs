@@ -588,7 +588,6 @@ impl CanonicalBytes for DLEQProof {
             .collect::<Vec<u8>>()
             .try_into()
             .unwrap();
-        println!("xH_p_bytes post: {:?}", xH_p_bytes);
         let xH_p: secp256k1Point = secp256k1Point::from_bytes(xH_p_bytes).unwrap();
         iterator.nth(32);
 

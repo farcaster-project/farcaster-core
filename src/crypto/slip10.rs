@@ -183,8 +183,7 @@ impl Secp256k1ExtSecretKey {
             ChildNumber::Normal { .. } => {
                 // Non-hardened key: compute public data and use that
                 hmac_engine.input(
-                    &secp256k1::PublicKey::from_secret_key(secp, &self.secret_key).serialize()
-                        [..],
+                    &secp256k1::PublicKey::from_secret_key(secp, &self.secret_key).serialize()[..],
                 );
             }
             ChildNumber::Hardened { .. } => {
@@ -222,10 +221,7 @@ impl Secp256k1ExtSecretKey {
         })
     }
 
-    pub fn public_key<C: secp256k1::Signing>(
-        &self,
-        secp: &Secp256k1<C>,
-    ) -> secp256k1::PublicKey {
+    pub fn public_key<C: secp256k1::Signing>(&self, secp: &Secp256k1<C>) -> secp256k1::PublicKey {
         secp256k1::PublicKey::from_secret_key(secp, &self.secret_key)
     }
 

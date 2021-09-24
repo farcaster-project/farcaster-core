@@ -290,18 +290,15 @@ fn verify_ring_sig(
     // compute e_0_i
     let e_0_i = {
         let term2: [u8; 32] = *(ring_sig.a_0_i * G_p()
-            - e_g_1_i
-                * (c_g_i
-                    - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
+            - e_g_1_i * (c_g_i - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
             .compress()
             .as_bytes();
 
-        let term3: [u8; 33] =
-            g!(ring_sig.b_0_i * H_p - e_h_1_i * (c_h_i - order_on_secp256k1 * H))
-                .mark::<Normal>()
-                .mark::<NonZero>()
-                .expect("is zero")
-                .to_bytes();
+        let term3: [u8; 33] = g!(ring_sig.b_0_i * H_p - e_h_1_i * (c_h_i - order_on_secp256k1 * H))
+            .mark::<Normal>()
+            .mark::<NonZero>()
+            .expect("is zero")
+            .to_bytes();
 
         ring_hash(term0, term1, term2, term3)
     };
@@ -608,10 +605,11 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(31);
-            c_g.push(ed25519PointCompressed::from_slice(&c_bytes)
+            c_g.push(
+                ed25519PointCompressed::from_slice(&c_bytes)
                     .decompress()
-                    .unwrap()
-);
+                    .unwrap(),
+            );
         }
 
         // Vec<secp256k1Point>
@@ -625,35 +623,86 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(32);
-            c_h.push(secp256k1Point::from_bytes(c_bytes).unwrap()
-);
+            c_h.push(secp256k1Point::from_bytes(c_bytes).unwrap());
         }
 
         // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
         let mut ring_signatures = vec![];
         for depth in 0..bits {
-            let e_g_0_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            let e_g_0_i_bytes: [u8; 32] = iterator
+                .clone()
+                .take(32)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
             iterator.nth(31);
             let e_g_0_i = ed25519Scalar::from_canonical_bytes(e_g_0_i_bytes).unwrap();
-            let e_h_0_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            let e_h_0_i_bytes: [u8; 32] = iterator
+                .clone()
+                .take(32)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
             iterator.nth(31);
-            let e_h_0_i = secp256k1Scalar::from_bytes(e_h_0_i_bytes).unwrap().mark::<NonZero>().unwrap();
+            let e_h_0_i = secp256k1Scalar::from_bytes(e_h_0_i_bytes)
+                .unwrap()
+                .mark::<NonZero>()
+                .unwrap();
 
-            let a_0_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            let a_0_i_bytes: [u8; 32] = iterator
+                .clone()
+                .take(32)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
             iterator.nth(31);
             let a_0_i = ed25519Scalar::from_canonical_bytes(a_0_i_bytes).unwrap();
-            let b_0_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            let b_0_i_bytes: [u8; 32] = iterator
+                .clone()
+                .take(32)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
             iterator.nth(31);
-            let b_0_i = secp256k1Scalar::from_bytes(b_0_i_bytes).unwrap().mark::<NonZero>().unwrap();
+            let b_0_i = secp256k1Scalar::from_bytes(b_0_i_bytes)
+                .unwrap()
+                .mark::<NonZero>()
+                .unwrap();
 
-            let a_1_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            let a_1_i_bytes: [u8; 32] = iterator
+                .clone()
+                .take(32)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
             iterator.nth(31);
             let a_1_i = ed25519Scalar::from_canonical_bytes(a_1_i_bytes).unwrap();
-            let b_1_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            let b_1_i_bytes: [u8; 32] = iterator
+                .clone()
+                .take(32)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
             iterator.nth(31);
-            let b_1_i = secp256k1Scalar::from_bytes(b_1_i_bytes).unwrap().mark::<NonZero>().unwrap();
+            let b_1_i = secp256k1Scalar::from_bytes(b_1_i_bytes)
+                .unwrap()
+                .mark::<NonZero>()
+                .unwrap();
 
-            let ring_sig = RingSignature { e_g_0_i, e_h_0_i, a_0_i, b_0_i, a_1_i, b_1_i };
+            let ring_sig = RingSignature {
+                e_g_0_i,
+                e_h_0_i,
+                a_0_i,
+                b_0_i,
+                a_1_i,
+                b_1_i,
+            };
             ring_signatures.push(ring_sig);
         }
 
@@ -732,10 +781,7 @@ impl DLEQProof {
         assert_eq!(252, self.c_h.len());
         assert_eq!(252, self.ring_signatures.len());
 
-        let commitment_agg_ed25519 = self
-            .c_g
-            .iter()
-            .sum();
+        let commitment_agg_ed25519 = self.c_g.iter().sum();
 
         if !(self.xG_p == commitment_agg_ed25519) {
             return Err(crypto::Error::InvalidPedersenCommitment);
@@ -834,7 +880,10 @@ fn canonical_encoding_decoding_idempotent() {
     let x: [u8; 32] = rand::thread_rng().gen();
     let dleq = DLEQProof::generate(x);
 
-    assert_eq!(DLEQProof::from_canonical_bytes(dleq.as_canonical_bytes().as_slice()).unwrap(), dleq)
+    assert_eq!(
+        DLEQProof::from_canonical_bytes(dleq.as_canonical_bytes().as_slice()).unwrap(),
+        dleq
+    )
 }
 
 // #[test]

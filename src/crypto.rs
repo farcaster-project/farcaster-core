@@ -14,10 +14,10 @@ use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-pub mod slip10;
+pub mod dleq;
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-pub mod dleq;
+pub mod slip10;
 
 /// List of cryptographic errors that can be encountered in cryptographic operations such as
 /// signatures, proofs, key derivation, or commitments.

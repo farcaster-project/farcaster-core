@@ -1,6 +1,7 @@
 use bitcoin::hashes::{sha256d, Hash};
 use rand::prelude::*;
 use std::convert::TryInto;
+use std::str::FromStr;
 
 use farcaster_core::consensus::CanonicalBytes;
 use farcaster_core::crypto::{
@@ -181,4 +182,31 @@ fn key_manager_can_recover_secret() {
     let mut secret = secret.as_canonical_bytes();
     secret.reverse();
     assert_eq!(secret, recovered_secret.as_canonical_bytes());
+}
+
+#[test]
+fn can_create_accordant_address() {
+    use monero::{Address, Network, PrivateKey, PublicKey};
+
+    let swap_index = 0;
+    let mut a_key_manager = KeyManager::new([1u8; 32], swap_index).unwrap();
+    let mut b_key_manager = KeyManager::new([2u8; 32], swap_index).unwrap();
+
+    let a_spend_pubkey = a_key_manager.get_pubkey(AccordantKeyId::Spend).unwrap();
+    let b_spend_pubkey = b_key_manager.get_pubkey(AccordantKeyId::Spend).unwrap();
+
+    let a_view_secretkey: PrivateKey = a_key_manager
+        .get_shared_key(SharedKeyId::new(SHARED_VIEW_KEY_ID))
+        .unwrap();
+    let b_view_secretkey: PrivateKey = b_key_manager
+        .get_shared_key(SharedKeyId::new(SHARED_VIEW_KEY_ID))
+        .unwrap();
+
+    let public_spend = a_spend_pubkey + b_spend_pubkey;
+    let secret_view = a_view_secretkey + b_view_secretkey;
+    let public_view = PublicKey::from_private_key(&secret_view);
+
+    let accordant_address = Address::standard(Network::Testnet, public_spend, public_view);
+    let addr = "9srAu5mbgRwjoUiobvJ6zXB2JL7MZsPRPTgzhVjFdZJb6afRPaeN1ND4e4MWz55Q2JM3bQLTWmMgyjPZZHLa4X587UgdkNy";
+    assert_eq!(Address::from_str(addr), Ok(accordant_address));
 }

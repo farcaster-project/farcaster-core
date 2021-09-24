@@ -62,7 +62,7 @@ impl Error {
 }
 
 /// Data represented in a canonical bytes format. The implementer **MUST** use the strict encoding
-/// dictated by the blockchain consensus without any lenght prefix. Lenght prefix is done by
+/// dictated by the blockchain consensus without any length prefix. Length prefix is done by
 /// Farcaster core during the serialization. This trait is required on foreign types used inside
 /// core messages (bundles, protocol messages, etc).
 pub trait CanonicalBytes {

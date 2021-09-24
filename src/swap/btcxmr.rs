@@ -1,7 +1,6 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
-use crate::{blockchain::Blockchain, crypto::dleq::DLEQProof};
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{
     self,
@@ -11,6 +10,7 @@ use crate::crypto::{
 };
 #[cfg(feature = "experimental")]
 use crate::{bitcoin::BitcoinSegwitV0, crypto::Sign, monero::Monero, swap::Swap};
+use crate::{blockchain::Blockchain, crypto::dleq::DLEQProof};
 
 use monero::cryptonote::hash::Hash;
 

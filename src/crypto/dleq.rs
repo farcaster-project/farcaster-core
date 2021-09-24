@@ -1,7 +1,10 @@
 use std::convert::TryInto;
 
+use crate::{
+    consensus::{self, CanonicalBytes},
+    crypto,
+};
 use amplify::num::u256;
-use crate::{consensus::{self, CanonicalBytes}, crypto};
 
 use bitcoin_hashes::{self, Hash};
 
@@ -79,6 +82,7 @@ fn H_p() -> secp256k1Point {
 #[derive(Copy, Clone, Debug)]
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
+    // TODO remove blinder!
     blinder: Scalar,
 }
 
@@ -516,14 +520,155 @@ pub struct DLEQProof {
 
 impl CanonicalBytes for DLEQProof {
     fn as_canonical_bytes(&self) -> Vec<u8> {
-        vec![0u8]
+        let mut v = vec![];
+
+        v.extend_from_slice(self.xG_p.compress().as_bytes());
+        v.extend(self.xH_p.to_bytes());
+
+        v.push(self.c_g.len() as u8);
+
+        let c_g_bytes: Vec<u8> = self.c_g.iter().fold(vec![], |mut acc, pc| {
+            acc.extend_from_slice(pc.commitment.compress().as_bytes());
+            acc
+        });
+        let c_h_bytes: Vec<u8> = self.c_h.iter().fold(vec![], |mut acc, pc| {
+            acc.extend(pc.commitment.to_bytes());
+            acc
+        });
+
+        let ring_signature_bytes: Vec<u8> =
+            self.ring_signatures
+                .iter()
+                .fold(vec![], |mut acc, ring_sig| {
+                    acc.extend(
+                        ring_sig
+                            .e_g_0_i
+                            .as_bytes()
+                            .iter()
+                            .chain(ring_sig.e_h_0_i.to_bytes().iter())
+                            .chain(ring_sig.a_0_i.as_bytes().iter())
+                            .chain(ring_sig.b_0_i.to_bytes().iter())
+                            .chain(ring_sig.a_1_i.as_bytes().iter())
+                            .chain(ring_sig.b_1_i.to_bytes().iter())
+                            .cloned()
+                            .collect::<Vec<u8>>(),
+                    );
+                    acc
+                });
+
+        v.extend(c_g_bytes);
+        v.extend(c_h_bytes);
+        v.extend(ring_signature_bytes);
+
+        v
     }
 
-    fn from_canonical_bytes(_: &[u8]) -> Result<DLEQProof, consensus::Error>
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<DLEQProof, consensus::Error>
     where
         Self: Sized,
     {
-        unimplemented!()
+        // xG_p
+        let mut iterator = bytes.iter();
+        let xG_p: Vec<&u8> = iterator.clone().take(32).collect();
+        let xG_p: ed25519Point = ed25519PointCompressed::from_slice(&bytes[..32])
+            .decompress()
+            .unwrap();
+        iterator.nth(31);
+        // let xG_p_bytes: [u8; 32] = iterator
+        //     .clone()
+        //     .take(32)
+        //     .cloned()
+        //     .collect::<Vec<u8>>()
+        //     .try_into()
+        //     .unwrap();
+        // let xG_p: ed25519Point = ed25519PointCompressed::from_slice(&xG_p_bytes).decompress().unwrap();
+        // iterator.nth(31);
+
+        // xH_p
+        let xH_p_bytes: [u8; 33] = iterator
+            .clone()
+            .take(33)
+            .cloned()
+            .collect::<Vec<u8>>()
+            .try_into()
+            .unwrap();
+        println!("xH_p_bytes post: {:?}", xH_p_bytes);
+        let xH_p: secp256k1Point = secp256k1Point::from_bytes(xH_p_bytes).unwrap();
+        iterator.nth(32);
+
+        // Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>
+        let bits = iterator.next().unwrap().clone();
+
+        let mut c_g = vec![];
+        for depth in 0..bits {
+            let c_bytes: [u8; 32] = iterator
+                .clone()
+                .take(32)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
+            iterator.nth(31);
+            c_g.push(PedersenCommitment {
+                commitment: ed25519PointCompressed::from_slice(&c_bytes)
+                    .decompress()
+                    .unwrap(),
+                blinder: ed25519Scalar::default(),
+            });
+        }
+
+        // Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>
+        let mut c_h = vec![];
+        for depth in 0..bits {
+            let c_bytes: [u8; 33] = iterator
+                .clone()
+                .take(33)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap();
+            iterator.nth(32);
+            c_h.push(PedersenCommitment {
+                commitment: secp256k1Point::from_bytes(c_bytes).unwrap(),
+                blinder: secp256k1Scalar::one(),
+            });
+        }
+
+        // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
+        let mut ring_signatures = vec![];
+        for depth in 0..bits {
+            let e_g_0_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            iterator.nth(31);
+            let e_g_0_i = ed25519Scalar::from_canonical_bytes(e_g_0_i_bytes).unwrap();
+            let e_h_0_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            iterator.nth(31);
+            let e_h_0_i = secp256k1Scalar::from_bytes(e_h_0_i_bytes).unwrap().mark::<NonZero>().unwrap();
+
+            let a_0_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            iterator.nth(31);
+            let a_0_i = ed25519Scalar::from_canonical_bytes(a_0_i_bytes).unwrap();
+            let b_0_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            iterator.nth(31);
+            let b_0_i = secp256k1Scalar::from_bytes(b_0_i_bytes).unwrap().mark::<NonZero>().unwrap();
+
+            let a_1_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            iterator.nth(31);
+            let a_1_i = ed25519Scalar::from_canonical_bytes(a_1_i_bytes).unwrap();
+            let b_1_i_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            iterator.nth(31);
+            let b_1_i = secp256k1Scalar::from_bytes(b_1_i_bytes).unwrap().mark::<NonZero>().unwrap();
+
+            let ring_sig = RingSignature { e_g_0_i, e_h_0_i, a_0_i, b_0_i, a_1_i, b_1_i };
+            ring_signatures.push(ring_sig);
+        }
+
+        Ok(DLEQProof {
+            xG_p,
+            xH_p,
+            c_g,
+            c_h,
+            ring_signatures,
+        })
     }
 }
 
@@ -596,7 +741,9 @@ impl DLEQProof {
                 acc + bit_commitment.commitment
             });
 
-        if !(self.xG_p == commitment_agg_ed25519) {return Err(crypto::Error::InvalidPedersenCommitment)}
+        if !(self.xG_p == commitment_agg_ed25519) {
+            return Err(crypto::Error::InvalidPedersenCommitment);
+        }
 
         let commitment_agg_secp256k1 = self
             .c_h
@@ -605,7 +752,9 @@ impl DLEQProof {
                 g!(acc + bit_commitment.commitment).mark::<Normal>()
             });
 
-        if !(self.xH_p == commitment_agg_secp256k1) {return Err(crypto::Error::InvalidPedersenCommitment)}
+        if !(self.xH_p == commitment_agg_secp256k1) {
+            return Err(crypto::Error::InvalidPedersenCommitment);
+        }
 
         let valid_ring_signatures = self
             .c_g
@@ -618,7 +767,9 @@ impl DLEQProof {
                 verify_ring_sig(index, *c_g_i, c_h_i, ring_sig)
             });
 
-        if !(valid_ring_signatures) {return Err(crypto::Error::InvalidRingSignature)}
+        if !(valid_ring_signatures) {
+            return Err(crypto::Error::InvalidRingSignature);
+        }
         Ok(())
     }
 }

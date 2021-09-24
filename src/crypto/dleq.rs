@@ -79,7 +79,7 @@ fn H_p() -> secp256k1Point {
     // .expect("Alternate basepoint is invalid")
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
     // TODO remove blinder!
@@ -233,7 +233,7 @@ fn key_commitment_secp256k1(
     commitment
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct RingSignature<ScalarCurveA, ScalarCurveB> {
     e_g_0_i: ScalarCurveA,
     e_h_0_i: ScalarCurveB,
@@ -508,7 +508,7 @@ impl
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[allow(non_snake_case)]
 pub struct DLEQProof {
     pub(crate) xG_p: ed25519Point,
@@ -832,6 +832,14 @@ fn blinders_sum_to_zero() {
 #[allow(non_snake_case)]
 fn alt_ed25519_generator_is_correct() {
     assert_eq!(G_p(), monero::util::key::H.point.decompress().unwrap())
+}
+
+#[test]
+fn canonical_encoding_decoding_idempotent() {
+    let x: [u8; 32] = rand::thread_rng().gen();
+    let dleq = DLEQProof::generate(x);
+
+    assert_eq!(DLEQProof::from_canonical_bytes(dleq.as_canonical_bytes().as_slice()).unwrap(), dleq)
 }
 
 // #[test]

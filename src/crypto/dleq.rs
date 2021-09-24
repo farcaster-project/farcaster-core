@@ -79,10 +79,9 @@ fn H_p() -> secp256k1Point {
     // .expect("Alternate basepoint is invalid")
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
-    // TODO remove blinder!
     blinder: Scalar,
 }
 
@@ -258,12 +257,12 @@ fn ring_hash(term0: [u8; 32], term1: [u8; 33], term2: [u8; 32], term3: [u8; 33])
 
 fn verify_ring_sig(
     index: usize,
-    c_g_i: PedersenCommitment<ed25519Point, ed25519Scalar>,
-    c_h_i: PedersenCommitment<secp256k1Point, secp256k1Scalar>,
+    c_g_i: ed25519Point,
+    c_h_i: secp256k1Point,
     ring_sig: RingSignature<ed25519Scalar, secp256k1Scalar>,
 ) -> bool {
-    let term0: [u8; 32] = c_g_i.commitment.compress().as_bytes().clone();
-    let term1: [u8; 33] = c_h_i.commitment.to_bytes();
+    let term0: [u8; 32] = c_g_i.compress().as_bytes().clone();
+    let term1: [u8; 33] = c_h_i.to_bytes();
 
     let order = u256::from(1u32) << index;
     let order_on_secp256k1 =
@@ -273,11 +272,11 @@ fn verify_ring_sig(
 
     // compute e_1_i
     let e_1_i = {
-        let term2: [u8; 32] = *(ring_sig.a_1_i * G_p() - ring_sig.e_g_0_i * c_g_i.commitment)
+        let term2: [u8; 32] = *(ring_sig.a_1_i * G_p() - ring_sig.e_g_0_i * c_g_i)
             .compress()
             .as_bytes();
 
-        let term3: [u8; 33] = g!(ring_sig.b_1_i * H_p - ring_sig.e_h_0_i * c_h_i.commitment)
+        let term3: [u8; 33] = g!(ring_sig.b_1_i * H_p - ring_sig.e_h_0_i * c_h_i)
             .mark::<Normal>()
             .mark::<NonZero>()
             .expect("is zero")
@@ -292,13 +291,13 @@ fn verify_ring_sig(
     let e_0_i = {
         let term2: [u8; 32] = *(ring_sig.a_0_i * G_p()
             - e_g_1_i
-                * (c_g_i.commitment
+                * (c_g_i
                     - ed25519Scalar::from_bytes_mod_order(order.to_le_bytes()) * G))
             .compress()
             .as_bytes();
 
         let term3: [u8; 33] =
-            g!(ring_sig.b_0_i * H_p - e_h_1_i * (c_h_i.commitment - order_on_secp256k1 * H))
+            g!(ring_sig.b_0_i * H_p - e_h_1_i * (c_h_i - order_on_secp256k1 * H))
                 .mark::<Normal>()
                 .mark::<NonZero>()
                 .expect("is zero")
@@ -513,8 +512,8 @@ impl
 pub struct DLEQProof {
     pub(crate) xG_p: ed25519Point,
     pub(crate) xH_p: secp256k1Point,
-    c_g: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>,
-    c_h: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>,
+    c_g: Vec<ed25519Point>,
+    c_h: Vec<secp256k1Point>,
     ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>,
 }
 
@@ -528,11 +527,11 @@ impl CanonicalBytes for DLEQProof {
         v.push(self.c_g.len() as u8);
 
         let c_g_bytes: Vec<u8> = self.c_g.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(pc.commitment.compress().as_bytes());
+            acc.extend_from_slice(pc.compress().as_bytes());
             acc
         });
         let c_h_bytes: Vec<u8> = self.c_h.iter().fold(vec![], |mut acc, pc| {
-            acc.extend(pc.commitment.to_bytes());
+            acc.extend(pc.to_bytes());
             acc
         });
 
@@ -596,7 +595,7 @@ impl CanonicalBytes for DLEQProof {
         let xH_p: secp256k1Point = secp256k1Point::from_bytes(xH_p_bytes).unwrap();
         iterator.nth(32);
 
-        // Vec<PedersenCommitment<ed25519Point, ed25519Scalar>>
+        // Vec<ed25519Point>
         let bits = iterator.next().unwrap().clone();
 
         let mut c_g = vec![];
@@ -609,15 +608,13 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(31);
-            c_g.push(PedersenCommitment {
-                commitment: ed25519PointCompressed::from_slice(&c_bytes)
+            c_g.push(ed25519PointCompressed::from_slice(&c_bytes)
                     .decompress()
-                    .unwrap(),
-                blinder: ed25519Scalar::default(),
-            });
+                    .unwrap()
+);
         }
 
-        // Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>>
+        // Vec<secp256k1Point>
         let mut c_h = vec![];
         for depth in 0..bits {
             let c_bytes: [u8; 33] = iterator
@@ -628,10 +625,8 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(32);
-            c_h.push(PedersenCommitment {
-                commitment: secp256k1Point::from_bytes(c_bytes).unwrap(),
-                blinder: secp256k1Scalar::one(),
-            });
+            c_h.push(secp256k1Point::from_bytes(c_bytes).unwrap()
+);
         }
 
         // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
@@ -720,6 +715,9 @@ impl DLEQProof {
             .map(|(((index, b_i), c_g_i), c_h_i)| RingSignature::from((index, *b_i, c_g_i, c_h_i)))
             .collect();
 
+        let c_g: Vec<ed25519Point> = c_g.iter().map(|pc| pc.commitment).collect();
+        let c_h: Vec<secp256k1Point> = c_h.iter().map(|pc| pc.commitment).collect();
+
         DLEQProof {
             xG_p,
             xH_p,
@@ -738,7 +736,7 @@ impl DLEQProof {
             .c_g
             .iter()
             .fold(ed25519Point::identity(), |acc, bit_commitment| {
-                acc + bit_commitment.commitment
+                acc + bit_commitment
             });
 
         if !(self.xG_p == commitment_agg_ed25519) {
@@ -749,7 +747,7 @@ impl DLEQProof {
             .c_h
             .iter()
             .fold(secp256k1Point::zero(), |acc, bit_commitment| {
-                g!(acc + bit_commitment.commitment).mark::<Normal>()
+                g!(acc + bit_commitment).mark::<Normal>()
             });
 
         if !(self.xH_p == commitment_agg_secp256k1) {

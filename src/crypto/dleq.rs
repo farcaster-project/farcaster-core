@@ -715,17 +715,39 @@ impl CanonicalBytes for DLEQProof {
             ring_signatures.push(ring_sig);
         }
 
-        let pok_0_alphaG_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+        let pok_0_alphaG_bytes: [u8; 32] = iterator
+            .clone()
+            .take(32)
+            .cloned()
+            .collect::<Vec<u8>>()
+            .try_into()
+            .unwrap();
         iterator.nth(31);
-        let pok_0_alphaG = ed25519PointCompressed::from_slice(&pok_0_alphaG_bytes).decompress().unwrap();
+        let pok_0_alphaG = ed25519PointCompressed::from_slice(&pok_0_alphaG_bytes)
+            .decompress()
+            .unwrap();
 
-        let pok_0_r_bytes: [u8; 32] = iterator.clone().take(32).cloned().collect::<Vec<u8>>().try_into().unwrap();
+        let pok_0_r_bytes: [u8; 32] = iterator
+            .clone()
+            .take(32)
+            .cloned()
+            .collect::<Vec<u8>>()
+            .try_into()
+            .unwrap();
         iterator.nth(31);
         let pok_0_r = ed25519Scalar::from_bits(pok_0_r_bytes);
 
         let pok_0 = (pok_0_alphaG, pok_0_r);
 
-        let pok_1 = ecdsa_fun::Signature::from_bytes(iterator.take(64).cloned().collect::<Vec<u8>>().try_into().unwrap()).unwrap();
+        let pok_1 = ecdsa_fun::Signature::from_bytes(
+            iterator
+                .take(64)
+                .cloned()
+                .collect::<Vec<u8>>()
+                .try_into()
+                .unwrap(),
+        )
+        .unwrap();
 
         Ok(DLEQProof {
             xG_p,
@@ -801,14 +823,18 @@ impl DLEQProof {
         alpha_preimage.extend_from_slice(&hash_x);
         alpha_preimage.extend_from_slice(&pok_0_message);
 
-        let alpha = ed25519Scalar::from_bytes_mod_order(monero::cryptonote::hash::keccak_256(&alpha_preimage));
+        let alpha = ed25519Scalar::from_bytes_mod_order(monero::cryptonote::hash::keccak_256(
+            &alpha_preimage,
+        ));
         let alpha_G = alpha * G;
 
         let mut challenge_preimage = vec![];
         challenge_preimage.extend_from_slice(alpha_G.compress().as_bytes());
         challenge_preimage.extend_from_slice(xG_p.compress().as_bytes());
         challenge_preimage.extend_from_slice(&pok_0_message);
-        let challenge = ed25519Scalar::from_bytes_mod_order(monero::cryptonote::hash::keccak_256(&challenge_preimage));
+        let challenge = ed25519Scalar::from_bytes_mod_order(monero::cryptonote::hash::keccak_256(
+            &challenge_preimage,
+        ));
 
         let response = alpha + challenge * x_ed25519;
 
@@ -826,10 +852,7 @@ impl DLEQProof {
         let pok_1_message_hash: [u8; 32] = sha2::Sha256::digest(&pok_1_message).try_into().unwrap();
         let ecdsa = ecdsa_fun::ECDSA::new(nonce_gen);
 
-        let pok_1 = ecdsa.sign(
-            &x_secp256k1,
-            &pok_1_message_hash,
-        );
+        let pok_1 = ecdsa.sign(&x_secp256k1, &pok_1_message_hash);
 
         assert!(ecdsa.verify(&xH_p, &pok_1_message_hash, &pok_1));
 
@@ -853,7 +876,7 @@ impl DLEQProof {
         let commitment_agg_ed25519 = self.c_g.iter().sum();
 
         if !(self.xG_p == commitment_agg_ed25519) {
-            return Err(crypto::Error::InvalidPedersenCommitment)
+            return Err(crypto::Error::InvalidPedersenCommitment);
         }
 
         let commitment_agg_secp256k1 = self
@@ -864,7 +887,7 @@ impl DLEQProof {
             });
 
         if !(self.xH_p == commitment_agg_secp256k1) {
-            return Err(crypto::Error::InvalidPedersenCommitment)
+            return Err(crypto::Error::InvalidPedersenCommitment);
         }
 
         // Ring signatures
@@ -880,7 +903,7 @@ impl DLEQProof {
             });
 
         if !(valid_ring_signatures) {
-            return Err(crypto::Error::InvalidRingSignature)
+            return Err(crypto::Error::InvalidRingSignature);
         }
 
         // Proof of Knowledge
@@ -897,7 +920,7 @@ impl DLEQProof {
         let challenge = monero::cryptonote::hash::keccak_256(&challenge_preimage);
 
         if (r * G != alphaG + ed25519Scalar::from_bytes_mod_order(challenge) * self.xG_p) {
-            return Err(crypto::Error::InvalidProofOfKnowledge)
+            return Err(crypto::Error::InvalidProofOfKnowledge);
         }
 
         // secp256k1 (ECDSA)
@@ -906,9 +929,11 @@ impl DLEQProof {
             acc.extend_from_slice(&pc.to_bytes());
             acc
         });
-        let pok_1_message_hash: [u8; 32] = sha2::Sha256::digest(pok_1_message.as_slice()).try_into().unwrap();
+        let pok_1_message_hash: [u8; 32] = sha2::Sha256::digest(pok_1_message.as_slice())
+            .try_into()
+            .unwrap();
         if !ecdsa_fun::ECDSA::verify(&ecdsa, &self.xH_p, &pok_1_message_hash, &self.pok_1) {
-            return Err(crypto::Error::InvalidProofOfKnowledge)
+            return Err(crypto::Error::InvalidProofOfKnowledge);
         }
 
         // Everything ok

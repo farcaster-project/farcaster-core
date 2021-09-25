@@ -587,9 +587,22 @@ impl Encodable for (ed25519Point, ed25519Scalar) {
     }
 }
 
+impl Decodable for (ed25519Point, ed25519Scalar) {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok((Decodable::consensus_decode(d)?, Decodable::consensus_decode(d)?))
+    }
+}
+
 impl Encodable for ecdsa_fun::Signature {
     fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
         self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for ecdsa_fun::Signature {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 64] = Decodable::consensus_decode(d)?;
+        Ok(ecdsa_fun::Signature::from_bytes(bytes).unwrap())
     }
 }
 
@@ -694,35 +707,21 @@ impl CanonicalBytes for DLEQProof {
         let ring_signatures = deserialize(&ring_signature_bytevec)?;
         iterator.nth(2 + 252 * 32 * 6 - 1);
 
-        #[allow(non_snake_case)]
-        let pok_0_alphaG_bytes = iterator
+        let pok_0_bytes = iterator
             .clone()
-            .take(32)
+            .take(32 + 32)
             .cloned()
             .collect::<Vec<u8>>();
-        iterator.nth(31);
-        #[allow(non_snake_case)]
-        let pok_0_alphaG = deserialize(&pok_0_alphaG_bytes)?;
+        iterator.nth(64 - 1);
+        let pok_0: (ed25519Point, ed25519Scalar) = deserialize(&pok_0_bytes)?;
 
-        let pok_0_r_bytes = iterator
+        let pok_1_bytes = iterator
             .clone()
-            .take(32)
+            .take(64)
             .cloned()
             .collect::<Vec<u8>>();
-        iterator.nth(31);
-        let pok_0_r = deserialize(&pok_0_r_bytes)?;
-
-        let pok_0 = (pok_0_alphaG, pok_0_r);
-
-        let pok_1 = ecdsa_fun::Signature::from_bytes(
-            iterator
-                .take(64)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap(),
-        )
-        .unwrap();
+        iterator.nth(64 - 1);
+        let pok_1 = deserialize(&pok_1_bytes)?;
 
         Ok(DLEQProof {
             xG_p,

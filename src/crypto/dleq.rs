@@ -560,9 +560,23 @@ impl Encodable for ed25519Scalar {
     }
 }
 
+impl Decodable for ed25519Scalar {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+        Ok(ed25519Scalar::from_bytes_mod_order(bytes))
+    }
+}
+
 impl Encodable for secp256k1Scalar {
     fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
         self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for secp256k1Scalar {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+        Ok(secp256k1Scalar::from_bytes_mod_order(bytes).mark::<NonZero>().unwrap())
     }
 }
 
@@ -672,8 +686,8 @@ impl CanonicalBytes for DLEQProof {
                 .collect::<Vec<u8>>()
                 .try_into()
                 .unwrap();
+            let e_g_0_i = deserialize(&e_g_0_i_bytes)?;
             iterator.nth(31);
-            let e_g_0_i = ed25519Scalar::from_canonical_bytes(e_g_0_i_bytes).unwrap();
             let e_h_0_i_bytes: [u8; 32] = iterator
                 .clone()
                 .take(32)
@@ -682,10 +696,7 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(31);
-            let e_h_0_i = secp256k1Scalar::from_bytes(e_h_0_i_bytes)
-                .unwrap()
-                .mark::<NonZero>()
-                .unwrap();
+            let e_h_0_i = deserialize(&e_h_0_i_bytes)?;
 
             let a_0_i_bytes: [u8; 32] = iterator
                 .clone()
@@ -695,7 +706,7 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(31);
-            let a_0_i = ed25519Scalar::from_canonical_bytes(a_0_i_bytes).unwrap();
+            let a_0_i = deserialize(&a_0_i_bytes)?;
             let b_0_i_bytes: [u8; 32] = iterator
                 .clone()
                 .take(32)
@@ -704,10 +715,7 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(31);
-            let b_0_i = secp256k1Scalar::from_bytes(b_0_i_bytes)
-                .unwrap()
-                .mark::<NonZero>()
-                .unwrap();
+            let b_0_i = deserialize(&b_0_i_bytes)?;
 
             let a_1_i_bytes: [u8; 32] = iterator
                 .clone()
@@ -717,7 +725,7 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(31);
-            let a_1_i = ed25519Scalar::from_canonical_bytes(a_1_i_bytes).unwrap();
+            let a_1_i = deserialize(&a_1_i_bytes)?;
             let b_1_i_bytes: [u8; 32] = iterator
                 .clone()
                 .take(32)
@@ -726,10 +734,7 @@ impl CanonicalBytes for DLEQProof {
                 .try_into()
                 .unwrap();
             iterator.nth(31);
-            let b_1_i = secp256k1Scalar::from_bytes(b_1_i_bytes)
-                .unwrap()
-                .mark::<NonZero>()
-                .unwrap();
+            let b_1_i = deserialize(&b_1_i_bytes)?;
 
             let ring_sig = RingSignature {
                 e_g_0_i,

@@ -15,7 +15,8 @@ jobs:
     strategy:
       matrix:
         rust: [
-            stable,
+            # TODO: remove dependency on secp256kfun
+            # stable,
             nightly
         ]
 
@@ -39,7 +40,8 @@ jobs:
     strategy:
       matrix:
         rust: [
-            stable,
+            # TODO: remove dependency on secp256kfun
+            # stable,
             nightly
         ]
 

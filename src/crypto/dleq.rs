@@ -525,7 +525,6 @@ pub struct DLEQProof {
     pok_1: ecdsa_fun::Signature,
 }
 
-
 impl Encodable for ed25519Point {
     fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
         self.compress().to_bytes().consensus_encode(writer)
@@ -576,7 +575,9 @@ impl Encodable for secp256k1Scalar {
 impl Decodable for secp256k1Scalar {
     fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
-        Ok(secp256k1Scalar::from_bytes_mod_order(bytes).mark::<NonZero>().unwrap())
+        Ok(secp256k1Scalar::from_bytes_mod_order(bytes)
+            .mark::<NonZero>()
+            .unwrap())
     }
 }
 
@@ -694,15 +695,13 @@ impl CanonicalBytes for DLEQProof {
         iterator.nth(len - 1);
 
         // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
-        let mut ring_signatures = vec![];
-        // skip size
-        iterator.nth(1);
-        for depth in 0..bits {
-            let ring_signature_bytes: [u8; 32*6] = iterator.clone().take(32*6).cloned().collect::<Vec<u8>>().try_into().unwrap();
-            let ring_signature: RingSignature<ed25519Scalar, secp256k1Scalar> = deserialize(&ring_signature_bytes)?;
-            iterator.nth(32 * 6 - 1);
-            ring_signatures.push(ring_signature);
-        }
+        let ring_signature_bytevec = iterator
+            .clone()
+            .take(2 + (bits as usize) * 32 * 6)
+            .cloned()
+            .collect::<Vec<u8>>();
+        let ring_signatures = deserialize(&ring_signature_bytevec)?;
+        iterator.nth(2 + 252 * 32 * 6 - 1);
 
         #[allow(non_snake_case)]
         let pok_0_alphaG_bytes: [u8; 32] = iterator

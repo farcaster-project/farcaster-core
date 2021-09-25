@@ -11,19 +11,17 @@ use bitcoin_hashes::{self, Hash};
 use bitvec::{order::Lsb0, prelude::BitSlice};
 use curve25519_dalek::{
     constants::ED25519_BASEPOINT_POINT as G, edwards::CompressedEdwardsY as ed25519PointCompressed,
-    edwards::EdwardsPoint as ed25519Point, scalar::Scalar as ed25519Scalar, traits::Identity,
+    edwards::EdwardsPoint as ed25519Point, scalar::Scalar as ed25519Scalar,
 };
 
 const ENTROPY: bool = true;
-
-use rand::Rng;
 
 fn _max_ed25519() -> u256 {
     (u256::from(2u32) << 252) + 27742317777372353535851937790883648493u128
 }
 
 fn reverse_endianness(bytes: &[u8; 32]) -> [u8; 32] {
-    let mut bytes_rev = bytes.clone();
+    let mut bytes_rev = *bytes;
     bytes_rev.reverse();
     bytes_rev
 }
@@ -203,7 +201,7 @@ fn key_commitment(
         .map(|(index, bit)| (*bit, index).into())
         .collect();
     let commitment_last = x_bits.get(msb_index).unwrap();
-    let commitment_last_value = match *commitment_last {
+    let _commitment_last_value = match *commitment_last {
         true => ed25519Scalar::one(),
         false => ed25519Scalar::zero(),
     };
@@ -268,7 +266,7 @@ fn verify_ring_sig(
     c_h_i: secp256k1Point,
     ring_sig: RingSignature<ed25519Scalar, secp256k1Scalar>,
 ) -> bool {
-    let term0: [u8; 32] = c_g_i.compress().as_bytes().clone();
+    let term0: [u8; 32] = *c_g_i.compress().as_bytes();
     let term1: [u8; 33] = c_h_i.to_bytes();
 
     let order = u256::from(1u32) << index;
@@ -336,7 +334,7 @@ impl
         // first confirm that the pedersen commitments are correctly calculated
         assert_eq!(
             c_g_i.commitment,
-            PedersenCommitment::from((b_i, index, c_g_i.blinder.clone())).commitment,
+            PedersenCommitment::from((b_i, index, c_g_i.blinder)).commitment,
             "incorrect pedersen commitment!"
         );
         assert_eq!(
@@ -344,7 +342,7 @@ impl
             PedersenCommitment::from((b_i, index, c_h_i.blinder.clone())).commitment,
             "incorrect pedersen commitment!"
         );
-        let term0: [u8; 32] = c_g_i.commitment.compress().as_bytes().clone();
+        let term0: [u8; 32] = *c_g_i.commitment.compress().as_bytes();
         let term1: [u8; 33] = c_h_i.commitment.to_bytes();
 
         // let j_i = ed25519Scalar::random(&mut csprng);
@@ -361,7 +359,7 @@ impl
         #[allow(non_snake_case)]
         let H_p = H_p();
 
-        let term2_generated = (j_i * G_p()).compress().as_bytes().clone();
+        let term2_generated = *(j_i * G_p()).compress().as_bytes();
         let term3_generated = g!(k_i * H_p).mark::<Normal>().to_bytes();
 
         let (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i) = if b_i {
@@ -561,6 +559,7 @@ impl CanonicalBytes for DLEQProof {
                     acc
                 });
 
+        #[allow(non_snake_case)]
         let pok_0_bytes_alphaG = self.pok_0.0.compress();
         let pok_0_bytes_r = self.pok_0.1.as_bytes();
         let pok_1_bytes = self.pok_1.to_bytes();
@@ -581,7 +580,8 @@ impl CanonicalBytes for DLEQProof {
     {
         // xG_p
         let mut iterator = bytes.iter();
-        let xG_p: Vec<&u8> = iterator.clone().take(32).collect();
+        // let xG_p: Vec<&u8> = iterator.clone().take(32).collect();
+        #[allow(non_snake_case)]
         let xG_p: ed25519Point = ed25519PointCompressed::from_slice(&bytes[..32])
             .decompress()
             .unwrap();
@@ -597,6 +597,7 @@ impl CanonicalBytes for DLEQProof {
         // iterator.nth(31);
 
         // xH_p
+        #[allow(non_snake_case)]
         let xH_p_bytes: [u8; 33] = iterator
             .clone()
             .take(33)
@@ -604,14 +605,15 @@ impl CanonicalBytes for DLEQProof {
             .collect::<Vec<u8>>()
             .try_into()
             .unwrap();
+        #[allow(non_snake_case)]
         let xH_p: secp256k1Point = secp256k1Point::from_bytes(xH_p_bytes).unwrap();
         iterator.nth(32);
 
         // Vec<ed25519Point>
-        let bits = iterator.next().unwrap().clone();
+        let bits = *iterator.next().unwrap();
 
         let mut c_g = vec![];
-        for depth in 0..bits {
+        for _depth in 0..bits {
             let c_bytes: [u8; 32] = iterator
                 .clone()
                 .take(32)
@@ -629,7 +631,7 @@ impl CanonicalBytes for DLEQProof {
 
         // Vec<secp256k1Point>
         let mut c_h = vec![];
-        for depth in 0..bits {
+        for _depth in 0..bits {
             let c_bytes: [u8; 33] = iterator
                 .clone()
                 .take(33)
@@ -643,7 +645,7 @@ impl CanonicalBytes for DLEQProof {
 
         // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
         let mut ring_signatures = vec![];
-        for depth in 0..bits {
+        for _depth in 0..bits {
             let e_g_0_i_bytes: [u8; 32] = iterator
                 .clone()
                 .take(32)
@@ -721,6 +723,7 @@ impl CanonicalBytes for DLEQProof {
             ring_signatures.push(ring_sig);
         }
 
+        #[allow(non_snake_case)]
         let pok_0_alphaG_bytes: [u8; 32] = iterator
             .clone()
             .take(32)
@@ -729,6 +732,7 @@ impl CanonicalBytes for DLEQProof {
             .try_into()
             .unwrap();
         iterator.nth(31);
+        #[allow(non_snake_case)]
         let pok_0_alphaG = ed25519PointCompressed::from_slice(&pok_0_alphaG_bytes)
             .decompress()
             .unwrap();
@@ -767,13 +771,13 @@ impl CanonicalBytes for DLEQProof {
     }
 }
 
-fn zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
+fn _zeroize_highest_bits(x: [u8; 32], highest_bit: usize) -> [u8; 32] {
     let mut x = x;
     let remainder = highest_bit % 8;
     let quotient = (highest_bit - remainder) / 8;
 
-    for index in (quotient + 1)..=31 {
-        x[index] = 0;
+    for bit in x.iter_mut().skip(quotient + 1) {
+        *bit = 0;
     }
 
     if remainder != 0 {
@@ -791,7 +795,7 @@ impl DLEQProof {
 
         let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
 
-        assert!(x_bits[msb_index + 1..].iter().all(|bit| *bit == false));
+        assert!(x_bits[msb_index + 1..].iter().all(|bit| !(*bit)));
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x);
         #[allow(non_snake_case)]
@@ -834,6 +838,7 @@ impl DLEQProof {
         let alpha = ed25519Scalar::from_bytes_mod_order(monero::cryptonote::hash::keccak_256(
             &alpha_preimage,
         ));
+        #[allow(non_snake_case)]
         let alpha_G = alpha * G;
 
         let mut challenge_preimage = vec![];
@@ -916,9 +921,10 @@ impl DLEQProof {
 
         // Proof of Knowledge
         // ed25519 (edDSA)
-        let (alphaG, r) = self.pok_0;
+        #[allow(non_snake_case)]
+        let (alpha_G, r) = self.pok_0;
         let mut challenge_preimage = vec![];
-        challenge_preimage.extend_from_slice(alphaG.compress().as_bytes());
+        challenge_preimage.extend_from_slice(alpha_G.compress().as_bytes());
         challenge_preimage.extend_from_slice(self.xG_p.compress().as_bytes());
         let pok_0_message: Vec<u8> = self.c_g.iter().fold(vec![], |mut acc, pc| {
             acc.extend_from_slice(pc.compress().as_bytes());
@@ -927,7 +933,7 @@ impl DLEQProof {
         challenge_preimage.extend(pok_0_message);
         let challenge = monero::cryptonote::hash::keccak_256(&challenge_preimage);
 
-        if (r * G != alphaG + ed25519Scalar::from_bytes_mod_order(challenge) * self.xG_p) {
+        if r * G != alpha_G + ed25519Scalar::from_bytes_mod_order(challenge) * self.xG_p {
             return Err(crypto::Error::InvalidProofOfKnowledge);
         }
 
@@ -951,21 +957,19 @@ impl DLEQProof {
 
 #[test]
 fn pedersen_commitment_works() {
+    use rand::Rng;
     let mut x: [u8; 32] = rand::thread_rng().gen();
     // ensure 256th bit is 0
     x[31] &= 0b0111_1111;
     let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
     let key_commitment = key_commitment(x_bits, 255);
-    let commitment_acc = key_commitment
-        .iter()
-        .fold(ed25519Point::identity(), |acc, bit_commitment| {
-            acc + bit_commitment.commitment
-        });
+    let commitment_acc = key_commitment.iter().map(|pc| pc.commitment).sum();
     assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);
 }
 
 #[test]
 fn pedersen_commitment_sec256k1_works() {
+    use rand::Rng;
     let x: [u8; 32] = rand::thread_rng().gen();
     // let mut x: [u8; 32] = rand::thread_rng().gen();
     // ensure 256th bit is 0
@@ -983,8 +987,9 @@ fn pedersen_commitment_sec256k1_works() {
 
 #[test]
 fn dleq_proof_works() {
+    use rand::Rng;
     let x: [u8; 32] = rand::thread_rng().gen();
-    let x_shaved = zeroize_highest_bits(x, 252);
+    let x_shaved = _zeroize_highest_bits(x, 252);
     let dleq = DLEQProof::generate(x_shaved);
 
     assert!(dleq.verify().is_ok(), "{:?}", dleq.verify().err().unwrap());
@@ -992,6 +997,7 @@ fn dleq_proof_works() {
 
 #[test]
 fn blinders_sum_to_zero() {
+    use rand::Rng;
     let x: [u8; 32] = rand::thread_rng().gen();
     let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
     let key_commitment = key_commitment(x_bits, 255);
@@ -1011,8 +1017,9 @@ fn alt_ed25519_generator_is_correct() {
 
 #[test]
 fn canonical_encoding_decoding_idempotent() {
+    use rand::Rng;
     let x: [u8; 32] = rand::thread_rng().gen();
-    let x_shaved = zeroize_highest_bits(x, 252);
+    let x_shaved = _zeroize_highest_bits(x, 252);
     let dleq = DLEQProof::generate(x_shaved);
 
     assert_eq!(

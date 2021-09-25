@@ -593,6 +593,25 @@ impl Encodable for RingSignature<ed25519Scalar, secp256k1Scalar> {
     }
 }
 
+impl Decodable for RingSignature<ed25519Scalar, secp256k1Scalar> {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let e_g_0_i = Decodable::consensus_decode(d)?;
+        let e_h_0_i = Decodable::consensus_decode(d)?;
+        let a_0_i = Decodable::consensus_decode(d)?;
+        let b_0_i = Decodable::consensus_decode(d)?;
+        let a_1_i = Decodable::consensus_decode(d)?;
+        let b_1_i = Decodable::consensus_decode(d)?;
+        Ok(RingSignature {
+            e_g_0_i,
+            e_h_0_i,
+            a_0_i,
+            b_0_i,
+            a_1_i,
+            b_1_i,
+        })
+    }
+}
+
 impl CanonicalBytes for DLEQProof {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         let mut v = vec![];
@@ -678,73 +697,11 @@ impl CanonicalBytes for DLEQProof {
         let mut ring_signatures = vec![];
         // skip size
         iterator.nth(1);
-        for _depth in 0..bits {
-            let e_g_0_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            let e_g_0_i = deserialize(&e_g_0_i_bytes)?;
-            iterator.nth(31);
-            let e_h_0_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let e_h_0_i = deserialize(&e_h_0_i_bytes)?;
-
-            let a_0_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let a_0_i = deserialize(&a_0_i_bytes)?;
-            let b_0_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let b_0_i = deserialize(&b_0_i_bytes)?;
-
-            let a_1_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let a_1_i = deserialize(&a_1_i_bytes)?;
-            let b_1_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let b_1_i = deserialize(&b_1_i_bytes)?;
-
-            let ring_sig = RingSignature {
-                e_g_0_i,
-                e_h_0_i,
-                a_0_i,
-                b_0_i,
-                a_1_i,
-                b_1_i,
-            };
-            ring_signatures.push(ring_sig);
+        for depth in 0..bits {
+            let ring_signature_bytes: [u8; 32*6] = iterator.clone().take(32*6).cloned().collect::<Vec<u8>>().try_into().unwrap();
+            let ring_signature: RingSignature<ed25519Scalar, secp256k1Scalar> = deserialize(&ring_signature_bytes)?;
+            iterator.nth(32 * 6 - 1);
+            ring_signatures.push(ring_signature);
         }
 
         #[allow(non_snake_case)]

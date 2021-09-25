@@ -47,6 +47,9 @@ pub enum Error {
     /// The ring signature does not recompute.
     #[error("The ring signature does not recompute")]
     InvalidRingSignature,
+    /// The proof of knowledge signature is invalid.
+    #[error("The proof of knowledge signature is invalid")]
+    InvalidProofOfKnowledge,
     /// SLIP10 error when manipulating extended secret keys.
     #[error("SLIP10 error: {0}")]
     Slip10(#[from] slip10::Error),

@@ -617,8 +617,8 @@ impl CanonicalBytes for DLEQProof {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         let mut v = vec![];
 
-        v.extend_from_slice(self.xG_p.compress().as_bytes());
-        v.extend(self.xH_p.to_bytes());
+        v.extend(serialize(&self.xG_p));
+        v.extend(serialize(&self.xH_p));
 
         v.push(self.c_g.len() as u8);
 
@@ -629,14 +629,14 @@ impl CanonicalBytes for DLEQProof {
         let ring_signature_bytes = serialize(&self.ring_signatures);
 
         #[allow(non_snake_case)]
-        let pok_0_bytes_alphaG = self.pok_0.0.compress();
-        let pok_0_bytes_r = self.pok_0.1.as_bytes();
+        let pok_0_bytes_alphaG = serialize(&self.pok_0.0);
+        let pok_0_bytes_r = serialize(&self.pok_0.1);
         let pok_1_bytes = self.pok_1.to_bytes();
 
         v.extend(c_g_bytes);
         v.extend(c_h_bytes);
         v.extend(ring_signature_bytes);
-        v.extend(pok_0_bytes_alphaG.as_bytes());
+        v.extend(pok_0_bytes_alphaG);
         v.extend(pok_0_bytes_r);
         v.extend(pok_1_bytes);
 
@@ -649,34 +649,16 @@ impl CanonicalBytes for DLEQProof {
     {
         // xG_p
         let mut iterator = bytes.iter();
-        // let xG_p: Vec<&u8> = iterator.clone().take(32).collect();
         #[allow(non_snake_case)]
-        let xG_p: ed25519Point = ed25519PointCompressed::from_slice(&bytes[..32])
-            .decompress()
-            .unwrap();
+        let xG_p: Vec<u8> = iterator.clone().take(32).cloned().collect();
+        let xG_p = deserialize(&xG_p)?;
         iterator.nth(31);
-        // let xG_p_bytes: [u8; 32] = iterator
-        //     .clone()
-        //     .take(32)
-        //     .cloned()
-        //     .collect::<Vec<u8>>()
-        //     .try_into()
-        //     .unwrap();
-        // let xG_p: ed25519Point = ed25519PointCompressed::from_slice(&xG_p_bytes).decompress().unwrap();
-        // iterator.nth(31);
 
         // xH_p
         #[allow(non_snake_case)]
-        let xH_p_bytes: [u8; 33] = iterator
-            .clone()
-            .take(33)
-            .cloned()
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
-        println!("xH_p_bytes post: {:?}", xH_p_bytes);
+        let xH_p_bytes = iterator.clone().take(33).cloned().collect::<Vec<u8>>();
         #[allow(non_snake_case)]
-        let xH_p: secp256k1Point = secp256k1Point::from_bytes(xH_p_bytes).unwrap();
+        let xH_p = deserialize(&xH_p_bytes)?;
         iterator.nth(32);
 
         // Vec<ed25519Point>
@@ -704,28 +686,22 @@ impl CanonicalBytes for DLEQProof {
         iterator.nth(2 + 252 * 32 * 6 - 1);
 
         #[allow(non_snake_case)]
-        let pok_0_alphaG_bytes: [u8; 32] = iterator
+        let pok_0_alphaG_bytes = iterator
             .clone()
             .take(32)
             .cloned()
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
+            .collect::<Vec<u8>>();
         iterator.nth(31);
         #[allow(non_snake_case)]
-        let pok_0_alphaG = ed25519PointCompressed::from_slice(&pok_0_alphaG_bytes)
-            .decompress()
-            .unwrap();
+        let pok_0_alphaG = deserialize(&pok_0_alphaG_bytes)?;
 
-        let pok_0_r_bytes: [u8; 32] = iterator
+        let pok_0_r_bytes = iterator
             .clone()
             .take(32)
             .cloned()
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
+            .collect::<Vec<u8>>();
         iterator.nth(31);
-        let pok_0_r = ed25519Scalar::from_bits(pok_0_r_bytes);
+        let pok_0_r = deserialize(&pok_0_r_bytes)?;
 
         let pok_0 = (pok_0_alphaG, pok_0_r);
 

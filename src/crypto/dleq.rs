@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use crate::{
-    consensus::{self, CanonicalBytes},
+    consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable},
     crypto,
 };
 use amplify::num::u256;
@@ -525,6 +525,35 @@ pub struct DLEQProof {
     pok_1: ecdsa_fun::Signature,
 }
 
+
+impl Encodable for ed25519Point {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.compress().to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for ed25519Point {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+        Ok(ed25519PointCompressed::from_slice(&bytes)
+            .decompress()
+            .unwrap())
+    }
+}
+
+impl Encodable for secp256k1Point {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for secp256k1Point {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 33] = Decodable::consensus_decode(d)?;
+        Ok(secp256k1Point::from_bytes(bytes).unwrap())
+    }
+}
+
 impl CanonicalBytes for DLEQProof {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         let mut v = vec![];
@@ -534,14 +563,9 @@ impl CanonicalBytes for DLEQProof {
 
         v.push(self.c_g.len() as u8);
 
-        let c_g_bytes: Vec<u8> = self.c_g.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(pc.compress().as_bytes());
-            acc
-        });
-        let c_h_bytes: Vec<u8> = self.c_h.iter().fold(vec![], |mut acc, pc| {
-            acc.extend(pc.to_bytes());
-            acc
-        });
+        let c_g_bytes: Vec<u8> = serialize(&self.c_g);
+
+        let c_h_bytes: Vec<u8> = serialize(&self.c_h);
 
         let ring_signature_bytes: Vec<u8> =
             self.ring_signatures
@@ -617,36 +641,17 @@ impl CanonicalBytes for DLEQProof {
         // Vec<ed25519Point>
         let bits = *iterator.next().unwrap();
 
-        let mut c_g = vec![];
-        for _depth in 0..bits {
-            let c_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            c_g.push(
-                ed25519PointCompressed::from_slice(&c_bytes)
-                    .decompress()
-                    .unwrap(),
-            );
-        }
+        // Vec<ed25519Point>
+        let len: usize = 32 * bits as usize + 2;
+        let c_g_bytevec = iterator.clone().take(len).cloned().collect::<Vec<u8>>();
+        let c_g: Vec<ed25519Point> = deserialize(&c_g_bytevec).unwrap();
+        iterator.nth(len - 1);
 
         // Vec<secp256k1Point>
-        let mut c_h = vec![];
-        for _depth in 0..bits {
-            let c_bytes: [u8; 33] = iterator
-                .clone()
-                .take(33)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(32);
-            c_h.push(secp256k1Point::from_bytes(c_bytes).unwrap());
-        }
+        let len: usize = 33 * bits as usize + 2;
+        let c_h_bytevec = iterator.clone().take(len).cloned().collect::<Vec<u8>>();
+        let c_h: Vec<secp256k1Point> = deserialize(&c_h_bytevec).unwrap();
+        iterator.nth(len - 1);
 
         // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
         let mut ring_signatures = vec![];
@@ -831,10 +836,7 @@ impl DLEQProof {
 
         //Proof of Knowledge ed25519 (edDSA)
         let hash_x = monero::cryptonote::hash::keccak_256(x_ed25519.as_bytes());
-        let pok_0_message: Vec<u8> = c_g.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(pc.compress().as_bytes());
-            acc
-        });
+        let pok_0_message = serialize(&c_g);
 
         let mut alpha_preimage = vec![];
         alpha_preimage.extend_from_slice(&hash_x);
@@ -863,10 +865,7 @@ impl DLEQProof {
             sha2::Sha256,
             ecdsa_fun::nonce::GlobalRng<rand::rngs::ThreadRng>,
         >::default();
-        let pok_1_message: Vec<u8> = c_h.iter().fold(vec![], |mut acc, pc| {
-            acc.extend(pc.to_bytes());
-            acc
-        });
+        let pok_1_message = serialize(&c_h);
         let pok_1_message_hash: [u8; 32] = sha2::Sha256::digest(&pok_1_message).try_into().unwrap();
         let ecdsa = ecdsa_fun::ECDSA::new(nonce_gen);
 
@@ -931,11 +930,7 @@ impl DLEQProof {
         let mut challenge_preimage = vec![];
         challenge_preimage.extend_from_slice(alpha_G.compress().as_bytes());
         challenge_preimage.extend_from_slice(self.xG_p.compress().as_bytes());
-        let pok_0_message: Vec<u8> = self.c_g.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(pc.compress().as_bytes());
-            acc
-        });
-        challenge_preimage.extend(pok_0_message);
+        challenge_preimage.extend_from_slice(serialize(&self.c_g).as_slice());
         let challenge = monero::cryptonote::hash::keccak_256(&challenge_preimage);
 
         if r * G != alpha_G + ed25519Scalar::from_bytes_mod_order(challenge) * self.xG_p {
@@ -944,10 +939,7 @@ impl DLEQProof {
 
         // secp256k1 (ECDSA)
         let ecdsa = ecdsa_fun::ECDSA::verify_only();
-        let pok_1_message = self.c_h.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(&pc.to_bytes());
-            acc
-        });
+        let pok_1_message = serialize(&self.c_h);
         let pok_1_message_hash: [u8; 32] = sha2::Sha256::digest(pok_1_message.as_slice())
             .try_into()
             .unwrap();

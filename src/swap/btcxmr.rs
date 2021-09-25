@@ -410,11 +410,7 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, DLEQProof> for KeyManager
         let x = self.get_or_derive_monero_spend_key()?.to_bytes();
         let proof = crypto::dleq::DLEQProof::generate(x);
 
-        Ok((
-            spend,
-            encryption_key,
-            proof,
-        ))
+        Ok((spend, encryption_key, proof))
     }
 
     fn get_encryption_key(&mut self) -> Result<PublicKey, crypto::Error> {

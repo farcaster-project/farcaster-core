@@ -791,16 +791,17 @@ impl DLEQProof {
 
         let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
 
-        assert!(x_bits[msb_index+1..].iter().all(|bit| *bit == false));
+        assert!(x_bits[msb_index + 1..].iter().all(|bit| *bit == false));
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x);
         #[allow(non_snake_case)]
         let xG_p = x_ed25519 * G;
 
         // TODO: do properly
-        let x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x))
-            .mark::<NonZero>()
-            .expect("x is zero");
+        let x_secp256k1: secp256k1Scalar<_> =
+            secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x))
+                .mark::<NonZero>()
+                .expect("x is zero");
         #[allow(non_snake_case)]
         let xH_p = g!(x_secp256k1 * H).mark::<Normal>();
 

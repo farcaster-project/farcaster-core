@@ -188,6 +188,7 @@ macro_rules! impl_fixed_array {
 impl_fixed_array!(6);
 impl_fixed_array!(32);
 impl_fixed_array!(33);
+impl_fixed_array!(64);
 
 macro_rules! unwrap_vec_ref {
     ($reader: ident) => {{

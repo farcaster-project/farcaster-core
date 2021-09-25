@@ -88,7 +88,6 @@ fn H_p() -> secp256k1Point {
 #[derive(Copy, Clone, Debug)]
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
-    // TODO remove blinder!
     blinder: Scalar,
 }
 
@@ -589,7 +588,10 @@ impl Encodable for (ed25519Point, ed25519Scalar) {
 
 impl Decodable for (ed25519Point, ed25519Scalar) {
     fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        Ok((Decodable::consensus_decode(d)?, Decodable::consensus_decode(d)?))
+        Ok((
+            Decodable::consensus_decode(d)?,
+            Decodable::consensus_decode(d)?,
+        ))
     }
 }
 
@@ -672,8 +674,9 @@ impl CanonicalBytes for DLEQProof {
         // xG_p
         let mut iterator = bytes.iter();
         #[allow(non_snake_case)]
-        let xG_p: Vec<u8> = iterator.clone().take(32).cloned().collect();
-        let xG_p = deserialize(&xG_p)?;
+        let xG_p_bytevec: Vec<u8> = iterator.clone().take(32).cloned().collect();
+        #[allow(non_snake_case)]
+        let xG_p = deserialize(&xG_p_bytevec)?;
         iterator.nth(31);
 
         // xH_p
@@ -707,19 +710,11 @@ impl CanonicalBytes for DLEQProof {
         let ring_signatures = deserialize(&ring_signature_bytevec)?;
         iterator.nth(2 + 252 * 32 * 6 - 1);
 
-        let pok_0_bytes = iterator
-            .clone()
-            .take(32 + 32)
-            .cloned()
-            .collect::<Vec<u8>>();
+        let pok_0_bytes = iterator.clone().take(32 + 32).cloned().collect::<Vec<u8>>();
         iterator.nth(64 - 1);
         let pok_0: (ed25519Point, ed25519Scalar) = deserialize(&pok_0_bytes)?;
 
-        let pok_1_bytes = iterator
-            .clone()
-            .take(64)
-            .cloned()
-            .collect::<Vec<u8>>();
+        let pok_1_bytes = iterator.clone().take(64).cloned().collect::<Vec<u8>>();
         iterator.nth(64 - 1);
         let pok_1 = deserialize(&pok_1_bytes)?;
 

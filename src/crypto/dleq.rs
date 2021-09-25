@@ -554,6 +554,31 @@ impl Decodable for secp256k1Point {
     }
 }
 
+impl Encodable for ed25519Scalar {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Encodable for secp256k1Scalar {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Encodable for RingSignature<ed25519Scalar, secp256k1Scalar> {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        let mut len = 0usize;
+        len += self.e_g_0_i.consensus_encode(writer)?;
+        len += self.e_h_0_i.consensus_encode(writer)?;
+        len += self.a_0_i.consensus_encode(writer)?;
+        len += self.b_0_i.consensus_encode(writer)?;
+        len += self.a_1_i.consensus_encode(writer)?;
+        len += self.b_1_i.consensus_encode(writer)?;
+        Ok(len)
+    }
+}
+
 impl CanonicalBytes for DLEQProof {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         let mut v = vec![];
@@ -567,25 +592,7 @@ impl CanonicalBytes for DLEQProof {
 
         let c_h_bytes: Vec<u8> = serialize(&self.c_h);
 
-        let ring_signature_bytes: Vec<u8> =
-            self.ring_signatures
-                .iter()
-                .fold(vec![], |mut acc, ring_sig| {
-                    acc.extend(
-                        ring_sig
-                            .e_g_0_i
-                            .as_bytes()
-                            .iter()
-                            .chain(ring_sig.e_h_0_i.to_bytes().iter())
-                            .chain(ring_sig.a_0_i.as_bytes().iter())
-                            .chain(ring_sig.b_0_i.to_bytes().iter())
-                            .chain(ring_sig.a_1_i.as_bytes().iter())
-                            .chain(ring_sig.b_1_i.to_bytes().iter())
-                            .cloned()
-                            .collect::<Vec<u8>>(),
-                    );
-                    acc
-                });
+        let ring_signature_bytes = serialize(&self.ring_signatures);
 
         #[allow(non_snake_case)]
         let pok_0_bytes_alphaG = self.pok_0.0.compress();
@@ -655,6 +662,8 @@ impl CanonicalBytes for DLEQProof {
 
         // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
         let mut ring_signatures = vec![];
+        // skip size
+        iterator.nth(1);
         for _depth in 0..bits {
             let e_g_0_i_bytes: [u8; 32] = iterator
                 .clone()

@@ -581,6 +581,12 @@ impl Decodable for secp256k1Scalar {
     }
 }
 
+impl Encodable for (ed25519Point, ed25519Scalar) {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        Ok(self.0.consensus_encode(writer)? + self.1.consensus_encode(writer)?)
+    }
+}
+
 impl Encodable for RingSignature<ed25519Scalar, secp256k1Scalar> {
     fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
         let mut len = 0usize;
@@ -628,16 +634,13 @@ impl CanonicalBytes for DLEQProof {
 
         let ring_signature_bytes = serialize(&self.ring_signatures);
 
-        #[allow(non_snake_case)]
-        let pok_0_bytes_alphaG = serialize(&self.pok_0.0);
-        let pok_0_bytes_r = serialize(&self.pok_0.1);
+        let pok_0_bytes = serialize(&self.pok_0);
         let pok_1_bytes = self.pok_1.to_bytes();
 
         v.extend(c_g_bytes);
         v.extend(c_h_bytes);
         v.extend(ring_signature_bytes);
-        v.extend(pok_0_bytes_alphaG);
-        v.extend(pok_0_bytes_r);
+        v.extend(pok_0_bytes);
         v.extend(pok_1_bytes);
 
         v

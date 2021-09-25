@@ -789,16 +789,16 @@ impl DLEQProof {
         // convention: start count at 0
         let msb_index = 251;
 
-        // let x_shaved = zeroize_highest_bits(x, msb_index + 1);
-        let x_shaved = x;
-        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x_shaved).unwrap();
+        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
 
-        let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
+        assert!(x_bits[msb_index+1..].iter().all(|bit| *bit == false));
+
+        let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x);
         #[allow(non_snake_case)]
         let xG_p = x_ed25519 * G;
 
         // TODO: do properly
-        let x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x_shaved))
+        let x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x))
             .mark::<NonZero>()
             .expect("x is zero");
         #[allow(non_snake_case)]
@@ -983,7 +983,8 @@ fn pedersen_commitment_sec256k1_works() {
 #[test]
 fn dleq_proof_works() {
     let x: [u8; 32] = rand::thread_rng().gen();
-    let dleq = DLEQProof::generate(x);
+    let x_shaved = zeroize_highest_bits(x, 252);
+    let dleq = DLEQProof::generate(x_shaved);
 
     assert!(dleq.verify().is_ok(), "{:?}", dleq.verify().err().unwrap());
 }
@@ -1010,7 +1011,8 @@ fn alt_ed25519_generator_is_correct() {
 #[test]
 fn canonical_encoding_decoding_idempotent() {
     let x: [u8; 32] = rand::thread_rng().gen();
-    let dleq = DLEQProof::generate(x);
+    let x_shaved = zeroize_highest_bits(x, 252);
+    let dleq = DLEQProof::generate(x_shaved);
 
     assert_eq!(
         DLEQProof::from_canonical_bytes(dleq.as_canonical_bytes().as_slice()).unwrap(),

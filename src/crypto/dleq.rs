@@ -362,9 +362,11 @@ impl
         let term2_generated = *(j_i * G_p()).compress().as_bytes();
         let term3_generated = g!(k_i * H_p).mark::<Normal>().to_bytes();
 
+        // clippy insists it's better to avoid reuse like this ¯\_(ツ)_/¯
+        let e_0_i = ring_hash(term0, term1, term2_generated, term3_generated);
+        let e_g_0_i = ed25519Scalar::from_bytes_mod_order(e_0_i);
+
         let (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i) = if b_i {
-            let e_0_i = ring_hash(term0, term1, term2_generated, term3_generated);
-            let e_g_0_i = ed25519Scalar::from_bytes_mod_order(e_0_i);
             let e_h_0_i = secp256k1Scalar::from_bytes_mod_order(e_0_i)
                 .mark::<NonZero>()
                 .expect("is zero");
@@ -429,8 +431,8 @@ impl
 
             (e_g_0_i, e_h_0_i, a_0_i, a_1_i, b_0_i, b_1_i)
         } else {
-            let e_1_i = ring_hash(term0, term1, term2_generated, term3_generated);
-            let e_g_1_i = ed25519Scalar::from_bytes_mod_order(e_1_i);
+            let e_1_i = e_0_i;
+            let e_g_1_i = e_g_0_i;
             let e_h_1_i = secp256k1Scalar::from_bytes_mod_order(e_1_i);
 
             // let a_0_i = ed25519Scalar::random(&mut csprng);

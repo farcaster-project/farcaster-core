@@ -22,6 +22,12 @@ fn _max_ed25519() -> u256 {
     (u256::from(2u32) << 252) + 27742317777372353535851937790883648493u128
 }
 
+fn reverse_endianness(bytes: &[u8; 32]) -> [u8; 32] {
+    let mut bytes_rev = bytes.clone();
+    bytes_rev.reverse();
+    bytes_rev
+}
+
 // TODO: this is disgusting and must be removed asap
 #[allow(non_snake_case)]
 fn G_p() -> ed25519Point {
@@ -137,7 +143,7 @@ impl From<(bool, usize)> for PedersenCommitment<secp256k1Point, secp256k1Scalar>
 
         let order = u256::from(1u32) << index;
 
-        let order_on_curve = secp256k1Scalar::from_bytes(order.to_le_bytes())
+        let order_on_curve = secp256k1Scalar::from_bytes(order.to_be_bytes())
             .expect("integer greater than curve order");
         #[allow(non_snake_case)]
         let H_p = H_p();
@@ -164,7 +170,7 @@ impl From<(bool, usize, secp256k1Scalar)> for PedersenCommitment<secp256k1Point,
     ) -> PedersenCommitment<secp256k1Point, secp256k1Scalar> {
         let order = u256::from(1u32) << index;
 
-        let order_on_curve = secp256k1Scalar::from_bytes(order.to_le_bytes())
+        let order_on_curve = secp256k1Scalar::from_bytes(order.to_be_bytes())
             .expect("integer greater than curve order");
 
         #[allow(non_snake_case)]
@@ -267,7 +273,7 @@ fn verify_ring_sig(
 
     let order = u256::from(1u32) << index;
     let order_on_secp256k1 =
-        secp256k1Scalar::from_bytes(order.to_le_bytes()).expect("integer greater than curve order");
+        secp256k1Scalar::from_bytes(order.to_be_bytes()).expect("integer greater than curve order");
     #[allow(non_snake_case)]
     let H_p = H_p();
 
@@ -396,7 +402,7 @@ impl
                 .unwrap();
 
             let order = u256::from(1u32) << index;
-            let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
+            let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_be_bytes())
                 .expect("integer greater than curve order");
 
             let term2_calculated: [u8; 32] = *(a_0_i * G_p()
@@ -441,7 +447,7 @@ impl
             };
 
             let order = u256::from(1u32) << index;
-            let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_le_bytes())
+            let order_on_secp256k1 = secp256k1Scalar::from_bytes(order.to_be_bytes())
                 .expect("integer greater than curve order");
 
             let term2 = *(a_0_i * G_p()
@@ -783,7 +789,8 @@ impl DLEQProof {
         // convention: start count at 0
         let msb_index = 251;
 
-        let x_shaved = zeroize_highest_bits(x, msb_index + 1);
+        // let x_shaved = zeroize_highest_bits(x, msb_index + 1);
+        let x_shaved = x;
         let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x_shaved).unwrap();
 
         let x_ed25519 = ed25519Scalar::from_bytes_mod_order(x_shaved);
@@ -791,7 +798,7 @@ impl DLEQProof {
         let xG_p = x_ed25519 * G;
 
         // TODO: do properly
-        let x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(x_shaved)
+        let x_secp256k1: secp256k1Scalar<_> = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x_shaved))
             .mark::<NonZero>()
             .expect("x is zero");
         #[allow(non_snake_case)]
@@ -969,7 +976,7 @@ fn pedersen_commitment_sec256k1_works() {
         secp256k1Point::zero(),
         |acc, bit_commitment| g!(acc + bit_commitment.commitment).mark::<Normal>(), // .fold(secp256k1Point::zero().mark::<Jacobian>(), |acc, bit_commitment| g!(acc + bit_commitment.commitment)
     );
-    let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(x);
+    let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x));
     assert_eq!(g!(x_secp256k1 * H), commitment_acc);
 }
 

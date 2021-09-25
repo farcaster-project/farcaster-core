@@ -407,13 +407,12 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, DLEQProof> for KeyManager
         let spend = self.get_pubkey(AccordantKeyId::Spend)?;
         let encryption_key = self.get_encryption_key()?;
 
-        let x = spend.to_bytes();
+        let x = self.get_or_derive_monero_spend_key()?.to_bytes();
         let proof = crypto::dleq::DLEQProof::generate(x);
 
         Ok((
             spend,
             encryption_key,
-            // FIXME include the proof
             proof,
         ))
     }

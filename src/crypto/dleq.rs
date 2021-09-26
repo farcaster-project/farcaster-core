@@ -640,83 +640,31 @@ impl Decodable for RingSignature<ed25519Scalar, secp256k1Scalar> {
     }
 }
 
-impl CanonicalBytes for DLEQProof {
-    fn as_canonical_bytes(&self) -> Vec<u8> {
-        let mut v = vec![];
-
-        v.extend(serialize(&self.xG_p));
-        v.extend(serialize(&self.xH_p));
-
-        v.push(self.c_g.len() as u8);
-
-        let c_g_bytes: Vec<u8> = serialize(&self.c_g);
-
-        let c_h_bytes: Vec<u8> = serialize(&self.c_h);
-
-        let ring_signature_bytes = serialize(&self.ring_signatures);
-
-        let pok_0_bytes = serialize(&self.pok_0);
-        let pok_1_bytes = serialize(&self.pok_1);
-
-        v.extend(c_g_bytes);
-        v.extend(c_h_bytes);
-        v.extend(ring_signature_bytes);
-        v.extend(pok_0_bytes);
-        v.extend(pok_1_bytes);
-
-        v
+impl Encodable for DLEQProof {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        let mut len = 0usize;
+        len += self.xG_p.consensus_encode(writer)?;
+        len += self.xH_p.consensus_encode(writer)?;
+        len += self.c_g.consensus_encode(writer)?;
+        len += self.c_h.consensus_encode(writer)?;
+        len += self.ring_signatures.consensus_encode(writer)?;
+        len += self.pok_0.consensus_encode(writer)?;
+        len += self.pok_1.consensus_encode(writer)?;
+        Ok(len)
     }
+}
 
-    fn from_canonical_bytes(bytes: &[u8]) -> Result<DLEQProof, consensus::Error>
-    where
-        Self: Sized,
-    {
-        // xG_p
-        let mut iterator = bytes.iter();
+impl Decodable for DLEQProof {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         #[allow(non_snake_case)]
-        let xG_p_bytevec: Vec<u8> = iterator.clone().take(32).cloned().collect();
+        let xG_p = Decodable::consensus_decode(d)?;
         #[allow(non_snake_case)]
-        let xG_p = deserialize(&xG_p_bytevec)?;
-        iterator.nth(31);
-
-        // xH_p
-        #[allow(non_snake_case)]
-        let xH_p_bytes = iterator.clone().take(33).cloned().collect::<Vec<u8>>();
-        #[allow(non_snake_case)]
-        let xH_p = deserialize(&xH_p_bytes)?;
-        iterator.nth(32);
-
-        // Vec<ed25519Point>
-        let bits = *iterator.next().unwrap();
-
-        // Vec<ed25519Point>
-        let len: usize = 32 * bits as usize + 2;
-        let c_g_bytevec = iterator.clone().take(len).cloned().collect::<Vec<u8>>();
-        let c_g: Vec<ed25519Point> = deserialize(&c_g_bytevec).unwrap();
-        iterator.nth(len - 1);
-
-        // Vec<secp256k1Point>
-        let len: usize = 33 * bits as usize + 2;
-        let c_h_bytevec = iterator.clone().take(len).cloned().collect::<Vec<u8>>();
-        let c_h: Vec<secp256k1Point> = deserialize(&c_h_bytevec).unwrap();
-        iterator.nth(len - 1);
-
-        // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
-        let ring_signature_bytevec = iterator
-            .clone()
-            .take(2 + (bits as usize) * 32 * 6)
-            .cloned()
-            .collect::<Vec<u8>>();
-        let ring_signatures = deserialize(&ring_signature_bytevec)?;
-        iterator.nth(2 + 252 * 32 * 6 - 1);
-
-        let pok_0_bytes = iterator.clone().take(32 + 32).cloned().collect::<Vec<u8>>();
-        iterator.nth(64 - 1);
-        let pok_0: (ed25519Point, ed25519Scalar) = deserialize(&pok_0_bytes)?;
-
-        let pok_1_bytes = iterator.clone().take(64).cloned().collect::<Vec<u8>>();
-        iterator.nth(64 - 1);
-        let pok_1 = deserialize(&pok_1_bytes)?;
+        let xH_p = Decodable::consensus_decode(d)?;
+        let c_g = Decodable::consensus_decode(d)?;
+        let c_h = Decodable::consensus_decode(d)?;
+        let ring_signatures = Decodable::consensus_decode(d)?;
+        let pok_0 = Decodable::consensus_decode(d)?;
+        let pok_1 = Decodable::consensus_decode(d)?;
 
         Ok(DLEQProof {
             xG_p,
@@ -727,6 +675,19 @@ impl CanonicalBytes for DLEQProof {
             pok_0,
             pok_1,
         })
+    }
+}
+
+impl CanonicalBytes for DLEQProof {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        serialize(self)
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<DLEQProof, consensus::Error>
+    where
+        Self: Sized,
+    {
+        deserialize(bytes)
     }
 }
 

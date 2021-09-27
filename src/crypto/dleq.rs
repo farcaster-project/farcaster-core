@@ -26,16 +26,17 @@ fn reverse_endianness(bytes: &[u8; 32]) -> [u8; 32] {
     bytes_rev
 }
 
+// matches https://github.com/monero-project/monero/blob/9414194b1e47730843e4dbbd4214bf72d3540cf9/src/ringct/rctTypes.h#L454
+// i.e. hash-to-curve of G as in https://github.com/monero-project/mininero/blob/master/mininero.py#L305-L323
 // TODO: this is disgusting and must be removed asap
 #[allow(non_snake_case)]
 fn G_p() -> ed25519Point {
     let hash_G = monero::cryptonote::hash::keccak_256(G.compress().as_bytes());
 
-    let hash_to_curve = ed25519PointCompressed::from_slice(&hash_G)
+    ed25519PointCompressed::from_slice(&hash_G)
         .decompress()
-        .unwrap();
-    // should be in basepoint's subgroup
-    ed25519Scalar::from(8u8) * hash_to_curve
+        .unwrap()
+        .mul_by_cofactor() // should be in basepoint's subgroup, i.e. 8 * toPoint(hash_G)
 }
 
 #[cfg(feature = "experimental")]

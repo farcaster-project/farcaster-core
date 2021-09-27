@@ -3,13 +3,13 @@ use rand::prelude::*;
 use std::convert::TryInto;
 use std::str::FromStr;
 
-use farcaster_core::consensus::CanonicalBytes;
 use farcaster_core::crypto::{
     AccordantKeyId, ArbitratingKeyId, GenerateKey, GenerateSharedKey, ProveCrossGroupDleq,
     SharedKeyId, Sign,
 };
 use farcaster_core::monero::SHARED_VIEW_KEY_ID;
 use farcaster_core::swap::btcxmr::*;
+use farcaster_core::{consensus::CanonicalBytes, crypto::SwapAccordantKeys};
 
 #[test]
 fn create_key_manager_from_seed() {
@@ -186,6 +186,9 @@ fn key_manager_can_recover_secret() {
 
 #[test]
 fn can_create_accordant_address() {
+    use farcaster_core::crypto::{AccordantKeys, TaggedElement};
+    use farcaster_core::monero::Monero;
+    use farcaster_core::role::Accordant;
     use monero::{Address, Network, PrivateKey, PublicKey};
 
     let swap_index = 0;
@@ -209,4 +212,31 @@ fn can_create_accordant_address() {
     let accordant_address = Address::standard(Network::Testnet, public_spend, public_view);
     let addr = "9srAu5mbgRwjoUiobvJ6zXB2JL7MZsPRPTgzhVjFdZJb6afRPaeN1ND4e4MWz55Q2JM3bQLTWmMgyjPZZHLa4X587UgdkNy";
     assert_eq!(Address::from_str(addr), Ok(accordant_address));
+
+    // redo process like manual above, but test against result from Monero's derive_lock_address implementation
+    let lock_address = Monero::derive_lock_address(
+        farcaster_core::blockchain::Network::Local,
+        SwapAccordantKeys {
+            alice: AccordantKeys {
+                spend_key: alice_spend_pubkey,
+                shared_keys: vec![TaggedElement::new(
+                    SharedKeyId::new(SHARED_VIEW_KEY_ID),
+                    alice_view_secretkey,
+                )],
+                extra_accordant_keys: vec![],
+            },
+            bob: AccordantKeys {
+                spend_key: bob_spend_pubkey,
+                shared_keys: vec![TaggedElement::new(
+                    SharedKeyId::new(SHARED_VIEW_KEY_ID),
+                    bob_view_secretkey,
+                )],
+                extra_accordant_keys: vec![],
+            },
+        },
+    );
+    assert_eq!(
+        lock_address.expect("derivation of lock address should work since manual does"),
+        accordant_address
+    );
 }

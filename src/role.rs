@@ -1331,7 +1331,7 @@ pub trait Arbitrating:
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
-/// timelocks, it is the blockchain with the less requirements for an atomic swap.
+/// timelocks: it is the blockchain with fewer requirements for an atomic swap.
 pub trait Accordant: Asset + Address + Keys + SharedSecretKeys + Clone + Eq {
     /// Derive the lock address for the accordant blockchain.
     fn derive_lock_address(

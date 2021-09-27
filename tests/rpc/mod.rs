@@ -11,14 +11,14 @@ lazy_static::lazy_static! {
             let u = env::var("RPC_USER").unwrap();
             let p = env::var("RPC_PASS").unwrap();
             Client::new(
-                format!("http://{}:{}", host, port),
+                format!("http://{}:{}", host, port).as_str(),
                 Auth::UserPass(u, p),
             ).unwrap()
         } else {
             let cookie = env::var("RPC_COOKIE").unwrap_or("/data/regtest/.cookie".into());
             let path = PathBuf::from(cookie);
             Client::new(
-                format!("http://{}:{}", host, port),
+                format!("http://{}:{}", host, port).as_str(),
                 Auth::CookieFile(path),
             ).unwrap()
         }

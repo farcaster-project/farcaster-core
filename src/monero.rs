@@ -30,29 +30,29 @@ impl Accordant for Monero {
         let SwapAccordantKeys {
             alice:
                 AccordantKeys {
-                    spend_key: a_spend_key,
-                    shared_keys: a_shared_keys,
+                    spend_key: alice_spend_key,
+                    shared_keys: alice_shared_keys,
                     ..
                 },
             bob:
                 AccordantKeys {
-                    spend_key: b_spend_key,
-                    shared_keys: b_shared_keys,
+                    spend_key: bob_spend_key,
+                    shared_keys: bob_shared_keys,
                     ..
                 },
         } = keys;
 
-        let a_tagged_view_secretkey = a_shared_keys
+        let alice_tagged_view_secretkey = alice_shared_keys
             .iter()
             .find(|tagged_key| *tagged_key.tag() == SharedKeyId::new(SHARED_VIEW_KEY_ID))
             .ok_or(crypto::Error::MissingKey)?;
-        let b_tagged_view_secretkey = b_shared_keys
+        let bob_tagged_view_secretkey = bob_shared_keys
             .iter()
             .find(|tagged_key| *tagged_key.tag() == SharedKeyId::new(SHARED_VIEW_KEY_ID))
             .ok_or(crypto::Error::MissingKey)?;
 
-        let public_spend = a_spend_key + b_spend_key;
-        let secret_view = a_tagged_view_secretkey.elem() + b_tagged_view_secretkey.elem();
+        let public_spend = alice_spend_key + bob_spend_key;
+        let secret_view = alice_tagged_view_secretkey.elem() + bob_tagged_view_secretkey.elem();
         let public_view = PublicKey::from_private_key(&secret_view);
 
         Ok(Address::standard(network.into(), public_spend, public_view))

@@ -189,21 +189,21 @@ fn can_create_accordant_address() {
     use monero::{Address, Network, PrivateKey, PublicKey};
 
     let swap_index = 0;
-    let mut a_key_manager = KeyManager::new([1u8; 32], swap_index).unwrap();
-    let mut b_key_manager = KeyManager::new([2u8; 32], swap_index).unwrap();
+    let mut alice_key_manager = KeyManager::new([1u8; 32], swap_index).unwrap();
+    let mut bob_key_manager = KeyManager::new([2u8; 32], swap_index).unwrap();
 
-    let a_spend_pubkey = a_key_manager.get_pubkey(AccordantKeyId::Spend).unwrap();
-    let b_spend_pubkey = b_key_manager.get_pubkey(AccordantKeyId::Spend).unwrap();
+    let alice_spend_pubkey = alice_key_manager.get_pubkey(AccordantKeyId::Spend).unwrap();
+    let bob_spend_pubkey = bob_key_manager.get_pubkey(AccordantKeyId::Spend).unwrap();
 
-    let a_view_secretkey: PrivateKey = a_key_manager
+    let alice_view_secretkey: PrivateKey = alice_key_manager
         .get_shared_key(SharedKeyId::new(SHARED_VIEW_KEY_ID))
         .unwrap();
-    let b_view_secretkey: PrivateKey = b_key_manager
+    let bob_view_secretkey: PrivateKey = bob_key_manager
         .get_shared_key(SharedKeyId::new(SHARED_VIEW_KEY_ID))
         .unwrap();
 
-    let public_spend = a_spend_pubkey + b_spend_pubkey;
-    let secret_view = a_view_secretkey + b_view_secretkey;
+    let public_spend = alice_spend_pubkey + bob_spend_pubkey;
+    let secret_view = alice_view_secretkey + bob_view_secretkey;
     let public_view = PublicKey::from_private_key(&secret_view);
 
     let accordant_address = Address::standard(Network::Testnet, public_spend, public_view);

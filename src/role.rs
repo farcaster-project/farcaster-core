@@ -6,7 +6,9 @@ use std::fmt::Debug;
 use std::io;
 use std::str::FromStr;
 
-use crate::blockchain::{Address, Asset, Fee, FeePriority, Onchain, Timelock, Transactions};
+use crate::blockchain::{
+    Address, Asset, Fee, FeePriority, Network, Onchain, Timelock, Transactions,
+};
 use crate::bundle::{
     AliceParameters, BobParameters, CoreArbitratingTransactions, CosignedArbitratingCancel,
     FullySignedBuy, FullySignedPunish, FullySignedRefund, SignedAdaptorBuy, SignedAdaptorRefund,
@@ -14,8 +16,8 @@ use crate::bundle::{
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
-    AccordantKeyId, ArbitratingKeyId, KeyGenerator, Keys, SharedSecretKeys, Sign, Signatures,
-    TaggedElement, TaggedExtraKeys, TaggedSharedKeys,
+    self, AccordantKeyId, ArbitratingKeyId, KeyGenerator, Keys, SharedSecretKeys, Sign, Signatures,
+    SwapAccordantKeys, TaggedElement, TaggedExtraKeys, TaggedSharedKeys,
 };
 use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
@@ -1329,5 +1331,11 @@ pub trait Arbitrating:
 }
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
-/// timelocks, it is the blockchain with the less requirements for an atomic swap.
-pub trait Accordant: Asset + Address + Keys + SharedSecretKeys + Clone + Eq {}
+/// timelocks: it is the blockchain with fewer requirements for an atomic swap.
+pub trait Accordant: Asset + Address + Keys + SharedSecretKeys + Clone + Eq {
+    /// Derive the lock address for the accordant blockchain.
+    fn derive_lock_address(
+        network: Network,
+        keys: SwapAccordantKeys<Self>,
+    ) -> Result<Self::Address, crypto::Error>;
+}

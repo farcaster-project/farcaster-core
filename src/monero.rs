@@ -1,9 +1,9 @@
 //! Implementation of the Monero blockchain as an accordant blockchain in a swap. This
 //! implementation should work in pair with any other arbitrating implementation, like Bitcoin.
 
-use crate::blockchain::{self, Asset};
+use crate::blockchain::{self, Asset, Network};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys};
+use crate::crypto::{self, AccordantKeys, Keys, SharedKeyId, SharedSecretKeys, SwapAccordantKeys};
 use crate::role::Accordant;
 
 use monero::util::key::{PrivateKey, PublicKey};
@@ -22,7 +22,52 @@ pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
 
-impl Accordant for Monero {}
+impl Accordant for Monero {
+    fn derive_lock_address(
+        network: Network,
+        keys: SwapAccordantKeys<Self>,
+    ) -> Result<Address, crypto::Error> {
+        let SwapAccordantKeys {
+            alice:
+                AccordantKeys {
+                    spend_key: alice_spend_key,
+                    shared_keys: alice_shared_keys,
+                    ..
+                },
+            bob:
+                AccordantKeys {
+                    spend_key: bob_spend_key,
+                    shared_keys: bob_shared_keys,
+                    ..
+                },
+        } = keys;
+
+        let alice_tagged_view_secretkey = alice_shared_keys
+            .iter()
+            .find(|tagged_key| *tagged_key.tag() == SharedKeyId::new(SHARED_VIEW_KEY_ID))
+            .ok_or(crypto::Error::MissingKey)?;
+        let bob_tagged_view_secretkey = bob_shared_keys
+            .iter()
+            .find(|tagged_key| *tagged_key.tag() == SharedKeyId::new(SHARED_VIEW_KEY_ID))
+            .ok_or(crypto::Error::MissingKey)?;
+
+        let public_spend = alice_spend_key + bob_spend_key;
+        let secret_view = alice_tagged_view_secretkey.elem() + bob_tagged_view_secretkey.elem();
+        let public_view = PublicKey::from_private_key(&secret_view);
+
+        Ok(Address::standard(network.into(), public_spend, public_view))
+    }
+}
+
+impl From<Network> for monero::Network {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Mainnet => monero::Network::Mainnet,
+            Network::Testnet => monero::Network::Stagenet,
+            Network::Local => monero::Network::Testnet,
+        }
+    }
+}
 
 impl std::str::FromStr for Monero {
     type Err = crate::consensus::Error;

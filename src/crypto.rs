@@ -11,6 +11,7 @@ use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
+use crate::role::Accordant;
 
 /// List of cryptographic errors that can be encountered in cryptographic operations such as
 /// signatures, proofs, key derivation, or commitments.
@@ -19,6 +20,9 @@ pub enum Error {
     /// The key identifier is not supported and the key cannot be derived.
     #[error("The key identifier is not supported and the key cannot be derived")]
     UnsupportedKey,
+    /// The key or key identifier does not exists or is missing.
+    #[error("The key or key identifier does not exists or is missing")]
+    MissingKey,
     /// The signature does not pass the validation tests.
     #[error("The signature does not pass the validation")]
     InvalidSignature,
@@ -237,6 +241,17 @@ impl Decodable for SharedKeyId {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self(u16::consensus_decode(d)?))
     }
+}
+
+pub struct AccordantKeys<A: Accordant> {
+    pub spend_key: A::PublicKey,
+    pub extra_accordant_keys: Vec<TaggedElement<u16, A::PublicKey>>,
+    pub shared_keys: Vec<TaggedElement<SharedKeyId, A::SharedSecretKey>>,
+}
+
+pub struct SwapAccordantKeys<A: Accordant> {
+    pub alice: AccordantKeys<A>,
+    pub bob: AccordantKeys<A>,
 }
 
 fixed_hash::construct_fixed_hash!(

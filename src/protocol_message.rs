@@ -318,9 +318,6 @@ where
     type Strategy = AsStrict;
 }
 
-// TODO: Add more common data to reveal, e.g. help to ensure that both node uses the same value for
-// fee
-
 /// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]

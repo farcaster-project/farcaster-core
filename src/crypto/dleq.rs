@@ -17,7 +17,7 @@ use curve25519_dalek::{
 const ENTROPY: bool = true;
 
 fn _max_ed25519() -> u256 {
-    (u256::from(2u32) << 252) + 27742317777372353535851937790883648493u128
+    (u256::from(1u32) << 252) + 27742317777372353535851937790883648493u128
 }
 
 fn reverse_endianness(bytes: &[u8; 32]) -> [u8; 32] {

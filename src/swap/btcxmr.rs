@@ -1,7 +1,6 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
-use crate::blockchain::Blockchain;
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{
     self,
@@ -11,6 +10,7 @@ use crate::crypto::{
 };
 #[cfg(feature = "experimental")]
 use crate::{bitcoin::BitcoinSegwitV0, crypto::Sign, monero::Monero, swap::Swap};
+use crate::{blockchain::Blockchain, crypto::dleq::DLEQProof};
 
 use monero::cryptonote::hash::Hash;
 
@@ -66,7 +66,7 @@ pub struct BtcXmr;
 impl Swap for BtcXmr {
     type Ar = BitcoinSegwitV0;
     type Ac = Monero;
-    type Proof = RingProof;
+    type Proof = DLEQProof;
     type Commitment = KeccakCommitment;
 }
 
@@ -400,19 +400,17 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
     }
 }
 
-impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager {
+impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, DLEQProof> for KeyManager {
     fn generate_proof(
         &mut self,
-    ) -> Result<(monero::PublicKey, PublicKey, RingProof), crypto::Error> {
+    ) -> Result<(monero::PublicKey, PublicKey, DLEQProof), crypto::Error> {
         let spend = self.get_pubkey(AccordantKeyId::Spend)?;
         let encryption_key = self.get_encryption_key()?;
 
-        Ok((
-            spend,
-            encryption_key,
-            // FIXME include the proof
-            RingProof,
-        ))
+        let x = self.get_or_derive_monero_spend_key()?.to_bytes();
+        let proof = crypto::dleq::DLEQProof::generate(x);
+
+        Ok((spend, encryption_key, proof))
     }
 
     fn get_encryption_key(&mut self) -> Result<PublicKey, crypto::Error> {
@@ -427,11 +425,16 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, RingProof> for KeyManager
 
     fn verify_proof(
         &mut self,
-        _public_spend: &monero::PublicKey,
-        _encryption_key: &PublicKey,
-        _proof: RingProof,
+        public_spend: &monero::PublicKey,
+        encryption_key: &PublicKey,
+        proof: DLEQProof,
     ) -> Result<(), crypto::Error> {
-        // FIXME verify the proof
-        todo!()
+        if public_spend.point != proof.xG_p.compress() {
+            return Err(crypto::Error::InvalidProof);
+        }
+        if encryption_key.serialize_uncompressed() != proof.xH_p.to_bytes_uncompressed() {
+            return Err(crypto::Error::InvalidProof);
+        }
+        proof.verify()
     }
 }

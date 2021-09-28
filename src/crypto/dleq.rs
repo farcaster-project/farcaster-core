@@ -862,79 +862,83 @@ impl DLEQProof {
     }
 }
 
-#[test]
-fn pedersen_commitment_works() {
-    use rand::Rng;
-    let mut x: [u8; 32] = rand::thread_rng().gen();
-    // ensure 256th bit is 0
-    x[31] &= 0b0111_1111;
-    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
-    let key_commitment = key_commitment(x_bits, 255);
-    let commitment_acc = key_commitment.iter().map(|pc| pc.commitment).sum();
-    assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pedersen_commitment_works() {
+        use rand::Rng;
+        let mut x: [u8; 32] = rand::thread_rng().gen();
+        // ensure 256th bit is 0
+        x[31] &= 0b0111_1111;
+        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let key_commitment = key_commitment(x_bits, 255);
+        let commitment_acc = key_commitment.iter().map(|pc| pc.commitment).sum();
+        assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);
+    }
+
+    #[test]
+    fn pedersen_commitment_sec256k1_works() {
+        use rand::Rng;
+        let x: [u8; 32] = rand::thread_rng().gen();
+        // let mut x: [u8; 32] = rand::thread_rng().gen();
+        // ensure 256th bit is 0
+        // x[31] &= 0b0111_1111;
+        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let key_commitment = key_commitment_secp256k1(x_bits, 255);
+        // let commitment_acc: secp256k1Point<Jacobian, Public, Zero> = key_commitment
+        let commitment_acc = key_commitment.iter().fold(
+            secp256k1Point::zero(),
+            |acc, bit_commitment| g!(acc + bit_commitment.commitment).mark::<Normal>(), // .fold(secp256k1Point::zero().mark::<Jacobian>(), |acc, bit_commitment| g!(acc + bit_commitment.commitment)
+        );
+        let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x));
+        assert_eq!(g!(x_secp256k1 * H), commitment_acc);
+    }
+
+    #[test]
+    fn dleq_proof_works() {
+        use rand::Rng;
+        let x: [u8; 32] = rand::thread_rng().gen();
+        let x_shaved = _zeroize_highest_bits(x, 252);
+        let dleq = DLEQProof::generate(x_shaved);
+
+        assert!(dleq.verify().is_ok(), "{:?}", dleq.verify().err().unwrap());
+    }
+
+    #[test]
+    fn blinders_sum_to_zero() {
+        use rand::Rng;
+        let x: [u8; 32] = rand::thread_rng().gen();
+        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let key_commitment = key_commitment(x_bits, 255);
+        let blinder_acc = key_commitment
+            .iter()
+            .fold(ed25519Scalar::zero(), |acc, bit_commitment| {
+                acc + bit_commitment.blinder
+            });
+        assert_eq!(blinder_acc, ed25519Scalar::zero());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn alt_ed25519_generator_is_correct() {
+        assert_eq!(G_p(), monero::util::key::H.point.decompress().unwrap())
+    }
+
+    #[test]
+    fn canonical_encoding_decoding_idempotent() {
+        use rand::Rng;
+        let x: [u8; 32] = rand::thread_rng().gen();
+        let x_shaved = _zeroize_highest_bits(x, 252);
+        let dleq = DLEQProof::generate(x_shaved);
+
+        assert_eq!(
+            DLEQProof::from_canonical_bytes(dleq.as_canonical_bytes().as_slice()).unwrap(),
+            dleq
+        )
+    }
 }
-
-#[test]
-fn pedersen_commitment_sec256k1_works() {
-    use rand::Rng;
-    let x: [u8; 32] = rand::thread_rng().gen();
-    // let mut x: [u8; 32] = rand::thread_rng().gen();
-    // ensure 256th bit is 0
-    // x[31] &= 0b0111_1111;
-    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
-    let key_commitment = key_commitment_secp256k1(x_bits, 255);
-    // let commitment_acc: secp256k1Point<Jacobian, Public, Zero> = key_commitment
-    let commitment_acc = key_commitment.iter().fold(
-        secp256k1Point::zero(),
-        |acc, bit_commitment| g!(acc + bit_commitment.commitment).mark::<Normal>(), // .fold(secp256k1Point::zero().mark::<Jacobian>(), |acc, bit_commitment| g!(acc + bit_commitment.commitment)
-    );
-    let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x));
-    assert_eq!(g!(x_secp256k1 * H), commitment_acc);
-}
-
-#[test]
-fn dleq_proof_works() {
-    use rand::Rng;
-    let x: [u8; 32] = rand::thread_rng().gen();
-    let x_shaved = _zeroize_highest_bits(x, 252);
-    let dleq = DLEQProof::generate(x_shaved);
-
-    assert!(dleq.verify().is_ok(), "{:?}", dleq.verify().err().unwrap());
-}
-
-#[test]
-fn blinders_sum_to_zero() {
-    use rand::Rng;
-    let x: [u8; 32] = rand::thread_rng().gen();
-    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
-    let key_commitment = key_commitment(x_bits, 255);
-    let blinder_acc = key_commitment
-        .iter()
-        .fold(ed25519Scalar::zero(), |acc, bit_commitment| {
-            acc + bit_commitment.blinder
-        });
-    assert_eq!(blinder_acc, ed25519Scalar::zero());
-}
-
-#[test]
-#[allow(non_snake_case)]
-fn alt_ed25519_generator_is_correct() {
-    assert_eq!(G_p(), monero::util::key::H.point.decompress().unwrap())
-}
-
-#[test]
-fn canonical_encoding_decoding_idempotent() {
-    use rand::Rng;
-    let x: [u8; 32] = rand::thread_rng().gen();
-    let x_shaved = _zeroize_highest_bits(x, 252);
-    let dleq = DLEQProof::generate(x_shaved);
-
-    assert_eq!(
-        DLEQProof::from_canonical_bytes(dleq.as_canonical_bytes().as_slice()).unwrap(),
-        dleq
-    )
-}
-
 // #[test]
 // fn ring_signature() {
 //     let mut csprng = rand_alt::rngs::OsRng;

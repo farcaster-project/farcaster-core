@@ -56,7 +56,7 @@ curve25519-dalek = "3.0.2"
 
 # blockchain specific
 bitcoin = "0.27"
-monero = { version = "0.14" }
+monero = { version = "0.15" }
 
 [dev-dependencies]
 bitcoincore-rpc = "0.14"

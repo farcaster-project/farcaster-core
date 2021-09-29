@@ -429,12 +429,9 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, DLEQProof> for KeyManager
         encryption_key: &PublicKey,
         proof: DLEQProof,
     ) -> Result<(), crypto::Error> {
-        if public_spend.point != proof.xG_p.compress() {
-            return Err(crypto::Error::InvalidProof);
-        }
-        if encryption_key.serialize_uncompressed() != proof.xH_p.to_bytes_uncompressed() {
-            return Err(crypto::Error::InvalidProof);
-        }
-        proof.verify()
+        proof.verify(
+            public_spend.point.decompress().unwrap(),
+            ecdsa_fun::fun::Point::from_bytes(encryption_key.serialize()).unwrap(),
+        )
     }
 }

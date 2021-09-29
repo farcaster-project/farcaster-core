@@ -56,7 +56,7 @@ pub const SHARED_KEY_DERIVE_INDEX: u32 = 3;
 /// discrete logarithm proof.
 pub const CLAMPING_TO_252_BITS_MASK: u8 = 0b0000_1111;
 
-/// The context for a Bitcoin and Monero swap.
+/// The context for a Bitcoin and Monero [`Swap`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BtcXmr;
 

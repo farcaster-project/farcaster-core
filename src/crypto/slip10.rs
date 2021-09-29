@@ -1,5 +1,17 @@
 //! SLIP-10 implementation for secp256k1 and ed25519. This implementation does not support NIST
 //! P-256 curve.
+//!
+//! ```rust
+//! use farcaster_core::crypto::slip10::{DerivationPath, ExtSecretKey};
+//! use std::str::FromStr;
+//!
+//! let seed = hex::decode("deadbeefdeadbeefdeadbeefdeadbeef").unwrap();
+//! let master = ExtSecretKey::new_master_secp256k1(&seed);
+//! let path = DerivationPath::from_str("m/0'/1/2'/2/1000000000").unwrap();
+//! let derived_key = master.derive_priv(&path).unwrap();
+//!
+//! assert!(derived_key.to_secp256k1().is_some());
+//! ```
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::edwards::CompressedEdwardsY;
@@ -11,9 +23,11 @@ use bitcoin::secp256k1::{self, Secp256k1};
 use thiserror::Error;
 
 pub use bitcoin::hash_types::XpubIdentifier;
+/// The 32-bytes entropy extention called chain code.
+pub use bitcoin::util::bip32::ChainCode;
 /// A public key fingerprint, the first four bytes of the identifier.
 pub use bitcoin::util::bip32::Fingerprint;
-pub use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath};
+pub use bitcoin::util::bip32::{ChildNumber, DerivationPath};
 
 /// Possible errors when deriving keys as described in SLIP-10.
 #[derive(Error, Debug)]
@@ -26,16 +40,26 @@ pub enum Error {
     HardenedNotSupportedForEd25519,
 }
 
+/// Ed25519 extended secret key. The extended secret key contains its depth, parent figerprint,
+/// child number, the derived secret key, and the chain code.
 #[derive(Debug, Clone, Copy)]
 pub struct Ed25519ExtSecretKey {
+    /// The depth of this extended key, start with 0 for the master.
     pub depth: u8,
+    /// The parent fingerprint, 0 for the master.
     pub parent_fingerprint: Fingerprint,
+    /// The child number, with a hardened or non-hardened value.
     pub child_number: ChildNumber,
+    /// The secret key, a 32-bytes value. In Ed25519 any 32-bytes long value is considered as valid
+    /// secret key, computation is done on-top before using that value.
     pub secret_key: [u8; 32],
+    /// The 32-bytes entropy extention called chain code.
     pub chain_code: ChainCode,
 }
 
 impl Ed25519ExtSecretKey {
+    /// Construct a new master key from a seed value, as defined in SLIP10 the HMAC engine is setup
+    /// with the value `"ed25519 seed"`.
     pub fn new_master(seed: impl AsRef<[u8]>) -> Self {
         let mut hmac_engine: HmacEngine<sha512::Hash> = HmacEngine::new(b"ed25519 seed");
         hmac_engine.input(seed.as_ref());
@@ -53,6 +77,7 @@ impl Ed25519ExtSecretKey {
         }
     }
 
+    /// Derive the extended secret key from `&self` up to the given `path`.
     pub fn derive_priv(&self, path: &impl AsRef<[ChildNumber]>) -> Result<Self, Error> {
         let mut sk = *self;
         for cnum in path.as_ref() {
@@ -61,6 +86,11 @@ impl Ed25519ExtSecretKey {
         Ok(sk)
     }
 
+    /// Derive the next extended secret key given the child number.
+    ///
+    /// ## Error
+    /// Returns an error if the child number is not hardened. As defined in SLIP10, ed25519 cannot
+    /// be derived in a non-hardened way.
     pub fn ckd_priv(&self, i: ChildNumber) -> Result<Ed25519ExtSecretKey, Error> {
         if i.is_normal() {
             return Err(Error::HardenedNotSupportedForEd25519);
@@ -87,6 +117,8 @@ impl Ed25519ExtSecretKey {
         })
     }
 
+    /// Get the associated public key to the extended secret key as defined in SLIP10 and ed25519
+    /// scheme. This might be used in schemes like EdDSA or X25519.
     pub fn public_key(&self) -> CompressedEdwardsY {
         let mut h = sha512::HashEngine::default();
         let mut bits: [u8; 32] = [0u8; 32];
@@ -124,12 +156,19 @@ impl Ed25519ExtSecretKey {
     }
 }
 
+/// Secp256k1 extended secret key. The extended secret key contains its depth, parent figerprint,
+/// child number, the derived secret key, and the chain code.
 #[derive(Debug, Clone, Copy)]
 pub struct Secp256k1ExtSecretKey {
+    /// The depth of this extended key, start with 0 for the master.
     pub depth: u8,
+    /// The parent fingerprint, 0 for the master.
     pub parent_fingerprint: Fingerprint,
+    /// The child number, with a hardened or non-hardened value.
     pub child_number: ChildNumber,
+    /// The secret key value, a valid secp256k1 secret key.
     pub secret_key: secp256k1::SecretKey,
+    /// The 32-bytes entropy extention called chain code.
     pub chain_code: ChainCode,
 }
 
@@ -161,6 +200,7 @@ impl Secp256k1ExtSecretKey {
         }
     }
 
+    /// Derive the extended secret key from `&self` up to the given `path`.
     pub fn derive_priv<C: secp256k1::Signing>(
         &self,
         secp: &Secp256k1<C>,
@@ -173,6 +213,16 @@ impl Secp256k1ExtSecretKey {
         Ok(sk)
     }
 
+    /// Derive the next extended secret key given the child number. The derivation can be hardened
+    /// or non-hardened as defined in BIP32.
+    ///
+    /// ## SLIP10
+    /// The computation is executed multiple times until a valid secret key is found and should
+    /// never fail.
+    ///
+    /// ## Safety
+    /// An error might be returned if `add_assign` from the `libsecp` fails, but this should not
+    /// arrive.
     pub fn ckd_priv<C: secp256k1::Signing>(
         &self,
         secp: &Secp256k1<C>,
@@ -221,36 +271,47 @@ impl Secp256k1ExtSecretKey {
         })
     }
 
+    /// Returns the public key computed from the secret key.
     pub fn public_key<C: secp256k1::Signing>(&self, secp: &Secp256k1<C>) -> secp256k1::PublicKey {
         secp256k1::PublicKey::from_secret_key(secp, &self.secret_key)
     }
 
+    /// Returns the HASH160 of the serialized public key belonging to the xpriv.
     pub fn identifier<C: secp256k1::Signing>(&self, secp: &Secp256k1<C>) -> XpubIdentifier {
         let mut engine = XpubIdentifier::engine();
         engine.input(self.public_key(secp).serialize().as_ref());
         XpubIdentifier::from_engine(engine)
     }
 
+    /// Returns the first four bytes of the identifier.
     pub fn fingerprint<C: secp256k1::Signing>(&self, secp: &Secp256k1<C>) -> Fingerprint {
         Fingerprint::from(&self.identifier(secp)[0..4])
     }
 }
 
+/// An extended secret key. Generic interface for creating either a secp256k1 extended secret key
+/// or an ed25519 extended secret key and deriving sub-keys.
 #[derive(Debug, Clone, Copy)]
 pub enum ExtSecretKey {
+    /// An extended secret key of type secp256k1.
     Secp256k1(Secp256k1ExtSecretKey),
+    /// An extended secret key of type ed25519.
     Ed25519(Ed25519ExtSecretKey),
 }
 
 impl ExtSecretKey {
+    /// Create a new internal secp256k1 extended secret key.
     pub fn new_master_secp256k1(seed: impl AsRef<[u8]>) -> Self {
         ExtSecretKey::Secp256k1(Secp256k1ExtSecretKey::new_master(seed))
     }
 
+    /// Create a new internal ed25519 extended secret key.
     pub fn new_master_ed25519(seed: impl AsRef<[u8]>) -> Self {
         ExtSecretKey::Ed25519(Ed25519ExtSecretKey::new_master(seed))
     }
 
+    /// Derive the extended secret key given the path. When operating on Bitcoin curve a new
+    /// `secp256k1` context is created.
     pub fn derive_priv(&self, path: &impl AsRef<[ChildNumber]>) -> Result<Self, Error> {
         let mut sk = *self;
         for cnum in path.as_ref() {
@@ -259,7 +320,7 @@ impl ExtSecretKey {
         Ok(sk)
     }
 
-    /// Derive the private key given the provided child number. When operating on Bitcoin curve
+    /// Derive the secret key given the provided child number. When operating on Bitcoin curve
     /// a new `secp256k1` context is created.
     pub fn ckd_priv(&self, i: ChildNumber) -> Result<Self, Error> {
         match &self {
@@ -271,6 +332,7 @@ impl ExtSecretKey {
         }
     }
 
+    /// Return some inner secp256k1 extended secret key, `None` oterhwise.
     pub fn to_secp256k1(self) -> Option<Secp256k1ExtSecretKey> {
         match self {
             Self::Secp256k1(extended_key) => Some(extended_key),
@@ -278,7 +340,7 @@ impl ExtSecretKey {
         }
     }
 
-    /// Return some inner ed25519 extended private key, `None` oterhwise.
+    /// Return some inner ed25519 extended secret key, `None` oterhwise.
     pub fn to_ed25519(self) -> Option<Ed25519ExtSecretKey> {
         match self {
             Self::Ed25519(extended_key) => Some(extended_key),
@@ -308,7 +370,7 @@ impl ExtSecretKey {
         }
     }
 
-    /// Returns the chain code of the extended private key.
+    /// Returns the chain code of the extended secret key.
     pub fn chain_code(&self) -> ChainCode {
         match self {
             Self::Secp256k1(Secp256k1ExtSecretKey { chain_code, .. }) => *chain_code,

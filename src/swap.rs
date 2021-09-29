@@ -49,7 +49,8 @@ pub trait Swap: Debug + Clone {
     /// The accordant blockchain concrete implementation used for the swap.
     type Ac: Accordant;
 
-    ///// The concrete type to link both blockchain cryptographic groups used in by the signatures.
+    /// The proof type used to link both blockchain cryptographic groups to ensure correct secret
+    /// transmition.
     type Proof: Clone + Debug + CanonicalBytes;
 
     /// Commitment type used in the commit/reveal scheme during swap setup.

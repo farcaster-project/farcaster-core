@@ -259,14 +259,21 @@ impl Decodable for SharedKeyId {
     }
 }
 
+/// The list of possible [`Accordant`] keys (secret and public) a swap role has after reveal.
 pub struct AccordantKeys<A: Accordant> {
+    /// The accordant spend public key.
     pub spend_key: A::PublicKey,
+    /// A list of extra accordant public keys.
     pub extra_accordant_keys: Vec<TaggedElement<u16, A::PublicKey>>,
+    /// A list of secret shared keys, e.g. shared view keys in non-transparent blockchains.
     pub shared_keys: Vec<TaggedElement<SharedKeyId, A::SharedSecretKey>>,
 }
 
+/// The list of all accordant keys swap roles have after reveal.
 pub struct SwapAccordantKeys<A: Accordant> {
+    /// Alice's accordant keys (secret and public).
     pub alice: AccordantKeys<A>,
+    /// Bob's accordant keys (secret and public).
     pub bob: AccordantKeys<A>,
 }
 

@@ -1,3 +1,5 @@
+//! Discrete Logarithm Equality Proof system across the different groups secp256k1 and curve25519.
+
 use std::convert::TryInto;
 
 use crate::{
@@ -512,6 +514,7 @@ impl
     }
 }
 
+/// A Discrete Logarithm Equality Proof across secp256k1 and curve25519 groups.
 #[derive(Clone, Debug, PartialEq)]
 #[allow(non_snake_case)]
 pub struct DLEQProof {

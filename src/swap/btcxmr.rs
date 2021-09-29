@@ -1,7 +1,6 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
-use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{
     self,
     slip10::{ChildNumber, DerivationPath, Ed25519ExtSecretKey, Secp256k1ExtSecretKey},
@@ -68,22 +67,6 @@ impl Swap for BtcXmr {
     type Ac = Monero;
     type Proof = DLEQProof;
     type Commitment = KeccakCommitment;
-}
-
-#[derive(Clone, Debug)]
-pub struct RingProof;
-
-impl CanonicalBytes for RingProof {
-    fn as_canonical_bytes(&self) -> Vec<u8> {
-        vec![0u8]
-    }
-
-    fn from_canonical_bytes(_: &[u8]) -> Result<Self, consensus::Error>
-    where
-        Self: Sized,
-    {
-        Ok(Self)
-    }
 }
 
 /// Retrieve the derivation path of something. Might be a blockchain, a type of key, anything that

@@ -383,6 +383,8 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
     }
 }
 
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, DLEQProof> for KeyManager {
     fn generate_proof(
         &mut self,

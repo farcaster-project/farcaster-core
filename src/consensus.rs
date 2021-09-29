@@ -3,7 +3,7 @@
 //!
 //! Implementation on blockchain foreign types with [`CanonicalBytes`] must follow the strict
 //! consensus encoding from the blockchain itself, Farcaster core will then wrap the serialization
-//! and treat it as a lenght prefixed vector of bytes when needed.
+//! and treat it as a length prefixed vector of bytes when needed.
 
 use hex::encode as hex_encode;
 use thiserror::Error;
@@ -76,7 +76,7 @@ pub trait CanonicalBytes {
         Self: Sized;
 }
 
-/// Encode an object into a vector of bytes. The vector can be [`deserialize`] to retreive the
+/// Encode an object into a vector of bytes. The vector can be [`deserialize`]d to retrieve the
 /// data.
 pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
     let mut encoder = Vec::new();
@@ -187,6 +187,8 @@ macro_rules! impl_fixed_array {
 
 impl_fixed_array!(6);
 impl_fixed_array!(32);
+impl_fixed_array!(33);
+impl_fixed_array!(64);
 
 macro_rules! unwrap_vec_ref {
     ($reader: ident) => {{

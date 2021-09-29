@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use crate::{
-    consensus::{self, CanonicalBytes},
+    consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable},
     crypto,
 };
 use amplify::num::u256;
@@ -524,243 +524,147 @@ pub struct DLEQProof {
     pok_1: ecdsa_fun::Signature,
 }
 
-impl CanonicalBytes for DLEQProof {
-    fn as_canonical_bytes(&self) -> Vec<u8> {
-        let mut v = vec![];
-
-        v.extend_from_slice(self.xG_p.compress().as_bytes());
-        v.extend(self.xH_p.to_bytes());
-
-        v.push(self.c_g.len() as u8);
-
-        let c_g_bytes: Vec<u8> = self.c_g.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(pc.compress().as_bytes());
-            acc
-        });
-        let c_h_bytes: Vec<u8> = self.c_h.iter().fold(vec![], |mut acc, pc| {
-            acc.extend(pc.to_bytes());
-            acc
-        });
-
-        let ring_signature_bytes: Vec<u8> =
-            self.ring_signatures
-                .iter()
-                .fold(vec![], |mut acc, ring_sig| {
-                    acc.extend(
-                        ring_sig
-                            .e_g_0_i
-                            .as_bytes()
-                            .iter()
-                            .chain(ring_sig.e_h_0_i.to_bytes().iter())
-                            .chain(ring_sig.a_0_i.as_bytes().iter())
-                            .chain(ring_sig.b_0_i.to_bytes().iter())
-                            .chain(ring_sig.a_1_i.as_bytes().iter())
-                            .chain(ring_sig.b_1_i.to_bytes().iter())
-                            .cloned()
-                            .collect::<Vec<u8>>(),
-                    );
-                    acc
-                });
-
-        #[allow(non_snake_case)]
-        let pok_0_bytes_alphaG = self.pok_0.0.compress();
-        let pok_0_bytes_r = self.pok_0.1.as_bytes();
-        let pok_1_bytes = self.pok_1.to_bytes();
-
-        v.extend(c_g_bytes);
-        v.extend(c_h_bytes);
-        v.extend(ring_signature_bytes);
-        v.extend(pok_0_bytes_alphaG.as_bytes());
-        v.extend(pok_0_bytes_r);
-        v.extend(pok_1_bytes);
-
-        v
+impl Encodable for ed25519Point {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.compress().to_bytes().consensus_encode(writer)
     }
+}
 
-    fn from_canonical_bytes(bytes: &[u8]) -> Result<DLEQProof, consensus::Error>
-    where
-        Self: Sized,
-    {
-        // xG_p
-        let mut iterator = bytes.iter();
-        // let xG_p: Vec<&u8> = iterator.clone().take(32).collect();
-        #[allow(non_snake_case)]
-        let xG_p: ed25519Point = ed25519PointCompressed::from_slice(&bytes[..32])
+impl Decodable for ed25519Point {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+        Ok(ed25519PointCompressed::from_slice(&bytes)
             .decompress()
-            .unwrap();
-        iterator.nth(31);
-        // let xG_p_bytes: [u8; 32] = iterator
-        //     .clone()
-        //     .take(32)
-        //     .cloned()
-        //     .collect::<Vec<u8>>()
-        //     .try_into()
-        //     .unwrap();
-        // let xG_p: ed25519Point = ed25519PointCompressed::from_slice(&xG_p_bytes).decompress().unwrap();
-        // iterator.nth(31);
+            .unwrap())
+    }
+}
 
-        // xH_p
+impl Encodable for secp256k1Point {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for secp256k1Point {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 33] = Decodable::consensus_decode(d)?;
+        Ok(secp256k1Point::from_bytes(bytes).unwrap())
+    }
+}
+
+impl Encodable for ed25519Scalar {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for ed25519Scalar {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+        Ok(ed25519Scalar::from_bytes_mod_order(bytes))
+    }
+}
+
+impl Encodable for secp256k1Scalar {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for secp256k1Scalar {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+        Ok(secp256k1Scalar::from_bytes_mod_order(bytes)
+            .mark::<NonZero>()
+            .unwrap())
+    }
+}
+
+impl Encodable for (ed25519Point, ed25519Scalar) {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        Ok(self.0.consensus_encode(writer)? + self.1.consensus_encode(writer)?)
+    }
+}
+
+impl Decodable for (ed25519Point, ed25519Scalar) {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok((
+            Decodable::consensus_decode(d)?,
+            Decodable::consensus_decode(d)?,
+        ))
+    }
+}
+
+impl Encodable for ecdsa_fun::Signature {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        self.to_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for ecdsa_fun::Signature {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 64] = Decodable::consensus_decode(d)?;
+        Ok(ecdsa_fun::Signature::from_bytes(bytes).unwrap())
+    }
+}
+
+impl Encodable for RingSignature<ed25519Scalar, secp256k1Scalar> {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        let mut len = 0usize;
+        len += self.e_g_0_i.consensus_encode(writer)?;
+        len += self.e_h_0_i.consensus_encode(writer)?;
+        len += self.a_0_i.consensus_encode(writer)?;
+        len += self.b_0_i.consensus_encode(writer)?;
+        len += self.a_1_i.consensus_encode(writer)?;
+        len += self.b_1_i.consensus_encode(writer)?;
+        Ok(len)
+    }
+}
+
+impl Decodable for RingSignature<ed25519Scalar, secp256k1Scalar> {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let e_g_0_i = Decodable::consensus_decode(d)?;
+        let e_h_0_i = Decodable::consensus_decode(d)?;
+        let a_0_i = Decodable::consensus_decode(d)?;
+        let b_0_i = Decodable::consensus_decode(d)?;
+        let a_1_i = Decodable::consensus_decode(d)?;
+        let b_1_i = Decodable::consensus_decode(d)?;
+        Ok(RingSignature {
+            e_g_0_i,
+            e_h_0_i,
+            a_0_i,
+            b_0_i,
+            a_1_i,
+            b_1_i,
+        })
+    }
+}
+
+impl Encodable for DLEQProof {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        let mut len = 0usize;
+        len += self.xG_p.consensus_encode(writer)?;
+        len += self.xH_p.consensus_encode(writer)?;
+        len += self.c_g.consensus_encode(writer)?;
+        len += self.c_h.consensus_encode(writer)?;
+        len += self.ring_signatures.consensus_encode(writer)?;
+        len += self.pok_0.consensus_encode(writer)?;
+        len += self.pok_1.consensus_encode(writer)?;
+        Ok(len)
+    }
+}
+
+impl Decodable for DLEQProof {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         #[allow(non_snake_case)]
-        let xH_p_bytes: [u8; 33] = iterator
-            .clone()
-            .take(33)
-            .cloned()
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
+        let xG_p = Decodable::consensus_decode(d)?;
         #[allow(non_snake_case)]
-        let xH_p: secp256k1Point = secp256k1Point::from_bytes(xH_p_bytes).unwrap();
-        iterator.nth(32);
-
-        // Vec<ed25519Point>
-        let bits = *iterator.next().unwrap();
-
-        let mut c_g = vec![];
-        for _depth in 0..bits {
-            let c_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            c_g.push(
-                ed25519PointCompressed::from_slice(&c_bytes)
-                    .decompress()
-                    .unwrap(),
-            );
-        }
-
-        // Vec<secp256k1Point>
-        let mut c_h = vec![];
-        for _depth in 0..bits {
-            let c_bytes: [u8; 33] = iterator
-                .clone()
-                .take(33)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(32);
-            c_h.push(secp256k1Point::from_bytes(c_bytes).unwrap());
-        }
-
-        // Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>
-        let mut ring_signatures = vec![];
-        for _depth in 0..bits {
-            let e_g_0_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let e_g_0_i = ed25519Scalar::from_canonical_bytes(e_g_0_i_bytes).unwrap();
-            let e_h_0_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let e_h_0_i = secp256k1Scalar::from_bytes(e_h_0_i_bytes)
-                .unwrap()
-                .mark::<NonZero>()
-                .unwrap();
-
-            let a_0_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let a_0_i = ed25519Scalar::from_canonical_bytes(a_0_i_bytes).unwrap();
-            let b_0_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let b_0_i = secp256k1Scalar::from_bytes(b_0_i_bytes)
-                .unwrap()
-                .mark::<NonZero>()
-                .unwrap();
-
-            let a_1_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let a_1_i = ed25519Scalar::from_canonical_bytes(a_1_i_bytes).unwrap();
-            let b_1_i_bytes: [u8; 32] = iterator
-                .clone()
-                .take(32)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap();
-            iterator.nth(31);
-            let b_1_i = secp256k1Scalar::from_bytes(b_1_i_bytes)
-                .unwrap()
-                .mark::<NonZero>()
-                .unwrap();
-
-            let ring_sig = RingSignature {
-                e_g_0_i,
-                e_h_0_i,
-                a_0_i,
-                b_0_i,
-                a_1_i,
-                b_1_i,
-            };
-            ring_signatures.push(ring_sig);
-        }
-
-        #[allow(non_snake_case)]
-        let pok_0_alphaG_bytes: [u8; 32] = iterator
-            .clone()
-            .take(32)
-            .cloned()
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
-        iterator.nth(31);
-        #[allow(non_snake_case)]
-        let pok_0_alphaG = ed25519PointCompressed::from_slice(&pok_0_alphaG_bytes)
-            .decompress()
-            .unwrap();
-
-        let pok_0_r_bytes: [u8; 32] = iterator
-            .clone()
-            .take(32)
-            .cloned()
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
-        iterator.nth(31);
-        let pok_0_r = ed25519Scalar::from_bits(pok_0_r_bytes);
-
-        let pok_0 = (pok_0_alphaG, pok_0_r);
-
-        let pok_1 = ecdsa_fun::Signature::from_bytes(
-            iterator
-                .take(64)
-                .cloned()
-                .collect::<Vec<u8>>()
-                .try_into()
-                .unwrap(),
-        )
-        .unwrap();
+        let xH_p = Decodable::consensus_decode(d)?;
+        let c_g = Decodable::consensus_decode(d)?;
+        let c_h = Decodable::consensus_decode(d)?;
+        let ring_signatures = Decodable::consensus_decode(d)?;
+        let pok_0 = Decodable::consensus_decode(d)?;
+        let pok_1 = Decodable::consensus_decode(d)?;
 
         Ok(DLEQProof {
             xG_p,
@@ -771,6 +675,19 @@ impl CanonicalBytes for DLEQProof {
             pok_0,
             pok_1,
         })
+    }
+}
+
+impl CanonicalBytes for DLEQProof {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        serialize(self)
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<DLEQProof, consensus::Error>
+    where
+        Self: Sized,
+    {
+        deserialize(bytes)
     }
 }
 
@@ -829,10 +746,7 @@ impl DLEQProof {
 
         //Proof of Knowledge ed25519 (edDSA)
         let hash_x = monero::cryptonote::hash::keccak_256(x_ed25519.as_bytes());
-        let pok_0_message: Vec<u8> = c_g.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(pc.compress().as_bytes());
-            acc
-        });
+        let pok_0_message = serialize(&c_g);
 
         let mut alpha_preimage = vec![];
         alpha_preimage.extend_from_slice(&hash_x);
@@ -861,10 +775,7 @@ impl DLEQProof {
             sha2::Sha256,
             ecdsa_fun::nonce::GlobalRng<rand::rngs::ThreadRng>,
         >::default();
-        let pok_1_message: Vec<u8> = c_h.iter().fold(vec![], |mut acc, pc| {
-            acc.extend(pc.to_bytes());
-            acc
-        });
+        let pok_1_message = serialize(&c_h);
         let pok_1_message_hash: [u8; 32] = sha2::Sha256::digest(&pok_1_message).try_into().unwrap();
         let ecdsa = ecdsa_fun::ECDSA::new(nonce_gen);
 
@@ -929,11 +840,7 @@ impl DLEQProof {
         let mut challenge_preimage = vec![];
         challenge_preimage.extend_from_slice(alpha_G.compress().as_bytes());
         challenge_preimage.extend_from_slice(self.xG_p.compress().as_bytes());
-        let pok_0_message: Vec<u8> = self.c_g.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(pc.compress().as_bytes());
-            acc
-        });
-        challenge_preimage.extend(pok_0_message);
+        challenge_preimage.extend_from_slice(serialize(&self.c_g).as_slice());
         let challenge = monero::cryptonote::hash::keccak_256(&challenge_preimage);
 
         if r * G != alpha_G + ed25519Scalar::from_bytes_mod_order(challenge) * self.xG_p {
@@ -942,10 +849,7 @@ impl DLEQProof {
 
         // secp256k1 (ECDSA)
         let ecdsa = ecdsa_fun::ECDSA::verify_only();
-        let pok_1_message = self.c_h.iter().fold(vec![], |mut acc, pc| {
-            acc.extend_from_slice(&pc.to_bytes());
-            acc
-        });
+        let pok_1_message = serialize(&self.c_h);
         let pok_1_message_hash: [u8; 32] = sha2::Sha256::digest(pok_1_message.as_slice())
             .try_into()
             .unwrap();
@@ -958,79 +862,83 @@ impl DLEQProof {
     }
 }
 
-#[test]
-fn pedersen_commitment_works() {
-    use rand::Rng;
-    let mut x: [u8; 32] = rand::thread_rng().gen();
-    // ensure 256th bit is 0
-    x[31] &= 0b0111_1111;
-    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
-    let key_commitment = key_commitment(x_bits, 255);
-    let commitment_acc = key_commitment.iter().map(|pc| pc.commitment).sum();
-    assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pedersen_commitment_works() {
+        use rand::Rng;
+        let mut x: [u8; 32] = rand::thread_rng().gen();
+        // ensure 256th bit is 0
+        x[31] &= 0b0111_1111;
+        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let key_commitment = key_commitment(x_bits, 255);
+        let commitment_acc = key_commitment.iter().map(|pc| pc.commitment).sum();
+        assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);
+    }
+
+    #[test]
+    fn pedersen_commitment_sec256k1_works() {
+        use rand::Rng;
+        let x: [u8; 32] = rand::thread_rng().gen();
+        // let mut x: [u8; 32] = rand::thread_rng().gen();
+        // ensure 256th bit is 0
+        // x[31] &= 0b0111_1111;
+        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let key_commitment = key_commitment_secp256k1(x_bits, 255);
+        // let commitment_acc: secp256k1Point<Jacobian, Public, Zero> = key_commitment
+        let commitment_acc = key_commitment.iter().fold(
+            secp256k1Point::zero(),
+            |acc, bit_commitment| g!(acc + bit_commitment.commitment).mark::<Normal>(), // .fold(secp256k1Point::zero().mark::<Jacobian>(), |acc, bit_commitment| g!(acc + bit_commitment.commitment)
+        );
+        let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x));
+        assert_eq!(g!(x_secp256k1 * H), commitment_acc);
+    }
+
+    #[test]
+    fn dleq_proof_works() {
+        use rand::Rng;
+        let x: [u8; 32] = rand::thread_rng().gen();
+        let x_shaved = _zeroize_highest_bits(x, 252);
+        let dleq = DLEQProof::generate(x_shaved);
+
+        assert!(dleq.verify().is_ok(), "{:?}", dleq.verify().err().unwrap());
+    }
+
+    #[test]
+    fn blinders_sum_to_zero() {
+        use rand::Rng;
+        let x: [u8; 32] = rand::thread_rng().gen();
+        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let key_commitment = key_commitment(x_bits, 255);
+        let blinder_acc = key_commitment
+            .iter()
+            .fold(ed25519Scalar::zero(), |acc, bit_commitment| {
+                acc + bit_commitment.blinder
+            });
+        assert_eq!(blinder_acc, ed25519Scalar::zero());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn alt_ed25519_generator_is_correct() {
+        assert_eq!(G_p(), monero::util::key::H.point.decompress().unwrap())
+    }
+
+    #[test]
+    fn canonical_encoding_decoding_idempotent() {
+        use rand::Rng;
+        let x: [u8; 32] = rand::thread_rng().gen();
+        let x_shaved = _zeroize_highest_bits(x, 252);
+        let dleq = DLEQProof::generate(x_shaved);
+
+        assert_eq!(
+            DLEQProof::from_canonical_bytes(dleq.as_canonical_bytes().as_slice()).unwrap(),
+            dleq
+        )
+    }
 }
-
-#[test]
-fn pedersen_commitment_sec256k1_works() {
-    use rand::Rng;
-    let x: [u8; 32] = rand::thread_rng().gen();
-    // let mut x: [u8; 32] = rand::thread_rng().gen();
-    // ensure 256th bit is 0
-    // x[31] &= 0b0111_1111;
-    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
-    let key_commitment = key_commitment_secp256k1(x_bits, 255);
-    // let commitment_acc: secp256k1Point<Jacobian, Public, Zero> = key_commitment
-    let commitment_acc = key_commitment.iter().fold(
-        secp256k1Point::zero(),
-        |acc, bit_commitment| g!(acc + bit_commitment.commitment).mark::<Normal>(), // .fold(secp256k1Point::zero().mark::<Jacobian>(), |acc, bit_commitment| g!(acc + bit_commitment.commitment)
-    );
-    let x_secp256k1 = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x));
-    assert_eq!(g!(x_secp256k1 * H), commitment_acc);
-}
-
-#[test]
-fn dleq_proof_works() {
-    use rand::Rng;
-    let x: [u8; 32] = rand::thread_rng().gen();
-    let x_shaved = _zeroize_highest_bits(x, 252);
-    let dleq = DLEQProof::generate(x_shaved);
-
-    assert!(dleq.verify().is_ok(), "{:?}", dleq.verify().err().unwrap());
-}
-
-#[test]
-fn blinders_sum_to_zero() {
-    use rand::Rng;
-    let x: [u8; 32] = rand::thread_rng().gen();
-    let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
-    let key_commitment = key_commitment(x_bits, 255);
-    let blinder_acc = key_commitment
-        .iter()
-        .fold(ed25519Scalar::zero(), |acc, bit_commitment| {
-            acc + bit_commitment.blinder
-        });
-    assert_eq!(blinder_acc, ed25519Scalar::zero());
-}
-
-#[test]
-#[allow(non_snake_case)]
-fn alt_ed25519_generator_is_correct() {
-    assert_eq!(G_p(), monero::util::key::H.point.decompress().unwrap())
-}
-
-#[test]
-fn canonical_encoding_decoding_idempotent() {
-    use rand::Rng;
-    let x: [u8; 32] = rand::thread_rng().gen();
-    let x_shaved = _zeroize_highest_bits(x, 252);
-    let dleq = DLEQProof::generate(x_shaved);
-
-    assert_eq!(
-        DLEQProof::from_canonical_bytes(dleq.as_canonical_bytes().as_slice()).unwrap(),
-        dleq
-    )
-}
-
 // #[test]
 // fn ring_signature() {
 //     let mut csprng = rand_alt::rngs::OsRng;

@@ -21,6 +21,14 @@ use bitcoin::Address;
 
 use std::str::FromStr;
 
+macro_rules! test_strict_ser {
+    ($var:ident, $type:ty) => {
+        let strict_ser = strict_encoding::strict_serialize(&$var).unwrap();
+        let res: Result<$type, _> = strict_encoding::strict_deserialize(&strict_ser);
+        assert!(res.is_ok());
+    };
+}
+
 fn init() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>) {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
                a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
@@ -74,16 +82,20 @@ fn execute_offline_protocol() {
         .unwrap();
     let commit_alice_params =
         CommitAliceParameters::commit_to_bundle(swap_id, &commitment_engine, alice_params.clone());
+    test_strict_ser!(commit_alice_params, CommitAliceParameters<BtcXmr>);
 
     let bob_params = bob
         .generate_parameters(&mut bob_key_manager, &pub_offer)
         .unwrap();
     let commit_bob_params =
         CommitBobParameters::commit_to_bundle(swap_id, &commitment_engine, bob_params.clone());
+    test_strict_ser!(commit_bob_params, CommitBobParameters<BtcXmr>);
 
     // Reveal
     let reveal_alice_params: RevealAliceParameters<BtcXmr> = (swap_id, alice_params.clone()).into();
+    test_strict_ser!(reveal_alice_params, RevealAliceParameters<BtcXmr>);
     let reveal_bob_params: RevealBobParameters<BtcXmr> = (swap_id, bob_params.clone()).into();
+    test_strict_ser!(reveal_bob_params, RevealBobParameters<BtcXmr>);
 
     assert!(commit_alice_params
         .verify_with_reveal(&commitment_engine, reveal_alice_params)
@@ -126,7 +138,9 @@ fn execute_offline_protocol() {
         .cosign_arbitrating_cancel(&mut bob_key_manager, &core)
         .unwrap();
 
-    let _: CoreArbitratingSetup<BtcXmr> = (swap_id, core.clone(), bob_cosign_cancel.clone()).into();
+    let core_arb_setup: CoreArbitratingSetup<BtcXmr> =
+        (swap_id, core.clone(), bob_cosign_cancel.clone()).into();
+    test_strict_ser!(core_arb_setup, CoreArbitratingSetup<BtcXmr>);
 
     //
     // Sign the refund procedure
@@ -150,8 +164,9 @@ fn execute_offline_protocol() {
         )
         .unwrap();
 
-    let _: RefundProcedureSignatures<BtcXmr> =
+    let refund_proc_sig: RefundProcedureSignatures<BtcXmr> =
         (swap_id, alice_cosign_cancel.clone(), adaptor_refund.clone()).into();
+    test_strict_ser!(refund_proc_sig, RefundProcedureSignatures<BtcXmr>);
 
     //
     // Validate the refund procedure and sign the buy procedure
@@ -184,7 +199,8 @@ fn execute_offline_protocol() {
     // ...seen arbitrating lock...
     // ...seen accordant lock...
 
-    let _: BuyProcedureSignature<BtcXmr> = (swap_id, adaptor_buy.clone()).into();
+    let buy_proc_sig: BuyProcedureSignature<BtcXmr> = (swap_id, adaptor_buy.clone()).into();
+    test_strict_ser!(buy_proc_sig, BuyProcedureSignature<BtcXmr>);
 
     //
     // IF BUY PATH:

@@ -119,6 +119,8 @@ pub enum TxLabel {
     /// Represents the full failure path, where only one participant gets refunded because he
     /// didn't act accordingly to the protocol.
     Punish,
+    /// Represents the accordant lock transaction
+    AccLock,
 }
 
 impl Encodable for TxLabel {
@@ -130,6 +132,7 @@ impl Encodable for TxLabel {
             TxLabel::Cancel => 0x04u16.consensus_encode(writer),
             TxLabel::Refund => 0x05u16.consensus_encode(writer),
             TxLabel::Punish => 0x06u16.consensus_encode(writer),
+            TxLabel::AccLock => 0x07u16.consensus_encode(writer),
         }
     }
 }
@@ -143,6 +146,7 @@ impl Decodable for TxLabel {
             0x04u16 => Ok(TxLabel::Cancel),
             0x05u16 => Ok(TxLabel::Refund),
             0x06u16 => Ok(TxLabel::Punish),
+            0x07u16 => Ok(TxLabel::AccLock),
             _ => Err(consensus::Error::UnknownType),
         }
     }

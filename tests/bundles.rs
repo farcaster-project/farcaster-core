@@ -1,7 +1,7 @@
 use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
 use farcaster_core::blockchain::FeePriority;
-use farcaster_core::bundle::{AliceParameters, BobParameters};
+use farcaster_core::bundle::{AliceParameters, AliceProof, BobParameters, BobProof};
 use farcaster_core::consensus::deserialize;
 use farcaster_core::crypto::CommitmentEngine;
 use farcaster_core::negotiation::PublicOffer;
@@ -58,11 +58,12 @@ fn create_alice_parameters() {
     .unwrap();
     let commitment_engine = CommitmentEngine;
 
-    let alice_params = alice
+    let (alice_params, alice_proof) = alice
         .generate_parameters(&mut key_manager, &pub_offer)
         .unwrap();
 
     test_strict_ser!(alice_params, AliceParameters<BtcXmr>);
+    test_strict_ser!(alice_proof, AliceProof<BtcXmr>);
 
     let commit_alice_params =
         CommitAliceParameters::commit_to_bundle(swap_id, &commitment_engine, alice_params.clone());
@@ -91,11 +92,12 @@ fn create_bob_parameters() {
     .unwrap();
     let commitment_engine = CommitmentEngine;
 
-    let bob_params = bob
+    let (bob_params, bob_proof) = bob
         .generate_parameters(&mut key_manager, &pub_offer)
         .unwrap();
 
     test_strict_ser!(bob_params, BobParameters<BtcXmr>);
+    test_strict_ser!(bob_proof, BobProof<BtcXmr>);
 
     let commit_bob_params =
         CommitBobParameters::commit_to_bundle(swap_id, &commitment_engine, bob_params.clone());
@@ -133,7 +135,7 @@ fn tampered_reveal_must_fail() {
     .unwrap();
     let commitment_engine = CommitmentEngine;
 
-    let bob_params = bob
+    let (bob_params, _bob_proof) = bob
         .generate_parameters(&mut key_manager, &pub_offer)
         .unwrap();
 
@@ -144,7 +146,8 @@ fn tampered_reveal_must_fail() {
     let reveal_bob_params: RevealBobParameters<_> = (
         swap_id,
         bob.generate_parameters(&mut key_manager2, &pub_offer)
-            .unwrap(),
+            .unwrap()
+            .0,
     )
         .into();
     // MUST error since we reveal other parameters
@@ -167,7 +170,7 @@ fn missing_commitment_in_vec() {
     .unwrap();
     let commitment_engine = CommitmentEngine;
 
-    let bob_params = bob
+    let (bob_params, _bob_proof) = bob
         .generate_parameters(&mut key_manager, &pub_offer)
         .unwrap();
     let mut partial_params = bob_params;
@@ -181,7 +184,8 @@ fn missing_commitment_in_vec() {
     let reveal_bob_params: RevealBobParameters<_> = (
         swap_id,
         bob.generate_parameters(&mut key_manager, &pub_offer)
-            .unwrap(),
+            .unwrap()
+            .0,
     )
         .into();
     // MUST error since we reveal params not committed

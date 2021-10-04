@@ -321,6 +321,47 @@ where
 /// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
+pub struct RevealAliceProof<Ctx: Swap> {
+    /// Reveal the cross-group discrete logarithm zero-knowledge proof.
+    pub proof: Ctx::Proof,
+}
+
+impl<Ctx> Encodable for RevealAliceProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.proof.as_canonical_bytes().consensus_encode(s)
+    }
+}
+
+impl<Ctx> Decodable for RevealAliceProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+        })
+    }
+}
+
+impl_strict_encoding!(RevealAliceProof<Ctx>, Ctx: Swap);
+
+impl<Ctx> From<(SwapId, bundle::AliceProof<Ctx>)> for RevealAliceProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(bundle: (SwapId, bundle::AliceProof<Ctx>)) -> Self {
+        Self {
+            proof: bundle.1.proof,
+        }
+    }
+}
+
+/// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
 pub struct RevealAliceParameters<Ctx: Swap> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
@@ -348,8 +389,6 @@ pub struct RevealAliceParameters<Ctx: Swap> {
         Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     /// Reveal the destination address.
     pub address: <Ctx::Ar as Address>::Address,
-    /// Reveal the cross-group discrete logarithm zero-knowledge proof.
-    pub proof: Ctx::Proof,
 }
 
 impl<Ctx> Encodable for RevealAliceParameters<Ctx>
@@ -368,8 +407,7 @@ where
         len += self.spend.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_accordant_keys.consensus_encode(s)?;
         len += self.accordant_shared_keys.consensus_encode(s)?;
-        len += self.address.as_canonical_bytes().consensus_encode(s)?;
-        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
+        Ok(len + self.address.as_canonical_bytes().consensus_encode(s)?)
     }
 }
 
@@ -401,7 +439,6 @@ where
             address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
@@ -433,9 +470,16 @@ where
             extra_accordant_keys: bundle.1.extra_accordant_keys,
             accordant_shared_keys: bundle.1.accordant_shared_keys,
             address: bundle.1.destination_address,
-            proof: bundle.1.proof,
         }
     }
+}
+
+/// Reveals the proof commited by the [`CommitBobParameters`] protocol message.
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
+pub struct RevealBobProof<Ctx: Swap> {
+    /// The cross-group discrete logarithm zero-knowledge proof.
+    pub proof: Ctx::Proof,
 }
 
 /// Reveals the parameters commited by the [`CommitBobParameters`] protocol message.
@@ -466,8 +510,6 @@ pub struct RevealBobParameters<Ctx: Swap> {
         Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     /// The refund Bitcoin address.
     pub address: <Ctx::Ar as Address>::Address,
-    /// The cross-group discrete logarithm zero-knowledge proof.
-    pub proof: Ctx::Proof,
 }
 
 impl<Ctx> Encodable for RevealBobParameters<Ctx>
@@ -485,8 +527,16 @@ where
         len += self.spend.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_accordant_keys.consensus_encode(s)?;
         len += self.accordant_shared_keys.consensus_encode(s)?;
-        len += self.address.as_canonical_bytes().consensus_encode(s)?;
-        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
+        Ok(len + self.address.as_canonical_bytes().consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Encodable for RevealBobProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.proof.as_canonical_bytes().consensus_encode(s)
     }
 }
 
@@ -515,6 +565,16 @@ where
             address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
+        })
+    }
+}
+
+impl<Ctx> Decodable for RevealBobProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
             proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
@@ -546,6 +606,16 @@ where
             extra_accordant_keys: bundle.1.extra_accordant_keys,
             accordant_shared_keys: bundle.1.accordant_shared_keys,
             address: bundle.1.refund_address,
+        }
+    }
+}
+
+impl<Ctx> From<(SwapId, bundle::BobProof<Ctx>)> for RevealBobProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(bundle: (SwapId, bundle::BobProof<Ctx>)) -> Self {
+        Self {
             proof: bundle.1.proof,
         }
     }

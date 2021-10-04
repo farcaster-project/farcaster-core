@@ -15,6 +15,33 @@ use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures, TaggedEleme
 use crate::protocol_message;
 use crate::swap::Swap;
 
+#[derive(Debug, Clone, Display)]
+#[display(Debug)]
+pub struct AliceProof<Ctx: Swap> {
+    pub proof: Ctx::Proof,
+}
+
+impl<Ctx> Encodable for AliceProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.proof.as_canonical_bytes().consensus_encode(s)
+    }
+}
+
+impl<Ctx> Decodable for AliceProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+        })
+    }
+}
+
+
 /// Alice parameters required for the initialization step of a swap and used to generate the
 /// [`CommitAliceParameters`] and [`RevealAliceParameters`] protocol messages in the commit/reveal
 /// round.
@@ -37,7 +64,6 @@ pub struct AliceParameters<Ctx: Swap> {
     pub accordant_shared_keys:
         Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     pub destination_address: <Ctx::Ar as Address>::Address,
-    pub proof: Ctx::Proof,
     pub cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     pub punish_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     pub fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
@@ -62,7 +88,6 @@ where
             .destination_address
             .as_canonical_bytes()
             .consensus_encode(s)?;
-        len += self.proof.as_canonical_bytes().consensus_encode(s)?;
         len += self.cancel_timelock.consensus_encode(s)?;
         len += self.punish_timelock.consensus_encode(s)?;
         Ok(len + self.fee_strategy.consensus_encode(s)?)
@@ -96,7 +121,6 @@ where
             destination_address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             cancel_timelock: Decodable::consensus_decode(d)?,
             punish_timelock: Decodable::consensus_decode(d)?,
             fee_strategy: Decodable::consensus_decode(d)?,
@@ -105,6 +129,7 @@ where
 }
 
 impl_strict_encoding!(AliceParameters<Ctx>, Ctx: Swap);
+impl_strict_encoding!(AliceProof<Ctx>, Ctx: Swap);
 
 impl<Ctx> From<protocol_message::RevealAliceParameters<Ctx>> for AliceParameters<Ctx>
 where
@@ -123,13 +148,40 @@ where
             extra_accordant_keys: msg.extra_accordant_keys,
             accordant_shared_keys: msg.accordant_shared_keys,
             destination_address: msg.address,
-            proof: msg.proof,
             cancel_timelock: None,
             punish_timelock: None,
             fee_strategy: None,
         }
     }
 }
+
+#[derive(Debug, Clone, Display)]
+#[display(Debug)]
+pub struct BobProof<Ctx: Swap> {
+    pub proof: Ctx::Proof,
+}
+
+impl<Ctx> Encodable for BobProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.proof.as_canonical_bytes().consensus_encode(s)
+    }
+}
+
+impl<Ctx> Decodable for BobProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+        })
+    }
+}
+
+impl_strict_encoding!(BobProof<Ctx>, Ctx: Swap);
 
 /// Bob parameters required for the initialization step of a swap and used to generate the
 /// [`CommitBobParameters`] and [`RevealBobParameters`] protocol messages in the commit/reveal
@@ -152,7 +204,6 @@ pub struct BobParameters<Ctx: Swap> {
     pub accordant_shared_keys:
         Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     pub refund_address: <Ctx::Ar as Address>::Address,
-    pub proof: Ctx::Proof,
     pub cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     pub punish_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     pub fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
@@ -176,7 +227,6 @@ where
             .refund_address
             .as_canonical_bytes()
             .consensus_encode(s)?;
-        len += self.proof.as_canonical_bytes().consensus_encode(s)?;
         len += self.cancel_timelock.consensus_encode(s)?;
         len += self.punish_timelock.consensus_encode(s)?;
         Ok(len + self.fee_strategy.consensus_encode(s)?)
@@ -207,7 +257,6 @@ where
             refund_address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             cancel_timelock: Decodable::consensus_decode(d)?,
             punish_timelock: Decodable::consensus_decode(d)?,
             fee_strategy: Decodable::consensus_decode(d)?,
@@ -233,7 +282,6 @@ where
             extra_accordant_keys: msg.extra_accordant_keys,
             accordant_shared_keys: msg.accordant_shared_keys,
             refund_address: msg.address,
-            proof: msg.proof,
             cancel_timelock: None,
             punish_timelock: None,
             fee_strategy: None,

@@ -515,8 +515,6 @@ impl
 #[derive(Clone, Debug, PartialEq)]
 #[allow(non_snake_case)]
 pub struct DLEQProof {
-    pub(crate) xG_p: ed25519Point,
-    pub(crate) xH_p: secp256k1Point,
     c_g: Vec<ed25519Point>,
     c_h: Vec<secp256k1Point>,
     ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>,
@@ -643,8 +641,6 @@ impl Decodable for RingSignature<ed25519Scalar, secp256k1Scalar> {
 impl Encodable for DLEQProof {
     fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
         let mut len = 0usize;
-        len += self.xG_p.consensus_encode(writer)?;
-        len += self.xH_p.consensus_encode(writer)?;
         len += self.c_g.consensus_encode(writer)?;
         len += self.c_h.consensus_encode(writer)?;
         len += self.ring_signatures.consensus_encode(writer)?;
@@ -656,10 +652,6 @@ impl Encodable for DLEQProof {
 
 impl Decodable for DLEQProof {
     fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        #[allow(non_snake_case)]
-        let xG_p = Decodable::consensus_decode(d)?;
-        #[allow(non_snake_case)]
-        let xH_p = Decodable::consensus_decode(d)?;
         let c_g = Decodable::consensus_decode(d)?;
         let c_h = Decodable::consensus_decode(d)?;
         let ring_signatures = Decodable::consensus_decode(d)?;
@@ -667,8 +659,6 @@ impl Decodable for DLEQProof {
         let pok_1 = Decodable::consensus_decode(d)?;
 
         Ok(DLEQProof {
-            xG_p,
-            xH_p,
             c_g,
             c_h,
             ring_signatures,
@@ -784,8 +774,6 @@ impl DLEQProof {
         assert!(ecdsa.verify(&xH_p, &pok_1_message_hash, &pok_1));
 
         DLEQProof {
-            xG_p,
-            xH_p,
             c_g,
             c_h,
             ring_signatures,
@@ -794,7 +782,11 @@ impl DLEQProof {
         }
     }
 
-    pub(crate) fn verify(&self) -> Result<(), crypto::Error> {
+    pub(crate) fn verify(
+        &self,
+        #[allow(non_snake_case)] xG_p: ed25519Point,
+        #[allow(non_snake_case)] xH_p: secp256k1Point,
+    ) -> Result<(), crypto::Error> {
         assert_eq!(252, self.c_g.len());
         assert_eq!(252, self.c_h.len());
         assert_eq!(252, self.ring_signatures.len());
@@ -802,7 +794,7 @@ impl DLEQProof {
         // Commitments
         let commitment_agg_ed25519 = self.c_g.iter().sum();
 
-        if !(self.xG_p == commitment_agg_ed25519) {
+        if xG_p != commitment_agg_ed25519 {
             return Err(crypto::Error::InvalidPedersenCommitment);
         }
 
@@ -813,7 +805,7 @@ impl DLEQProof {
                 g!(acc + bit_commitment).mark::<Normal>()
             });
 
-        if !(self.xH_p == commitment_agg_secp256k1) {
+        if !(xH_p == commitment_agg_secp256k1) {
             return Err(crypto::Error::InvalidPedersenCommitment);
         }
 
@@ -839,11 +831,11 @@ impl DLEQProof {
         let (alpha_G, r) = self.pok_0;
         let mut challenge_preimage = vec![];
         challenge_preimage.extend_from_slice(alpha_G.compress().as_bytes());
-        challenge_preimage.extend_from_slice(self.xG_p.compress().as_bytes());
+        challenge_preimage.extend_from_slice(xG_p.compress().as_bytes());
         challenge_preimage.extend_from_slice(serialize(&self.c_g).as_slice());
         let challenge = monero::cryptonote::hash::keccak_256(&challenge_preimage);
 
-        if r * G != alpha_G + ed25519Scalar::from_bytes_mod_order(challenge) * self.xG_p {
+        if r * G != alpha_G + ed25519Scalar::from_bytes_mod_order(challenge) * xG_p {
             return Err(crypto::Error::InvalidProofOfKnowledge);
         }
 
@@ -853,7 +845,7 @@ impl DLEQProof {
         let pok_1_message_hash: [u8; 32] = sha2::Sha256::digest(pok_1_message.as_slice())
             .try_into()
             .unwrap();
-        if !ecdsa_fun::ECDSA::verify(&ecdsa, &self.xH_p, &pok_1_message_hash, &self.pok_1) {
+        if !ecdsa_fun::ECDSA::verify(&ecdsa, &xH_p, &pok_1_message_hash, &self.pok_1) {
             return Err(crypto::Error::InvalidProofOfKnowledge);
         }
 
@@ -897,13 +889,23 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn dleq_proof_works() {
         use rand::Rng;
         let x: [u8; 32] = rand::thread_rng().gen();
         let x_shaved = _zeroize_highest_bits(x, 252);
         let dleq = DLEQProof::generate(x_shaved);
 
-        assert!(dleq.verify().is_ok(), "{:?}", dleq.verify().err().unwrap());
+        let xG_p = ed25519Scalar::from_bytes_mod_order(x_shaved) * G;
+        let xH_p_secp256k1 = secp256k1Scalar::from_bytes_mod_order(reverse_endianness(&x_shaved))
+            .mark::<NonZero>()
+            .unwrap();
+        let xH_p = g!(xH_p_secp256k1 * H).mark::<Normal>();
+        assert!(
+            dleq.verify(xG_p, xH_p).is_ok(),
+            "{:?}",
+            dleq.verify(xG_p, xH_p).err().unwrap()
+        );
     }
 
     #[test]

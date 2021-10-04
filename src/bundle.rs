@@ -41,7 +41,6 @@ where
     }
 }
 
-
 /// Alice parameters required for the initialization step of a swap and used to generate the
 /// [`CommitAliceParameters`] and [`RevealAliceParameters`] protocol messages in the commit/reveal
 /// round.

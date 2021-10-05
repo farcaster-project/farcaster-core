@@ -190,20 +190,20 @@ where
     type Strategy = AsStrict;
 }
 
-// CommitAliceProof
+// CommitProof
 
 /// Forces Alice to commit to the result of her cryptographic setup before receiving Bob's setup.
 /// This is done to remove adaptive behavior in the cryptographic parameters.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
-pub struct CommitAliceProof<Ctx: Swap> {
+pub struct CommitProof<Ctx: Swap> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// Commitment to the proof.
     pub proof: Ctx::Commitment,
 }
 
-impl<Ctx> CommitAliceProof<Ctx>
+impl<Ctx> CommitProof<Ctx>
 where
     Ctx: Swap,
 {
@@ -221,13 +221,13 @@ where
     pub fn verify_with_reveal(
         &self,
         wallet: &impl Commit<Ctx::Commitment>,
-        reveal: RevealAliceProof<Ctx>,
+        reveal: RevealProof<Ctx>,
     ) -> Result<(), crypto::Error> {
         wallet.validate(reveal.proof.as_canonical_bytes(), self.proof.clone())
     }
 }
 
-impl<Ctx> Encodable for CommitAliceProof<Ctx>
+impl<Ctx> Encodable for CommitProof<Ctx>
 where
     Ctx: Swap,
 {
@@ -237,7 +237,7 @@ where
     }
 }
 
-impl<Ctx> Decodable for CommitAliceProof<Ctx>
+impl<Ctx> Decodable for CommitProof<Ctx>
 where
     Ctx: Swap,
 {
@@ -249,9 +249,9 @@ where
     }
 }
 
-impl_strict_encoding!(CommitAliceProof<Ctx>, Ctx: Swap);
+impl_strict_encoding!(CommitProof<Ctx>, Ctx: Swap);
 
-impl<Ctx> Strategy for CommitAliceProof<Ctx>
+impl<Ctx> Strategy for CommitProof<Ctx>
 where
     Ctx: Swap,
 {
@@ -390,87 +390,19 @@ where
     type Strategy = AsStrict;
 }
 
-// CommitBobProof
+// RevealProof
 
-/// Forces Bob to commit to the result of his cryptographic setup before receiving Alice's setup.
-/// This is done to remove adaptive behavior in the cryptographic parameters.
+/// Reveals the parameters commited by the [`CommitProof`] protocol message.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
-pub struct CommitBobProof<Ctx: Swap> {
-    /// The swap identifier related to this message.
-    pub swap_id: SwapId,
-    /// Commitment to the proof.
-    pub proof: Ctx::Commitment,
-}
-
-impl<Ctx> CommitBobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    pub fn commit_to_bundle(
-        swap_id: SwapId,
-        wallet: &impl Commit<Ctx::Commitment>,
-        bundle: bundle::Proof<Ctx>,
-    ) -> Self {
-        Self {
-            swap_id,
-            proof: wallet.commit_to(bundle.proof.as_canonical_bytes()),
-        }
-    }
-
-    pub fn verify_with_reveal(
-        &self,
-        wallet: &impl Commit<Ctx::Commitment>,
-        reveal: RevealBobProof<Ctx>,
-    ) -> Result<(), crypto::Error> {
-        wallet.validate(reveal.proof.as_canonical_bytes(), self.proof.clone())
-    }
-}
-
-impl<Ctx> Encodable for CommitBobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let len = self.swap_id.consensus_encode(s)?;
-        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
-    }
-}
-
-impl<Ctx> Decodable for CommitBobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        Ok(Self {
-            swap_id: Decodable::consensus_decode(d)?,
-            proof: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-        })
-    }
-}
-
-impl_strict_encoding!(CommitBobProof<Ctx>, Ctx: Swap);
-
-impl<Ctx> Strategy for CommitBobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    type Strategy = AsStrict;
-}
-
-// RevealAliceProof
-
-/// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
-#[derive(Clone, Debug, Display)]
-#[display(Debug)]
-pub struct RevealAliceProof<Ctx: Swap> {
+pub struct RevealProof<Ctx: Swap> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// Reveal the cross-group discrete logarithm zero-knowledge proof.
     pub proof: Ctx::Proof,
 }
 
-impl<Ctx> Encodable for RevealAliceProof<Ctx>
+impl<Ctx> Encodable for RevealProof<Ctx>
 where
     Ctx: Swap,
 {
@@ -480,7 +412,7 @@ where
     }
 }
 
-impl<Ctx> Decodable for RevealAliceProof<Ctx>
+impl<Ctx> Decodable for RevealProof<Ctx>
 where
     Ctx: Swap,
 {
@@ -492,16 +424,16 @@ where
     }
 }
 
-impl_strict_encoding!(RevealAliceProof<Ctx>, Ctx: Swap);
+impl_strict_encoding!(RevealProof<Ctx>, Ctx: Swap);
 
-impl<Ctx> Strategy for RevealAliceProof<Ctx>
+impl<Ctx> Strategy for RevealProof<Ctx>
 where
     Ctx: Swap,
 {
     type Strategy = AsStrict;
 }
 
-impl<Ctx> From<(SwapId, bundle::Proof<Ctx>)> for RevealAliceProof<Ctx>
+impl<Ctx> From<(SwapId, bundle::Proof<Ctx>)> for RevealProof<Ctx>
 where
     Ctx: Swap,
 {
@@ -560,6 +492,7 @@ where
         len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_arbitrating_keys.consensus_encode(s)?;
         len += self.arbitrating_shared_keys.consensus_encode(s)?;
+        // this can go?
         len += self.spend.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_accordant_keys.consensus_encode(s)?;
         len += self.accordant_shared_keys.consensus_encode(s)?;
@@ -630,18 +563,6 @@ where
     }
 }
 
-// RevealBobProof
-
-/// Reveals the proof commited by the [`CommitBobParameters`] protocol message.
-#[derive(Clone, Debug, Display)]
-#[display(Debug)]
-pub struct RevealBobProof<Ctx: Swap> {
-    /// The swap identifier related to this message.
-    pub swap_id: SwapId,
-    /// The cross-group discrete logarithm zero-knowledge proof.
-    pub proof: Ctx::Proof,
-}
-
 /// Reveals the parameters commited by the [`CommitBobParameters`] protocol message.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
@@ -691,16 +612,6 @@ where
     }
 }
 
-impl<Ctx> Encodable for RevealBobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let len = self.swap_id.consensus_encode(s)?;
-        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
-    }
-}
-
 impl<Ctx> Decodable for RevealBobParameters<Ctx>
 where
     Ctx: Swap,
@@ -730,29 +641,9 @@ where
     }
 }
 
-impl<Ctx> Decodable for RevealBobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        Ok(Self {
-            swap_id: Decodable::consensus_decode(d)?,
-            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-        })
-    }
-}
-
 impl_strict_encoding!(RevealBobParameters<Ctx>, Ctx: Swap);
-impl_strict_encoding!(RevealBobProof<Ctx>, Ctx: Swap);
 
 impl<Ctx> Strategy for RevealBobParameters<Ctx>
-where
-    Ctx: Swap,
-{
-    type Strategy = AsStrict;
-}
-
-impl<Ctx> Strategy for RevealBobProof<Ctx>
 where
     Ctx: Swap,
 {
@@ -776,18 +667,6 @@ where
             extra_accordant_keys: bundle.1.extra_accordant_keys,
             accordant_shared_keys: bundle.1.accordant_shared_keys,
             address: bundle.1.refund_address,
-        }
-    }
-}
-
-impl<Ctx> From<(SwapId, bundle::Proof<Ctx>)> for RevealBobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn from(bundle: (SwapId, bundle::Proof<Ctx>)) -> Self {
-        Self {
-            swap_id: bundle.0,
-            proof: bundle.1.proof,
         }
     }
 }

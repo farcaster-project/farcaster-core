@@ -1,7 +1,7 @@
 use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
 use farcaster_core::blockchain::FeePriority;
-use farcaster_core::bundle::{AliceParameters, AliceProof, BobParameters, BobProof};
+use farcaster_core::bundle::{AliceParameters, BobParameters, Proof};
 use farcaster_core::consensus::deserialize;
 use farcaster_core::crypto::CommitmentEngine;
 use farcaster_core::negotiation::PublicOffer;
@@ -63,7 +63,7 @@ fn create_alice_parameters() {
         .unwrap();
 
     test_strict_ser!(alice_params, AliceParameters<BtcXmr>);
-    test_strict_ser!(alice_proof, AliceProof<BtcXmr>);
+    test_strict_ser!(alice_proof, Proof<BtcXmr>);
 
     let commit_alice_params =
         CommitAliceParameters::commit_to_bundle(swap_id, &commitment_engine, alice_params.clone());
@@ -97,7 +97,7 @@ fn create_bob_parameters() {
         .unwrap();
 
     test_strict_ser!(bob_params, BobParameters<BtcXmr>);
-    test_strict_ser!(bob_proof, BobProof<BtcXmr>);
+    test_strict_ser!(bob_proof, Proof<BtcXmr>);
 
     let commit_bob_params =
         CommitBobParameters::commit_to_bundle(swap_id, &commitment_engine, bob_params.clone());

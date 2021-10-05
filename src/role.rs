@@ -10,9 +10,9 @@ use crate::blockchain::{
     Address, Asset, Fee, FeePriority, Network, Onchain, Timelock, Transactions,
 };
 use crate::bundle::{
-    AliceParameters, AliceProof, BobParameters, BobProof, CoreArbitratingTransactions,
-    CosignedArbitratingCancel, FullySignedBuy, FullySignedPunish, FullySignedRefund,
-    SignedAdaptorBuy, SignedAdaptorRefund, SignedArbitratingLock,
+    AliceParameters, BobParameters, CoreArbitratingTransactions, CosignedArbitratingCancel,
+    FullySignedBuy, FullySignedPunish, FullySignedRefund, Proof, SignedAdaptorBuy,
+    SignedAdaptorRefund, SignedArbitratingLock,
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
@@ -223,7 +223,7 @@ where
             Ctx::Proof,
         >,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Res<(AliceParameters<Ctx>, AliceProof<Ctx>)> {
+    ) -> Res<(AliceParameters<Ctx>, Proof<Ctx>)> {
         let extra_arbitrating_keys: Res<TaggedExtraKeys<<Ctx::Ar as Keys>::PublicKey>> =
             <Ctx::Ar as Keys>::extra_keys()
                 .into_iter()
@@ -281,7 +281,7 @@ where
                 punish_timelock: Some(public_offer.offer.punish_timelock),
                 fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
             },
-            AliceProof { proof },
+            Proof { proof },
         ))
     }
 
@@ -793,7 +793,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             Ctx::Proof,
         >,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Res<(BobParameters<Ctx>, BobProof<Ctx>)> {
+    ) -> Res<(BobParameters<Ctx>, Proof<Ctx>)> {
         let extra_arbitrating_keys: Res<TaggedExtraKeys<<Ctx::Ar as Keys>::PublicKey>> =
             <Ctx::Ar as Keys>::extra_keys()
                 .into_iter()
@@ -850,7 +850,7 @@ impl<Ctx: Swap> Bob<Ctx> {
                 punish_timelock: Some(public_offer.offer.punish_timelock),
                 fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
             },
-            BobProof { proof },
+            Proof { proof },
         ))
     }
 

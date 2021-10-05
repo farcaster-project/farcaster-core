@@ -210,7 +210,7 @@ where
     pub fn commit_to_bundle(
         swap_id: SwapId,
         wallet: &impl Commit<Ctx::Commitment>,
-        bundle: bundle::AliceProof<Ctx>,
+        bundle: bundle::Proof<Ctx>,
     ) -> Self {
         Self {
             swap_id,
@@ -410,7 +410,7 @@ where
     pub fn commit_to_bundle(
         swap_id: SwapId,
         wallet: &impl Commit<Ctx::Commitment>,
-        bundle: bundle::BobProof<Ctx>,
+        bundle: bundle::Proof<Ctx>,
     ) -> Self {
         Self {
             swap_id,
@@ -501,11 +501,11 @@ where
     type Strategy = AsStrict;
 }
 
-impl<Ctx> From<(SwapId, bundle::AliceProof<Ctx>)> for RevealAliceProof<Ctx>
+impl<Ctx> From<(SwapId, bundle::Proof<Ctx>)> for RevealAliceProof<Ctx>
 where
     Ctx: Swap,
 {
-    fn from(bundle: (SwapId, bundle::AliceProof<Ctx>)) -> Self {
+    fn from(bundle: (SwapId, bundle::Proof<Ctx>)) -> Self {
         Self {
             swap_id: bundle.0,
             proof: bundle.1.proof,
@@ -780,11 +780,11 @@ where
     }
 }
 
-impl<Ctx> From<(SwapId, bundle::BobProof<Ctx>)> for RevealBobProof<Ctx>
+impl<Ctx> From<(SwapId, bundle::Proof<Ctx>)> for RevealBobProof<Ctx>
 where
     Ctx: Swap,
 {
-    fn from(bundle: (SwapId, bundle::BobProof<Ctx>)) -> Self {
+    fn from(bundle: (SwapId, bundle::Proof<Ctx>)) -> Self {
         Self {
             swap_id: bundle.0,
             proof: bundle.1.proof,

@@ -17,11 +17,11 @@ use crate::swap::Swap;
 
 #[derive(Debug, Clone, Display)]
 #[display(Debug)]
-pub struct AliceProof<Ctx: Swap> {
+pub struct Proof<Ctx: Swap> {
     pub proof: Ctx::Proof,
 }
 
-impl<Ctx> Encodable for AliceProof<Ctx>
+impl<Ctx> Encodable for Proof<Ctx>
 where
     Ctx: Swap,
 {
@@ -30,7 +30,7 @@ where
     }
 }
 
-impl<Ctx> Decodable for AliceProof<Ctx>
+impl<Ctx> Decodable for Proof<Ctx>
 where
     Ctx: Swap,
 {
@@ -128,7 +128,7 @@ where
 }
 
 impl_strict_encoding!(AliceParameters<Ctx>, Ctx: Swap);
-impl_strict_encoding!(AliceProof<Ctx>, Ctx: Swap);
+impl_strict_encoding!(Proof<Ctx>, Ctx: Swap);
 
 impl<Ctx> From<protocol_message::RevealAliceParameters<Ctx>> for AliceParameters<Ctx>
 where
@@ -153,34 +153,6 @@ where
         }
     }
 }
-
-#[derive(Debug, Clone, Display)]
-#[display(Debug)]
-pub struct BobProof<Ctx: Swap> {
-    pub proof: Ctx::Proof,
-}
-
-impl<Ctx> Encodable for BobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        self.proof.as_canonical_bytes().consensus_encode(s)
-    }
-}
-
-impl<Ctx> Decodable for BobProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        Ok(Self {
-            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-        })
-    }
-}
-
-impl_strict_encoding!(BobProof<Ctx>, Ctx: Swap);
 
 /// Bob parameters required for the initialization step of a swap and used to generate the
 /// [`CommitBobParameters`] and [`RevealBobParameters`] protocol messages in the commit/reveal

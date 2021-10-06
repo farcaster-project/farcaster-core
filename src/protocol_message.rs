@@ -190,74 +190,6 @@ where
     type Strategy = AsStrict;
 }
 
-// CommitProof
-
-/// Forces Alice to commit to the result of her cryptographic setup before receiving Bob's setup.
-/// This is done to remove adaptive behavior in the cryptographic parameters.
-#[derive(Clone, Debug, Display)]
-#[display(Debug)]
-pub struct CommitProof<Ctx: Swap> {
-    /// The swap identifier related to this message.
-    pub swap_id: SwapId,
-    /// Commitment to the proof.
-    pub proof: Ctx::Commitment,
-}
-
-impl<Ctx> CommitProof<Ctx>
-where
-    Ctx: Swap,
-{
-    pub fn commit_to_bundle(
-        swap_id: SwapId,
-        wallet: &impl Commit<Ctx::Commitment>,
-        bundle: bundle::Proof<Ctx>,
-    ) -> Self {
-        Self {
-            swap_id,
-            proof: wallet.commit_to(bundle.proof.as_canonical_bytes()),
-        }
-    }
-
-    pub fn verify_with_reveal(
-        &self,
-        wallet: &impl Commit<Ctx::Commitment>,
-        reveal: RevealProof<Ctx>,
-    ) -> Result<(), crypto::Error> {
-        wallet.validate(reveal.proof.as_canonical_bytes(), self.proof.clone())
-    }
-}
-
-impl<Ctx> Encodable for CommitProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let len = self.swap_id.consensus_encode(s)?;
-        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
-    }
-}
-
-impl<Ctx> Decodable for CommitProof<Ctx>
-where
-    Ctx: Swap,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        Ok(Self {
-            swap_id: Decodable::consensus_decode(d)?,
-            proof: Ctx::Commitment::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-        })
-    }
-}
-
-impl_strict_encoding!(CommitProof<Ctx>, Ctx: Swap);
-
-impl<Ctx> Strategy for CommitProof<Ctx>
-where
-    Ctx: Swap,
-{
-    type Strategy = AsStrict;
-}
-
 // CommitBobParameters
 
 /// Forces Bob to commit to the result of his cryptographic setup before receiving Alice's setup.
@@ -392,7 +324,7 @@ where
 
 // RevealProof
 
-/// Reveals the parameters commited by the [`CommitProof`] protocol message.
+/// Reveals the proof.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
 pub struct RevealProof<Ctx: Swap> {

@@ -41,6 +41,8 @@ where
     }
 }
 
+impl_strict_encoding!(Proof<Ctx>, Ctx: Swap);
+
 /// Alice parameters required for the initialization step of a swap and used to generate the
 /// [`CommitAliceParameters`] and [`RevealAliceParameters`] protocol messages in the commit/reveal
 /// round.
@@ -128,7 +130,6 @@ where
 }
 
 impl_strict_encoding!(AliceParameters<Ctx>, Ctx: Swap);
-impl_strict_encoding!(Proof<Ctx>, Ctx: Swap);
 
 impl<Ctx> From<protocol_message::RevealAliceParameters<Ctx>> for AliceParameters<Ctx>
 where

@@ -52,6 +52,8 @@ fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
         .map(|_| ())
 }
 
+// CommitAliceParameters
+
 /// Forces Alice to commit to the result of her cryptographic setup before receiving Bob's setup.
 /// This is done to remove adaptive behavior in the cryptographic parameters.
 #[derive(Clone, Debug, Display)]
@@ -188,6 +190,8 @@ where
     type Strategy = AsStrict;
 }
 
+// CommitBobParameters
+
 /// Forces Bob to commit to the result of his cryptographic setup before receiving Alice's setup.
 /// This is done to remove adaptive behavior in the cryptographic parameters.
 #[derive(Clone, Debug, Display)]
@@ -318,6 +322,63 @@ where
     type Strategy = AsStrict;
 }
 
+// RevealProof
+
+/// Reveals the proof.
+#[derive(Clone, Debug, Display)]
+#[display(Debug)]
+pub struct RevealProof<Ctx: Swap> {
+    /// The swap identifier related to this message.
+    pub swap_id: SwapId,
+    /// Reveal the cross-group discrete logarithm zero-knowledge proof.
+    pub proof: Ctx::Proof,
+}
+
+impl<Ctx> Encodable for RevealProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        let len = self.swap_id.consensus_encode(s)?;
+        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
+    }
+}
+
+impl<Ctx> Decodable for RevealProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self {
+            swap_id: Decodable::consensus_decode(d)?,
+            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+        })
+    }
+}
+
+impl_strict_encoding!(RevealProof<Ctx>, Ctx: Swap);
+
+impl<Ctx> Strategy for RevealProof<Ctx>
+where
+    Ctx: Swap,
+{
+    type Strategy = AsStrict;
+}
+
+impl<Ctx> From<(SwapId, bundle::Proof<Ctx>)> for RevealProof<Ctx>
+where
+    Ctx: Swap,
+{
+    fn from(bundle: (SwapId, bundle::Proof<Ctx>)) -> Self {
+        Self {
+            swap_id: bundle.0,
+            proof: bundle.1.proof,
+        }
+    }
+}
+
+// RevealAliceParameters
+
 /// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
 #[derive(Clone, Debug, Display)]
 #[display(Debug)]
@@ -348,8 +409,6 @@ pub struct RevealAliceParameters<Ctx: Swap> {
         Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     /// Reveal the destination address.
     pub address: <Ctx::Ar as Address>::Address,
-    /// Reveal the cross-group discrete logarithm zero-knowledge proof.
-    pub proof: Ctx::Proof,
 }
 
 impl<Ctx> Encodable for RevealAliceParameters<Ctx>
@@ -365,11 +424,11 @@ where
         len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_arbitrating_keys.consensus_encode(s)?;
         len += self.arbitrating_shared_keys.consensus_encode(s)?;
+        // this can go?
         len += self.spend.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_accordant_keys.consensus_encode(s)?;
         len += self.accordant_shared_keys.consensus_encode(s)?;
-        len += self.address.as_canonical_bytes().consensus_encode(s)?;
-        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
+        Ok(len + self.address.as_canonical_bytes().consensus_encode(s)?)
     }
 }
 
@@ -401,7 +460,6 @@ where
             address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
@@ -433,7 +491,6 @@ where
             extra_accordant_keys: bundle.1.extra_accordant_keys,
             accordant_shared_keys: bundle.1.accordant_shared_keys,
             address: bundle.1.destination_address,
-            proof: bundle.1.proof,
         }
     }
 }
@@ -466,8 +523,6 @@ pub struct RevealBobParameters<Ctx: Swap> {
         Vec<TaggedElement<SharedKeyId, <Ctx::Ac as SharedSecretKeys>::SharedSecretKey>>,
     /// The refund Bitcoin address.
     pub address: <Ctx::Ar as Address>::Address,
-    /// The cross-group discrete logarithm zero-knowledge proof.
-    pub proof: Ctx::Proof,
 }
 
 impl<Ctx> Encodable for RevealBobParameters<Ctx>
@@ -485,8 +540,7 @@ where
         len += self.spend.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_accordant_keys.consensus_encode(s)?;
         len += self.accordant_shared_keys.consensus_encode(s)?;
-        len += self.address.as_canonical_bytes().consensus_encode(s)?;
-        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
+        Ok(len + self.address.as_canonical_bytes().consensus_encode(s)?)
     }
 }
 
@@ -515,7 +569,6 @@ where
             address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            proof: Ctx::Proof::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
@@ -546,7 +599,6 @@ where
             extra_accordant_keys: bundle.1.extra_accordant_keys,
             accordant_shared_keys: bundle.1.accordant_shared_keys,
             address: bundle.1.refund_address,
-            proof: bundle.1.proof,
         }
     }
 }

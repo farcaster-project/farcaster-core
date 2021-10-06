@@ -11,8 +11,8 @@ use crate::blockchain::{
 };
 use crate::bundle::{
     AliceParameters, BobParameters, CoreArbitratingTransactions, CosignedArbitratingCancel,
-    FullySignedBuy, FullySignedPunish, FullySignedRefund, SignedAdaptorBuy, SignedAdaptorRefund,
-    SignedArbitratingLock,
+    FullySignedBuy, FullySignedPunish, FullySignedRefund, Proof, SignedAdaptorBuy,
+    SignedAdaptorRefund, SignedArbitratingLock,
 };
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
@@ -223,7 +223,7 @@ where
             Ctx::Proof,
         >,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Res<AliceParameters<Ctx>> {
+    ) -> Res<(AliceParameters<Ctx>, Proof<Ctx>)> {
         let extra_arbitrating_keys: Res<TaggedExtraKeys<<Ctx::Ar as Keys>::PublicKey>> =
             <Ctx::Ar as Keys>::extra_keys()
                 .into_iter()
@@ -264,23 +264,25 @@ where
 
         let (spend, adaptor, proof) = key_gen.generate_proof()?;
 
-        Ok(AliceParameters {
-            buy: key_gen.get_pubkey(ArbitratingKeyId::Buy)?,
-            cancel: key_gen.get_pubkey(ArbitratingKeyId::Cancel)?,
-            refund: key_gen.get_pubkey(ArbitratingKeyId::Refund)?,
-            punish: key_gen.get_pubkey(ArbitratingKeyId::Punish)?,
-            adaptor,
-            extra_arbitrating_keys: extra_arbitrating_keys?,
-            arbitrating_shared_keys: arbitrating_shared_keys?,
-            spend,
-            extra_accordant_keys: extra_accordant_keys?,
-            accordant_shared_keys: accordant_shared_keys?,
-            destination_address: self.destination_address.clone(),
-            proof,
-            cancel_timelock: Some(public_offer.offer.cancel_timelock),
-            punish_timelock: Some(public_offer.offer.punish_timelock),
-            fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
-        })
+        Ok((
+            AliceParameters {
+                buy: key_gen.get_pubkey(ArbitratingKeyId::Buy)?,
+                cancel: key_gen.get_pubkey(ArbitratingKeyId::Cancel)?,
+                refund: key_gen.get_pubkey(ArbitratingKeyId::Refund)?,
+                punish: key_gen.get_pubkey(ArbitratingKeyId::Punish)?,
+                adaptor,
+                extra_arbitrating_keys: extra_arbitrating_keys?,
+                arbitrating_shared_keys: arbitrating_shared_keys?,
+                spend,
+                extra_accordant_keys: extra_accordant_keys?,
+                accordant_shared_keys: accordant_shared_keys?,
+                destination_address: self.destination_address.clone(),
+                cancel_timelock: Some(public_offer.offer.cancel_timelock),
+                punish_timelock: Some(public_offer.offer.punish_timelock),
+                fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
+            },
+            Proof { proof },
+        ))
     }
 
     /// Generates the witness on the [`Refundable`] transaction and adaptor sign it.
@@ -791,7 +793,7 @@ impl<Ctx: Swap> Bob<Ctx> {
             Ctx::Proof,
         >,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Res<BobParameters<Ctx>> {
+    ) -> Res<(BobParameters<Ctx>, Proof<Ctx>)> {
         let extra_arbitrating_keys: Res<TaggedExtraKeys<<Ctx::Ar as Keys>::PublicKey>> =
             <Ctx::Ar as Keys>::extra_keys()
                 .into_iter()
@@ -832,22 +834,24 @@ impl<Ctx: Swap> Bob<Ctx> {
 
         let (spend, adaptor, proof) = key_gen.generate_proof()?;
 
-        Ok(BobParameters {
-            buy: key_gen.get_pubkey(ArbitratingKeyId::Buy)?,
-            cancel: key_gen.get_pubkey(ArbitratingKeyId::Cancel)?,
-            refund: key_gen.get_pubkey(ArbitratingKeyId::Refund)?,
-            adaptor,
-            extra_arbitrating_keys: extra_arbitrating_keys?,
-            arbitrating_shared_keys: arbitrating_shared_keys?,
-            spend,
-            extra_accordant_keys: extra_accordant_keys?,
-            accordant_shared_keys: accordant_shared_keys?,
-            refund_address: self.refund_address.clone(),
-            proof,
-            cancel_timelock: Some(public_offer.offer.cancel_timelock),
-            punish_timelock: Some(public_offer.offer.punish_timelock),
-            fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
-        })
+        Ok((
+            BobParameters {
+                buy: key_gen.get_pubkey(ArbitratingKeyId::Buy)?,
+                cancel: key_gen.get_pubkey(ArbitratingKeyId::Cancel)?,
+                refund: key_gen.get_pubkey(ArbitratingKeyId::Refund)?,
+                adaptor,
+                extra_arbitrating_keys: extra_arbitrating_keys?,
+                arbitrating_shared_keys: arbitrating_shared_keys?,
+                spend,
+                extra_accordant_keys: extra_accordant_keys?,
+                accordant_shared_keys: accordant_shared_keys?,
+                refund_address: self.refund_address.clone(),
+                cancel_timelock: Some(public_offer.offer.cancel_timelock),
+                punish_timelock: Some(public_offer.offer.punish_timelock),
+                fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
+            },
+            Proof { proof },
+        ))
     }
 
     /// Initialize the core arbitrating transactions composed of: [`Lockable`], [`Cancelable`], and

@@ -77,14 +77,14 @@ fn execute_offline_protocol() {
     //
     // Commit/Reveal round
     //
-    let alice_params = alice
+    let (alice_params, _alice_proof) = alice
         .generate_parameters(&mut alice_key_manager, &pub_offer)
         .unwrap();
     let commit_alice_params =
         CommitAliceParameters::commit_to_bundle(swap_id, &commitment_engine, alice_params.clone());
     test_strict_ser!(commit_alice_params, CommitAliceParameters<BtcXmr>);
 
-    let bob_params = bob
+    let (bob_params, _bob_proof) = bob
         .generate_parameters(&mut bob_key_manager, &pub_offer)
         .unwrap();
     let commit_bob_params =

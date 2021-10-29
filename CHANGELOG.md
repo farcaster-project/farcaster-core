@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove public keys from DLEQ proof (#151](<https://github.com/farcaster-project/farcaster-core/pull/151>))
+- Remove public keys from DLEQ proof ([#151](https://github.com/farcaster-project/farcaster-core/pull/151))
 
 ## [0.1.0] - 2021-08-24
 

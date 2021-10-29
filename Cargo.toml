@@ -1,6 +1,6 @@
 [package]
 name = "farcaster_core"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Farcaster Devs"]
 documentation = "https://docs.rs/farcaster_core"
 homepage = "https://github.com/farcaster-project/farcaster-core"

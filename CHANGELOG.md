@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2021-10-29
+
 ### Added
 
 - Workflow automation to manage releases
@@ -48,5 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages exchanged between farcaster-node's microservices
 - Tasks and blockchain events used by syncers
 
-[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/farcaster-project/farcaster-core/compare/33ed7f975670c79d768d74e3fd5cf7d55e011a18...v0.1.0

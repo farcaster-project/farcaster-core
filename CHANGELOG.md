@@ -49,4 +49,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tasks and blockchain events used by syncers
 
 [Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/farcaster-project/farcaster-core/releases/tag/v0.1.0
+[0.1.0]: https://github.com/farcaster-project/farcaster-core/compare/33ed7f975670c79d768d74e3fd5cf7d55e011a18...v0.1.0

@@ -1,14 +1,45 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as described in [The Cargo Book](https://doc.rust-lang.org/cargo/reference/manifest.html#the-version-field).
 
 ## [Unreleased]
-N/A
+
+### Added
+
+- Workflow automation to manage releases
+- Test ser/de strict encoding on protocol messages ([#150](https://github.com/farcaster-project/farcaster-core/pull/150))
+- TxLabel::AccLock ([#152](https://github.com/farcaster-project/farcaster-core/pull/152))
+- Add build on MSRV 1.54.0 in CI ([#145](https://github.com/farcaster-project/farcaster-core/pull/145))
+- Encoding/Decoding support for DLEQ ([#144](https://github.com/farcaster-project/farcaster-core/pull/144))
+- DLEQ implementation ([#143](https://github.com/farcaster-project/farcaster-core/pull/143))
+- Manage accordant address ([#142](https://github.com/farcaster-project/farcaster-core/pull/142))
+- Add correct accordant secret spend management ([#139](https://github.com/farcaster-project/farcaster-core/pull/139))
+- Add PartialEq to events ([#134](https://github.com/farcaster-project/farcaster-core/pull/134))
+- Taproot and key management ([#126](https://github.com/farcaster-project/farcaster-core/pull/126))
+- Auto derive on syncer structs ([#132](https://github.com/farcaster-project/farcaster-core/pull/132))
+
+### Changed
+
+- Cleanup and fix features ([#149](https://github.com/farcaster-project/farcaster-core/pull/149))
+- Split out dleq proof from parameters ([#153](https://github.com/farcaster-project/farcaster-core/pull/153))
+- Bump dependencies ([#146](https://github.com/farcaster-project/farcaster-core/pull/146), [#147](https://github.com/farcaster-project/farcaster-core/pull/147), [#148](https://github.com/farcaster-project/farcaster-core/pull/148))
+- Update Bitcoin and Bitcoincore RPC deps ([#141](https://github.com/farcaster-project/farcaster-core/pull/141))
+- Renaming some traits & structs ([#138](https://github.com/farcaster-project/farcaster-core/pull/138))
+- Rename and move some files ([#137](https://github.com/farcaster-project/farcaster-core/pull/137))
+- Modify segwit0 and extract witness ([#133](https://github.com/farcaster-project/farcaster-core/pull/133))
+- RPC tests automation ([#127](https://github.com/farcaster-project/farcaster-core/pull/127/files), [#131](https://github.com/farcaster-project/farcaster-core/pull/131))
+
+### Removed
+
+- Remove public keys from DLEQ proof (#151](https://github.com/farcaster-project/farcaster-core/pull/151))
 
 ## [0.1.0] - 2021-08-24
+
 ### Added
+
 - Swap offers
 - Swap roles and trade roles
 - Basic support for Bitcoin and Monero

@@ -6,24 +6,27 @@
 [![MSRV](https://img.shields.io/badge/MSRV-1.54.0-blue)](https://blog.rust-lang.org/2021/07/29/Rust-1.54.0.html)
 
 # Farcaster Core Library
+
 :warning: **This library is a :construction: work in progress :construction: and does not implement everything yet, nor is suitable for production use.**
 
 The Farcaster atomic swaps project core library aim to implement in Rust the following functionnalities needed to build a swap node:
 
 - [x] Swap offers
 - [x] Swap roles and trade roles
-- [ ] Transaction templates implementing on-chain behaviours (arbitration)
-- [ ] Signature and cryptographic utilities
+- [x] Transaction templates implementing on-chain behaviours (arbitration)
+- [x] Signature and cryptographic utilities
   - [x] `experimental` ECDSA adaptor signatures (with `ecdsa_fun`)
-  - [ ] Cross-group discrete logarithm proof system
+  - [x] Cross-group discrete logarithm proof system
   - [ ] Schnorr adaptor signature
 - [x] Messages exchanged between [farcaster-node](https://github.com/farcaster-project/farcaster-node)'s microservices
 - [x] Tasks and blockchain events used by syncers
 
 ## Documentation
+
 Currently can be found on [docs.rs/farcaster_core](https://docs.rs/farcaster_core). All possible improvments, to add usage examples and to expand on existing docs would be extremely appreciated.
 
 ## Core framework
+
 This library is twofold: providing a flexible framework to add specific blockchain support and implementing these specific blockchain. The framework is accessible in modules at the root of the crate:
 
 - `blockchain`: generic types and constraint traits for on-chain behavior.
@@ -46,6 +49,7 @@ The blockchain specific support is added under the the following modules:
 - `swap/btcxmr`: definition of a swap between `bitcoin` and `monero` modules.
 
 ### Features
+
 As default the `experimental` feature is enable.
 
 - **serde**: enable serde implementation on some of the types in the library.
@@ -53,6 +57,7 @@ As default the `experimental` feature is enable.
 - **taproot**: enable support for Bitcoin Taproot on-chain scripts as the arbitrating engine method.
 
 ### Adding blockchain support
+
 To add a blockchain implementation you must implements `Aribtrating` or `Accordant` trait on your blockchain definition, the trait implemented depends on its blockchain on-chain features, see [RFCs](https://github.com/farcaster-project/RFCs) for more details.
 
 To add support for Bitcoin we implement the `Arbitrating` trait on our definition of `Bitcoin`. The implementation contains a strategy allowing variations in SegWit versions or with cryptographic protocols. An `experimental` feature include `SegwitV0` implementation that supports ECDSA for SegWit v0.
@@ -149,11 +154,14 @@ impl blockchain::Transactions for Bitcoin<SegwitV0> {
 }
 ```
 
-## Release Notes
-See [CHANGELOG.md](CHANGELOG.md).
+## Releases and Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) and [RELEASING.md](RELEASING.md).
 
 ## About
+
 This work is part of the Farcaster cross-chain atomic swap project, see [Farcaster Project](https://github.com/farcaster-project).
 
 ## Licensing
-The code in this project is licensed under the [LGPL-3.0 License ](LICENSE)
+
+The code in this project is licensed under the [LGPL-3.0 License](LICENSE)

@@ -12,10 +12,10 @@ The Farcaster atomic swaps project core library aim to implement in Rust the fol
 
 - [x] Swap offers
 - [x] Swap roles and trade roles
-- [ ] Transaction templates implementing on-chain behaviours (arbitration)
-- [ ] Signature and cryptographic utilities
+- [x] Transaction templates implementing on-chain behaviours (arbitration)
+- [x] Signature and cryptographic utilities
   - [x] `experimental` ECDSA adaptor signatures (with `ecdsa_fun`)
-  - [ ] Cross-group discrete logarithm proof system
+  - [x] Cross-group discrete logarithm proof system
   - [ ] Schnorr adaptor signature
 - [x] Messages exchanged between [farcaster-node](https://github.com/farcaster-project/farcaster-node)'s microservices
 - [x] Tasks and blockchain events used by syncers
@@ -149,8 +149,9 @@ impl blockchain::Transactions for Bitcoin<SegwitV0> {
 }
 ```
 
-## Release Notes
-See [CHANGELOG.md](CHANGELOG.md).
+## Releases and Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) and [RELEASING.md](RELEASING.md).
 
 ## About
 This work is part of the Farcaster cross-chain atomic swap project, see [Farcaster Project](https://github.com/farcaster-project).

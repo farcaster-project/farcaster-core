@@ -12,6 +12,7 @@ env:
 jobs:
 
   rustdoc:
+    name: Build doc
 
     runs-on: ubuntu-latest
 
@@ -31,6 +32,7 @@ jobs:
         RUSTDOCFLAGS: "--cfg docsrs"
 
   build:
+    name: Build lib
 
     strategy:
       matrix:

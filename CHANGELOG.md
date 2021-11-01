@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct publish been not triggered after release ([#165](https://github.com/farcaster-project/farcaster-core/pull/165))
+
+### Changed
+
+- Update shared workflows ([#165](https://github.com/farcaster-project/farcaster-core/pull/165))
+
 ## [0.2.0] - 2021-10-29
 
 ### Added

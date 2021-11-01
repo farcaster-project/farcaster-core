@@ -12,6 +12,7 @@ env:
 jobs:
 
   test:
+    name: Unit tests
     strategy:
       matrix:
         rust: [
@@ -36,6 +37,7 @@ jobs:
     - run: cargo test --features serde --verbose
 
   rpc-test:
+    name: Integration tests
     strategy:
       matrix:
         rust: [

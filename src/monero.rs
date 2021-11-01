@@ -64,7 +64,7 @@ impl From<Network> for monero::Network {
         match network {
             Network::Mainnet => monero::Network::Mainnet,
             Network::Testnet => monero::Network::Stagenet,
-            Network::Local => monero::Network::Testnet,
+            Network::Local => monero::Network::Mainnet,
         }
     }
 }

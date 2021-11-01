@@ -630,7 +630,7 @@ where
     }
 
     // TODO: transform into other private key type
-    pub fn recover_accordant_assets(
+    pub fn recover_accordant_key(
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,
@@ -1298,7 +1298,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         })
     }
 
-    pub fn recover_accordant_assets(
+    pub fn recover_accordant_key(
         &self,
         wallet: &mut impl Sign<
             <Ctx::Ar as Keys>::PublicKey,

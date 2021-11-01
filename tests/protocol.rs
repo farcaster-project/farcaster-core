@@ -245,7 +245,7 @@ fn execute_offline_protocol() {
 
     let secp = Secp256k1::new();
     let btc_adaptor_priv =
-        bob.recover_accordant_assets(&mut bob_key_manager, &alice_params, adaptor_buy, buy_tx);
+        bob.recover_accordant_key(&mut bob_key_manager, &alice_params, adaptor_buy, buy_tx);
     let mut secret_bits: Vec<u8> = (*btc_adaptor_priv.as_ref()).into();
     secret_bits.reverse();
     let xmr_spend_priv =
@@ -301,7 +301,7 @@ fn execute_offline_protocol() {
         .generate_proof()
         .expect("Considered valid in tests");
 
-    let btc_adaptor_priv = alice.recover_accordant_assets(
+    let btc_adaptor_priv = alice.recover_accordant_key(
         &mut alice_key_manager,
         &bob_params,
         adaptor_refund,

@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Correct publish been not triggered after release ([#165](https://github.com/farcaster-project/farcaster-core/pull/165))
+- Monero network conversion from blockchain network ([#156](https://github.com/farcaster-project/farcaster-core/issues/156))
 
 ### Changed
 
 - Update shared workflows ([#165](https://github.com/farcaster-project/farcaster-core/pull/165))
+- Rename `recover_accordant_assets` into `recover_accordant_key` ([#154](https://github.com/farcaster-project/farcaster-core/issues/154))
 
 ## [0.2.0] - 2021-10-29
 

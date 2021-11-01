@@ -209,13 +209,13 @@ fn can_create_accordant_address() {
     let secret_view = alice_view_secretkey + bob_view_secretkey;
     let public_view = PublicKey::from_private_key(&secret_view);
 
-    let accordant_address = Address::standard(Network::Testnet, public_spend, public_view);
-    let addr = "9srAu5mbgRwjoUiobvJ6zXB2JL7MZsPRPTgzhVjFdZJb6afRPaeN1ND4e4MWz55Q2JM3bQLTWmMgyjPZZHLa4X587UgdkNy";
+    let accordant_address = Address::standard(Network::Stagenet, public_spend, public_view);
+    let addr = "52WfVg2J3fwjoUiobvJ6zXB2JL7MZsPRPTgzhVjFdZJb6afRPaeN1ND4e4MWz55Q2JM3bQLTWmMgyjPZZHLa4X587UVajzG";
     assert_eq!(Address::from_str(addr), Ok(accordant_address));
 
     // redo process like manual above, but test against result from Monero's derive_lock_address implementation
     let lock_address = Monero::derive_lock_address(
-        farcaster_core::blockchain::Network::Local,
+        farcaster_core::blockchain::Network::Testnet,
         SwapAccordantKeys {
             alice: AccordantKeys {
                 spend_key: alice_spend_pubkey,

@@ -152,6 +152,8 @@ impl Decodable for TxLabel {
     }
 }
 
+impl_strict_encoding!(TxLabel);
+
 /// Transaction that requries one or more participants to sign and add witness before finalizing
 /// the transaction.
 pub trait Witnessable<T>

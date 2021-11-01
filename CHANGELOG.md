@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add strict encode + decode for `TxLabel` ([#136](https://github.com/farcaster-project/farcaster-core/issues/136))
+
 ### Fixed
 
 - Correct publish been not triggered after release ([#165](https://github.com/farcaster-project/farcaster-core/pull/165))

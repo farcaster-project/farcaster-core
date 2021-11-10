@@ -471,7 +471,9 @@ where
     Ctx: Swap,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", consensus::serialize_hex(self))
+        let encoded = base58_monero::encode_check(consensus::serialize(self).as_ref())
+            .expect("Encoding in base58 check works");
+        write!(f, "{}", encoded)
     }
 }
 
@@ -482,7 +484,7 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let decoded = hex::decode(s).map_err(consensus::Error::new)?;
+        let decoded = base58_monero::decode_check(s).map_err(consensus::Error::new)?;
         let mut res = std::io::Cursor::new(decoded);
         Decodable::consensus_decode(&mut res)
     }

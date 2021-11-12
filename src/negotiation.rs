@@ -1,5 +1,23 @@
 //! Negotiation helpers and structures. Buyer and seller helpers to create offer and public offers
 //! allowing agreement on assets, quantities and parameters of a swap among maker and taker.
+//!
+//! ## Public Offer
+//!
+//! A public offer is shared across the network by a maker. It contains all the data regarding what
+//! the trade is about (assets, amounts, timings, etc.).
+//!
+//! A public offer is formatted like (base58 is Monero base58):
+//!
+//! ```text
+//! "Offer" | base58(serialize(public_offer))
+//! ```
+//!
+//! The public offer contains:
+//!
+//! - A version number, used for the version and potentially enabling features
+//! - The offer, containing the asset types, amounts, timings, etc.
+//! - A node identifier, used to secure the communication with the other peer
+//! - A peer address, used to connect to the other peer
 
 use bitcoin::secp256k1::PublicKey;
 use inet2_addr::InetSocketAddr;
@@ -13,8 +31,11 @@ use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable
 use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
 
-/// First six magic bytes of a public offer.
+/// First six magic bytes of a public offer. Bytes are included inside the base58 encoded part.
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
+
+/// Prefix for serialized public offer.
+pub const PUB_OFFER_PREFIX: &str = "Offer";
 
 /// A public offer version containing the version and the activated features if any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
@@ -473,7 +494,7 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let encoded = base58_monero::encode_check(consensus::serialize(self).as_ref())
             .expect("Encoding in base58 check works");
-        write!(f, "{}", encoded)
+        write!(f, "Offer{}", encoded)
     }
 }
 
@@ -484,7 +505,10 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let decoded = base58_monero::decode_check(s).map_err(consensus::Error::new)?;
+        if &s[..5] != PUB_OFFER_PREFIX {
+            return Err(consensus::Error::IncorrectMagicBytes);
+        }
+        let decoded = base58_monero::decode_check(&s[5..]).map_err(consensus::Error::new)?;
         let mut res = std::io::Cursor::new(decoded);
         Decodable::consensus_decode(&mut res)
     }
@@ -530,3 +554,79 @@ where
 }
 
 impl_strict_encoding!(PublicOffer<Ctx>, Ctx: Swap);
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+    use crate::{
+        bitcoin::{fee::SatPerVByte, timelock::CSVTimelock, BitcoinSegwitV0},
+        consensus,
+        monero::Monero,
+        role::SwapRole,
+        swap::btcxmr::BtcXmr,
+    };
+    use inet2_addr::InetSocketAddr;
+    use secp256k1::PublicKey;
+
+    const S: &str = "OfferCke4ftrP5A71LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD1111114A4TUWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoExnA3T";
+
+    lazy_static::lazy_static! {
+        pub static ref NODE_ID: PublicKey = {
+            let sk =
+                bitcoin::PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D")
+                    .unwrap()
+                    .key;
+            secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &sk)
+        };
+
+        pub static ref PEER_ADDRESS: InetSocketAddr = {
+            InetSocketAddr::new(
+                FromStr::from_str("1.2.3.4").unwrap(),
+                FromStr::from_str("9735").unwrap(),
+            )
+        };
+
+        pub static ref OFFER: Offer<BtcXmr> = {
+            Offer {
+                network: Network::Testnet,
+                arbitrating_blockchain: BitcoinSegwitV0::new(),
+                accordant_blockchain: Monero,
+                arbitrating_amount: bitcoin::Amount::from_sat(1350),
+                accordant_amount: monero::Amount::from_pico(10000),
+                cancel_timelock: CSVTimelock::new(4),
+                punish_timelock: CSVTimelock::new(6),
+                fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(1)),
+                maker_role: SwapRole::Bob,
+            }
+        };
+    }
+
+    #[test]
+    fn parse_public_offer() {
+        let pub_offer = PublicOffer::<BtcXmr>::from_str(S);
+        assert!(pub_offer.is_ok());
+
+        let pub_offer = pub_offer.unwrap();
+        assert_eq!(pub_offer.version, Version::new_v1());
+        assert_eq!(pub_offer.offer, OFFER.clone());
+        assert_eq!(pub_offer.node_id, *NODE_ID);
+        assert_eq!(pub_offer.peer_address, *PEER_ADDRESS);
+    }
+
+    #[test]
+    fn parse_public_offer_fail_without_prefix() {
+        let pub_offer = PublicOffer::<BtcXmr>::from_str(&S[5..]);
+        match pub_offer {
+            Err(consensus::Error::IncorrectMagicBytes) => (),
+            _ => panic!("Should have return an error IncorrectMagicBytes"),
+        }
+    }
+
+    #[test]
+    fn display_public_offer() {
+        let pub_offer = OFFER.clone().to_public_v1(*NODE_ID, *PEER_ADDRESS);
+        assert_eq!(&format!("{}", pub_offer), S);
+    }
+}

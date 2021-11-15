@@ -9,7 +9,7 @@
 //! A public offer is formatted like (base58 is Monero base58):
 //!
 //! ```text
-//! "Offer" | base58(serialize(public_offer))
+//! "Offer:" | base58(serialize(public_offer))
 //! ```
 //!
 //! The public offer contains:
@@ -35,7 +35,7 @@ use crate::swap::Swap;
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
 /// Prefix for serialized public offer.
-pub const PUB_OFFER_PREFIX: &str = "Offer";
+pub const PUB_OFFER_PREFIX: &str = "Offer:";
 
 /// A public offer version containing the version and the activated features if any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
@@ -494,7 +494,7 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let encoded = base58_monero::encode_check(consensus::serialize(self).as_ref())
             .expect("Encoding in base58 check works");
-        write!(f, "Offer{}", encoded)
+        write!(f, "{}{}", PUB_OFFER_PREFIX, encoded)
     }
 }
 
@@ -505,10 +505,10 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if &s[..5] != PUB_OFFER_PREFIX {
+        if &s[..6] != PUB_OFFER_PREFIX {
             return Err(consensus::Error::IncorrectMagicBytes);
         }
-        let decoded = base58_monero::decode_check(&s[5..]).map_err(consensus::Error::new)?;
+        let decoded = base58_monero::decode_check(&s[6..]).map_err(consensus::Error::new)?;
         let mut res = std::io::Cursor::new(decoded);
         Decodable::consensus_decode(&mut res)
     }
@@ -570,7 +570,7 @@ mod tests {
     use inet2_addr::InetSocketAddr;
     use secp256k1::PublicKey;
 
-    const S: &str = "OfferCke4ftrP5A71LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD1111114A4TUWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoExnA3T";
+    const S: &str = "Offer:Cke4ftrP5A71LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD1111114A4TUWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoExnA3T";
 
     lazy_static::lazy_static! {
         pub static ref NODE_ID: PublicKey = {

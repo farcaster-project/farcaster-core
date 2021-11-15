@@ -57,7 +57,7 @@ sha3 = "0.9.1"
 
 # blockchain specific
 bitcoin = "0.27"
-monero = { version = "0.15" }
+monero = { version = "0.16" }
 
 [dev-dependencies]
 bitcoincore-rpc = "0.14"

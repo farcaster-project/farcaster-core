@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add prefix `Offer` to serialized public offer ([#173](https://github.com/farcaster-project/farcaster-core/pull/173))
 - Switch from hex format to base58 (monero) format with checksum verification ([#171](https://github.com/farcaster-project/farcaster-core/pull/171))
 
 ## [0.3.0] - 2021-11-01

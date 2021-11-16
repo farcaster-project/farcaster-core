@@ -21,6 +21,10 @@
 
 use bitcoin::secp256k1::PublicKey;
 use inet2_addr::InetSocketAddr;
+#[cfg(feature = "serde")]
+use serde_crate::{de, Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde")]
+use std::str::FromStr;
 use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
 
@@ -28,6 +32,8 @@ use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
+#[cfg(feature = "serde")]
+use crate::hash::HashString;
 use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
 
@@ -93,10 +99,26 @@ fixed_hash::construct_fixed_hash!(
     pub struct OfferId(32);
 );
 
-impl OfferId {
-    /// Return the 32-bytes hash array.
-    pub fn to_bytes(&self) -> [u8; 32] {
-        self.0
+#[cfg(feature = "serde")]
+impl Serialize for OfferId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(format!("{:#x}", self).as_ref())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for OfferId {
+    fn deserialize<D>(deserializer: D) -> Result<OfferId, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(
+            OfferId::from_str(&deserializer.deserialize_string(HashString)?)
+                .map_err(de::Error::custom)?,
+        )
     }
 }
 
@@ -424,10 +446,26 @@ fixed_hash::construct_fixed_hash!(
     pub struct PublicOfferId(32);
 );
 
-impl PublicOfferId {
-    /// Return the 32-bytes hash array.
-    pub fn to_bytes(&self) -> [u8; 32] {
-        self.0
+#[cfg(feature = "serde")]
+impl Serialize for PublicOfferId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(format!("{:#x}", self).as_ref())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for PublicOfferId {
+    fn deserialize<D>(deserializer: D) -> Result<PublicOfferId, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(
+            PublicOfferId::from_str(&deserializer.deserialize_string(HashString)?)
+                .map_err(de::Error::custom)?,
+        )
     }
 }
 

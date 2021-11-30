@@ -292,9 +292,9 @@ impl FromStr for Network {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Mainnet" => Ok(Network::Mainnet),
-            "Testnet" => Ok(Network::Testnet),
-            "Local" => Ok(Network::Local),
+            "Mainnet" | "mainnet" => Ok(Network::Mainnet),
+            "Testnet" | "testnet" => Ok(Network::Testnet),
+            "Local" | "local" => Ok(Network::Local),
             _ => Err(consensus::Error::UnknownType),
         }
     }
@@ -350,6 +350,14 @@ mod tests {
     fn parse_fee_politic() {
         for s in ["High", "high", "Low", "low"].iter() {
             let parse = FeePriority::from_str(s);
+            assert!(parse.is_ok());
+        }
+    }
+
+    #[test]
+    fn parse_network() {
+        for s in ["Mainnet", "mainnet", "Testnet", "testnet", "Local", "local"].iter() {
+            let parse = Network::from_str(s);
             assert!(parse.is_ok());
         }
     }

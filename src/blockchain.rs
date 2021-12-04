@@ -396,9 +396,9 @@ mod tests {
             min_inc: SatPerVByte::from_sat(50),
             max_inc: SatPerVByte::from_sat(150),
         };
-        assert_eq!(strategy.check(&SatPerVByte::from_sat(49)), false);
-        assert_eq!(strategy.check(&SatPerVByte::from_sat(50)), true);
-        assert_eq!(strategy.check(&SatPerVByte::from_sat(150)), true);
-        assert_eq!(strategy.check(&SatPerVByte::from_sat(151)), false);
+        assert!(!strategy.check(&SatPerVByte::from_sat(49)));
+        assert!(strategy.check(&SatPerVByte::from_sat(50)));
+        assert!(strategy.check(&SatPerVByte::from_sat(150)));
+        assert!(!strategy.check(&SatPerVByte::from_sat(151)));
     }
 }

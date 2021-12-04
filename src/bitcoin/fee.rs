@@ -142,9 +142,9 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         // Compute the fee amount to set in total
         let fee_amount = match strategy {
             FeeStrategy::Fixed(sat_per_vbyte) => sat_per_vbyte.as_native_unit().checked_mul(weight),
-            FeeStrategy::Range(range) => match politic {
-                FeePriority::Low => range.start.as_native_unit().checked_mul(weight),
-                FeePriority::High => range.end.as_native_unit().checked_mul(weight),
+            FeeStrategy::Range { min_inc, max_inc } => match politic {
+                FeePriority::Low => min_inc.as_native_unit().checked_mul(weight),
+                FeePriority::High => max_inc.as_native_unit().checked_mul(weight),
             },
         }
         .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
@@ -183,10 +183,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
                 .ok_or(FeeStrategyError::AmountOfFeeTooLow)?,
         );
 
-        Ok(match strategy {
-            FeeStrategy::Fixed(fee_strat) => &effective_sat_per_vbyte == fee_strat,
-            FeeStrategy::Range(range) => range.contains(&effective_sat_per_vbyte),
-        })
+        Ok(strategy.check(&effective_sat_per_vbyte))
     }
 }
 

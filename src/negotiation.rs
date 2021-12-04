@@ -28,6 +28,7 @@ use std::str::FromStr;
 use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
 
+use std::fmt;
 use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
@@ -162,6 +163,21 @@ impl<Ctx: Swap> std::hash::Hash for Offer<Ctx> {
         H: std::hash::Hasher,
     {
         hasher.write(&consensus::serialize(self)[..]);
+    }
+}
+
+impl<Ctx: Swap> fmt::Display for Offer<Ctx> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Network: {}", self.network)?;
+        writeln!(f, "Blockchain: {}", self.arbitrating_blockchain)?;
+        writeln!(f, "- amount: {}", self.arbitrating_amount)?;
+        writeln!(f, "Blockchain: {}", self.accordant_blockchain)?;
+        writeln!(f, "- amount: {}", self.accordant_amount)?;
+        writeln!(f, "Timelocks")?;
+        writeln!(f, "- cancel: {}", self.cancel_timelock)?;
+        writeln!(f, "- punish: {}", self.punish_timelock)?;
+        writeln!(f, "Fee strategy: {}", self.fee_strategy)?;
+        writeln!(f, "Maker swap role: {}", self.maker_role)
     }
 }
 
@@ -660,6 +676,11 @@ mod tests {
             Err(consensus::Error::IncorrectMagicBytes) => (),
             _ => panic!("Should have return an error IncorrectMagicBytes"),
         }
+    }
+
+    #[test]
+    fn display_offer() {
+        assert_eq!(&format!("{}", *OFFER), "Network: Testnet\nBlockchain: Bitcoin<SegwitV0>\n- amount: 0.00001350 BTC\nBlockchain: \n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: Fixed: 1 satoshi/vByte\nMaker swap role: Bob\n");
     }
 
     #[test]

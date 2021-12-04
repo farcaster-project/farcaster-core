@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Display` implementation for `Offer` type ([#188](https://github.com/farcaster-project/farcaster-core/pull/188))
+
 ### Changed
 
 - Improve variants for `FromStr` network parsing ([#184](https://github.com/farcaster-project/farcaster-core/pull/184))

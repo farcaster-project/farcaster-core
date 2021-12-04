@@ -6,7 +6,7 @@
 //! or must not conflict with any registered entity.
 
 use std::error;
-use std::fmt::{self, Debug};
+use std::fmt::{self, Debug, Display};
 use std::io;
 use std::str::FromStr;
 
@@ -31,14 +31,14 @@ pub trait Address {
 /// and is carried in the [`Offer`](crate::negotiation::Offer) to fix the two timelocks.
 pub trait Timelock {
     /// Defines the type of timelock used for the arbitrating transactions.
-    type Timelock: Copy + PartialEq + Eq + Debug + fmt::Display + CanonicalBytes;
+    type Timelock: Copy + PartialEq + Eq + Debug + Display + CanonicalBytes;
 }
 
 /// Defines the asset identifier for a blockchain and its associated asset unit type, it is carried
 /// in the [`Offer`](crate::negotiation::Offer) to fix exchanged amounts.
 pub trait Asset: Copy + Debug {
     /// Type for the traded asset unit for a blockchain.
-    type AssetUnit: Copy + Eq + Debug + CanonicalBytes;
+    type AssetUnit: Copy + Eq + Debug + Display + CanonicalBytes;
 
     /// Parse an 32 bits identifier as defined in [SLIP
     /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
@@ -284,7 +284,7 @@ impl FromStr for FeePriority {
 /// transactions.
 pub trait Fee: Onchain + Asset {
     /// Type for describing the fee of a blockchain.
-    type FeeUnit: Clone + PartialOrd + PartialEq + Eq + fmt::Display + Debug + CanonicalBytes;
+    type FeeUnit: Clone + PartialOrd + PartialEq + Eq + Display + Debug + CanonicalBytes;
 
     /// Calculates and sets the fee on the given transaction and return the amount of fee set in
     /// the blockchain native amount format.

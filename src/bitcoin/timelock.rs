@@ -18,7 +18,7 @@ impl FromStr for CSVTimelock {
 
 /// An `OP_CSV` value (32-bits integer) to use in transactions and scripts.
 #[derive(PartialEq, Eq, PartialOrd, Clone, Debug, Copy, Display)]
-#[display("OP_CSV: {0}")]
+#[display("{0} blocks")]
 pub struct CSVTimelock(u32);
 
 impl CSVTimelock {

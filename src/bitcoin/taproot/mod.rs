@@ -2,6 +2,7 @@
 //! as Bitcoin. Inner implementation of [`BitcoinTaproot`].
 
 use std::convert::{TryFrom, TryInto};
+use std::fmt;
 use std::str::FromStr;
 
 use crate::bitcoin::{Bitcoin, BitcoinTaproot, Btc, Strategy};
@@ -20,6 +21,12 @@ use bitcoin::secp256k1::{
 pub struct Taproot;
 
 impl Strategy for Taproot {}
+
+impl fmt::Display for Bitcoin<Taproot> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Bitcoin<Taproot>")
+    }
+}
 
 impl FromStr for Bitcoin<Taproot> {
     type Err = consensus::Error;

@@ -2,7 +2,7 @@
 //! Defines the trading roles and swap roles distributed among participants and blockchain roles
 //! implemented on Bitcoin, Monero, etc.
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::io;
 use std::str::FromStr;
 
@@ -30,7 +30,8 @@ use crate::Res;
 
 /// Possible roles during the negotiation phase. Any negotiation role can transition into any swap
 /// role when negotiation is completed, the transition is described in the public offer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq)]
+#[display(Debug)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -88,18 +89,10 @@ impl FromStr for TradeRole {
     }
 }
 
-impl ToString for TradeRole {
-    fn to_string(&self) -> String {
-        match self {
-            TradeRole::Maker => "Maker".to_string(),
-            TradeRole::Taker => "Taker".to_string(),
-        }
-    }
-}
-
 /// Possible roles during the swap phase. When negotitation phase is completed [`TradeRole`] will
 /// transition into swap role according to the [`PublicOffer`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq)]
+#[display(Debug)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -153,15 +146,6 @@ impl FromStr for SwapRole {
             "Alice" | "alice" => Ok(SwapRole::Alice),
             "Bob" | "bob" => Ok(SwapRole::Bob),
             _ => Err(consensus::Error::UnknownType),
-        }
-    }
-}
-
-impl ToString for SwapRole {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Alice => "Alice".to_string(),
-            Self::Bob => "Bob".to_string(),
         }
     }
 }
@@ -1329,6 +1313,8 @@ pub trait Arbitrating:
     + Timelock
     + Transactions
     + SharedSecretKeys
+    + Display
+    + Debug
     + Clone
     + Eq
 {
@@ -1336,7 +1322,9 @@ pub trait Arbitrating:
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks: it is the blockchain with fewer requirements for an atomic swap.
-pub trait Accordant: Asset + Address + Keys + SharedSecretKeys + Clone + Eq {
+pub trait Accordant:
+    Asset + Address + Keys + SharedSecretKeys + Clone + Eq + Display + Debug
+{
     /// Derive the lock address for the accordant blockchain.
     fn derive_lock_address(
         network: Network,

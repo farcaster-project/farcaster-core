@@ -1,7 +1,7 @@
 //! SegWit version 0 implementation for Bitcoin. Inner implementation of [`BitcoinSegwitV0`].
 
 use std::convert::TryFrom;
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::str::FromStr;
 
 use crate::bitcoin::segwitv0::{
@@ -59,6 +59,12 @@ pub type RefundTx = Tx<Refund>;
 pub struct SegwitV0;
 
 impl Strategy for SegwitV0 {}
+
+impl fmt::Display for Bitcoin<SegwitV0> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Bitcoin<SegwitV0>")
+    }
+}
 
 impl FromStr for Bitcoin<SegwitV0> {
     type Err = consensus::Error;

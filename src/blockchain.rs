@@ -8,7 +8,6 @@
 use std::error;
 use std::fmt::{self, Debug};
 use std::io;
-use std::ops::Range;
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -119,7 +118,20 @@ where
     /// A fixed strategy with the exact amount to set.
     Fixed(T),
     /// A range with a minimum and maximum (inclusive) possible fees.
-    Range(Range<T>),
+    Range { min_inc: T, max_inc: T },
+}
+
+impl<T> FeeStrategy<T>
+where
+    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
+{
+    pub fn check(&self, value: &T) -> bool {
+        match self {
+            Self::Fixed(fee_strat) => value == fee_strat,
+            // Check in range including min and max bounds
+            Self::Range { min_inc, max_inc } => value >= min_inc && value <= max_inc,
+        }
+    }
 }
 
 fn fee_strategy_fmt<T>(strategy: &FeeStrategy<T>) -> String
@@ -128,7 +140,9 @@ where
 {
     match strategy {
         FeeStrategy::Fixed(t) => format!("Fixed: {}", t),
-        FeeStrategy::Range(r) => format!("Range: from {} to {}", r.start, r.end),
+        FeeStrategy::Range { min_inc, max_inc } => {
+            format!("Range: from {} to {} (inclusive)", min_inc, max_inc)
+        }
     }
 }
 
@@ -142,10 +156,10 @@ where
                 0x01u8.consensus_encode(writer)?;
                 Ok(t.as_canonical_bytes().consensus_encode(writer)? + 1)
             }
-            FeeStrategy::Range(Range { start, end }) => {
+            FeeStrategy::Range { min_inc, max_inc } => {
                 let mut len = 0x02u8.consensus_encode(writer)?;
-                len += start.as_canonical_bytes().consensus_encode(writer)?;
-                Ok(len + end.as_canonical_bytes().consensus_encode(writer)?)
+                len += min_inc.as_canonical_bytes().consensus_encode(writer)?;
+                Ok(len + max_inc.as_canonical_bytes().consensus_encode(writer)?)
             }
         }
     }
@@ -161,9 +175,9 @@ where
                 unwrap_vec_ref!(d).as_ref(),
             )?)),
             0x02u8 => {
-                let start = T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
-                let end = T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
-                Ok(FeeStrategy::Range(Range { start, end }))
+                let min_inc = T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+                let max_inc = T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+                Ok(FeeStrategy::Range { min_inc, max_inc })
             }
             _ => Err(consensus::Error::UnknownType),
         }
@@ -365,14 +379,26 @@ mod tests {
     #[test]
     fn display_fee_strategy() {
         let strategy = FeeStrategy::Fixed(SatPerVByte::from_sat(100));
+        assert_eq!(&format!("{}", strategy), "Fixed: 100 satoshi/vByte");
+        let strategy = FeeStrategy::Range {
+            min_inc: SatPerVByte::from_sat(50),
+            max_inc: SatPerVByte::from_sat(150),
+        };
         assert_eq!(
-            format!("{}", strategy),
-            "Fixed: 100 satoshi/vByte".to_string()
-        );
-        let strategy = FeeStrategy::Range(SatPerVByte::from_sat(50)..SatPerVByte::from_sat(150));
-        assert_eq!(
-            format!("{}", strategy),
-            "Range: from 50 satoshi/vByte to 150 satoshi/vByte".to_string()
+            &format!("{}", strategy),
+            "Range: from 50 satoshi/vByte to 150 satoshi/vByte (inclusive)"
         )
+    }
+
+    #[test]
+    fn check_range_fee_strategy() {
+        let strategy = FeeStrategy::Range {
+            min_inc: SatPerVByte::from_sat(50),
+            max_inc: SatPerVByte::from_sat(150),
+        };
+        assert!(!strategy.check(&SatPerVByte::from_sat(49)));
+        assert!(strategy.check(&SatPerVByte::from_sat(50)));
+        assert!(strategy.check(&SatPerVByte::from_sat(150)));
+        assert!(!strategy.check(&SatPerVByte::from_sat(151)));
     }
 }

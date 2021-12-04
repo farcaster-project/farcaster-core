@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Remove `std::Range` from `FeeStrategy` and use custom struct with correct inclusive bound checks ([#189](https://github.com/farcaster-project/farcaster-core/pull/189))
 - Improve variants for `FromStr` network parsing ([#184](https://github.com/farcaster-project/farcaster-core/pull/184))
 
 ## [0.4.0] - 2021-11-17

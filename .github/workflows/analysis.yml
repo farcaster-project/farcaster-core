@@ -18,8 +18,21 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Install latest stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+        override: true
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@v1.3.0
+
     - name: Run Rustfmt
-      run: cargo fmt -- --check
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: -- --check
 
   clippy:
     name: Clippy
@@ -28,8 +41,21 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Install latest stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: clippy
+        override: true
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@v1.3.0
+
     - name: Run Clippy
-      run: cargo clippy --workspace --all-targets -- -D warnings
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: --workspace --all-targets
 
   mdtomlfmt:
     name: Generic format (md,toml)

@@ -74,7 +74,7 @@ impl std::str::FromStr for Monero {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Monero" => Ok(Monero),
+            "Monero" | "monero" | "xmr" => Ok(Monero),
             _ => Err(crate::consensus::Error::UnknownType),
         }
     }

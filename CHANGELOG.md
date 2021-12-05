@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `"monero"` and `"xmr"` variants for Monero `FromStr` impl ([#192](https://github.com/farcaster-project/farcaster-core/pull/192))
+
+### Fixed
+
+- Fix `Display` implementation to work with any given writer ([#192](https://github.com/farcaster-project/farcaster-core/pull/192))
+
 ## [0.4.1] - 2021-12-05
 
 ### Added

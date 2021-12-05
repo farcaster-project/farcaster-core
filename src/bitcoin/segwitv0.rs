@@ -71,7 +71,7 @@ impl FromStr for Bitcoin<SegwitV0> {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SegwitV0" | "ECDSA" => Ok(Self::new()),
+            "SegwitV0" | "ECDSA" | "Bitcoin" | "bitcoin" => Ok(Self::new()),
             _ => Err(consensus::Error::UnknownType),
         }
     }
@@ -507,6 +507,10 @@ mod tests {
         let parse = Bitcoin::<SegwitV0>::from_str("SegwitV0");
         assert!(parse.is_ok());
         let parse = Bitcoin::<SegwitV0>::from_str("ECDSA");
+        assert!(parse.is_ok());
+        let parse = Bitcoin::<SegwitV0>::from_str("Bitcoin");
+        assert!(parse.is_ok());
+        let parse = Bitcoin::<SegwitV0>::from_str("bitcoin");
         assert!(parse.is_ok());
     }
 }

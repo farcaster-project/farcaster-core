@@ -10,7 +10,7 @@ use monero::util::key::{PrivateKey, PublicKey};
 use monero::Address;
 use monero::Amount;
 
-use std::fmt::{self, Debug, Display, Formatter};
+use std::fmt::{self, Debug};
 
 pub mod tasks;
 
@@ -80,10 +80,9 @@ impl std::str::FromStr for Monero {
     }
 }
 
-impl Display for Monero {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
-        println!("xmr");
-        Ok(())
+impl fmt::Display for Monero {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Monero")
     }
 }
 

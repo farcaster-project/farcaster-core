@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `"monero"` and `"xmr"` variants for Monero `FromStr` impl ([#192](https://github.com/farcaster-project/farcaster-core/pull/192))
+- Add `"bitcoin"` variant for `Bitcoin<Segwit>` implementation of `FromStr` ([#193](https://github.com/farcaster-project/farcaster-core/pull/193))
 
 ### Fixed
 

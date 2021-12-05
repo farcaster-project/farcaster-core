@@ -485,6 +485,21 @@ impl<'de> Deserialize<'de> for PublicOfferId {
     }
 }
 
+impl Encodable for PublicOfferId {
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.0.consensus_encode(s)
+    }
+}
+
+impl Decodable for PublicOfferId {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
+        Ok(Self::from_slice(&bytes))
+    }
+}
+
+impl_strict_encoding!(PublicOfferId);
+
 /// A public offer is shared across [`TradeRole::Maker`]'s prefered network to signal is willing of
 /// trading some assets at some conditions. The assets and condition are defined in the [`Offer`],
 /// maker peer connection information are contained in the public offer.

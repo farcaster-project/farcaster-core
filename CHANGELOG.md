@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2021-12-05
+
 ### Added
 
 - Add `"monero"` and `"xmr"` variants for Monero `FromStr` impl ([#192](https://github.com/farcaster-project/farcaster-core/pull/192))
@@ -95,7 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages exchanged between farcaster-node's microservices
 - Tasks and blockchain events used by syncers
 
-[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.2.0...v0.3.0

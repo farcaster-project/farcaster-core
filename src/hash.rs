@@ -51,10 +51,10 @@ impl<'de> Visitor<'de> for OfferString {
     where
         E: de::Error,
     {
-        if s.len() == 189 {
+        if s.len() == 195 {
             Ok(s.to_string())
         } else {
-            Err(de::Error::invalid_value(Unexpected::Str(s), &self))
+            Err(de::Error::invalid_length(s.len(), &self))
         }
     }
 }

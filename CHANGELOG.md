@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `strict_encoding` implementation for `PublicOffer` type ([#195](https://github.com/farcaster-project/farcaster-core/pull/197))
 - Add `strict_encoding` implementation for `PublicOfferId` type ([#195](https://github.com/farcaster-project/farcaster-core/pull/195))
 
 ## [0.4.2] - 2021-12-05

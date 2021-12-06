@@ -34,7 +34,7 @@ use std::io;
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
 #[cfg(feature = "serde")]
-use crate::hash::HashString;
+use crate::hash::{HashString, OfferString};
 use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
 
@@ -583,6 +583,37 @@ where
     }
 }
 
+// TODO: implement properly without encoding in base58 first
+#[cfg(feature = "serde")]
+impl<Ctx> Serialize for PublicOffer<Ctx>
+where
+    Ctx: Swap,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.to_string().as_ref())
+    }
+}
+
+// TODO: implement properly without decoding from base58
+#[cfg(feature = "serde")]
+impl<'de, Ctx> Deserialize<'de> for PublicOffer<Ctx>
+where
+    Ctx: Swap,
+{
+    fn deserialize<D>(deserializer: D) -> Result<PublicOffer<Ctx>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(
+            PublicOffer::from_str(&deserializer.deserialize_string(OfferString)?)
+                .map_err(de::Error::custom)?,
+        )
+    }
+}
+
 impl<Ctx> Encodable for PublicOffer<Ctx>
 where
     Ctx: Swap,
@@ -702,5 +733,30 @@ mod tests {
     fn display_public_offer() {
         let pub_offer = OFFER.clone().to_public_v1(*NODE_ID, *PEER_ADDRESS);
         assert_eq!(&format!("{}", pub_offer), S);
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn serialize_public_offer_in_yaml() {
+        let public_offer =
+            PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+            .expect("Valid public offer");
+        let s = serde_yaml::to_string(&public_offer).expect("Encode public offer in yaml");
+        assert_eq!(
+            "---\n\"Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R\"\n",
+            s
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn deserialize_public_offer_from_yaml() {
+        let s = "---\nOffer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R\n";
+        let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
+        assert_eq!(
+            PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+                .expect("Valid public offer"),
+            public_offer
+        );
     }
 }

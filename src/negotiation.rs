@@ -583,6 +583,7 @@ where
     }
 }
 
+// TODO: implement properly without encoding in base58 first
 #[cfg(feature = "serde")]
 impl<Ctx> Serialize for PublicOffer<Ctx>
 where
@@ -600,6 +601,7 @@ where
     }
 }
 
+// TODO: implement properly without decoding from base58
 #[cfg(feature = "serde")]
 impl<'de, Ctx> Deserialize<'de> for PublicOffer<Ctx>
 where

@@ -34,7 +34,7 @@ use std::io;
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
 #[cfg(feature = "serde")]
-use crate::hash::HashString;
+use crate::hash::{HashString, OfferString};
 use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
 
@@ -580,6 +580,37 @@ where
         let decoded = base58_monero::decode_check(&s[6..]).map_err(consensus::Error::new)?;
         let mut res = std::io::Cursor::new(decoded);
         Decodable::consensus_decode(&mut res)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<Ctx> Serialize for PublicOffer<Ctx>
+where
+    Ctx: Swap,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let encoded = base58_monero::encode_check(consensus::serialize(self).as_ref())
+            .expect("Encoding in base58 check works");
+        serializer.serialize_str(encoded.as_ref())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, Ctx> Deserialize<'de> for PublicOffer<Ctx>
+where
+    Ctx: Swap,
+{
+    fn deserialize<D>(deserializer: D) -> Result<PublicOffer<Ctx>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(
+            PublicOffer::from_str(&deserializer.deserialize_string(OfferString)?)
+                .map_err(de::Error::custom)?,
+        )
     }
 }
 

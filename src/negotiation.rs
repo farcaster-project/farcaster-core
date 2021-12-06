@@ -592,7 +592,7 @@ where
     where
         S: Serializer,
     {
-        let mut s: String =PUB_OFFER_PREFIX.to_owned();
+        let mut s: String = PUB_OFFER_PREFIX.to_owned();
         let encoded = base58_monero::encode_check(consensus::serialize(self).as_ref())
             .expect("Encoding in base58 check works");
         s.push_str(&encoded);
@@ -735,5 +735,30 @@ mod tests {
     fn display_public_offer() {
         let pub_offer = OFFER.clone().to_public_v1(*NODE_ID, *PEER_ADDRESS);
         assert_eq!(&format!("{}", pub_offer), S);
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn serialize_public_offer_in_yaml() {
+        let public_offer =
+            PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+            .expect("Valid public offer");
+        let s = serde_yaml::to_string(&public_offer).expect("Encode public offer in yaml");
+        assert_eq!(
+            "---\n\"Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R\"\n",
+            s
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn deserialize_public_offer_from_yaml() {
+        let s = "---\nOffer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R\n";
+        let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
+        assert_eq!(
+            PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+                .expect("Valid public offer"),
+            public_offer
+        );
     }
 }

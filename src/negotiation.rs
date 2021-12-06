@@ -593,11 +593,7 @@ where
     where
         S: Serializer,
     {
-        let mut s: String = PUB_OFFER_PREFIX.to_owned();
-        let encoded = base58_monero::encode_check(consensus::serialize(self).as_ref())
-            .expect("Encoding in base58 check works");
-        s.push_str(&encoded);
-        serializer.serialize_str(s.as_ref())
+        serializer.serialize_str(self.to_string().as_ref())
     }
 }
 

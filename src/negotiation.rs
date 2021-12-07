@@ -765,14 +765,9 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn serialize_public_offer_in_yaml() {
-        let public_offer =
-            PublicOffer::<BtcXmr>::from_str(S)
-            .expect("Valid public offer");
+        let public_offer = PublicOffer::<BtcXmr>::from_str(S).expect("Valid public offer");
         let s = serde_yaml::to_string(&public_offer).expect("Encode public offer in yaml");
-        assert_eq!(
-            format!("---\n\"{}\"\n", S),
-            s
-        );
+        assert_eq!(format!("---\n\"{}\"\n", S), s);
     }
 
     #[test]
@@ -782,8 +777,7 @@ mod tests {
         let s = format!("---\n{}\n", S);
         let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
         assert_eq!(
-            PublicOffer::<BtcXmr>::from_str(S)
-                .expect("Valid public offer"),
+            PublicOffer::<BtcXmr>::from_str(S).expect("Valid public offer"),
             public_offer
         );
 
@@ -791,8 +785,7 @@ mod tests {
         let s = format!("---\n\"{}\"\n", S);
         let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
         assert_eq!(
-            PublicOffer::<BtcXmr>::from_str(S)
-                .expect("Valid public offer"),
+            PublicOffer::<BtcXmr>::from_str(S).expect("Valid public offer"),
             public_offer
         );
     }

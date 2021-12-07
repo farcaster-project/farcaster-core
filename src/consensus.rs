@@ -299,6 +299,23 @@ impl Decodable for u64 {
     }
 }
 
+impl Encodable for i64 {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
+        s.write_all(&self.to_le_bytes())?;
+        Ok(8)
+    }
+}
+
+impl Decodable for i64 {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
+        let mut buffer = [0u8; 8];
+        d.read_exact(&mut buffer)?;
+        Ok(i64::from_le_bytes(buffer))
+    }
+}
+
 impl<T> Encodable for Option<T>
 where
     T: CanonicalBytes,

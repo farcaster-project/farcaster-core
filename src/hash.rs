@@ -51,7 +51,7 @@ impl<'de> Visitor<'de> for OfferString {
     where
         E: de::Error,
     {
-        if s.len() == 195 {
+        if s.len() == 206 {
             Ok(s.to_string())
         } else {
             Err(de::Error::invalid_length(s.len(), &self))

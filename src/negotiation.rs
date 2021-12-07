@@ -20,6 +20,7 @@
 //! - A peer address, used to connect to the other peer
 
 use bitcoin::secp256k1::PublicKey;
+use chrono::{NaiveDateTime, Utc};
 use inet2_addr::InetSocketAddr;
 #[cfg(feature = "serde")]
 use serde_crate::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -148,6 +149,8 @@ pub struct Offer<Ctx: Swap> {
     pub fee_strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>,
     /// The future maker swap role.
     pub maker_role: SwapRole,
+    /// Offer's creation timestamp in UTC zone.
+    pub created_at: i64,
 }
 
 // https://doc.rust-lang.org/std/hash/trait.Hash.html#hash-and-eq
@@ -177,7 +180,12 @@ impl<Ctx: Swap> fmt::Display for Offer<Ctx> {
         writeln!(f, "- cancel: {}", self.cancel_timelock)?;
         writeln!(f, "- punish: {}", self.punish_timelock)?;
         writeln!(f, "Fee strategy: {}", self.fee_strategy)?;
-        writeln!(f, "Maker swap role: {}", self.maker_role)
+        writeln!(f, "Maker swap role: {}", self.maker_role)?;
+        writeln!(
+            f,
+            "Created at: {}",
+            NaiveDateTime::from_timestamp(self.created_at, 0)
+        )
     }
 }
 
@@ -239,7 +247,8 @@ where
             .as_canonical_bytes()
             .consensus_encode(s)?;
         len += self.fee_strategy.consensus_encode(s)?;
-        Ok(len + self.maker_role.consensus_encode(s)?)
+        len += self.maker_role.consensus_encode(s)?;
+        Ok(len + self.created_at.consensus_encode(s)?)
     }
 }
 
@@ -268,6 +277,7 @@ where
             )?,
             fee_strategy: Decodable::consensus_decode(d)?,
             maker_role: Decodable::consensus_decode(d)?,
+            created_at: Decodable::consensus_decode(d)?,
         })
     }
 }
@@ -328,6 +338,12 @@ where
         self
     }
 
+    /// Sets the offer UTC creation timestamp (optional, defaults to `now`).
+    pub fn created_at(mut self, timestamp: i64) -> Self {
+        self.0.created_at = Some(timestamp);
+        self
+    }
+
     /// Transform the internal state into an offer if all parameters have been set properly,
     /// otherwise return `None`.
     ///
@@ -345,6 +361,7 @@ where
             punish_timelock: self.0.punish_timelock?,
             fee_strategy: self.0.fee_strategy?,
             maker_role: self.0.maker_role?,
+            created_at: self.0.created_at.unwrap_or(Utc::now().timestamp()),
         })
     }
 }
@@ -403,6 +420,12 @@ where
         self
     }
 
+    /// Sets the offer UTC creation timestamp (optional, defaults to `now`).
+    pub fn created_at(mut self, timestamp: i64) -> Self {
+        self.0.created_at = Some(timestamp);
+        self
+    }
+
     /// Transform the internal state into an offer if all parameters have been set properly,
     /// otherwise return `None`.
     ///
@@ -420,6 +443,7 @@ where
             punish_timelock: self.0.punish_timelock?,
             fee_strategy: self.0.fee_strategy?,
             maker_role: self.0.maker_role?,
+            created_at: self.0.created_at.unwrap_or(Utc::now().timestamp()),
         })
     }
 }
@@ -435,6 +459,7 @@ struct BuilderState<Ctx: Swap> {
     punish_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
     fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
     maker_role: Option<SwapRole>,
+    created_at: Option<i64>,
 }
 
 impl<Ctx> Default for BuilderState<Ctx>
@@ -452,6 +477,7 @@ where
             punish_timelock: None,
             fee_strategy: None,
             maker_role: None,
+            created_at: None,
         }
     }
 }
@@ -670,7 +696,7 @@ mod tests {
     use inet2_addr::InetSocketAddr;
     use secp256k1::PublicKey;
 
-    const S: &str = "Offer:Cke4ftrP5A71LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD1111114A4TUWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoExnA3T";
+    const S: &str = "Offer:Cke4ftrP5A71LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD11111144NLP1111111C5tnWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoULkF41";
 
     lazy_static::lazy_static! {
         pub static ref NODE_ID: PublicKey = {
@@ -699,6 +725,7 @@ mod tests {
                 punish_timelock: CSVTimelock::new(6),
                 fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(1)),
                 maker_role: SwapRole::Bob,
+                created_at: 3600, // Jan 1st 1970 01:00:00
             }
         };
     }
@@ -726,7 +753,7 @@ mod tests {
 
     #[test]
     fn display_offer() {
-        assert_eq!(&format!("{}", *OFFER), "Network: Testnet\nBlockchain: Bitcoin<SegwitV0>\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: Fixed: 1 satoshi/vByte\nMaker swap role: Bob\n");
+        assert_eq!(&format!("{}", *OFFER), "Network: Testnet\nBlockchain: Bitcoin<SegwitV0>\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: Fixed: 1 satoshi/vByte\nMaker swap role: Bob\nCreated at: 1970-01-01 01:00:00\n");
     }
 
     #[test]
@@ -739,11 +766,11 @@ mod tests {
     #[cfg(feature = "serde")]
     fn serialize_public_offer_in_yaml() {
         let public_offer =
-            PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+            PublicOffer::<BtcXmr>::from_str(S)
             .expect("Valid public offer");
         let s = serde_yaml::to_string(&public_offer).expect("Encode public offer in yaml");
         assert_eq!(
-            "---\n\"Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R\"\n",
+            format!("---\n\"{}\"\n", S),
             s
         );
     }
@@ -751,10 +778,20 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn deserialize_public_offer_from_yaml() {
-        let s = "---\nOffer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R\n";
+        // without " ... "
+        let s = format!("---\n{}\n", S);
         let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
         assert_eq!(
-            PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+            PublicOffer::<BtcXmr>::from_str(S)
+                .expect("Valid public offer"),
+            public_offer
+        );
+
+        // with " ... "
+        let s = format!("---\n\"{}\"\n", S);
+        let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
+        assert_eq!(
+            PublicOffer::<BtcXmr>::from_str(S)
                 .expect("Valid public offer"),
             public_offer
         );

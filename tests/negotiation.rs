@@ -18,7 +18,7 @@ use std::str::FromStr;
 #[test]
 fn create_offer() {
     let hex = "02000000808000008008000500000000000000080006000000000000000400070000000400080000000\
-               10800090000000000000002";
+               10800090000000000000002100e000000000000";
     let offer: Offer<BtcXmr> = Offer {
         network: Network::Testnet,
         arbitrating_blockchain: BitcoinSegwitV0::new(),
@@ -29,6 +29,7 @@ fn create_offer() {
         punish_timelock: CSVTimelock::new(8),
         fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
         maker_role: SwapRole::Bob,
+        created_at: 3600, // Jan 1st 1970 01:00:00
     };
 
     assert_eq!(hex, serialize_hex(&offer));
@@ -41,10 +42,10 @@ fn create_offer() {
 #[test]
 fn get_offer_id() {
     let hex = "02000000808000008008000500000000000000080006000000000000000400070000000400080000000\
-               10800090000000000000002";
+               10800090000000000000002100e000000000000";
     let res: Offer<BtcXmr> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
-    let id = OfferId::from_str("f79b29ccb233b37cea3aa35b94c5ece25c58a8098afc18f046810a3c04591599")
+    let id = OfferId::from_str("ac4ecf3a8a85037902d29319741558dfbd343d3b2fe3333acef548b16c939017")
         .unwrap();
     assert_eq!(id, res.id());
 }
@@ -76,14 +77,15 @@ fn maker_sell_arbitrating_assets_offer() {
 #[test]
 fn serialize_public_offer() {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
-               a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
-               27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
-               00000000000000000000000260700";
+               a00000004000a000000010800140000000000000002100e000000000000210003b31a0a70343bb4\
+               6f3db3768296ac5027f9873921b37f852860c690063ff9e4c900000000000000000000000000000\
+               000000000000000000000000000000000000000260700";
     let offer: Offer<BtcXmr> = Sell::some(BitcoinSegwitV0::new(), Amount::from_sat(100000))
         .for_some(Monero, monero::Amount::from_pico(200))
         .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
         .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
         .on(Network::Testnet)
+        .created_at(3600) // Jan 1st 1970 01:00:00
         .to_offer()
         .unwrap();
     let ip = FromStr::from_str("0.0.0.0").unwrap();
@@ -107,13 +109,13 @@ fn serialize_public_offer() {
 #[test]
 fn get_public_offer_id() {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
-               a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
-               27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
-               00000000000000000000000260700";
+               a00000004000a000000010800140000000000000002100e000000000000210003b31a0a70343bb4\
+               6f3db3768296ac5027f9873921b37f852860c690063ff9e4c900000000000000000000000000000\
+               000000000000000000000000000000000000000260700";
     let res: PublicOffer<BtcXmr> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
     let id =
-        PublicOfferId::from_str("3a466a0a0cff7bf800808653460076549621d07db78e697b9dfaebaba0ab8b33")
+        PublicOfferId::from_str("e267add079faed8252545c4952fe013ee9173d13959342a2890b0fda272029a0")
             .unwrap();
     assert_eq!(id, res.id());
 }
@@ -121,9 +123,9 @@ fn get_public_offer_id() {
 #[test]
 fn check_public_offer_magic_bytes() {
     let valid = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
-                 a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
-                 27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
-                 00000000000000000000000260700";
+                 a00000004000a000000010800140000000000000002100e000000000000210003b31a0a70343bb4\
+                 6f3db3768296ac5027f9873921b37f852860c690063ff9e4c900000000000000000000000000000\
+                 000000000000000000000000000000000000000260700";
     let pub_offer: Result<PublicOffer<BtcXmr>, consensus::Error> =
         deserialize(&hex::decode(valid).unwrap()[..]);
     assert!(pub_offer.is_ok());
@@ -139,9 +141,9 @@ fn check_public_offer_magic_bytes() {
 fn parse_public_offer() {
     for hex in [
         "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
-         a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
-         27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
-         00000000000000000000000260700",
+         a00000004000a000000010800140000000000000002100e000000000000210003b31a0a70343bb4\
+         6f3db3768296ac5027f9873921b37f852860c690063ff9e4c900000000000000000000000000000\
+         000000000000000000000000000000000000000260700",
     ]
     .iter_mut()
     {

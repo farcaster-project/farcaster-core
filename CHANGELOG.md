@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `Offer` has a new field `created_at` taking a UTC timestamp ([#200](https://github.com/farcaster-project/farcaster-core/pull/200))
+
 ## [0.4.3] - 2021-12-06
 
 ### Added

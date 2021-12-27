@@ -36,7 +36,7 @@ bitvec = { version = "0.22.3" }
 fixed-hash = { version = "0.7.0", default-features = false }
 hex = "0.4.3"
 inet2_addr = { version = "0.5.0", default-features = false, features = ["tor", "strict_encoding"] }
-lightning_encoding = "=0.5.0-beta.3"
+lightning_encoding = "=0.5.12"
 serde_crate = { package = "serde", version = "1", features = ["derive"], optional = true }
 strict_encoding = "1.7.4"
 strict_encoding_derive = "1.7.4"

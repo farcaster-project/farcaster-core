@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2022-02-27
+
 ## [0.4.3] - 2021-12-06
 
 ### Added
@@ -104,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages exchanged between farcaster-node's microservices
 - Tasks and blockchain events used by syncers
 
-[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.4...HEAD
+[0.4.4]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.0...v0.4.1

@@ -134,7 +134,7 @@ impl Derivation for SharedKeyId {
 #[derive(Debug)]
 pub struct KeyManager {
     /// The master 32-bytes seed used to derive all the keys for all the swaps.
-    master_seed: [u8; 32],
+    _master_seed: [u8; 32],
     /// The swap identifier used in the derivation.
     swap_index: ChildNumber,
     /// The master secp256k1 seed.
@@ -226,7 +226,7 @@ impl KeyManager {
     /// not within `[0, 2^31 - 1]`.
     pub fn new(seed: [u8; 32], swap_index: u32) -> Result<Self, crypto::Error> {
         Ok(Self {
-            master_seed: seed,
+            _master_seed: seed,
             swap_index: ChildNumber::from_hardened_idx(swap_index).map_err(crypto::Error::new)?,
             bitcoin_master_key: Secp256k1ExtSecretKey::new_master(seed.as_ref()),
             monero_master_key: Ed25519ExtSecretKey::new_master(seed.as_ref()),

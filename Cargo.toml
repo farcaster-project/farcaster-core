@@ -47,23 +47,23 @@ tiny-keccak = { version = "2", features = ["keccak"] }
 
 bincode = { version = "1", optional = true }
 curve25519-dalek = "3"
-ecdsa_fun = { version = "0.6", default-features = false, features = ["all"], optional = true }
+ecdsa_fun = { version = "0.7", default-features = false, features = ["all"], optional = true }
 rand = { version = "0.8.4", optional = true }
 rand_alt = { package = "rand", version = "0.7.3", features = ["std"] }
 rand_chacha = { version = "0.3.1", optional = true }
-secp256kfun = { version = "0.6", default-features = false, features = ["std", "serde", "libsecp_compat"], optional = true }
+secp256kfun = { version = "0.7", default-features = false, features = ["std", "serde", "libsecp_compat"], optional = true }
 sha2 = { version = "0.9", optional = true }
 sha3 = "0.10"
 
 # blockchain specific
-bitcoin = "0.27"
+bitcoin = "0.28.0-rc.1"
 monero = { version = "0.16" }
 
 [dev-dependencies]
 bitcoincore-rpc = "0.14"
 lazy_static = "1.4"
 rand_core = { version = "^0.6.3", features = ["getrandom"] }
-secp256k1 = { version = "0.20", features = ["rand-std"] }
+secp256k1 = { version = "0.21", features = ["rand-std"] }
 serde_yaml = "0.8"
 
 [package.metadata.docs.rs]

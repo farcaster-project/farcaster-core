@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
-use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
+use bitcoin::blockdata::transaction::{TxIn, TxOut};
+use bitcoin::blockdata::witness::Witness;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
@@ -35,11 +36,11 @@ impl SubTransaction for Punish {
             .ok_or(Error::MissingSignature)?
             .clone();
 
-        psbt.inputs[0].final_script_witness = Some(vec![
-            punish_sig,
+        psbt.inputs[0].final_script_witness = Some(Witness::from_vec(vec![
+            punish_sig.to_vec(),
             vec![], // OP_FALSE
             script.into_bytes(),
-        ]);
+        ]));
         Ok(())
     }
 }
@@ -59,7 +60,7 @@ impl Punishable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Punish> {
                 previous_output: output_metadata.out_point,
                 script_sig: bitcoin::Script::default(),
                 sequence: punish_lock.timelock.as_u32(),
-                witness: vec![],
+                witness: Witness::new(),
             }],
             output: vec![TxOut {
                 value: output_metadata.tx_out.value,
@@ -73,7 +74,6 @@ impl Punishable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Punish> {
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
         psbt.inputs[0].witness_script = output_metadata.script_pubkey;
-        psbt.inputs[0].sighash_type = Some(SigHashType::All);
 
         Ok(Tx {
             psbt,

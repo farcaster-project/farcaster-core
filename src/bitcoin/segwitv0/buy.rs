@@ -116,7 +116,7 @@ impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
     fn extract_witness(tx: bitcoin::Transaction) -> Signature {
         let TxIn { witness, .. } = &tx.input[0];
         let witness_bytes = witness.to_vec();
-        let ecdsa_sig = EcdsaSig::from_slice(witness_bytes[1].as_ref())
+        let ecdsa_sig = EcdsaSig::from_slice(witness_bytes[0].as_ref())
             .expect("Validated transaction on-chain, signature and witness position is correct.");
         ecdsa_sig.sig
     }

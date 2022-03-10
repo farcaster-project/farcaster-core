@@ -16,6 +16,7 @@ use farcaster_core::swap::SwapId;
 use farcaster_core::transaction::*;
 
 use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
+use bitcoin::blockdata::witness::Witness;
 use bitcoin::secp256k1::{PublicKey, Secp256k1};
 use bitcoin::Address;
 
@@ -118,7 +119,7 @@ fn execute_offline_protocol() {
             previous_output: OutPoint::null(),
             script_sig: bitcoin::blockdata::script::Script::default(),
             sequence: (1 << 31) as u32, // activate disable flag on CSV
-            witness: vec![],
+            witness: Witness::new(),
         }],
         output: vec![TxOut {
             value: 123456789,

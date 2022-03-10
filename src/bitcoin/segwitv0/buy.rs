@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
-use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
-use bitcoin::secp256k1::Signature;
+use bitcoin::blockdata::transaction::{TxIn, TxOut};
+use bitcoin::blockdata::witness::Witness;
+use bitcoin::secp256k1::ecdsa::Signature;
+use bitcoin::util::ecdsa::EcdsaSig;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
@@ -37,7 +39,11 @@ impl SubTransaction for Buy {
             .ok_or(FError::MissingSignature)?
             .clone();
 
-        psbt.inputs[0].final_script_witness = Some(vec![bob_sig, alice_sig, script.into_bytes()]);
+        psbt.inputs[0].final_script_witness = Some(Witness::from_vec(vec![
+            bob_sig.to_vec(),
+            alice_sig.to_vec(),
+            script.into_bytes(),
+        ]));
 
         Ok(())
     }
@@ -58,7 +64,7 @@ impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
                 previous_output: output_metadata.out_point,
                 script_sig: bitcoin::Script::default(),
                 sequence: 0,
-                witness: vec![],
+                witness: Witness::new(),
             }],
             output: vec![TxOut {
                 value: output_metadata.tx_out.value,
@@ -72,7 +78,6 @@ impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
         psbt.inputs[0].witness_script = output_metadata.script_pubkey;
-        psbt.inputs[0].sighash_type = Some(SigHashType::All);
 
         Ok(Tx {
             psbt,
@@ -81,25 +86,25 @@ impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
     }
 
     fn verify_template(&self, destination_target: Address) -> Result<(), FError> {
-        (self.psbt.global.unsigned_tx.version == 2)
+        (self.psbt.unsigned_tx.version == 2)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Tx version is not 2"))?;
-        (self.psbt.global.unsigned_tx.lock_time == 0)
+        (self.psbt.unsigned_tx.lock_time == 0)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("LockTime is not set to 0"))?;
-        (self.psbt.global.unsigned_tx.input.len() == 1)
+        (self.psbt.unsigned_tx.input.len() == 1)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Number of inputs is not 1"))?;
-        (self.psbt.global.unsigned_tx.output.len() == 1)
+        (self.psbt.unsigned_tx.output.len() == 1)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Number of outputs is not 1"))?;
 
-        let txin = &self.psbt.global.unsigned_tx.input[0];
+        let txin = &self.psbt.unsigned_tx.input[0];
         (txin.sequence == 0)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Sequence is not set to 0"))?;
 
-        let txout = &self.psbt.global.unsigned_tx.output[0];
+        let txout = &self.psbt.unsigned_tx.output[0];
         let script_pubkey = destination_target.script_pubkey();
         (txout.script_pubkey == script_pubkey)
             .then(|| 0)
@@ -110,9 +115,9 @@ impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
 
     fn extract_witness(tx: bitcoin::Transaction) -> Signature {
         let TxIn { witness, .. } = &tx.input[0];
-        let bytes: &[u8] = witness[0].as_ref();
-        // Remove SIGHASH type at the end of the signature
-        Signature::from_der(&bytes[..bytes.len() - 1])
-            .expect("Validated transaction on-chain, signature and witness position is correct.")
+        let witness_bytes = witness.to_vec();
+        let ecdsa_sig = EcdsaSig::from_slice(witness_bytes[0].as_ref())
+            .expect("Validated transaction on-chain, signature and witness position is correct.");
+        ecdsa_sig.sig
     }
 }

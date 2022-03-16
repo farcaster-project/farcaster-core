@@ -71,6 +71,32 @@ macro_rules! new_address {
             pair.0,
         )
     }};
+    (taproot) => {{
+        use bitcoin::network::constants::Network;
+        use bitcoin::secp256k1::rand::thread_rng;
+        use bitcoin::secp256k1::{KeyPair, Secp256k1};
+        use bitcoin::util::address::Address;
+        use bitcoin::util::taproot::TaprootSpendInfo;
+
+        // Generate random key pair
+        let s = Secp256k1::new();
+        let keypair = KeyPair::new(&s, &mut thread_rng());
+        let xpubkey = keypair.public_key().into();
+
+        let taproot_info = TaprootSpendInfo::new_key_spend(&s, xpubkey, None);
+
+        // Generate pay-to-taproot address
+        (
+            Address::p2tr(
+                &s,
+                taproot_info.internal_key(),
+                taproot_info.merkle_root(),
+                Network::Regtest,
+            ),
+            xpubkey,
+            keypair,
+        )
+    }};
 }
 
 macro_rules! send {

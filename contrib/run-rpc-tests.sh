@@ -25,7 +25,13 @@ do
 done
 
 export CI=false RPC_USER=test RPC_PASS=cEl2o3tHHgzYeuu3CiiZ2FjdgSiw9wNeMFzoNbFmx9k=
-cargo test --test transactions --features rpc -- --test-threads=1
+
+case "$1" in
+    "--taproot")
+        cargo test --test taproot --features taproot,rpc -- --test-threads=1;;
+    *)
+        cargo test --test transactions --features rpc -- --test-threads=1;;
+esac
 
 docker kill bitcoind
 

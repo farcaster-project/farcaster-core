@@ -5,6 +5,8 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::str::FromStr;
 
+use crate::bitcoin::taproot::funding::Funding;
+
 use crate::bitcoin::{Bitcoin, BitcoinTaproot, Btc, Strategy};
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
@@ -12,6 +14,11 @@ use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
 
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::{constants::SECRET_KEY_SIZE, schnorr::Signature, KeyPair, XOnlyPublicKey};
+
+pub mod funding;
+
+/// Funding the swap creating a Taproot (SegWit v1) output.
+pub type FundingTx = Funding;
 
 /// Inner type for the Taproot strategy with on-chain scripts.
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]

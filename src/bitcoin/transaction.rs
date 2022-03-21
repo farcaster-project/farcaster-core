@@ -12,8 +12,13 @@ use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 #[cfg(feature = "experimental")]
 use bitcoin::{
     hashes::sha256d::Hash,
-    secp256k1::{ecdsa::Signature, PublicKey},
+    secp256k1::{ecdsa, PublicKey},
     Amount,
+};
+#[cfg(all(feature = "experimental", feature = "taproot"))]
+use bitcoin::{
+    secp256k1::schnorr, util::schnorr::SchnorrSig, util::sighash::SchnorrSigHashType,
+    XOnlyPublicKey,
 };
 
 use thiserror::Error;
@@ -22,6 +27,8 @@ use crate::bitcoin::{Bitcoin, Strategy};
 use crate::consensus::{self, CanonicalBytes};
 use crate::transaction::{Broadcastable, Error as FError, Finalizable, Linkable};
 
+#[cfg(all(feature = "experimental", feature = "taproot"))]
+use crate::bitcoin::taproot::Taproot;
 #[cfg(feature = "experimental")]
 use crate::{
     bitcoin::segwitv0::{signature_hash, SegwitV0},
@@ -87,6 +94,44 @@ pub struct Tx<T: SubTransaction> {
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 impl<T> Transaction<Bitcoin<SegwitV0>, MetadataOutput> for Tx<T>
+where
+    T: SubTransaction,
+{
+    fn as_partial(&self) -> &PartiallySignedTransaction {
+        &self.psbt
+    }
+
+    fn as_partial_mut(&mut self) -> &mut PartiallySignedTransaction {
+        &mut self.psbt
+    }
+
+    fn to_partial(self) -> PartiallySignedTransaction {
+        self.psbt
+    }
+
+    fn from_partial(partial: PartiallySignedTransaction) -> Self {
+        Self {
+            psbt: partial,
+            _t: PhantomData,
+        }
+    }
+
+    fn based_on(&self) -> MetadataOutput {
+        MetadataOutput {
+            out_point: self.psbt.unsigned_tx.input[0].previous_output,
+            tx_out: self.psbt.inputs[0].witness_utxo.clone().unwrap(), // FIXME
+            script_pubkey: self.psbt.inputs[0].witness_script.clone(),
+        }
+    }
+
+    fn output_amount(&self) -> Amount {
+        Amount::from_sat(self.psbt.unsigned_tx.output[0].value)
+    }
+}
+
+#[cfg(all(feature = "experimental", feature = "taproot"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
+impl<T> Transaction<Bitcoin<Taproot>, MetadataOutput> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -191,11 +236,36 @@ where
         Ok(signature_hash(txin, &script, value, EcdsaSighashType::All))
     }
 
-    fn add_witness(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
+    fn add_witness(&mut self, pubkey: PublicKey, sig: ecdsa::Signature) -> Result<(), FError> {
         let sig_all = EcdsaSig::sighash_all(sig);
         self.psbt.inputs[0]
             .partial_sigs
             .insert(bitcoin::PublicKey::new(pubkey), sig_all);
+        Ok(())
+    }
+}
+
+#[cfg(all(feature = "experimental", feature = "taproot"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
+impl<T> Witnessable<Bitcoin<Taproot>> for Tx<T>
+where
+    T: SubTransaction,
+{
+    fn generate_witness_message(&self, _path: ScriptPath) -> Result<Hash, FError> {
+        todo!()
+    }
+
+    // FIXME: this only accounts for key spend and not for script spend
+    fn add_witness(
+        &mut self,
+        _pubkey: XOnlyPublicKey,
+        sig: schnorr::Signature,
+    ) -> Result<(), FError> {
+        let sig_all = SchnorrSig {
+            sig,
+            hash_ty: SchnorrSigHashType::All,
+        };
+        self.psbt.inputs[0].tap_key_sig = Some(sig_all);
         Ok(())
     }
 }

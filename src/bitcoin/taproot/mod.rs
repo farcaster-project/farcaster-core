@@ -16,6 +16,7 @@ use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::{constants::SECRET_KEY_SIZE, schnorr::Signature, KeyPair, XOnlyPublicKey};
 
 pub mod funding;
+pub mod lock;
 
 /// Funding the swap creating a Taproot (SegWit v1) output.
 pub type FundingTx = Funding;

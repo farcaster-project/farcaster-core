@@ -1,9 +1,13 @@
 #![cfg(all(feature = "rpc", feature = "taproot"))]
 
+use farcaster_core::bitcoin::fee::SatPerVByte;
 use farcaster_core::bitcoin::taproot::*;
+use farcaster_core::bitcoin::*;
 use farcaster_core::blockchain::*;
+use farcaster_core::script::*;
 use farcaster_core::transaction::*;
 
+use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Amount;
 use bitcoincore_rpc::json::AddressType;
 use bitcoincore_rpc::RpcApi;
@@ -42,7 +46,6 @@ fn taproot_funding_tx() {
     let target_swap_amount = bitcoin::Amount::from_btc(8.0).unwrap();
 
     let address = funding.get_address().unwrap();
-    println!("{:?}", address);
     let txid = rpc::CLIENT
         .send_to_address(
             &address,
@@ -60,4 +63,39 @@ fn taproot_funding_tx() {
     // Minimum of fee of 122 sat
     let target_amount = Amount::from_sat(target_swap_amount.as_sat() - 122);
     funding.update(funding_tx_seen).unwrap();
+
+    let datalock = DataLock {
+        timelock: timelock::CSVTimelock::new(10),
+        success: DoubleKeys::new(&xpubkey_a1, &xpubkey_b1),
+        failure: DoubleKeys::new(&xpubkey_a1, &xpubkey_b1),
+    };
+
+    let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
+    let politic = FeePriority::Low;
+
+    let mut lock = LockTx::initialize(&funding, datalock.clone(), target_amount).unwrap();
+
+    //
+    // Sign lock tx
+    //
+    let msg = Witnessable::<BitcoinTaproot>::generate_witness_message(&lock, ScriptPath::Success)
+        .unwrap();
+    // tweak key pair with tap_tweak funding
+    let secp = Secp256k1::new();
+    let tweak = bitcoin::util::taproot::TaprootSpendInfo::new_key_spend(&secp, xpubkey_a1, None)
+        .tap_tweak();
+    let mut tweaked_keypair = keypair_a1.clone();
+    tweaked_keypair.tweak_add_assign(&secp, &tweak).unwrap();
+    let sig = sign_hash(msg, &tweaked_keypair).unwrap();
+    Witnessable::<BitcoinTaproot>::add_witness(&mut lock, xpubkey_a1, sig).unwrap();
+    let lock_finalized = Broadcastable::<BitcoinTaproot>::finalize_and_extract(&mut lock).unwrap();
+
+    rpc! {
+        // Wait 100 blocks to unlock the coinbase
+        mine 100;
+
+        // Broadcast the lock and mine the transaction
+        then broadcast lock_finalized;
+        then mine 1;
+    }
 }

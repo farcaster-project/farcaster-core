@@ -85,7 +85,12 @@ macro_rules! setup_txs {
             CancelTx::initialize(&lock, datalock.clone(), datapunishablelock.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        BitcoinSegwitV0::set_fee(cancel.as_partial_mut(), &fee, politic).unwrap();
+        BitcoinSegwitV0::set_fee(
+            Transaction::<BitcoinSegwitV0, _>::as_partial_mut(&mut cancel),
+            &fee,
+            politic,
+        )
+        .unwrap();
 
         //
         // Create refund tx
@@ -94,7 +99,12 @@ macro_rules! setup_txs {
         let mut refund = RefundTx::initialize(&cancel, new_address.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        BitcoinSegwitV0::set_fee(refund.as_partial_mut(), &fee, politic).unwrap();
+        BitcoinSegwitV0::set_fee(
+            Transaction::<BitcoinSegwitV0, _>::as_partial_mut(&mut refund),
+            &fee,
+            politic,
+        )
+        .unwrap();
 
         lock.verify_template(datalock.clone()).unwrap();
         cancel
@@ -105,16 +115,16 @@ macro_rules! setup_txs {
         //
         // Co-Sign refund
         //
-        let msg = refund
-            .generate_witness_message(ScriptPath::Success)
-            .unwrap();
+        let msg =
+            Witnessable::<BitcoinSegwitV0>::generate_witness_message(&refund, ScriptPath::Success)
+                .unwrap();
         let sig = sign_hash(msg, &secret_a1).unwrap();
-        refund.add_witness(pubkey_a1, sig).unwrap();
-        let msg = refund
-            .generate_witness_message(ScriptPath::Success)
-            .unwrap();
+        Witnessable::<BitcoinSegwitV0>::add_witness(&mut refund, pubkey_a1, sig).unwrap();
+        let msg =
+            Witnessable::<BitcoinSegwitV0>::generate_witness_message(&refund, ScriptPath::Success)
+                .unwrap();
         let sig = sign_hash(msg, &secret_b1).unwrap();
-        refund.add_witness(pubkey_b1, sig).unwrap();
+        Witnessable::<BitcoinSegwitV0>::add_witness(&mut refund, pubkey_b1, sig).unwrap();
 
         //
         // Finalize refund
@@ -125,16 +135,16 @@ macro_rules! setup_txs {
         //
         // Co-Sign cancel
         //
-        let msg = cancel
-            .generate_witness_message(ScriptPath::Failure)
-            .unwrap();
+        let msg =
+            Witnessable::<BitcoinSegwitV0>::generate_witness_message(&cancel, ScriptPath::Failure)
+                .unwrap();
         let sig = sign_hash(msg, &secret_a1).unwrap();
-        cancel.add_witness(pubkey_a1, sig).unwrap();
-        let msg = cancel
-            .generate_witness_message(ScriptPath::Failure)
-            .unwrap();
+        Witnessable::<BitcoinSegwitV0>::add_witness(&mut cancel, pubkey_a1, sig).unwrap();
+        let msg =
+            Witnessable::<BitcoinSegwitV0>::generate_witness_message(&cancel, ScriptPath::Failure)
+                .unwrap();
         let sig = sign_hash(msg, &secret_b1).unwrap();
-        cancel.add_witness(pubkey_b1, sig).unwrap();
+        Witnessable::<BitcoinSegwitV0>::add_witness(&mut cancel, pubkey_b1, sig).unwrap();
 
         //
         // Finalize cancel
@@ -149,19 +159,28 @@ macro_rules! setup_txs {
         let mut buy = BuyTx::initialize(&lock, datalock.clone(), new_address.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        BitcoinSegwitV0::set_fee(buy.as_partial_mut(), &fee, politic).unwrap();
+        BitcoinSegwitV0::set_fee(
+            Transaction::<BitcoinSegwitV0, _>::as_partial_mut(&mut buy),
+            &fee,
+            politic,
+        )
+        .unwrap();
 
         buy.verify_template(new_address.clone()).unwrap();
 
         //
         // Co-Sign buy
         //
-        let msg = buy.generate_witness_message(ScriptPath::Success).unwrap();
+        let msg =
+            Witnessable::<BitcoinSegwitV0>::generate_witness_message(&buy, ScriptPath::Success)
+                .unwrap();
         let sig = sign_hash(msg, &secret_a1).unwrap();
-        buy.add_witness(pubkey_a1, sig).unwrap();
-        let msg = buy.generate_witness_message(ScriptPath::Success).unwrap();
+        Witnessable::<BitcoinSegwitV0>::add_witness(&mut buy, pubkey_a1, sig).unwrap();
+        let msg =
+            Witnessable::<BitcoinSegwitV0>::generate_witness_message(&buy, ScriptPath::Success)
+                .unwrap();
         let sig = sign_hash(msg, &secret_b1).unwrap();
-        buy.add_witness(pubkey_b1, sig).unwrap();
+        Witnessable::<BitcoinSegwitV0>::add_witness(&mut buy, pubkey_b1, sig).unwrap();
 
         //
         // Finalize buy
@@ -172,9 +191,11 @@ macro_rules! setup_txs {
         //
         // Sign lock tx
         //
-        let msg = lock.generate_witness_message(ScriptPath::Success).unwrap();
+        let msg =
+            Witnessable::<BitcoinSegwitV0>::generate_witness_message(&lock, ScriptPath::Success)
+                .unwrap();
         let sig = sign_hash(msg, &secret_a1).unwrap();
-        lock.add_witness(pubkey_a1, sig).unwrap();
+        Witnessable::<BitcoinSegwitV0>::add_witness(&mut lock, pubkey_a1, sig).unwrap();
         let lock_finalized =
             Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut lock).unwrap();
 
@@ -186,16 +207,21 @@ macro_rules! setup_txs {
             PunishTx::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
 
         // Set the fees according to the given strategy
-        BitcoinSegwitV0::set_fee(punish.as_partial_mut(), &fee, politic).unwrap();
+        BitcoinSegwitV0::set_fee(
+            Transaction::<BitcoinSegwitV0, _>::as_partial_mut(&mut punish),
+            &fee,
+            politic,
+        )
+        .unwrap();
 
         //
         // Sign punish
         //
-        let msg = punish
-            .generate_witness_message(ScriptPath::Failure)
-            .unwrap();
+        let msg =
+            Witnessable::<BitcoinSegwitV0>::generate_witness_message(&punish, ScriptPath::Failure)
+                .unwrap();
         let sig = sign_hash(msg, &secret_a1).unwrap();
-        punish.add_witness(pubkey_a1, sig).unwrap();
+        Witnessable::<BitcoinSegwitV0>::add_witness(&mut punish, pubkey_a1, sig).unwrap();
 
         //
         // Finalize buy

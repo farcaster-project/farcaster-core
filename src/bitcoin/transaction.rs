@@ -8,6 +8,8 @@ use bitcoin::blockdata::transaction::{EcdsaSighashType, OutPoint, TxIn, TxOut};
 use bitcoin::util::address;
 use bitcoin::util::ecdsa::EcdsaSig;
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
+use bitcoin::util::sighash::SigHashCache;
+use bitcoin::util::taproot::TapSighashHash;
 
 #[cfg(feature = "experimental")]
 use bitcoin::{
@@ -17,8 +19,8 @@ use bitcoin::{
 };
 #[cfg(all(feature = "experimental", feature = "taproot"))]
 use bitcoin::{
-    secp256k1::schnorr, util::schnorr::SchnorrSig, util::sighash::SchnorrSigHashType,
-    XOnlyPublicKey,
+    secp256k1::schnorr, util::schnorr::SchnorrSig, util::sighash::Prevouts,
+    util::sighash::SchnorrSigHashType, XOnlyPublicKey,
 };
 
 use thiserror::Error;
@@ -251,8 +253,27 @@ impl<T> Witnessable<Bitcoin<Taproot>> for Tx<T>
 where
     T: SubTransaction,
 {
-    fn generate_witness_message(&self, _path: ScriptPath) -> Result<Hash, FError> {
-        todo!()
+    // FIXME: this only accounts for key spend and not for script spend
+    fn generate_witness_message(&self, _path: ScriptPath) -> Result<TapSighashHash, FError> {
+        let mut sighash = SigHashCache::new(&self.psbt.unsigned_tx);
+
+        let witness_utxo = self.psbt.inputs[0]
+            .witness_utxo
+            .clone()
+            .ok_or(FError::MissingWitness)?;
+        let script_pubkey = self.psbt.inputs[0]
+            .witness_script
+            .clone()
+            .ok_or(FError::MissingWitness)?;
+        let value = witness_utxo.value;
+
+        let txouts = vec![TxOut {
+            value,
+            script_pubkey,
+        }];
+        sighash
+            .taproot_key_spend_signature_hash(0, &Prevouts::All(&txouts), SchnorrSigHashType::All)
+            .map_err(FError::new)
     }
 
     // FIXME: this only accounts for key spend and not for script spend

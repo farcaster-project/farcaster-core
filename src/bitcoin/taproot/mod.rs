@@ -5,21 +5,27 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::str::FromStr;
 
-use crate::bitcoin::taproot::funding::Funding;
+use crate::bitcoin::taproot::{funding::Funding, lock::Lock};
 
+use crate::bitcoin::transaction::Tx;
 use crate::bitcoin::{Bitcoin, BitcoinTaproot, Btc, Strategy};
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
+use bitcoin::util::taproot::TapSighashHash;
 //use crate::role::Arbitrating;
 
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
-use bitcoin::secp256k1::{constants::SECRET_KEY_SIZE, schnorr::Signature, KeyPair, XOnlyPublicKey};
+use bitcoin::secp256k1::{
+    constants::SECRET_KEY_SIZE, schnorr::Signature, KeyPair, Message, Secp256k1, XOnlyPublicKey,
+};
 
 pub mod funding;
 pub mod lock;
 
 /// Funding the swap creating a Taproot (SegWit v1) output.
 pub type FundingTx = Funding;
+
+/// Locking the funding UTXO in a lock and allow buy or cancel transaction.
+pub type LockTx = Tx<Lock>;
 
 /// Inner type for the Taproot strategy with on-chain scripts.
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
@@ -127,7 +133,7 @@ impl SharedSecretKeys for Bitcoin<Taproot> {
 }
 
 impl Signatures for Bitcoin<Taproot> {
-    type Message = Sha256dHash;
+    type Message = TapSighashHash;
     type Signature = Signature;
     type EncryptedSignature = Signature;
 }
@@ -143,4 +149,14 @@ impl CanonicalBytes for Signature {
     {
         Signature::from_slice(bytes).map_err(consensus::Error::new)
     }
+}
+
+/// Create a Schnorr signature for the given Taproot sighash
+pub fn sign_hash(
+    sighash: TapSighashHash,
+    keypair: &bitcoin::secp256k1::KeyPair,
+) -> Result<Signature, bitcoin::secp256k1::Error> {
+    let context = Secp256k1::new();
+    let msg = Message::from_slice(&sighash[..])?;
+    Ok(context.sign_schnorr(&msg, keypair))
 }

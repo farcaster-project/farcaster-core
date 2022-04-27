@@ -125,7 +125,7 @@ impl<'de> Deserialize<'de> for OfferId {
 
 /// An offer is created by a [`TradeRole::Maker`] before the start of his daemon, it references all
 /// the data needed to parametrize a trade and be validated from a [`TradeRole::Taker`]
-/// perspective. The daemon start when the maker is ready to finalyze his offer, transforming the
+/// perspective. The daemon start when the maker is ready to finalize his offer, transforming the
 /// offer into a [`PublicOffer`] which contains the data needed to a taker to connect to the
 /// maker's daemon.
 #[derive(Debug, Clone, Eq)]

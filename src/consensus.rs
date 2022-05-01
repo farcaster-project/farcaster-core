@@ -141,7 +141,7 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
 /// messages passed around by the node.
 pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever error if the underlying
-    /// encoder errors.
+    /// encoder errors. If successful, returns size of the encoded object in bytes.
     ///
     /// The only errors returned are errors propagated from the writer.
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error>;

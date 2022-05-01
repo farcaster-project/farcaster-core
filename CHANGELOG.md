@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump MSRV (Minimum Supported Rust Version) from 1.54.0 to 1.59.0
+- Update bitcoin dependency to `0.28.0-rc.1`, aligns sub-dependencies to match new bitcoin version ([#220](https://github.com/farcaster-project/farcaster-core/pull/220))
+
 ## [0.4.4] - 2022-02-27
 
 ### Changed

@@ -19,10 +19,13 @@ use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Builder, Instruction, Script};
-use bitcoin::blockdata::transaction::EcdsaSigHashType;
+use bitcoin::blockdata::transaction::SigHashType;
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
-use bitcoin::secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey, Signing};
-use bitcoin::util::sighash::SigHashCache;
+use bitcoin::secp256k1::{
+    key::{PublicKey, SecretKey},
+    Message, Secp256k1, Signature, Signing,
+};
+use bitcoin::util::bip143::SigHashCache;
 
 use ecdsa_fun::adaptor::EncryptedSignature;
 
@@ -81,8 +84,8 @@ impl From<BitcoinSegwitV0> for Btc {
 }
 
 pub struct CoopLock {
-    a: PublicKey,
-    b: PublicKey,
+    a: bitcoin::util::key::PublicKey,
+    b: bitcoin::util::key::PublicKey,
 }
 
 impl CoopLock {
@@ -92,9 +95,9 @@ impl CoopLock {
             ..
         } = data;
         Builder::new()
-            .push_key(&bitcoin::util::key::PublicKey::new(*alice))
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*alice))
             .push_opcode(opcodes::all::OP_CHECKSIGVERIFY)
-            .push_key(&bitcoin::util::key::PublicKey::new(*bob))
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*bob))
             .push_opcode(opcodes::all::OP_CHECKSIG)
             .into_script()
     }
@@ -123,7 +126,7 @@ impl CoopLock {
                     _ => Err(Error::MissingPublicKey),
                 },
             )?;
-        let a = PublicKey::from_slice(bytes).map_err(Error::new)?;
+        let a = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
         // Checksig verify
         ints.next()
             .ok_or(Error::WrongTemplate("Missing opcode"))
@@ -141,7 +144,7 @@ impl CoopLock {
                 Err(e) => Err(Error::new(e)),
                 _ => Err(Error::MissingPublicKey),
             })?;
-        let b = PublicKey::from_slice(bytes).map_err(Error::new)?;
+        let b = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
         // Checksig
         ints.next()
             .ok_or(Error::WrongTemplate("Missing opcode"))
@@ -162,7 +165,7 @@ impl CoopLock {
         Ok(Self { a, b })
     }
 
-    pub fn get_pubkey(&self, swap_role: SwapRole) -> &PublicKey {
+    pub fn get_pubkey(&self, swap_role: SwapRole) -> &bitcoin::util::key::PublicKey {
         match swap_role {
             SwapRole::Alice => &self.a,
             SwapRole::Bob => &self.b,
@@ -171,9 +174,9 @@ impl CoopLock {
 }
 
 pub struct PunishLock {
-    alice: PublicKey,
-    bob: PublicKey,
-    punish: PublicKey,
+    alice: bitcoin::util::key::PublicKey,
+    bob: bitcoin::util::key::PublicKey,
+    punish: bitcoin::util::key::PublicKey,
 }
 
 impl PunishLock {
@@ -185,15 +188,15 @@ impl PunishLock {
         } = data;
         Builder::new()
             .push_opcode(opcodes::all::OP_IF)
-            .push_key(&bitcoin::util::key::PublicKey::new(*alice))
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*alice))
             .push_opcode(opcodes::all::OP_CHECKSIGVERIFY)
-            .push_key(&bitcoin::util::key::PublicKey::new(*bob))
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*bob))
             .push_opcode(opcodes::all::OP_CHECKSIG)
             .push_opcode(opcodes::all::OP_ELSE)
             .push_int(timelock.as_u32().into())
             .push_opcode(opcodes::all::OP_CSV)
             .push_opcode(opcodes::all::OP_DROP)
-            .push_key(&bitcoin::util::key::PublicKey::new(*failure))
+            .push_key(&bitcoin::util::ecdsa::PublicKey::new(*failure))
             .push_opcode(opcodes::all::OP_CHECKSIG)
             .push_opcode(opcodes::all::OP_ENDIF)
             .into_script()
@@ -231,7 +234,7 @@ impl PunishLock {
                     _ => Err(Error::MissingPublicKey),
                 },
             )?;
-        let alice = PublicKey::from_slice(bytes).map_err(Error::new)?;
+        let alice = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
         // Checksig verify
         ints.next()
             .ok_or(Error::WrongTemplate("Missing opcode"))
@@ -249,7 +252,7 @@ impl PunishLock {
                 Err(e) => Err(Error::new(e)),
                 _ => Err(Error::MissingPublicKey),
             })?;
-        let bob = PublicKey::from_slice(bytes).map_err(Error::new)?;
+        let bob = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
         // Checksig
         ints.next()
             .ok_or(Error::WrongTemplate("Missing opcode"))
@@ -293,7 +296,7 @@ impl PunishLock {
                 Err(e) => Err(Error::new(e)),
                 _ => Err(Error::MissingPublicKey),
             })?;
-        let punish = PublicKey::from_slice(bytes).map_err(Error::new)?;
+        let punish = bitcoin::util::key::PublicKey::from_slice(bytes).map_err(Error::new)?;
         // Checksig
         ints.next()
             .ok_or(Error::WrongTemplate("Missing opcode"))
@@ -322,7 +325,11 @@ impl PunishLock {
         Ok(Self { alice, bob, punish })
     }
 
-    pub fn get_pubkey(&self, swap_role: SwapRole, script_path: ScriptPath) -> Option<&PublicKey> {
+    pub fn get_pubkey(
+        &self,
+        swap_role: SwapRole,
+        script_path: ScriptPath,
+    ) -> Option<&bitcoin::util::key::PublicKey> {
         match script_path {
             ScriptPath::Success => match swap_role {
                 SwapRole::Alice => Some(&self.alice),
@@ -445,11 +452,10 @@ pub fn signature_hash(
     txin: TxInRef,
     script: &Script,
     value: u64,
-    sighash_type: EcdsaSigHashType,
+    sighash_type: SigHashType,
 ) -> Sha256dHash {
     SigHashCache::new(txin.transaction)
-        .segwit_signature_hash(txin.index, script, value, sighash_type)
-        .expect("encoding works")
+        .signature_hash(txin.index, script, value, sighash_type)
         .as_hash()
 }
 
@@ -461,7 +467,7 @@ pub fn sign_input<C>(
     txin: TxInRef,
     script: &Script,
     value: u64,
-    sighash_type: EcdsaSigHashType,
+    sighash_type: SigHashType,
     secret_key: &bitcoin::secp256k1::SecretKey,
 ) -> Result<Signature, bitcoin::secp256k1::Error>
 where
@@ -471,7 +477,7 @@ where
     let sighash = signature_hash(txin, script, value, sighash_type);
     // Makes signature.
     let msg = Message::from_slice(&sighash[..])?;
-    let mut sig = context.sign_ecdsa(&msg, secret_key);
+    let mut sig = context.sign(&msg, secret_key);
     sig.normalize_s();
     Ok(sig)
 }
@@ -487,7 +493,7 @@ pub fn sign_hash(
     let context = Secp256k1::new();
     // Makes signature.
     let msg = Message::from_slice(&sighash[..])?;
-    let mut sig = context.sign_ecdsa(&msg, secret_key);
+    let mut sig = context.sign(&msg, secret_key);
     sig.normalize_s();
     Ok(sig)
 }

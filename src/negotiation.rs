@@ -125,7 +125,7 @@ impl<'de> Deserialize<'de> for OfferId {
 
 /// An offer is created by a [`TradeRole::Maker`] before the start of his daemon, it references all
 /// the data needed to parametrize a trade and be validated from a [`TradeRole::Taker`]
-/// perspective. The daemon start when the maker is ready to finalyze his offer, transforming the
+/// perspective. The daemon start when the maker is ready to finalize his offer, transforming the
 /// offer into a [`PublicOffer`] which contains the data needed to a taker to connect to the
 /// maker's daemon.
 #[derive(Debug, Clone, Eq)]
@@ -675,9 +675,9 @@ mod tests {
     lazy_static::lazy_static! {
         pub static ref NODE_ID: PublicKey = {
             let sk =
-                bitcoin::util::key::PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D")
+                bitcoin::PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D")
                     .unwrap()
-                    .inner;
+                    .key;
             secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &sk)
         };
 

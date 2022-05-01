@@ -27,11 +27,12 @@ use rand_chacha::ChaCha20Rng;
 use sha2::Sha256;
 
 #[cfg(feature = "experimental")]
-use bitcoin::{
-    hashes::sha256d::Hash as Sha256dHash, secp256k1::ecdsa::Signature, secp256k1::Message,
-};
+use bitcoin::{hashes::sha256d::Hash as Sha256dHash, secp256k1::Message, secp256k1::Signature};
 
-use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
+use bitcoin::secp256k1::{
+    key::{PublicKey, SecretKey},
+    Secp256k1,
+};
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -297,8 +298,7 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
     ) -> Result<(), crypto::Error> {
         let secp = Secp256k1::new();
         let message = Message::from_slice(&msg).expect("Hash is always ok");
-        secp.verify_ecdsa(&message, sig, key)
-            .map_err(crypto::Error::new)
+        secp.verify(&message, sig, key).map_err(crypto::Error::new)
     }
 
     fn encrypt_sign(

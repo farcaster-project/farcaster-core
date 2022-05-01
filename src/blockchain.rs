@@ -242,7 +242,7 @@ impl FeeStrategyError {
     ///
     /// [`new`]: FeeStrategyError::new
     ///
-    pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
+    pub fn into_inner(self) -> Option<Box<dyn error::Error + Sync + Send>> {
         match self {
             Self::Other(error) => Some(error),
             _ => None,

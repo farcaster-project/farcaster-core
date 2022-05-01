@@ -76,6 +76,27 @@ pub trait CanonicalBytes {
         Self: Sized;
 }
 
+impl<T> CanonicalBytes for Option<T>
+where T: CanonicalBytes {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        match self {
+            Some(t) => {
+                t.as_canonical_bytes()
+            }
+            None => vec![],
+        }
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized {
+        match bytes.len() {
+            0 => Ok(None),
+            _ => Ok(Some(T::from_canonical_bytes(bytes)?)),
+        }
+    }
+}
+
 /// Encode an object into a vector of bytes. The vector can be [`deserialize`]d to retrieve the
 /// data.
 pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
@@ -301,14 +322,14 @@ impl Decodable for u64 {
 
 impl<T> Encodable for Option<T>
 where
-    T: CanonicalBytes,
+    T: Encodable,
 {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             Some(t) => {
                 s.write_all(&[1u8])?;
-                let len = t.as_canonical_bytes().consensus_encode(s)?;
+                let len = t.consensus_encode(s)?;
                 Ok(1 + len)
             }
             None => s.write_all(&[0u8]).map(|_| 1),
@@ -318,12 +339,12 @@ where
 
 impl<T> Decodable for Option<T>
 where
-    T: CanonicalBytes,
+    T: Decodable,
 {
     #[inline]
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
         match u8::consensus_decode(d)? {
-            1u8 => Ok(Some(T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?)),
+            1u8 => Ok(Some(Decodable::consensus_decode(d)?)),
             0u8 => Ok(None),
             _ => Err(Error::UnknownType),
         }

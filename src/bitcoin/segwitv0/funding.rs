@@ -12,7 +12,7 @@ use crate::bitcoin::segwitv0::SegwitV0;
 use crate::bitcoin::transaction::{Error, MetadataOutput};
 use crate::bitcoin::Bitcoin;
 
-use crate::consensus::{Encodable, Decodable, CanonicalBytes};
+use crate::consensus::{CanonicalBytes, Decodable, Encodable};
 
 /// Manages the steps to handle on-chain funding. Receives the public key derived from the key
 /// manager, receives the network of operations and the raw funding transaction when seen.

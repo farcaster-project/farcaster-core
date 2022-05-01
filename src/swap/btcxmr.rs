@@ -151,7 +151,7 @@ impl Encodable for KeyManager {
     fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
         let mut len = self.master_seed.consensus_encode(writer)?;
         len += Into::<u32>::into(self.swap_index).consensus_encode(writer)?;
-        // TODO: add derivations
+        // TODO: don't add derivations, but test that key manager encoding is correct modulo cached derivations
         Ok(len)
     }
 }
@@ -160,8 +160,12 @@ impl Decodable for KeyManager {
     fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let master_seed = Decodable::consensus_decode(d)?;
         let swap_index = Decodable::consensus_decode(d)?;
-        // TODO: insert consensus error
-        Ok(KeyManager::new(master_seed, swap_index).unwrap())
+        match KeyManager::new(master_seed, swap_index) {
+            Err(_) => Err(consensus::Error::ParseFailed(
+                "Could not instantiate KeyManager from encoded",
+            )),
+            Ok(result) => Ok(result),
+        }
     }
 }
 

@@ -51,7 +51,7 @@ ecdsa_fun = { version = "0.6", default-features = false, features = ["all"], opt
 rand = { version = "0.8.4", optional = true }
 rand_alt = { package = "rand", version = "0.7.3", features = ["std"] }
 rand_chacha = { version = "0.3.1", optional = true }
-secp256kfun = { version = "0.6", default-features = false, features = ["std", "serde", "libsecp_compat"], optional = true }
+secp256kfun = { version = "0.7", default-features = false, features = ["std", "serde", "libsecp_compat"], optional = true }
 sha2 = { version = "0.9", optional = true }
 sha3 = "0.10.1"
 

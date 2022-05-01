@@ -12,6 +12,8 @@ use crate::bitcoin::segwitv0::SegwitV0;
 use crate::bitcoin::transaction::{Error, MetadataOutput};
 use crate::bitcoin::Bitcoin;
 
+use crate::consensus::{Encodable, Decodable};
+
 /// Manages the steps to handle on-chain funding. Receives the public key derived from the key
 /// manager, receives the network of operations and the raw funding transaction when seen.
 #[derive(Debug, Clone)]
@@ -112,5 +114,17 @@ impl Fundable<Bitcoin<SegwitV0>, MetadataOutput> for Funding {
 
     fn was_seen(&self) -> bool {
         self.seen_tx.is_some()
+    }
+}
+
+impl Encodable for Funding {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        todo!()
+    }
+}
+
+impl Decodable for Funding {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, crate::consensus::Error> {
+        todo!()
     }
 }

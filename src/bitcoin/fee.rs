@@ -126,7 +126,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         strategy: &FeeStrategy<SatPerVByte>,
         politic: FeePriority,
     ) -> Result<Amount, FeeStrategyError> {
-        if tx.unsigned_tx.output.len() != 1 {
+        if tx.global.unsigned_tx.output.len() != 1 {
             return Err(FeeStrategyError::new(
                 transaction::Error::MultiUTXOUnsuported,
             ));
@@ -137,7 +137,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         // FIXME This does not account for witnesses
         // currently the fees are wrong
         // Get the transaction weight
-        let weight = tx.unsigned_tx.get_weight() as u64;
+        let weight = tx.global.unsigned_tx.get_weight() as u64;
 
         // Compute the fee amount to set in total
         let fee_amount = match strategy {
@@ -150,7 +150,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
 
         // Apply the fee on the first output
-        tx.unsigned_tx.output[0].value = input_sum
+        tx.global.unsigned_tx.output[0].value = input_sum
             .checked_sub(fee_amount)
             .ok_or(FeeStrategyError::NotEnoughAssets)?
             .as_sat();
@@ -164,18 +164,18 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         tx: &PartiallySignedTransaction,
         strategy: &FeeStrategy<SatPerVByte>,
     ) -> Result<bool, FeeStrategyError> {
-        if tx.unsigned_tx.output.len() != 1 {
+        if tx.global.unsigned_tx.output.len() != 1 {
             return Err(FeeStrategyError::new(
                 transaction::Error::MultiUTXOUnsuported,
             ));
         }
 
         let input_sum = get_available_input_sat(tx)?.as_sat();
-        let output_sum = tx.unsigned_tx.output[0].value;
+        let output_sum = tx.global.unsigned_tx.output[0].value;
         let fee = input_sum
             .checked_sub(output_sum)
             .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
-        let weight = tx.unsigned_tx.get_weight() as u64;
+        let weight = tx.global.unsigned_tx.get_weight() as u64;
 
         let effective_sat_per_vbyte = SatPerVByte::from_sat(
             weight
@@ -196,7 +196,6 @@ mod tests {
         for s in [
             "0.0001 BTC/vByte",
             "100 satoshi/vByte",
-            "100 satoshis/vByte",
             "10 satoshi/vByte",
             "1 satoshi/vByte",
         ]
@@ -206,7 +205,7 @@ mod tests {
             assert!(parse.is_ok());
         }
         // MUST fail
-        for s in ["1 satoshi", "100 vByte"].iter() {
+        for s in ["100 satoshis/vByte", "1 satoshi", "100 vByte"].iter() {
             let parse = SatPerVByte::from_str(s);
             assert!(parse.is_err());
         }

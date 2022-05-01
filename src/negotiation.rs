@@ -675,9 +675,9 @@ mod tests {
     lazy_static::lazy_static! {
         pub static ref NODE_ID: PublicKey = {
             let sk =
-                bitcoin::util::key::PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D")
+                bitcoin::PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D")
                     .unwrap()
-                    .inner;
+                    .key;
             secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &sk)
         };
 

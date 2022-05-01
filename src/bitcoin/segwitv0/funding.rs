@@ -2,7 +2,7 @@
 
 use bitcoin::blockdata::transaction::{OutPoint, Transaction};
 use bitcoin::network::constants::Network as BtcNetwork;
-use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::key::PublicKey;
 use bitcoin::Address;
 
 use crate::blockchain::Network;
@@ -25,7 +25,7 @@ impl Linkable<MetadataOutput> for Funding {
     fn get_consumable_output(&self) -> Result<MetadataOutput, FError> {
         // Create a **COMPRESSED** ECDSA public key.
         let pubkey = match self.pubkey {
-            Some(pubkey) => bitcoin::util::key::PublicKey::new(pubkey),
+            Some(pubkey) => bitcoin::util::ecdsa::PublicKey::new(pubkey),
             None => return Err(FError::MissingPublicKey),
         };
 
@@ -79,7 +79,7 @@ impl Fundable<Bitcoin<SegwitV0>, MetadataOutput> for Funding {
 
     fn get_address(&self) -> Result<Address, FError> {
         let pubkey = match self.pubkey {
-            Some(pubkey) => Ok(bitcoin::util::key::PublicKey::new(pubkey)),
+            Some(pubkey) => Ok(bitcoin::util::ecdsa::PublicKey::new(pubkey)),
             None => Err(FError::MissingPublicKey),
         }?;
 

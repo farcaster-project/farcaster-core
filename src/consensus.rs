@@ -212,6 +212,7 @@ impl_fixed_array!(32);
 impl_fixed_array!(33);
 impl_fixed_array!(64);
 
+#[macro_export]
 macro_rules! unwrap_vec_ref {
     ($reader: ident) => {{
         let v: Vec<u8> = $crate::consensus::Decodable::consensus_decode($reader)?;

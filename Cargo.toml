@@ -56,7 +56,7 @@ sha2 = { version = "0.9", optional = true }
 sha3 = "0.10.1"
 
 # blockchain specific
-bitcoin = "0.27"
+bitcoin = "0.28"
 monero = { version = "0.16" }
 
 [dev-dependencies]

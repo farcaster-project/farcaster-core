@@ -77,19 +77,20 @@ pub trait CanonicalBytes {
 }
 
 impl<T> CanonicalBytes for Option<T>
-where T: CanonicalBytes {
+where
+    T: CanonicalBytes,
+{
     fn as_canonical_bytes(&self) -> Vec<u8> {
         match self {
-            Some(t) => {
-                t.as_canonical_bytes()
-            }
+            Some(t) => t.as_canonical_bytes(),
             None => vec![],
         }
     }
 
     fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
     where
-        Self: Sized {
+        Self: Sized,
+    {
         match bytes.len() {
             0 => Ok(None),
             _ => Ok(Some(T::from_canonical_bytes(bytes)?)),

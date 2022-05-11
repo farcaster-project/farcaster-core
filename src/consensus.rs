@@ -382,6 +382,7 @@ impl Decodable for String {
     }
 }
 
+#[macro_export]
 macro_rules! impl_strict_encoding {
     ($thing:ty, $($args:tt)*) => {
         impl<$($args)*> ::strict_encoding::StrictEncode for $thing {

@@ -131,7 +131,7 @@ impl Derivation for SharedKeyId {
 
 /// Manager responsible for handling key operations (secret and public). Implements traits for
 /// handling [`GenerateKey`], [`GenerateSharedKey`] and [`Sign`].
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct KeyManager {
     /// The master 32-bytes seed used to derive all the keys for all the swaps.
     master_seed: [u8; 32],

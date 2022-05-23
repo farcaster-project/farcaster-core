@@ -29,21 +29,21 @@ impl SubTransaction for Refund {
 
         let alice_sig = psbt.inputs[0]
             .partial_sigs
-            .get(
-                swaplock
+            .get(&bitcoin::PublicKey::new(
+                *swaplock
                     .get_pubkey(SwapRole::Alice, ScriptPath::Success)
                     .ok_or(FError::MissingPublicKey)?,
-            )
+            ))
             .ok_or(FError::MissingSignature)?
             .clone();
 
         let bob_sig = psbt.inputs[0]
             .partial_sigs
-            .get(
-                swaplock
+            .get(&bitcoin::PublicKey::new(
+                *swaplock
                     .get_pubkey(SwapRole::Bob, ScriptPath::Success)
                     .ok_or(FError::MissingPublicKey)?,
-            )
+            ))
             .ok_or(FError::MissingSignature)?
             .clone();
 

@@ -137,7 +137,12 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         // FIXME This does not account for witnesses
         // currently the fees are wrong
         // Get the transaction weight
-        let weight = tx.unsigned_tx.get_weight() as u64;
+        //
+        // For transactions with an empty witness, this is simply the consensus-serialized size
+        // times four. For transactions with a witness, this is the non-witness
+        // consensus-serialized size multiplied by three plus the with-witness consensus-serialized
+        // size.
+        let weight = tx.unsigned_tx.weight() as u64;
 
         // Compute the fee amount to set in total
         let fee_amount = match strategy {
@@ -175,7 +180,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         let fee = input_sum
             .checked_sub(output_sum)
             .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
-        let weight = tx.unsigned_tx.get_weight() as u64;
+        let weight = tx.unsigned_tx.weight() as u64;
 
         let effective_sat_per_vbyte = SatPerVByte::from_sat(
             weight

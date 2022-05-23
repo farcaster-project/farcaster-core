@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use bitcoin::blockdata::script::Script;
-use bitcoin::blockdata::transaction::{EcdsaSigHashType, OutPoint, TxIn, TxOut};
+use bitcoin::blockdata::transaction::{EcdsaSighashType, OutPoint, TxIn, TxOut};
 use bitcoin::util::address;
 use bitcoin::util::ecdsa::EcdsaSig;
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
@@ -188,12 +188,12 @@ where
             .ok_or(FError::MissingWitness)?;
         let value = witness_utxo.value;
 
-        Ok(signature_hash(txin, &script, value, EcdsaSigHashType::All))
+        Ok(signature_hash(txin, &script, value, EcdsaSighashType::All))
     }
 
     fn add_witness(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
         let sig_all = EcdsaSig::sighash_all(sig);
-        self.psbt.inputs[0].partial_sigs.insert(pubkey, sig_all);
+        self.psbt.inputs[0].partial_sigs.insert(bitcoin::PublicKey::new(pubkey), sig_all);
         Ok(())
     }
 }

@@ -29,13 +29,17 @@ impl SubTransaction for Buy {
 
         let alice_sig = psbt.inputs[0]
             .partial_sigs
-            .get(swaplock.get_pubkey(SwapRole::Alice))
+            .get(&bitcoin::PublicKey::new(
+                *swaplock.get_pubkey(SwapRole::Alice),
+            ))
             .ok_or(FError::MissingSignature)?
             .clone();
 
         let bob_sig = psbt.inputs[0]
             .partial_sigs
-            .get(swaplock.get_pubkey(SwapRole::Bob))
+            .get(&bitcoin::PublicKey::new(
+                *swaplock.get_pubkey(SwapRole::Bob),
+            ))
             .ok_or(FError::MissingSignature)?
             .clone();
 

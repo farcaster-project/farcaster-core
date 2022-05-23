@@ -19,10 +19,10 @@ use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Builder, Instruction, Script};
-use bitcoin::blockdata::transaction::EcdsaSigHashType;
+use bitcoin::blockdata::transaction::EcdsaSighashType;
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey, Signing};
-use bitcoin::util::sighash::SigHashCache;
+use bitcoin::util::sighash::SighashCache;
 
 use ecdsa_fun::adaptor::EncryptedSignature;
 
@@ -445,9 +445,9 @@ pub fn signature_hash(
     txin: TxInRef,
     script: &Script,
     value: u64,
-    sighash_type: EcdsaSigHashType,
+    sighash_type: EcdsaSighashType,
 ) -> Sha256dHash {
-    SigHashCache::new(txin.transaction)
+    SighashCache::new(txin.transaction)
         .segwit_signature_hash(txin.index, script, value, sighash_type)
         .expect("encoding works")
         .as_hash()
@@ -461,7 +461,7 @@ pub fn sign_input<C>(
     txin: TxInRef,
     script: &Script,
     value: u64,
-    sighash_type: EcdsaSigHashType,
+    sighash_type: EcdsaSighashType,
     secret_key: &bitcoin::secp256k1::SecretKey,
 ) -> Result<Signature, bitcoin::secp256k1::Error>
 where

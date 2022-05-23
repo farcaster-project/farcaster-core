@@ -28,11 +28,11 @@ impl SubTransaction for Punish {
 
         let punish_sig = psbt.inputs[0]
             .partial_sigs
-            .get(
-                swaplock
+            .get(&bitcoin::PublicKey::new(
+                *swaplock
                     .get_pubkey(SwapRole::Alice, ScriptPath::Success)
                     .ok_or(Error::MissingPublicKey)?,
-            )
+            ))
             .ok_or(Error::MissingSignature)?
             .clone();
 

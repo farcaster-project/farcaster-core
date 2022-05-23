@@ -25,7 +25,7 @@ impl SubTransaction for Lock {
             .ok_or(FError::MissingSignature)?;
         psbt.inputs[0].final_script_witness = Some(Witness::from_vec(vec![
             full_sig.to_vec(),
-            pubkey.serialize().to_vec(),
+            pubkey.to_bytes(),
         ]));
         Ok(())
     }

@@ -242,7 +242,7 @@ impl FeeStrategyError {
     ///
     /// [`new`]: FeeStrategyError::new
     ///
-    pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
+    pub fn into_inner(self) -> Option<Box<dyn error::Error + Sync + Send>> {
         match self {
             Self::Other(error) => Some(error),
             _ => None,
@@ -263,6 +263,25 @@ pub enum FeePriority {
     Low,
     /// Set the fee at the maximum allowed by the strategy.
     High,
+}
+
+impl Decodable for FeePriority {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x01u8 => Ok(FeePriority::Low),
+            0x02u8 => Ok(FeePriority::High),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl Encodable for FeePriority {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        match self {
+            FeePriority::Low => 0x01u8.consensus_encode(writer),
+            FeePriority::High => 0x02u8.consensus_encode(writer),
+        }
+    }
 }
 
 impl FromStr for FeePriority {

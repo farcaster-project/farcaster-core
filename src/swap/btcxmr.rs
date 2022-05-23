@@ -1,6 +1,7 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
+use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
     self,
     slip10::{ChildNumber, DerivationPath, Ed25519ExtSecretKey, Secp256k1ExtSecretKey},
@@ -130,10 +131,10 @@ impl Derivation for SharedKeyId {
 
 /// Manager responsible for handling key operations (secret and public). Implements traits for
 /// handling [`GenerateKey`], [`GenerateSharedKey`] and [`Sign`].
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct KeyManager {
     /// The master 32-bytes seed used to derive all the keys for all the swaps.
-    _master_seed: [u8; 32],
+    master_seed: [u8; 32],
     /// The swap identifier used in the derivation.
     swap_index: ChildNumber,
     /// The master secp256k1 seed.
@@ -144,6 +145,28 @@ pub struct KeyManager {
     bitcoin_derivations: HashMap<DerivationPath, SecretKey>,
     /// A list of already derived monero keys for ed25519 by derivation path.
     monero_derivations: HashMap<DerivationPath, monero::PrivateKey>,
+}
+
+impl Encodable for KeyManager {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        let mut len = self.master_seed.consensus_encode(writer)?;
+        len += Into::<u32>::into(self.swap_index).consensus_encode(writer)?;
+        // TODO: don't add derivations, but test that key manager encoding is correct modulo cached derivations
+        Ok(len)
+    }
+}
+
+impl Decodable for KeyManager {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let master_seed = Decodable::consensus_decode(d)?;
+        let swap_index = Decodable::consensus_decode(d)?;
+        match KeyManager::new(master_seed, swap_index) {
+            Err(_) => Err(consensus::Error::ParseFailed(
+                "Could not instantiate KeyManager from encoded",
+            )),
+            Ok(result) => Ok(result),
+        }
+    }
 }
 
 impl KeyManager {
@@ -225,7 +248,7 @@ impl KeyManager {
     /// not within `[0, 2^31 - 1]`.
     pub fn new(seed: [u8; 32], swap_index: u32) -> Result<Self, crypto::Error> {
         Ok(Self {
-            _master_seed: seed,
+            master_seed: seed,
             swap_index: ChildNumber::from_hardened_idx(swap_index).map_err(crypto::Error::new)?,
             bitcoin_master_key: Secp256k1ExtSecretKey::new_master(seed.as_ref()),
             monero_master_key: Ed25519ExtSecretKey::new_master(seed.as_ref()),

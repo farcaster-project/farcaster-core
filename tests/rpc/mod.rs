@@ -61,7 +61,7 @@ macro_rules! new_address {
         let pair = s.generate_keypair(&mut thread_rng());
         let public_key = key::PublicKey {
             compressed: true,
-            key: pair.1,
+            inner: pair.1,
         };
 
         // Generate pay-to-pubkey-hash address

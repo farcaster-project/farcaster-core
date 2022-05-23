@@ -76,6 +76,28 @@ pub trait CanonicalBytes {
         Self: Sized;
 }
 
+impl<T> CanonicalBytes for Option<T>
+where
+    T: CanonicalBytes,
+{
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        match self {
+            Some(t) => t.as_canonical_bytes(),
+            None => vec![],
+        }
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        match bytes.len() {
+            0 => Ok(None),
+            _ => Ok(Some(T::from_canonical_bytes(bytes)?)),
+        }
+    }
+}
+
 /// Encode an object into a vector of bytes. The vector can be [`deserialize`]d to retrieve the
 /// data.
 pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
@@ -119,7 +141,7 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
 /// messages passed around by the node.
 pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever error if the underlying
-    /// encoder errors.
+    /// encoder errors. If successful, returns size of the encoded object in bytes.
     ///
     /// The only errors returned are errors propagated from the writer.
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error>;
@@ -190,6 +212,7 @@ impl_fixed_array!(32);
 impl_fixed_array!(33);
 impl_fixed_array!(64);
 
+#[macro_export]
 macro_rules! unwrap_vec_ref {
     ($reader: ident) => {{
         let v: Vec<u8> = $crate::consensus::Decodable::consensus_decode($reader)?;
@@ -301,14 +324,14 @@ impl Decodable for u64 {
 
 impl<T> Encodable for Option<T>
 where
-    T: CanonicalBytes,
+    T: Encodable,
 {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, s: &mut S) -> Result<usize, io::Error> {
         match self {
             Some(t) => {
                 s.write_all(&[1u8])?;
-                let len = t.as_canonical_bytes().consensus_encode(s)?;
+                let len = t.consensus_encode(s)?;
                 Ok(1 + len)
             }
             None => s.write_all(&[0u8]).map(|_| 1),
@@ -318,12 +341,12 @@ where
 
 impl<T> Decodable for Option<T>
 where
-    T: CanonicalBytes,
+    T: Decodable,
 {
     #[inline]
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, Error> {
         match u8::consensus_decode(d)? {
-            1u8 => Ok(Some(T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?)),
+            1u8 => Ok(Some(Decodable::consensus_decode(d)?)),
             0u8 => Ok(None),
             _ => Err(Error::UnknownType),
         }
@@ -359,6 +382,7 @@ impl Decodable for String {
     }
 }
 
+#[macro_export]
 macro_rules! impl_strict_encoding {
     ($thing:ty, $($args:tt)*) => {
         impl<$($args)*> ::strict_encoding::StrictEncode for $thing {

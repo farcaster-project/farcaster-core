@@ -11,10 +11,7 @@ use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
 //use crate::role::Arbitrating;
 
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
-use bitcoin::secp256k1::{
-    constants::SECRET_KEY_SIZE,
-    schnorrsig::{KeyPair, PublicKey, Signature},
-};
+use bitcoin::secp256k1::{constants::SECRET_KEY_SIZE, schnorr::Signature, KeyPair, XOnlyPublicKey};
 
 /// Inner type for the Taproot strategy with on-chain scripts.
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
@@ -60,7 +57,7 @@ impl TryFrom<Btc> for Bitcoin<Taproot> {
 
 impl Keys for Bitcoin<Taproot> {
     type SecretKey = KeyPair;
-    type PublicKey = PublicKey;
+    type PublicKey = XOnlyPublicKey;
 
     fn extra_keys() -> Vec<u16> {
         // No extra key
@@ -68,7 +65,7 @@ impl Keys for Bitcoin<Taproot> {
     }
 }
 
-impl CanonicalBytes for PublicKey {
+impl CanonicalBytes for XOnlyPublicKey {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         self.serialize().as_ref().into()
     }
@@ -77,7 +74,7 @@ impl CanonicalBytes for PublicKey {
     where
         Self: Sized,
     {
-        PublicKey::from_slice(bytes).map_err(consensus::Error::new)
+        XOnlyPublicKey::from_slice(bytes).map_err(consensus::Error::new)
     }
 }
 

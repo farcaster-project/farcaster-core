@@ -89,9 +89,15 @@ where
             .destination_address
             .as_canonical_bytes()
             .consensus_encode(s)?;
-        len += self.cancel_timelock.consensus_encode(s)?;
-        len += self.punish_timelock.consensus_encode(s)?;
-        Ok(len + self.fee_strategy.consensus_encode(s)?)
+        len += self
+            .cancel_timelock
+            .as_canonical_bytes()
+            .consensus_encode(s)?;
+        len += self
+            .punish_timelock
+            .as_canonical_bytes()
+            .consensus_encode(s)?;
+        Ok(len + self.fee_strategy.as_canonical_bytes().consensus_encode(s)?)
     }
 }
 
@@ -122,9 +128,15 @@ where
             destination_address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            cancel_timelock: Decodable::consensus_decode(d)?,
-            punish_timelock: Decodable::consensus_decode(d)?,
-            fee_strategy: Decodable::consensus_decode(d)?,
+            cancel_timelock: Option::<<Ctx::Ar as Timelock>::Timelock>::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            punish_timelock: Option::<<Ctx::Ar as Timelock>::Timelock>::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            fee_strategy: Option::<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
         })
     }
 }
@@ -199,9 +211,15 @@ where
             .refund_address
             .as_canonical_bytes()
             .consensus_encode(s)?;
-        len += self.cancel_timelock.consensus_encode(s)?;
-        len += self.punish_timelock.consensus_encode(s)?;
-        Ok(len + self.fee_strategy.consensus_encode(s)?)
+        len += self
+            .cancel_timelock
+            .as_canonical_bytes()
+            .consensus_encode(s)?;
+        len += self
+            .punish_timelock
+            .as_canonical_bytes()
+            .consensus_encode(s)?;
+        Ok(len + self.fee_strategy.as_canonical_bytes().consensus_encode(s)?)
     }
 }
 
@@ -229,9 +247,15 @@ where
             refund_address: <Ctx::Ar as Address>::Address::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?,
-            cancel_timelock: Decodable::consensus_decode(d)?,
-            punish_timelock: Decodable::consensus_decode(d)?,
-            fee_strategy: Decodable::consensus_decode(d)?,
+            cancel_timelock: Option::<<Ctx::Ar as Timelock>::Timelock>::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            punish_timelock: Option::<<Ctx::Ar as Timelock>::Timelock>::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+            fee_strategy: Option::<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
         })
     }
 }

@@ -14,7 +14,7 @@ use crate::bundle::{
     FullySignedBuy, FullySignedPunish, FullySignedRefund, Proof, SignedAdaptorBuy,
     SignedAdaptorRefund, SignedArbitratingLock,
 };
-use crate::consensus::{self, Decodable, Encodable};
+use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
     self, AccordantKeyId, ArbitratingKeyId, KeyGenerator, Keys, SharedSecretKeys, Sign, Signatures,
     SwapAccordantKeys, TaggedElement, TaggedExtraKeys, TaggedSharedKeys,
@@ -158,6 +158,29 @@ pub struct Alice<Ctx: Swap> {
     pub destination_address: <Ctx::Ar as Address>::Address,
     /// The fee politic to apply during the swap fee calculation
     pub fee_politic: FeePriority,
+}
+
+impl<Ctx: Swap> Encodable for Alice<Ctx> {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        let len = self.fee_politic.consensus_encode(writer)?;
+        Ok(len
+            + self
+                .destination_address
+                .as_canonical_bytes()
+                .consensus_encode(writer)?)
+    }
+}
+
+impl<Ctx: Swap> Decodable for Alice<Ctx> {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let fee_politic = FeePriority::consensus_decode(d)?;
+        let destination_address =
+            <Ctx::Ar as Address>::Address::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+        Ok(Alice {
+            destination_address,
+            fee_politic,
+        })
+    }
 }
 
 struct ValidatedCoreTransactions<'a, Ctx: Swap> {
@@ -741,6 +764,29 @@ pub struct Bob<Ctx: Swap> {
     pub refund_address: <Ctx::Ar as Address>::Address,
     /// The fee politic to apply during the swap fee calculation
     pub fee_politic: FeePriority,
+}
+
+impl<Ctx: Swap> Encodable for Bob<Ctx> {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        let len = self.fee_politic.consensus_encode(writer)?;
+        Ok(len
+            + self
+                .refund_address
+                .as_canonical_bytes()
+                .consensus_encode(writer)?)
+    }
+}
+
+impl<Ctx: Swap> Decodable for Bob<Ctx> {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let fee_politic = FeePriority::consensus_decode(d)?;
+        let refund_address =
+            <Ctx::Ar as Address>::Address::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+        Ok(Bob {
+            refund_address,
+            fee_politic,
+        })
+    }
 }
 
 impl<Ctx: Swap> Bob<Ctx> {

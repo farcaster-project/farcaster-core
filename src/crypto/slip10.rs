@@ -401,7 +401,7 @@ mod tests {
 
         assert_eq!(asserts[0], res.parent_fingerprint.to_string());
         assert_eq!(asserts[1], res.chain_code.to_string());
-        assert_eq!(asserts[2], res.secret_key.to_string());
+        assert_eq!(asserts[2], res.secret_key.display_secret().to_string());
         assert_eq!(asserts[3], res.public_key(&ctx).to_string());
     }
 

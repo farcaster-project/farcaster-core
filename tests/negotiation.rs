@@ -90,9 +90,11 @@ fn serialize_public_offer() {
     let port = FromStr::from_str("9735").unwrap();
 
     let secp = secp256k1::Secp256k1::new();
-    let sk = bitcoin::PrivateKey::from_wif("L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D")
-        .unwrap()
-        .key;
+    let sk = bitcoin::util::key::PrivateKey::from_wif(
+        "L1HKVVLHXiUhecWnwFYF6L3shkf1E12HUmuZTESvBXUdx3yqVP1D",
+    )
+    .unwrap()
+    .inner;
     let node_id = secp256k1::PublicKey::from_secret_key(&secp, &sk);
     let peer_address = InetSocketAddr::new(ip, port);
     let public_offer = offer.to_public_v1(node_id, peer_address);

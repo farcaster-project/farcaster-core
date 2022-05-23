@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
-use bitcoin::blockdata::transaction::{SigHashType, TxIn, TxOut};
+use bitcoin::blockdata::transaction::{TxIn, TxOut};
+use bitcoin::blockdata::witness::Witness;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
 
@@ -22,7 +23,10 @@ impl SubTransaction for Lock {
             .iter()
             .next()
             .ok_or(FError::MissingSignature)?;
-        psbt.inputs[0].final_script_witness = Some(vec![full_sig.clone(), pubkey.to_bytes()]);
+        psbt.inputs[0].final_script_witness = Some(Witness::from_vec(vec![
+            full_sig.to_vec(),
+            pubkey.to_bytes(),
+        ]));
         Ok(())
     }
 }
@@ -47,7 +51,7 @@ impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
                 previous_output: output_metadata.out_point,
                 script_sig: bitcoin::Script::default(),
                 sequence: CSVTimelock::disable(),
-                witness: vec![],
+                witness: Witness::new(),
             }],
             output: vec![TxOut {
                 value: target_amount.as_sat(),
@@ -61,7 +65,6 @@ impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
         // Set the input witness data and sighash type
         psbt.inputs[0].witness_utxo = Some(output_metadata.tx_out);
         psbt.inputs[0].witness_script = output_metadata.script_pubkey;
-        psbt.inputs[0].sighash_type = Some(SigHashType::All);
 
         // Set the script witness of the output
         psbt.outputs[0].witness_script = Some(script);
@@ -73,25 +76,25 @@ impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
     }
 
     fn verify_template(&self, lock: script::DataLock<Bitcoin<SegwitV0>>) -> Result<(), FError> {
-        (self.psbt.global.unsigned_tx.version == 2)
+        (self.psbt.unsigned_tx.version == 2)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Tx version is not 2"))?;
-        (self.psbt.global.unsigned_tx.lock_time == 0)
+        (self.psbt.unsigned_tx.lock_time == 0)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("LockTime is not set to 0"))?;
-        (self.psbt.global.unsigned_tx.input.len() == 1)
+        (self.psbt.unsigned_tx.input.len() == 1)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Number of inputs is not 1"))?;
-        (self.psbt.global.unsigned_tx.output.len() == 1)
+        (self.psbt.unsigned_tx.output.len() == 1)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Number of outputs is not 1"))?;
 
-        let txin = &self.psbt.global.unsigned_tx.input[0];
+        let txin = &self.psbt.unsigned_tx.input[0];
         (txin.sequence == CSVTimelock::disable())
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Sequence timelock is not disabled"))?;
 
-        let txout = &self.psbt.global.unsigned_tx.output[0];
+        let txout = &self.psbt.unsigned_tx.output[0];
         let script_pubkey = CoopLock::v0_p2wsh(lock);
         (txout.script_pubkey == script_pubkey)
             .then(|| 0)

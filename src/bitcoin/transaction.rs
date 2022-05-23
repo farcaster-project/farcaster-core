@@ -4,14 +4,15 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use bitcoin::blockdata::script::Script;
-use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
+use bitcoin::blockdata::transaction::{EcdsaSighashType, OutPoint, TxIn, TxOut};
 use bitcoin::util::address;
+use bitcoin::util::ecdsa::EcdsaSig;
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 #[cfg(feature = "experimental")]
 use bitcoin::{
     hashes::sha256d::Hash,
-    secp256k1::{key::PublicKey, Signature},
+    secp256k1::{ecdsa::Signature, PublicKey},
     Amount,
 };
 
@@ -110,14 +111,14 @@ where
 
     fn based_on(&self) -> MetadataOutput {
         MetadataOutput {
-            out_point: self.psbt.global.unsigned_tx.input[0].previous_output,
+            out_point: self.psbt.unsigned_tx.input[0].previous_output,
             tx_out: self.psbt.inputs[0].witness_utxo.clone().unwrap(), // FIXME
             script_pubkey: self.psbt.inputs[0].witness_script.clone(),
         }
     }
 
     fn output_amount(&self) -> Amount {
-        Amount::from_sat(self.psbt.global.unsigned_tx.output[0].value)
+        Amount::from_sat(self.psbt.unsigned_tx.output[0].value)
     }
 }
 
@@ -145,10 +146,10 @@ where
     T: SubTransaction,
 {
     fn get_consumable_output(&self) -> Result<MetadataOutput, FError> {
-        match self.psbt.global.unsigned_tx.output.len() {
+        match self.psbt.unsigned_tx.output.len() {
             1 => (),
             2 => {
-                if !self.psbt.global.unsigned_tx.is_coin_base() {
+                if !self.psbt.unsigned_tx.is_coin_base() {
                     return Err(FError::new(Error::MultiUTXOUnsuported));
                 }
             }
@@ -156,8 +157,8 @@ where
         }
 
         Ok(MetadataOutput {
-            out_point: OutPoint::new(self.psbt.global.unsigned_tx.txid(), 0),
-            tx_out: self.psbt.global.unsigned_tx.output[0].clone(),
+            out_point: OutPoint::new(self.psbt.unsigned_tx.txid(), 0),
+            tx_out: self.psbt.unsigned_tx.output[0].clone(),
             script_pubkey: self.psbt.outputs[0].witness_script.clone(),
         })
     }
@@ -173,7 +174,7 @@ where
     /// This function is used for generating the witness message for all transactions but not
     /// funding. So implying only 1 input is valid as all templates only have 1 input.
     fn generate_witness_message(&self, _path: ScriptPath) -> Result<Hash, FError> {
-        let unsigned_tx = self.psbt.global.unsigned_tx.clone();
+        let unsigned_tx = self.psbt.unsigned_tx.clone();
         let txin = TxInRef::new(&unsigned_tx, 0);
 
         let witness_utxo = self.psbt.inputs[0]
@@ -187,21 +188,14 @@ where
             .ok_or(FError::MissingWitness)?;
         let value = witness_utxo.value;
 
-        let sighash_type = self.psbt.inputs[0]
-            .sighash_type
-            .ok_or_else(|| FError::new(Error::MissingSigHashType))?;
-
-        Ok(signature_hash(txin, &script, value, sighash_type))
+        Ok(signature_hash(txin, &script, value, EcdsaSighashType::All))
     }
 
     fn add_witness(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
-        let sighash_type = self.psbt.inputs[0]
-            .sighash_type
-            .ok_or_else(|| FError::new(Error::MissingSigHashType))?;
-        let mut full_sig = sig.serialize_der().to_vec();
-        full_sig.extend_from_slice(&[sighash_type.as_u32() as u8]);
-        let pubkey = bitcoin::util::ecdsa::PublicKey::new(pubkey);
-        self.psbt.inputs[0].partial_sigs.insert(pubkey, full_sig);
+        let sig_all = EcdsaSig::sighash_all(sig);
+        self.psbt.inputs[0]
+            .partial_sigs
+            .insert(bitcoin::PublicKey::new(pubkey), sig_all);
         Ok(())
     }
 }

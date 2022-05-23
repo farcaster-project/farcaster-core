@@ -193,7 +193,9 @@ where
 
     fn add_witness(&mut self, pubkey: PublicKey, sig: Signature) -> Result<(), FError> {
         let sig_all = EcdsaSig::sighash_all(sig);
-        self.psbt.inputs[0].partial_sigs.insert(bitcoin::PublicKey::new(pubkey), sig_all);
+        self.psbt.inputs[0]
+            .partial_sigs
+            .insert(bitcoin::PublicKey::new(pubkey), sig_all);
         Ok(())
     }
 }

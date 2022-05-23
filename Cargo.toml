@@ -32,7 +32,7 @@ default = ["experimental", "taproot"]
 amplify = "3"
 base58-monero = { version = "0.3", default-features = false, features = ["check"] }
 bitcoin_hashes = { version = "0.10" }
-bitvec = { version = "0.22" }
+bitvec = { version = "1.0" }
 fixed-hash = { version = "0.7", default-features = false }
 hex = "0.4"
 inet2_addr = { version = "0.6", default-features = false, features = ["tor", "strict_encoding"] }

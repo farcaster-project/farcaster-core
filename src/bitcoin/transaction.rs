@@ -8,7 +8,7 @@ use bitcoin::blockdata::transaction::{EcdsaSighashType, OutPoint, TxIn, TxOut};
 use bitcoin::util::address;
 use bitcoin::util::ecdsa::EcdsaSig;
 use bitcoin::util::psbt::{self, PartiallySignedTransaction};
-use bitcoin::util::sighash::SigHashCache;
+use bitcoin::util::sighash::SighashCache;
 use bitcoin::util::taproot::TapSighashHash;
 
 #[cfg(feature = "experimental")]
@@ -20,7 +20,7 @@ use bitcoin::{
 #[cfg(all(feature = "experimental", feature = "taproot"))]
 use bitcoin::{
     secp256k1::schnorr, util::schnorr::SchnorrSig, util::sighash::Prevouts,
-    util::sighash::SchnorrSigHashType, XOnlyPublicKey,
+    util::sighash::SchnorrSighashType, XOnlyPublicKey,
 };
 
 use thiserror::Error;
@@ -45,9 +45,9 @@ pub enum Error {
     /// Multi-input transaction is not supported
     #[error("Multi-input transaction is not supported")]
     MultiUTXOUnsuported,
-    /// SigHash type is missing
-    #[error("SigHash type is missing")]
-    MissingSigHashType,
+    /// Sighash type is missing
+    #[error("Sighash type is missing")]
+    MissingSighashType,
     /// Partially signed transaction error
     #[error("Partially signed transaction error: `{0}`")]
     Psbt(#[from] psbt::Error),
@@ -255,7 +255,7 @@ where
 {
     // FIXME: this only accounts for key spend and not for script spend
     fn generate_witness_message(&self, _path: ScriptPath) -> Result<TapSighashHash, FError> {
-        let mut sighash = SigHashCache::new(&self.psbt.unsigned_tx);
+        let mut sighash = SighashCache::new(&self.psbt.unsigned_tx);
 
         let witness_utxo = self.psbt.inputs[0]
             .witness_utxo
@@ -272,7 +272,7 @@ where
             script_pubkey,
         }];
         sighash
-            .taproot_key_spend_signature_hash(0, &Prevouts::All(&txouts), SchnorrSigHashType::All)
+            .taproot_key_spend_signature_hash(0, &Prevouts::All(&txouts), SchnorrSighashType::All)
             .map_err(FError::new)
     }
 
@@ -284,7 +284,7 @@ where
     ) -> Result<(), FError> {
         let sig_all = SchnorrSig {
             sig,
-            hash_ty: SchnorrSigHashType::All,
+            hash_ty: SchnorrSighashType::All,
         };
         self.psbt.inputs[0].tap_key_sig = Some(sig_all);
         Ok(())

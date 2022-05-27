@@ -53,7 +53,7 @@ jobs:
 
     services:
       bitcoind:
-        image: ghcr.io/farcaster-project/containers/bitcoin-core
+        image: ghcr.io/farcaster-project/containers/bitcoin-core:23.0
         env:
           NETWORK: regtest
           RPC_PORT: 18443

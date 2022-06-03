@@ -194,7 +194,7 @@ impl From<(bool, usize, secp256k1Scalar)> for PedersenCommitment<secp256k1Point,
 }
 
 fn key_commitment(
-    x_bits: &BitSlice<Lsb0, u8>,
+    x_bits: &BitSlice<u8, Lsb0>,
     msb_index: usize,
 ) -> Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> {
     let mut commitment: Vec<PedersenCommitment<ed25519Point, ed25519Scalar>> = x_bits
@@ -216,7 +216,7 @@ fn key_commitment(
 }
 
 fn key_commitment_secp256k1(
-    x_bits: &BitSlice<Lsb0, u8>,
+    x_bits: &BitSlice<u8, Lsb0>,
     msb_index: usize,
 ) -> Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>> {
     let mut commitment: Vec<PedersenCommitment<secp256k1Point, secp256k1Scalar>> = x_bits
@@ -706,7 +706,7 @@ impl DLEQProof {
         // convention: start count at 0
         let msb_index = 251;
 
-        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let x_bits = BitSlice::<u8, Lsb0>::from_slice(&x);
 
         assert!(x_bits[msb_index + 1..].iter().all(|bit| !(*bit)));
 

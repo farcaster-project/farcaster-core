@@ -159,13 +159,15 @@ impl Encodable for KeyManager {
 impl Decodable for KeyManager {
     fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let master_seed = Decodable::consensus_decode(d)?;
-        let swap_index = Decodable::consensus_decode(d)?;
-        match KeyManager::new(master_seed, swap_index) {
-            Err(_) => Err(consensus::Error::ParseFailed(
-                "Could not instantiate KeyManager from encoded",
-            )),
-            Ok(result) => Ok(result),
-        }
+        let swap_index: u32 = Decodable::consensus_decode(d)?;
+        Ok(KeyManager {
+            master_seed,
+            swap_index: ChildNumber::from(swap_index),
+            bitcoin_master_key: Secp256k1ExtSecretKey::new_master(master_seed.as_ref()),
+            monero_master_key: Ed25519ExtSecretKey::new_master(master_seed.as_ref()),
+            bitcoin_derivations: HashMap::new(),
+            monero_derivations: HashMap::new(),
+        })
     }
 }
 

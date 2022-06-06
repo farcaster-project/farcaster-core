@@ -1,7 +1,7 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
-use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable};
+use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self,
     slip10::{ChildNumber, DerivationPath, Ed25519ExtSecretKey, Secp256k1ExtSecretKey},
@@ -447,4 +447,12 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, DLEQProof> for KeyManager
             ecdsa_fun::fun::Point::from(*encryption_key),
         )
     }
+}
+
+#[test]
+fn test_keymanager_consensus_encoding() {
+    let key_manager = KeyManager::new([0; 32], 1).unwrap();
+    let mut encoder = Vec::new();
+    key_manager.consensus_encode(&mut encoder).unwrap();
+    KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
 }

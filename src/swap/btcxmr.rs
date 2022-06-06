@@ -1,7 +1,7 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
-use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable};
+use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self,
     slip10::{ChildNumber, DerivationPath, Ed25519ExtSecretKey, Secp256k1ExtSecretKey},
@@ -159,13 +159,15 @@ impl Encodable for KeyManager {
 impl Decodable for KeyManager {
     fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let master_seed = Decodable::consensus_decode(d)?;
-        let swap_index = Decodable::consensus_decode(d)?;
-        match KeyManager::new(master_seed, swap_index) {
-            Err(_) => Err(consensus::Error::ParseFailed(
-                "Could not instantiate KeyManager from encoded",
-            )),
-            Ok(result) => Ok(result),
-        }
+        let swap_index: u32 = Decodable::consensus_decode(d)?;
+        Ok(KeyManager {
+            master_seed,
+            swap_index: ChildNumber::from(swap_index),
+            bitcoin_master_key: Secp256k1ExtSecretKey::new_master(master_seed.as_ref()),
+            monero_master_key: Ed25519ExtSecretKey::new_master(master_seed.as_ref()),
+            bitcoin_derivations: HashMap::new(),
+            monero_derivations: HashMap::new(),
+        })
     }
 }
 
@@ -445,4 +447,12 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, DLEQProof> for KeyManager
             ecdsa_fun::fun::Point::from(*encryption_key),
         )
     }
+}
+
+#[test]
+fn test_keymanager_consensus_encoding() {
+    let key_manager = KeyManager::new([0; 32], 1).unwrap();
+    let mut encoder = Vec::new();
+    key_manager.consensus_encode(&mut encoder).unwrap();
+    KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
 }

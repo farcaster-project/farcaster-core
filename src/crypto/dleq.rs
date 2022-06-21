@@ -867,7 +867,7 @@ mod tests {
         let mut x: [u8; 32] = rand::thread_rng().gen();
         // ensure 256th bit is 0
         x[31] &= 0b0111_1111;
-        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let x_bits = BitSlice::<u8, Lsb0>::from_slice(&x);
         let key_commitment = key_commitment(x_bits, 255);
         let commitment_acc = key_commitment.iter().map(|pc| pc.commitment).sum();
         assert_eq!(ed25519Scalar::from_bytes_mod_order(x) * G, commitment_acc);
@@ -880,7 +880,7 @@ mod tests {
         // let mut x: [u8; 32] = rand::thread_rng().gen();
         // ensure 256th bit is 0
         // x[31] &= 0b0111_1111;
-        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let x_bits = BitSlice::<u8, Lsb0>::from_slice(&x);
         let key_commitment = key_commitment_secp256k1(x_bits, 255);
         // let commitment_acc: secp256k1Point<Jacobian, Public, Zero> = key_commitment
         let commitment_acc = key_commitment.iter().fold(
@@ -915,7 +915,7 @@ mod tests {
     fn blinders_sum_to_zero() {
         use rand::Rng;
         let x: [u8; 32] = rand::thread_rng().gen();
-        let x_bits = BitSlice::<Lsb0, u8>::from_slice(&x).unwrap();
+        let x_bits = BitSlice::<u8, Lsb0>::from_slice(&x);
         let key_commitment = key_commitment(x_bits, 255);
         let blinder_acc = key_commitment
             .iter()

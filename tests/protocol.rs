@@ -193,8 +193,9 @@ fn execute_offline_protocol() {
         .sign_arbitrating_lock(&mut bob_key_manager, &core)
         .unwrap();
 
-    let mut lock = LockTx::from_partial(core.lock.clone());
-    lock.add_witness(funding_key, signed_lock.lock_sig).unwrap();
+    let mut lock = <LockTx as Transaction<BitcoinSegwitV0, _>>::from_partial(core.lock.clone());
+    Witnessable::<BitcoinSegwitV0>::add_witness(&mut lock, funding_key, signed_lock.lock_sig)
+        .unwrap();
     let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut lock).unwrap();
 
     // ...seen arbitrating lock...
@@ -231,10 +232,14 @@ fn execute_offline_protocol() {
         )
         .unwrap();
 
-    let mut buy = BuyTx::from_partial(adaptor_buy.buy.clone());
-    buy.add_witness(bob_params.buy, fully_sign_buy.buy_adapted_sig)
-        .unwrap();
-    buy.add_witness(alice_params.buy, fully_sign_buy.buy_sig)
+    let mut buy = <BuyTx as Transaction<BitcoinSegwitV0, _>>::from_partial(adaptor_buy.buy.clone());
+    Witnessable::<BitcoinSegwitV0>::add_witness(
+        &mut buy,
+        bob_params.buy,
+        fully_sign_buy.buy_adapted_sig,
+    )
+    .unwrap();
+    Witnessable::<BitcoinSegwitV0>::add_witness(&mut buy, alice_params.buy, fully_sign_buy.buy_sig)
         .unwrap();
     let buy_tx = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut buy).unwrap();
 
@@ -268,13 +273,21 @@ fn execute_offline_protocol() {
     // IF CANCEL PATH:
     //
 
-    let mut cancel = CancelTx::from_partial(core.cancel.clone());
-    cancel
-        .add_witness(bob_params.cancel, bob_cosign_cancel.cancel_sig)
-        .unwrap();
-    cancel
-        .add_witness(alice_params.cancel, alice_cosign_cancel.cancel_sig)
-        .unwrap();
+    let mut cancel =
+        <CancelTx as Transaction<BitcoinSegwitV0, _>>::from_partial(core.cancel.clone());
+
+    Witnessable::<BitcoinSegwitV0>::add_witness(
+        &mut cancel,
+        bob_params.cancel,
+        bob_cosign_cancel.cancel_sig,
+    )
+    .unwrap();
+    Witnessable::<BitcoinSegwitV0>::add_witness(
+        &mut cancel,
+        alice_params.cancel,
+        alice_cosign_cancel.cancel_sig,
+    )
+    .unwrap();
     let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut cancel).unwrap();
 
     // ...seen arbitrating cancel...
@@ -287,13 +300,21 @@ fn execute_offline_protocol() {
         .fully_sign_refund(&mut bob_key_manager, core.clone(), &adaptor_refund)
         .unwrap();
 
-    let mut refund = RefundTx::from_partial(core.refund.clone());
-    refund
-        .add_witness(alice_params.refund, fully_signed_refund.refund_adapted_sig)
-        .unwrap();
-    refund
-        .add_witness(bob_params.refund, fully_signed_refund.refund_sig)
-        .unwrap();
+    let mut refund =
+        <RefundTx as Transaction<BitcoinSegwitV0, _>>::from_partial(core.refund.clone());
+
+    Witnessable::<BitcoinSegwitV0>::add_witness(
+        &mut refund,
+        alice_params.refund,
+        fully_signed_refund.refund_adapted_sig,
+    )
+    .unwrap();
+    Witnessable::<BitcoinSegwitV0>::add_witness(
+        &mut refund,
+        bob_params.refund,
+        fully_signed_refund.refund_sig,
+    )
+    .unwrap();
     let refund_tx = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut refund).unwrap();
 
     // ...seen refund tx on-chain...
@@ -339,9 +360,14 @@ fn execute_offline_protocol() {
         )
         .unwrap();
 
-    let mut punish = PunishTx::from_partial(fully_signed_punish.punish);
-    punish
-        .add_witness(alice_params.punish, fully_signed_punish.punish_sig)
-        .unwrap();
+    let mut punish =
+        <PunishTx as Transaction<BitcoinSegwitV0, _>>::from_partial(fully_signed_punish.punish);
+
+    Witnessable::<BitcoinSegwitV0>::add_witness(
+        &mut punish,
+        alice_params.punish,
+        fully_signed_punish.punish_sig,
+    )
+    .unwrap();
     let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut refund).unwrap();
 }

@@ -44,6 +44,10 @@ jobs:
             stable,
             nightly
         ]
+        test: [
+            transactions,
+            taproot
+        ]
 
     runs-on: ubuntu-latest
     container:
@@ -74,7 +78,7 @@ jobs:
         profile: minimal
 
     - name: Run regtest Bitcoin transactions
-      run: cargo test --verbose --test transactions --features rpc -- --test-threads=1
+      run: cargo test --verbose --test ${{ matrix.test }} --features taproot,rpc -- --test-threads=1
       env:
         RPC_HOST: bitcoind
         RPC_PORT: 18443

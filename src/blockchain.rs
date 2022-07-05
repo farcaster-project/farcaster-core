@@ -333,6 +333,17 @@ impl FromStr for Network {
     }
 }
 
+impl From<bitcoin::Network> for Network {
+    fn from(btc_network: bitcoin::Network) -> Self {
+        match btc_network {
+            bitcoin::Network::Bitcoin => Self::Mainnet,
+            bitcoin::Network::Testnet => Self::Testnet,
+            bitcoin::Network::Signet => Self::Testnet,
+            bitcoin::Network::Regtest => Self::Local,
+        }
+    }
+}
+
 /// Defines a blockchain network, identifies in which context the system interacts with the
 /// blockchain.
 #[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display)]
@@ -393,6 +404,14 @@ mod tests {
             let parse = Network::from_str(s);
             assert!(parse.is_ok());
         }
+    }
+
+    #[test]
+    fn network_conversion() {
+        assert_eq!(Network::from(bitcoin::Network::Bitcoin), Network::Mainnet);
+        assert_eq!(Network::from(bitcoin::Network::Testnet), Network::Testnet);
+        assert_eq!(Network::from(bitcoin::Network::Signet), Network::Testnet);
+        assert_eq!(Network::from(bitcoin::Network::Regtest), Network::Local);
     }
 
     #[test]

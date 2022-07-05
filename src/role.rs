@@ -30,13 +30,8 @@ use crate::Res;
 
 /// Possible roles during the negotiation phase. Any negotiation role can transition into any swap
 /// role when negotiation is completed, the transition is described in the public offer.
-#[derive(Display, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum TradeRole {
     /// The maker role create the public offer during the negotiation phase and waits for incoming
     /// connections.
@@ -91,13 +86,8 @@ impl FromStr for TradeRole {
 
 /// Possible roles during the swap phase. When negotitation phase is completed [`TradeRole`] will
 /// transition into swap role according to the [`PublicOffer`].
-#[derive(Display, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum SwapRole {
     /// Alice, the swap role, is the role starting with accordant blockchain assets and exchange
     /// them for arbitrating blockchain assets.

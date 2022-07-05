@@ -89,12 +89,7 @@ impl Error {
 /// Element `E` prefixed with a tag `T`. Used to tag content with some ids. Tag needs `Eq` to be
 /// used in vectors or sets and identify the content. Tags can be [`ArbitratingKeyId`],
 /// [`AccordantKeyId`] or any other type of identifiers.
-#[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TaggedElement<T, E>
 where
     T: Eq,
@@ -170,13 +165,8 @@ pub type TaggedSharedKeys<E> = Vec<TaggedElement<SharedKeyId, E>>;
 /// List of all possible arbitrating keys as defined for the base protocol in the RFCs. Extra keys
 /// can be defined with [`Self::Extra`] variant and an `u16` identifier. Those keys can be used for
 /// extra off-chain protocol such as multi-signature or multi-party computation schemes.
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum ArbitratingKeyId {
     /// Arbitrating key used to fund the [`Lockable`] transaction through [`Fundable`].
     ///
@@ -207,13 +197,8 @@ pub enum ArbitratingKeyId {
 
 /// Defines the base accordant key identifier [`Self::Spend`] and all possible extra keys with
 /// [`Self::Extra`] variant containing the `u16` identifier.
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum AccordantKeyId {
     /// Accordant bought/sold key over the arbitrating blockchain.
     Spend,
@@ -224,13 +209,8 @@ pub enum AccordantKeyId {
 
 /// Identifier for shared private keys over the arbitrating and accordant blockchains. E.g. the
 /// `view` key needed to parse the Monero blockchain is a shared private key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub struct SharedKeyId(u16);
 
 impl SharedKeyId {
@@ -279,11 +259,7 @@ pub struct SwapAccordantKeys<A: Accordant> {
 
 fixed_hash::construct_fixed_hash!(
     /// Result of a keccak256 commitment.
-    #[cfg_attr(
-        feature = "serde",
-        derive(Serialize, Deserialize),
-        serde(crate = "serde_crate"),
-    )]
+    #[derive(Serialize, Deserialize)]
     pub struct KeccakCommitment(32);
 );
 

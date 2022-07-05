@@ -104,13 +104,8 @@ where
 ///
 /// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
-#[derive(Debug, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Clone, Eq, PartialEq, Display, Serialize, Deserialize)]
 #[display(fee_strategy_fmt)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum FeeStrategy<T>
 where
     T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
@@ -251,13 +246,8 @@ impl FeeStrategyError {
 }
 
 /// Defines how to set the fee when a [`FeeStrategy`] allows multiple possibilities.
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum FeePriority {
     /// Set the fee at the minimum allowed by the strategy.
     Low,
@@ -346,13 +336,8 @@ impl From<bitcoin::Network> for Network {
 
 /// Defines a blockchain network, identifies in which context the system interacts with the
 /// blockchain.
-#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display)]
+#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum Network {
     /// Represents a real asset on his valuable network.
     Mainnet,

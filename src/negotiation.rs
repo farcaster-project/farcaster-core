@@ -21,9 +21,7 @@
 
 use bitcoin::secp256k1::PublicKey;
 use inet2_addr::InetSocketAddr;
-#[cfg(feature = "serde")]
-use serde_crate::{de, Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")]
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
@@ -33,7 +31,6 @@ use std::io;
 
 use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
-#[cfg(feature = "serde")]
 use crate::hash::{HashString, OfferString};
 use crate::role::{SwapRole, TradeRole};
 use crate::swap::Swap;
@@ -45,13 +42,8 @@ pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 pub const PUB_OFFER_PREFIX: &str = "Offer:";
 
 /// A public offer version containing the version and the activated features if any.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
 #[display("v{0}")]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub struct Version(u16);
 
 impl Version {
@@ -100,7 +92,6 @@ fixed_hash::construct_fixed_hash!(
     pub struct OfferId(32);
 );
 
-#[cfg(feature = "serde")]
 impl Serialize for OfferId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -110,7 +101,6 @@ impl Serialize for OfferId {
     }
 }
 
-#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for OfferId {
     fn deserialize<D>(deserializer: D) -> Result<OfferId, D::Error>
     where
@@ -462,7 +452,6 @@ fixed_hash::construct_fixed_hash!(
     pub struct PublicOfferId(32);
 );
 
-#[cfg(feature = "serde")]
 impl Serialize for PublicOfferId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -472,7 +461,6 @@ impl Serialize for PublicOfferId {
     }
 }
 
-#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for PublicOfferId {
     fn deserialize<D>(deserializer: D) -> Result<PublicOfferId, D::Error>
     where
@@ -584,7 +572,6 @@ where
 }
 
 // TODO: implement properly without encoding in base58 first
-#[cfg(feature = "serde")]
 impl<Ctx> Serialize for PublicOffer<Ctx>
 where
     Ctx: Swap,
@@ -598,7 +585,6 @@ where
 }
 
 // TODO: implement properly without decoding from base58
-#[cfg(feature = "serde")]
 impl<'de, Ctx> Deserialize<'de> for PublicOffer<Ctx>
 where
     Ctx: Swap,
@@ -736,7 +722,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "serde")]
     fn serialize_public_offer_in_yaml() {
         let public_offer =
             PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
@@ -749,7 +734,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "serde")]
     fn deserialize_public_offer_from_yaml() {
         let s = "---\nOffer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R\n";
         let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");

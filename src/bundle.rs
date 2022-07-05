@@ -15,7 +15,7 @@ use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures, TaggedEleme
 use crate::protocol_message;
 use crate::swap::Swap;
 
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, Serialize, Deserialize)]
 #[display(Debug)]
 pub struct Proof<Ctx: Swap> {
     pub proof: Ctx::Proof,

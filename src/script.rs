@@ -1,6 +1,5 @@
 //! Data structures used in scripts to create the arbitration engine on a blockchain.
 
-#[cfg(feature = "serde")]
 use serde::Serialize;
 
 use crate::blockchain::Timelock;
@@ -9,16 +8,9 @@ use crate::crypto::Keys;
 /// Store public keys for swap participants, one public key per [`SwapRole`] in the protocol.
 ///
 /// [`SwapRole`]: crate::role::SwapRole
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, Serialize)]
 #[display("Alice: {alice}, Bob: {bob}")]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize),
-    serde(
-        crate = "serde_crate",
-        bound(serialize = "&'a T::PublicKey: Serialize",)
-    )
-)]
+#[serde(bound(serialize = "&'a T::PublicKey: Serialize"))]
 pub struct DoubleKeys<'a, T>
 where
     T: Keys,
@@ -40,13 +32,8 @@ where
 }
 
 /// Define the path selected for a failable script.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum ScriptPath {
     /// The success path in the script.
     Success,
@@ -87,7 +74,6 @@ where
 }
 
 #[cfg(test)]
-#[cfg(feature = "serde")]
 mod tests {
     use super::*;
     use crate::bitcoin::BitcoinSegwitV0;

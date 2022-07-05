@@ -1,15 +1,11 @@
-#[cfg(feature = "serde")]
 use std::fmt;
 
-#[cfg(feature = "serde")]
-use serde_crate::de::{self, Unexpected, Visitor};
+use serde::de::{self, Unexpected, Visitor};
 
 /// A visitor that deserializes a long string - a string containing at least
 /// some minimum number of bytes.
-#[cfg(feature = "serde")]
 pub(crate) struct HashString;
 
-#[cfg(feature = "serde")]
 impl<'de> Visitor<'de> for HashString {
     type Value = String;
 
@@ -33,10 +29,8 @@ impl<'de> Visitor<'de> for HashString {
 }
 
 /// A visitor that deserializes a public offer
-#[cfg(feature = "serde")]
 pub(crate) struct OfferString;
 
-#[cfg(feature = "serde")]
 impl<'de> Visitor<'de> for OfferString {
     type Value = String;
 

@@ -12,7 +12,7 @@ use std::io;
 use crate::blockchain::{Address, Fee, FeeStrategy, Onchain, Timelock};
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures, TaggedElement};
-use crate::protocol_message;
+use crate::protocol;
 use crate::swap::Swap;
 
 #[derive(Debug, Clone, Display, Serialize, Deserialize)]
@@ -47,8 +47,8 @@ impl_strict_encoding!(Proof<Ctx>, Ctx: Swap);
 /// [`CommitAliceParameters`] and [`RevealAliceParameters`] protocol messages in the commit/reveal
 /// round.
 ///
-/// [`CommitAliceParameters`]: protocol_message::CommitAliceParameters
-/// [`RevealAliceParameters`]: protocol_message::RevealAliceParameters
+/// [`CommitAliceParameters`]: protocol::message::CommitAliceParameters
+/// [`RevealAliceParameters`]: protocol::message::RevealAliceParameters
 #[derive(Debug, Clone, Display)]
 #[display(Debug)]
 pub struct AliceParameters<Ctx: Swap> {
@@ -143,36 +143,37 @@ where
 
 impl_strict_encoding!(AliceParameters<Ctx>, Ctx: Swap);
 
-impl<Ctx> From<protocol_message::RevealAliceParameters<Ctx>> for AliceParameters<Ctx>
-where
-    Ctx: Swap,
-{
-    fn from(msg: protocol_message::RevealAliceParameters<Ctx>) -> Self {
-        Self {
-            buy: msg.buy,
-            cancel: msg.cancel,
-            refund: msg.refund,
-            punish: msg.punish,
-            adaptor: msg.adaptor,
-            extra_arbitrating_keys: msg.extra_arbitrating_keys,
-            arbitrating_shared_keys: msg.arbitrating_shared_keys,
-            spend: msg.spend,
-            extra_accordant_keys: msg.extra_accordant_keys,
-            accordant_shared_keys: msg.accordant_shared_keys,
-            destination_address: msg.address,
-            cancel_timelock: None,
-            punish_timelock: None,
-            fee_strategy: None,
-        }
-    }
-}
+// FIXME
+//impl<Ctx> From<protocol::message::RevealAliceParameters<Ctx>> for AliceParameters<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn from(msg: protocol::message::RevealAliceParameters<Ctx>) -> Self {
+//        Self {
+//            buy: msg.buy,
+//            cancel: msg.cancel,
+//            refund: msg.refund,
+//            punish: msg.punish,
+//            adaptor: msg.adaptor,
+//            extra_arbitrating_keys: msg.extra_arbitrating_keys,
+//            arbitrating_shared_keys: msg.arbitrating_shared_keys,
+//            spend: msg.spend,
+//            extra_accordant_keys: msg.extra_accordant_keys,
+//            accordant_shared_keys: msg.accordant_shared_keys,
+//            destination_address: msg.address,
+//            cancel_timelock: None,
+//            punish_timelock: None,
+//            fee_strategy: None,
+//        }
+//    }
+//}
 
 /// Bob parameters required for the initialization step of a swap and used to generate the
 /// [`CommitBobParameters`] and [`RevealBobParameters`] protocol messages in the commit/reveal
 /// round.
 ///
-/// [`CommitBobParameters`]: protocol_message::CommitBobParameters
-/// [`RevealBobParameters`]: protocol_message::RevealBobParameters
+/// [`CommitBobParameters`]: protocol::message::CommitBobParameters
+/// [`RevealBobParameters`]: protocol::message::RevealBobParameters
 #[derive(Debug, Clone, Display)]
 #[display(Debug)]
 pub struct BobParameters<Ctx: Swap> {
@@ -262,35 +263,36 @@ where
 
 impl_strict_encoding!(BobParameters<Ctx>, Ctx: Swap);
 
-impl<Ctx> From<protocol_message::RevealBobParameters<Ctx>> for BobParameters<Ctx>
-where
-    Ctx: Swap,
-{
-    fn from(msg: protocol_message::RevealBobParameters<Ctx>) -> Self {
-        Self {
-            buy: msg.buy,
-            cancel: msg.cancel,
-            refund: msg.refund,
-            adaptor: msg.adaptor,
-            extra_arbitrating_keys: msg.extra_arbitrating_keys,
-            arbitrating_shared_keys: msg.arbitrating_shared_keys,
-            spend: msg.spend,
-            extra_accordant_keys: msg.extra_accordant_keys,
-            accordant_shared_keys: msg.accordant_shared_keys,
-            refund_address: msg.address,
-            cancel_timelock: None,
-            punish_timelock: None,
-            fee_strategy: None,
-        }
-    }
-}
+// FIXME
+//impl<Ctx> From<protocol::message::RevealBobParameters<Ctx>> for BobParameters<Ctx>
+//where
+//    Ctx: Swap,
+//{
+//    fn from(msg: protocol::message::RevealBobParameters<Ctx>) -> Self {
+//        Self {
+//            buy: msg.buy,
+//            cancel: msg.cancel,
+//            refund: msg.refund,
+//            adaptor: msg.adaptor,
+//            extra_arbitrating_keys: msg.extra_arbitrating_keys,
+//            arbitrating_shared_keys: msg.arbitrating_shared_keys,
+//            spend: msg.spend,
+//            extra_accordant_keys: msg.extra_accordant_keys,
+//            accordant_shared_keys: msg.accordant_shared_keys,
+//            refund_address: msg.address,
+//            cancel_timelock: None,
+//            punish_timelock: None,
+//            fee_strategy: None,
+//        }
+//    }
+//}
 
 /// Provides daemon with a signature on the unsigned [`Cancelable`] transaction. Two signatures are
 /// generated for the co-signed transaction, one come from the protocol message
 /// [`CoreArbitratingSetup`] and the second from the [`RefundProcedureSignatures`].
 ///
-/// [`CoreArbitratingSetup`]: protocol_message::CoreArbitratingSetup
-/// [`RefundProcedureSignatures`]: protocol_message::RefundProcedureSignatures
+/// [`CoreArbitratingSetup`]: protocol::message::CoreArbitratingSetup
+/// [`RefundProcedureSignatures`]: protocol::message::RefundProcedureSignatures
 /// [`Cancelable`]: crate::transaction::Cancelable
 #[derive(Debug, Clone, Display)]
 #[display("Cancel signature: {cancel_sig}")]
@@ -323,28 +325,30 @@ where
 
 impl_strict_encoding!(CosignedArbitratingCancel<S>, S: Signatures);
 
-impl<Ctx> From<protocol_message::CoreArbitratingSetup<Ctx>> for CosignedArbitratingCancel<Ctx::Ar>
-where
-    Ctx: Swap,
-{
-    fn from(msg: protocol_message::CoreArbitratingSetup<Ctx>) -> Self {
-        Self {
-            cancel_sig: msg.cancel_sig,
-        }
-    }
-}
+// FIXME
+//impl<Ctx> From<protocol::message::CoreArbitratingSetup<Ctx>> for CosignedArbitratingCancel<Ctx::Ar>
+//where
+//    Ctx: Swap,
+//{
+//    fn from(msg: protocol::message::CoreArbitratingSetup<Ctx>) -> Self {
+//        Self {
+//            cancel_sig: msg.cancel_sig,
+//        }
+//    }
+//}
 
-impl<Ctx> From<protocol_message::RefundProcedureSignatures<Ctx>>
-    for CosignedArbitratingCancel<Ctx::Ar>
-where
-    Ctx: Swap,
-{
-    fn from(msg: protocol_message::RefundProcedureSignatures<Ctx>) -> Self {
-        Self {
-            cancel_sig: msg.cancel_sig,
-        }
-    }
-}
+// FIXME
+//impl<Ctx> From<protocol::message::RefundProcedureSignatures<Ctx>>
+//    for CosignedArbitratingCancel<Ctx::Ar>
+//where
+//    Ctx: Swap,
+//{
+//    fn from(msg: protocol::message::RefundProcedureSignatures<Ctx>) -> Self {
+//        Self {
+//            cancel_sig: msg.cancel_sig,
+//        }
+//    }
+//}
 
 /// Provides Bob's daemon the [`Fundable`] transaction for building the transactions contained in
 /// [`CoreArbitratingTransactions`] bundle, later used to create protocol messages.
@@ -391,7 +395,7 @@ impl_strict_encoding!(FundingTransaction<T>, T: Onchain);
 /// Provides Bob's daemon or Alice's clients the core set of arbritrating transactions present in
 /// [`CoreArbitratingSetup`].
 ///
-/// [`CoreArbitratingSetup`]: protocol_message::CoreArbitratingSetup
+/// [`CoreArbitratingSetup`]: protocol::message::CoreArbitratingSetup
 #[derive(Debug, Clone, Display)]
 #[display(core_arbitrating_tx_fmt)]
 pub struct CoreArbitratingTransactions<T>
@@ -439,18 +443,19 @@ where
 
 impl_strict_encoding!(CoreArbitratingTransactions<T>, T: Onchain);
 
-impl<Ctx> From<protocol_message::CoreArbitratingSetup<Ctx>> for CoreArbitratingTransactions<Ctx::Ar>
-where
-    Ctx: Swap,
-{
-    fn from(msg: protocol_message::CoreArbitratingSetup<Ctx>) -> Self {
-        Self {
-            lock: msg.lock,
-            cancel: msg.cancel,
-            refund: msg.refund,
-        }
-    }
-}
+// FIXME
+//impl<Ctx> From<protocol::message::CoreArbitratingSetup<Ctx>> for CoreArbitratingTransactions<Ctx::Ar>
+//where
+//    Ctx: Swap,
+//{
+//    fn from(msg: protocol::message::CoreArbitratingSetup<Ctx>) -> Self {
+//        Self {
+//            lock: msg.lock,
+//            cancel: msg.cancel,
+//            refund: msg.refund,
+//        }
+//    }
+//}
 
 /// Provides Bob's daemon or Alice's daemon/client with an adaptor (i.e. encrypted) signature for
 /// the unsigned [`Buyable`] transaction. After verification, Alice will return a
@@ -590,16 +595,17 @@ where
 
 impl_strict_encoding!(SignedAdaptorRefund<S>, S: Signatures);
 
-impl<Ctx> From<protocol_message::RefundProcedureSignatures<Ctx>> for SignedAdaptorRefund<Ctx::Ar>
-where
-    Ctx: Swap,
-{
-    fn from(msg: protocol_message::RefundProcedureSignatures<Ctx>) -> Self {
-        Self {
-            refund_adaptor_sig: msg.refund_adaptor_sig,
-        }
-    }
-}
+// FIXME
+//impl<Ctx> From<protocol::message::RefundProcedureSignatures<Ctx>> for SignedAdaptorRefund<Ctx::Ar>
+//where
+//    Ctx: Swap,
+//{
+//    fn from(msg: protocol::message::RefundProcedureSignatures<Ctx>) -> Self {
+//        Self {
+//            refund_adaptor_sig: msg.refund_adaptor_sig,
+//        }
+//    }
+//}
 
 /// Provides Bob's daemon or Alice's daemon/client with the two signatures on the unsigned
 /// [`Refundable`] transaction. Bob's standard signature and the adapted (i.e. decrypted) version of

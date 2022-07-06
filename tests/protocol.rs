@@ -10,7 +10,7 @@ use farcaster_core::crypto::{
     ArbitratingKeyId, CommitmentEngine, GenerateKey, ProveCrossGroupDleq,
 };
 use farcaster_core::negotiation::PublicOffer;
-use farcaster_core::protocol_message::*;
+use farcaster_core::protocol::message::*;
 use farcaster_core::role::{Alice, Bob};
 use farcaster_core::swap::SwapId;
 use farcaster_core::transaction::*;

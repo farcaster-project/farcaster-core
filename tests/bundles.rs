@@ -5,7 +5,7 @@ use farcaster_core::bundle::{AliceParameters, BobParameters, Proof};
 use farcaster_core::consensus::deserialize;
 use farcaster_core::crypto::CommitmentEngine;
 use farcaster_core::negotiation::PublicOffer;
-use farcaster_core::protocol_message::{
+use farcaster_core::protocol::message::{
     CommitAliceParameters, CommitBobParameters, RevealAliceParameters, RevealBobParameters,
 };
 use farcaster_core::role::{Alice, Bob};

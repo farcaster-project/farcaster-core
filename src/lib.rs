@@ -73,7 +73,7 @@ pub(crate) mod hash;
 pub mod instruction;
 pub mod monero;
 pub mod negotiation;
-pub mod protocol_message;
+pub mod protocol;
 pub mod role;
 pub mod script;
 pub mod swap;

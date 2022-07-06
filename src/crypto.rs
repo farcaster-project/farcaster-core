@@ -88,7 +88,7 @@ impl Error {
 /// Element `E` prefixed with a tag `T`. Used to tag content with some ids. Tag should be `Eq` to
 /// be used in vectors or sets and identify the content. Tags can be [`ArbitratingKeyId`],
 /// [`AccordantKeyId`] or any other type of identifiers.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaggedElement<T, E> {
     tag: T,
     elem: E,
@@ -202,7 +202,7 @@ pub enum AccordantKeyId {
 
 /// Identifier for shared private keys over the arbitrating and accordant blockchains. E.g. the
 /// `view` key needed to parse the Monero blockchain is a shared private key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[display(Debug)]
 pub struct SharedKeyId(u16);
 

@@ -100,7 +100,7 @@ where
 
 /// Encode an object into a vector of bytes. The vector can be [`deserialize`]d to retrieve the
 /// data.
-pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
+pub fn serialize<T: Encodable + ?Sized>(data: &T) -> Vec<u8> {
     let mut encoder = Vec::new();
     let len = data.consensus_encode(&mut encoder).unwrap();
     debug_assert_eq!(len, encoder.len());
@@ -108,7 +108,7 @@ pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
 }
 
 /// Encode an object into a hex-encoded string.
-pub fn serialize_hex<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> String {
+pub fn serialize_hex<T: Encodable + ?Sized>(data: &T) -> String {
     hex_encode(serialize(data))
 }
 

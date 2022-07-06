@@ -83,9 +83,40 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
     type Punish: Punishable<Self, Self::Metadata>;
 }
 
+/// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
+/// a fee strategy can be: fixed or range. When the fee strategy allows multiple possibilities, a
+/// [`FeePriority`] is used to determine what to apply.
+///
+/// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
+/// upon reception by the other participant.
+#[derive(Debug, Clone, Eq, PartialEq, Display, Serialize, Deserialize)]
+#[display(fee_strategy_fmt)]
+pub enum FeeStrategy<T>
+where
+    T: fmt::Display
+{
+    /// A fixed strategy with the exact amount to set.
+    Fixed(T),
+    /// A range with a minimum and maximum (inclusive) possible fees.
+    Range { min_inc: T, max_inc: T },
+}
+
+impl<T> FeeStrategy<T>
+where
+    T: fmt::Display + PartialEq + PartialOrd
+{
+    pub fn check(&self, value: &T) -> bool {
+        match self {
+            Self::Fixed(fee_strat) => value == fee_strat,
+            // Check in range including min and max bounds
+            Self::Range { min_inc, max_inc } => value >= min_inc && value <= max_inc,
+        }
+    }
+}
+
 impl<T> FromStr for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes + FromStr,
+    T: fmt::Display + FromStr
 {
     type Err = consensus::Error;
 
@@ -98,40 +129,9 @@ where
     }
 }
 
-/// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
-/// a fee strategy can be: fixed or range. When the fee strategy allows multiple possibilities, a
-/// [`FeePriority`] is used to determine what to apply.
-///
-/// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
-/// upon reception by the other participant.
-#[derive(Debug, Clone, Eq, PartialEq, Display, Serialize, Deserialize)]
-#[display(fee_strategy_fmt)]
-pub enum FeeStrategy<T>
-where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
-{
-    /// A fixed strategy with the exact amount to set.
-    Fixed(T),
-    /// A range with a minimum and maximum (inclusive) possible fees.
-    Range { min_inc: T, max_inc: T },
-}
-
-impl<T> FeeStrategy<T>
-where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
-{
-    pub fn check(&self, value: &T) -> bool {
-        match self {
-            Self::Fixed(fee_strat) => value == fee_strat,
-            // Check in range including min and max bounds
-            Self::Range { min_inc, max_inc } => value >= min_inc && value <= max_inc,
-        }
-    }
-}
-
 fn fee_strategy_fmt<T>(strategy: &FeeStrategy<T>) -> String
 where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
+    T: fmt::Display
 {
     match strategy {
         FeeStrategy::Fixed(t) => format!("Fixed: {}", t),
@@ -143,7 +143,7 @@ where
 
 impl<T> Encodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
+    T: fmt::Display + CanonicalBytes
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
@@ -162,7 +162,7 @@ where
 
 impl<T> Decodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
+    T: fmt::Display + CanonicalBytes
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         match Decodable::consensus_decode(d)? {
@@ -181,7 +181,7 @@ where
 
 impl<T> CanonicalBytes for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Debug + fmt::Display + CanonicalBytes,
+    T: fmt::Display + CanonicalBytes
 {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         serialize(self)
@@ -197,7 +197,7 @@ where
 
 impl_strict_encoding!(
     FeeStrategy<T>,
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes
+    T: fmt::Display + CanonicalBytes
 );
 
 /// Define the type of errors a fee strategy can encounter during calculation, application, and

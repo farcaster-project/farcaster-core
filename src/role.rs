@@ -16,8 +16,8 @@ use crate::bundle::{
 };
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
-    self, AccordantKeyId, ArbitratingKeyId, KeyGenerator, Keys, SharedSecretKeys, Sign, Signatures,
-    SwapAccordantKeys, TaggedElement, TaggedExtraKeys, TaggedSharedKeys,
+    self, AccordantKeyId, AccordantKeySet, ArbitratingKeyId, KeyGenerator, Keys, SharedSecretKeys,
+    Sign, Signatures, TaggedElement, TaggedExtraKeys, TaggedSharedKeys,
 };
 use crate::negotiation::PublicOffer;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
@@ -1364,6 +1364,6 @@ pub trait Accordant:
     /// Derive the lock address for the accordant blockchain.
     fn derive_lock_address(
         network: Network,
-        keys: SwapAccordantKeys<Self>,
+        keys: AccordantKeySet<Self::PublicKey, Self::SecretKey>,
     ) -> Result<Self::Address, crypto::Error>;
 }

@@ -9,7 +9,7 @@ use farcaster_core::crypto::{
 };
 use farcaster_core::monero::SHARED_VIEW_KEY_ID;
 use farcaster_core::swap::btcxmr::*;
-use farcaster_core::{consensus::CanonicalBytes, crypto::SwapAccordantKeys};
+use farcaster_core::{consensus::CanonicalBytes, crypto::AccordantKeySet};
 
 #[test]
 fn create_key_manager_from_seed() {
@@ -216,7 +216,7 @@ fn can_create_accordant_address() {
     // redo process like manual above, but test against result from Monero's derive_lock_address implementation
     let lock_address = Monero::derive_lock_address(
         farcaster_core::blockchain::Network::Testnet,
-        SwapAccordantKeys {
+        AccordantKeySet {
             alice: AccordantKeys {
                 spend_key: alice_spend_pubkey,
                 shared_keys: vec![TaggedElement::new(

@@ -11,7 +11,6 @@ use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
-use crate::role::Accordant;
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
@@ -86,22 +85,16 @@ impl Error {
     }
 }
 
-/// Element `E` prefixed with a tag `T`. Used to tag content with some ids. Tag needs `Eq` to be
-/// used in vectors or sets and identify the content. Tags can be [`ArbitratingKeyId`],
+/// Element `E` prefixed with a tag `T`. Used to tag content with some ids. Tag should be `Eq` to
+/// be used in vectors or sets and identify the content. Tags can be [`ArbitratingKeyId`],
 /// [`AccordantKeyId`] or any other type of identifiers.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct TaggedElement<T, E>
-where
-    T: Eq,
-{
+pub struct TaggedElement<T, E> {
     tag: T,
     elem: E,
 }
 
-impl<T, E> TaggedElement<T, E>
-where
-    T: Eq,
-{
+impl<T, E> TaggedElement<T, E> {
     /// Create a new tagged element `E` with the tag `T`.
     pub fn new(tag: T, elem: E) -> Self {
         Self { tag, elem }
@@ -120,7 +113,7 @@ where
 
 impl<T, E> fmt::Display for TaggedElement<T, E>
 where
-    T: Eq + fmt::Display,
+    T: fmt::Display,
     E: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -130,7 +123,7 @@ where
 
 impl<T, E> Encodable for TaggedElement<T, E>
 where
-    T: Eq + Encodable,
+    T: Encodable,
     E: CanonicalBytes,
 {
     #[inline]
@@ -142,7 +135,7 @@ where
 
 impl<T, E> Decodable for TaggedElement<T, E>
 where
-    T: Eq + Decodable,
+    T: Decodable,
     E: CanonicalBytes,
 {
     #[inline]
@@ -239,22 +232,23 @@ impl Decodable for SharedKeyId {
     }
 }
 
-/// The list of possible [`Accordant`] keys (secret and public) a swap role has after reveal.
-pub struct AccordantKeys<A: Accordant> {
-    /// The accordant spend public key.
-    pub spend_key: A::PublicKey,
+/// The full set of keys (secret and public) a swap role has after the reveal round for the
+/// [`Accordant`] blockchain in the swap (e.g. the Monero blockchain).
+pub struct AccordantKeys<PublicKey, SharedSecretKey> {
+    /// The full accordant spend public key.
+    pub spend_key: PublicKey,
     /// A list of extra accordant public keys.
-    pub extra_accordant_keys: Vec<TaggedElement<u16, A::PublicKey>>,
+    pub extra_accordant_keys: Vec<TaggedElement<u16, PublicKey>>,
     /// A list of secret shared keys, e.g. shared view keys in non-transparent blockchains.
-    pub shared_keys: Vec<TaggedElement<SharedKeyId, A::SharedSecretKey>>,
+    pub shared_keys: Vec<TaggedElement<SharedKeyId, SharedSecretKey>>,
 }
 
-/// The list of all accordant keys swap roles have after reveal.
-pub struct SwapAccordantKeys<A: Accordant> {
+/// The full set of all keys related to the accordant blockchain available after the reveal round.
+pub struct AccordantKeySet<PublicKey, SharedSecretKey> {
     /// Alice's accordant keys (secret and public).
-    pub alice: AccordantKeys<A>,
+    pub alice: AccordantKeys<PublicKey, SharedSecretKey>,
     /// Bob's accordant keys (secret and public).
-    pub bob: AccordantKeys<A>,
+    pub bob: AccordantKeys<PublicKey, SharedSecretKey>,
 }
 
 fixed_hash::construct_fixed_hash!(

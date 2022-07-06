@@ -93,7 +93,7 @@ pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
 #[display(fee_strategy_fmt)]
 pub enum FeeStrategy<T>
 where
-    T: fmt::Display
+    T: fmt::Display,
 {
     /// A fixed strategy with the exact amount to set.
     Fixed(T),
@@ -103,7 +103,7 @@ where
 
 impl<T> FeeStrategy<T>
 where
-    T: fmt::Display + PartialEq + PartialOrd
+    T: fmt::Display + PartialEq + PartialOrd,
 {
     pub fn check(&self, value: &T) -> bool {
         match self {
@@ -116,7 +116,7 @@ where
 
 impl<T> FromStr for FeeStrategy<T>
 where
-    T: fmt::Display + FromStr
+    T: fmt::Display + FromStr,
 {
     type Err = consensus::Error;
 
@@ -131,7 +131,7 @@ where
 
 fn fee_strategy_fmt<T>(strategy: &FeeStrategy<T>) -> String
 where
-    T: fmt::Display
+    T: fmt::Display,
 {
     match strategy {
         FeeStrategy::Fixed(t) => format!("Fixed: {}", t),
@@ -143,7 +143,7 @@ where
 
 impl<T> Encodable for FeeStrategy<T>
 where
-    T: fmt::Display + CanonicalBytes
+    T: fmt::Display + CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
@@ -162,7 +162,7 @@ where
 
 impl<T> Decodable for FeeStrategy<T>
 where
-    T: fmt::Display + CanonicalBytes
+    T: fmt::Display + CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         match Decodable::consensus_decode(d)? {
@@ -181,7 +181,7 @@ where
 
 impl<T> CanonicalBytes for FeeStrategy<T>
 where
-    T: fmt::Display + CanonicalBytes
+    T: fmt::Display + CanonicalBytes,
 {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         serialize(self)
@@ -195,10 +195,7 @@ where
     }
 }
 
-impl_strict_encoding!(
-    FeeStrategy<T>,
-    T: fmt::Display + CanonicalBytes
-);
+impl_strict_encoding!(FeeStrategy<T>, T: fmt::Display + CanonicalBytes);
 
 /// Define the type of errors a fee strategy can encounter during calculation, application, and
 /// validation of fees on a partial transaction.
@@ -336,7 +333,9 @@ impl From<bitcoin::Network> for Network {
 
 /// Defines a blockchain network, identifies in which context the system interacts with the
 /// blockchain.
-#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display, Serialize, Deserialize)]
+#[derive(
+    Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display, Serialize, Deserialize,
+)]
 #[display(Debug)]
 pub enum Network {
     /// Represents a real asset on his valuable network.

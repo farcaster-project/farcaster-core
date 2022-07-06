@@ -3,7 +3,7 @@
 
 use crate::blockchain::{self, Asset, Network};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{self, AccordantKeys, Keys, SharedKeyId, SharedSecretKeys, SwapAccordantKeys};
+use crate::crypto::{self, AccordantKeySet, AccordantKeys, Keys, SharedKeyId, SharedSecretKeys};
 use crate::role::Accordant;
 
 use monero::util::key::{PrivateKey, PublicKey};
@@ -25,9 +25,9 @@ pub struct Monero;
 impl Accordant for Monero {
     fn derive_lock_address(
         network: Network,
-        keys: SwapAccordantKeys<Self>,
+        keys: AccordantKeySet<PublicKey, PrivateKey>,
     ) -> Result<Address, crypto::Error> {
-        let SwapAccordantKeys {
+        let AccordantKeySet {
             alice:
                 AccordantKeys {
                     spend_key: alice_spend_key,

@@ -234,6 +234,7 @@ impl Decodable for SharedKeyId {
 
 /// The full set of keys (secret and public) a swap role has after the reveal round for the
 /// [`Accordant`] blockchain in the swap (e.g. the Monero blockchain).
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccordantKeys<PublicKey, SharedSecretKey> {
     /// The full accordant spend public key.
     pub spend_key: PublicKey,
@@ -244,6 +245,7 @@ pub struct AccordantKeys<PublicKey, SharedSecretKey> {
 }
 
 /// The full set of all keys related to the accordant blockchain available after the reveal round.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccordantKeySet<PublicKey, SharedSecretKey> {
     /// Alice's accordant keys (secret and public).
     pub alice: AccordantKeys<PublicKey, SharedSecretKey>,
@@ -283,7 +285,8 @@ impl CanonicalBytes for KeccakCommitment {
 }
 
 /// Engine to produce and validate hash commitments.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[display(Debug)]
 pub struct CommitmentEngine;
 
 impl Commit<KeccakCommitment> for CommitmentEngine {

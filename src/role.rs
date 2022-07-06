@@ -173,11 +173,11 @@ impl<Ctx: Swap> Decodable for Alice<Ctx> {
     }
 }
 
-struct ValidatedCoreTransactions<'a, Ctx: Swap> {
+struct ValidatedCoreTransactions<Ctx: Swap> {
     lock: <Ctx::Ar as Transactions>::Lock,
     cancel: <Ctx::Ar as Transactions>::Cancel,
     refund: <Ctx::Ar as Transactions>::Refund,
-    punish_lock: DataPunishableLock<'a, Ctx::Ar>,
+    punish_lock: DataPunishableLock<<Ctx::Ar as Timelock>::Timelock, <Ctx::Ar as Keys>::PublicKey>,
 }
 
 impl<Ctx> Alice<Ctx>
@@ -662,7 +662,7 @@ where
         bob_parameters: &'a BobParameters<Ctx>,
         core: &CoreArbitratingTransactions<Ctx::Ar>,
         public_offer: &PublicOffer<Ctx>,
-    ) -> Res<ValidatedCoreTransactions<'a, Ctx>> {
+    ) -> Res<ValidatedCoreTransactions<Ctx>> {
         // Extract the partial transaction from the core arbitrating bundle, this operation should
         // not error if the bundle is well formed.
         let partial_lock = core.lock.clone();
@@ -673,10 +673,10 @@ where
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        let alice_buy = &alice_parameters.buy;
-        let bob_buy = &bob_parameters.buy;
-        let alice_cancel = &alice_parameters.cancel;
-        let bob_cancel = &bob_parameters.cancel;
+        let alice_buy = alice_parameters.buy;
+        let bob_buy = bob_parameters.buy;
+        let alice_cancel = alice_parameters.cancel;
+        let bob_cancel = bob_parameters.cancel;
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -687,7 +687,7 @@ where
         };
 
         // Verify the lock transaction template.
-        lock.verify_template(data_lock.clone())?;
+        lock.verify_template(data_lock)?;
         // The target amount is dictated from the public offer.
         let target_amount = public_offer.offer.arbitrating_amount;
         // Verify the target amount
@@ -699,9 +699,9 @@ where
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
         // contract on the arbitrating blockchain.
-        let alice_refund = &alice_parameters.refund;
-        let bob_refund = &bob_parameters.refund;
-        let alice_punish = &alice_parameters.punish;
+        let alice_refund = alice_parameters.refund;
+        let bob_refund = bob_parameters.refund;
+        let alice_punish = alice_parameters.punish;
 
         // Create the data structure that represents an on-chain punishable contract for the
         // arbitrating blockchain.
@@ -719,7 +719,7 @@ where
         let cancel = <<Ctx::Ar as Transactions>::Cancel>::from_partial(partial_cancel);
         // Check that the cancel transaction is build on top of the lock.
         cancel.is_build_on_top_of(&lock)?;
-        cancel.verify_template(data_lock.clone(), punish_lock.clone())?;
+        cancel.verify_template(data_lock.clone(), punish_lock)?;
         // Validate the fee strategy
         <Ctx::Ar as Fee>::validate_fee(cancel.as_partial(), fee_strategy)?;
 
@@ -928,10 +928,10 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        let alice_buy = &alice_parameters.buy;
-        let bob_buy = &bob_parameters.buy;
-        let alice_cancel = &alice_parameters.cancel;
-        let bob_cancel = &bob_parameters.cancel;
+        let alice_buy = alice_parameters.buy;
+        let bob_buy = bob_parameters.buy;
+        let alice_cancel = alice_parameters.cancel;
+        let bob_cancel = bob_parameters.cancel;
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.
@@ -950,7 +950,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let lock = <<Ctx::Ar as Transactions>::Lock as Lockable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-        >>::initialize(&funding, cancel_lock.clone(), target_amount)?;
+        >>::initialize(&funding, cancel_lock, target_amount)?;
 
         // Ensure that the transaction contains enough assets to pass the fee validation latter.
         let fee_strategy = &public_offer.offer.fee_strategy;
@@ -959,9 +959,9 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the three keys, Alice and Bob for refund and Alice's punish key. The keys are
         // needed, along with the timelock for the punish, to create the punishable on-chain
         // contract on the arbitrating blockchain.
-        let alice_refund = &alice_parameters.refund;
-        let bob_refund = &bob_parameters.refund;
-        let alice_punish = &alice_parameters.punish;
+        let alice_refund = alice_parameters.refund;
+        let bob_refund = bob_parameters.refund;
+        let alice_punish = alice_parameters.punish;
 
         // Create the data structure that represents an on-chain punishable contract for the
         // arbitrating blockchain.
@@ -976,7 +976,7 @@ impl<Ctx: Swap> Bob<Ctx> {
         let mut cancel = <<Ctx::Ar as Transactions>::Cancel as Cancelable<
             Ctx::Ar,
             <Ctx::Ar as Transactions>::Metadata,
-        >>::initialize(&lock, cancel_lock, punish_lock.clone())?;
+        >>::initialize(&lock, cancel_lock, punish_lock)?;
 
         // Set the fees according to the strategy in the offer and the local politic.
         <Ctx::Ar as Fee>::set_fee(cancel.as_partial_mut(), fee_strategy, self.fee_politic)?;
@@ -1168,10 +1168,10 @@ impl<Ctx: Swap> Bob<Ctx> {
         // Get the four keys, Alice and Bob for Buy and Cancel. The keys are needed, along with the
         // timelock for the cancel, to create the cancelable on-chain contract on the arbitrating
         // blockchain.
-        let alice_buy = &alice_parameters.buy;
-        let bob_buy = &bob_parameters.buy;
-        let alice_cancel = &alice_parameters.cancel;
-        let bob_cancel = &bob_parameters.cancel;
+        let alice_buy = alice_parameters.buy;
+        let bob_buy = bob_parameters.buy;
+        let alice_cancel = alice_parameters.cancel;
+        let bob_cancel = bob_parameters.cancel;
 
         // Create the data structure that represents an on-chain cancelable contract for the
         // arbitrating blockchain.

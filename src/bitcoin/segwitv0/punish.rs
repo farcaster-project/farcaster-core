@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 
@@ -11,6 +12,7 @@ use crate::script::ScriptPath;
 use crate::transaction::{Cancelable, Error, Punishable};
 
 use crate::bitcoin::segwitv0::{PunishLock, SegwitV0};
+use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{self, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
@@ -48,7 +50,7 @@ impl SubTransaction for Punish {
 impl Punishable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Punish> {
     fn initialize(
         prev: &impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput>,
-        punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
+        punish_lock: script::DataPunishableLock<CSVTimelock, PublicKey>,
         destination_target: Address,
     ) -> Result<Self, Error> {
         let output_metadata = prev.get_consumable_output()?;

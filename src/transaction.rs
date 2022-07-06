@@ -298,13 +298,13 @@ where
     ///
     fn initialize(
         prev: &impl Fundable<T, O>,
-        lock: DataLock<T>,
+        lock: DataLock<T::Timelock, T::PublicKey>,
         target_amount: T::AssetUnit,
     ) -> Result<Self, Error>;
 
     /// Verifies that the transaction is compliant with the protocol requirements and implements
     /// the correct conditions of the [`DataLock`].
-    fn verify_template(&self, lock: DataLock<T>) -> Result<(), Error>;
+    fn verify_template(&self, lock: DataLock<T::Timelock, T::PublicKey>) -> Result<(), Error>;
 
     // TODO this could be moved to transaction directly
     /// Verifies that the available output amount in lock is equal to the target amount.
@@ -340,7 +340,7 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Lockable<T, O>,
-        lock: DataLock<T>,
+        lock: DataLock<T::Timelock, T::PublicKey>,
         destination_target: T::Address,
     ) -> Result<Self, Error>;
 
@@ -376,16 +376,16 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Lockable<T, O>,
-        lock: DataLock<T>,
-        punish_lock: DataPunishableLock<T>,
+        lock: DataLock<T::Timelock, T::PublicKey>,
+        punish_lock: DataPunishableLock<T::Timelock, T::PublicKey>,
     ) -> Result<Self, Error>;
 
     /// Verifies that the transaction is compliant with the protocol requirements and implements
     /// the correct conditions of the [`DataLock`] and the [`DataPunishableLock`].
     fn verify_template(
         &self,
-        lock: DataLock<T>,
-        punish_lock: DataPunishableLock<T>,
+        lock: DataLock<T::Timelock, T::PublicKey>,
+        punish_lock: DataPunishableLock<T::Timelock, T::PublicKey>,
     ) -> Result<(), Error>;
 
     /// Return the Farcaster transaction identifier.
@@ -450,7 +450,7 @@ where
     /// transaction and fill the inputs and outputs data.
     fn initialize(
         prev: &impl Cancelable<T, O>,
-        punish_lock: DataPunishableLock<T>,
+        punish_lock: DataPunishableLock<T::Timelock, T::PublicKey>,
         destination_target: T::Address,
     ) -> Result<Self, Error>;
 

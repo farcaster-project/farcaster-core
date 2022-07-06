@@ -312,7 +312,7 @@ pub trait Keys {
     type SecretKey;
 
     /// Public key type used in transactions.
-    type PublicKey: Clone + PartialEq + Debug + fmt::Display + CanonicalBytes;
+    type PublicKey: Clone + Copy + PartialEq + Debug + fmt::Display + CanonicalBytes;
 
     /// Return a list of extra public key identifiers to use during the setup phase.
     fn extra_keys() -> Vec<u16>;

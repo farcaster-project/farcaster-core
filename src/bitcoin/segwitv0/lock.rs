@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
 
@@ -34,7 +35,7 @@ impl SubTransaction for Lock {
 impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
     fn initialize(
         prev: &impl Fundable<Bitcoin<SegwitV0>, MetadataOutput>,
-        lock: script::DataLock<Bitcoin<SegwitV0>>,
+        lock: script::DataLock<CSVTimelock, PublicKey>,
         target_amount: Amount,
     ) -> Result<Self, FError> {
         let script = CoopLock::script(lock);
@@ -75,7 +76,10 @@ impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
         })
     }
 
-    fn verify_template(&self, lock: script::DataLock<Bitcoin<SegwitV0>>) -> Result<(), FError> {
+    fn verify_template(
+        &self,
+        lock: script::DataLock<CSVTimelock, PublicKey>,
+    ) -> Result<(), FError> {
         (self.psbt.unsigned_tx.version == 2)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Tx version is not 2"))?;

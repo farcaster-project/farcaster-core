@@ -87,7 +87,7 @@ fn H_p() -> secp256k1Point {
     // .expect("Alternate basepoint is invalid")
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 struct PedersenCommitment<Point, Scalar> {
     commitment: Point,
     blinder: Scalar,
@@ -240,7 +240,7 @@ fn key_commitment_secp256k1(
     commitment
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 struct RingSignature<ScalarCurveA, ScalarCurveB> {
     e_g_0_i: ScalarCurveA,
     e_h_0_i: ScalarCurveB,
@@ -515,7 +515,7 @@ impl
 }
 
 /// A Discrete Logarithm Equality Proof across secp256k1 and curve25519 groups.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct DLEQProof {
     c_g: Vec<ed25519Point>,

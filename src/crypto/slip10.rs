@@ -42,7 +42,7 @@ pub enum Error {
 
 /// Ed25519 extended secret key. The extended secret key contains its depth, parent figerprint,
 /// child number, the derived secret key, and the chain code.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Ed25519ExtSecretKey {
     /// The depth of this extended key, start with 0 for the master.
     pub depth: u8,
@@ -158,7 +158,7 @@ impl Ed25519ExtSecretKey {
 
 /// Secp256k1 extended secret key. The extended secret key contains its depth, parent figerprint,
 /// child number, the derived secret key, and the chain code.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Secp256k1ExtSecretKey {
     /// The depth of this extended key, start with 0 for the master.
     pub depth: u8,
@@ -291,7 +291,7 @@ impl Secp256k1ExtSecretKey {
 
 /// An extended secret key. Generic interface for creating either a secp256k1 extended secret key
 /// or an ed25519 extended secret key and deriving sub-keys.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ExtSecretKey {
     /// An extended secret key of type secp256k1.
     Secp256k1(Secp256k1ExtSecretKey),

@@ -234,6 +234,8 @@ impl Decodable for SharedKeyId {
 
 /// The full set of keys (secret and public) a swap role has after the reveal round for the
 /// [`Accordant`] blockchain in the swap (e.g. the Monero blockchain).
+///
+/// [`Accordant`]: crate::role::Accordant
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccordantKeys<PublicKey, SharedSecretKey> {
     /// The full accordant spend public key.

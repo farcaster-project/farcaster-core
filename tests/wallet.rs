@@ -218,20 +218,20 @@ fn can_create_accordant_address() {
         farcaster_core::blockchain::Network::Testnet,
         AccordantKeySet {
             alice: AccordantKeys {
-                spend_key: alice_spend_pubkey,
-                shared_keys: vec![TaggedElement::new(
+                public_spend_key: alice_spend_pubkey,
+                shared_secret_keys: vec![TaggedElement::new(
                     SharedKeyId::new(SHARED_VIEW_KEY_ID),
                     alice_view_secretkey,
                 )],
-                extra_accordant_keys: vec![],
+                extra_public_keys: vec![],
             },
             bob: AccordantKeys {
-                spend_key: bob_spend_pubkey,
-                shared_keys: vec![TaggedElement::new(
+                public_spend_key: bob_spend_pubkey,
+                shared_secret_keys: vec![TaggedElement::new(
                     SharedKeyId::new(SHARED_VIEW_KEY_ID),
                     bob_view_secretkey,
                 )],
-                extra_accordant_keys: vec![],
+                extra_public_keys: vec![],
             },
         },
     );

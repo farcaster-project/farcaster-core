@@ -30,28 +30,28 @@ impl Accordant for Monero {
         let AccordantKeySet {
             alice:
                 AccordantKeys {
-                    spend_key: alice_spend_key,
-                    shared_keys: alice_shared_keys,
+                    public_spend_key: alice_public_spend_key,
+                    shared_secret_keys: alice_shared_secret_keys,
                     ..
                 },
             bob:
                 AccordantKeys {
-                    spend_key: bob_spend_key,
-                    shared_keys: bob_shared_keys,
+                    public_spend_key: bob_public_spend_key,
+                    shared_secret_keys: bob_shared_secret_keys,
                     ..
                 },
         } = keys;
 
-        let alice_tagged_view_secretkey = alice_shared_keys
+        let alice_tagged_view_secretkey = alice_shared_secret_keys
             .iter()
             .find(|tagged_key| *tagged_key.tag() == SharedKeyId::new(SHARED_VIEW_KEY_ID))
             .ok_or(crypto::Error::MissingKey)?;
-        let bob_tagged_view_secretkey = bob_shared_keys
+        let bob_tagged_view_secretkey = bob_shared_secret_keys
             .iter()
             .find(|tagged_key| *tagged_key.tag() == SharedKeyId::new(SHARED_VIEW_KEY_ID))
             .ok_or(crypto::Error::MissingKey)?;
 
-        let public_spend = alice_spend_key + bob_spend_key;
+        let public_spend = alice_public_spend_key + bob_public_spend_key;
         let secret_view = alice_tagged_view_secretkey.elem() + bob_tagged_view_secretkey.elem();
         let public_view = PublicKey::from_private_key(&secret_view);
 

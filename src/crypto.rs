@@ -239,11 +239,11 @@ impl Decodable for SharedKeyId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccordantKeys<PublicKey, SharedSecretKey> {
     /// The full accordant spend public key.
-    pub spend_key: PublicKey,
+    pub public_spend_key: PublicKey,
     /// A list of extra accordant public keys.
-    pub extra_accordant_keys: Vec<TaggedElement<u16, PublicKey>>,
+    pub extra_public_keys: Vec<TaggedElement<u16, PublicKey>>,
     /// A list of secret shared keys, e.g. shared view keys in non-transparent blockchains.
-    pub shared_keys: Vec<TaggedElement<SharedKeyId, SharedSecretKey>>,
+    pub shared_secret_keys: Vec<TaggedElement<SharedKeyId, SharedSecretKey>>,
 }
 
 /// The full set of all keys related to the accordant blockchain available after the reveal round.

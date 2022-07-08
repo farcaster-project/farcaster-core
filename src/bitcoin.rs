@@ -16,9 +16,9 @@ pub mod fee;
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 pub mod segwitv0;
-//#[cfg(all(feature = "experimental", feature = "taproot"))]
-//#[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
-//pub mod taproot;
+#[cfg(all(feature = "experimental", feature = "taproot"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
+pub mod taproot;
 pub mod tasks;
 pub mod timelock;
 pub mod transaction;
@@ -29,12 +29,12 @@ pub mod transaction;
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 pub type BitcoinSegwitV0 = Bitcoin<segwitv0::SegwitV0>;
 
-///// Bitcoin blockchain using SegWit version 1 transaction outputs and Schnorr cryptography. This
-///// type is experimental because its cryptography for Adaptor Signatures is not ready for
-///// production and battle tested.
-//#[cfg(all(feature = "experimental", feature = "taproot"))]
-//#[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
-//pub type BitcoinTaproot = Bitcoin<taproot::Taproot>;
+/// Bitcoin blockchain using SegWit version 1 transaction outputs and Schnorr cryptography. This
+/// type is experimental because its cryptography for Adaptor Signatures is not ready for
+/// production and battle tested.
+#[cfg(all(feature = "experimental", feature = "taproot"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
+pub type BitcoinTaproot = Bitcoin<taproot::Taproot>;
 
 /// Helper type enumerating over all Bitcoin inner variants available.
 #[non_exhaustive]
@@ -42,9 +42,9 @@ pub enum Btc {
     #[cfg(feature = "experimental")]
     #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
     SegwitV0(BitcoinSegwitV0),
-    //#[cfg(all(feature = "experimental", feature = "taproot"))]
-    //#[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
-    //Taproot(BitcoinTaproot),
+    #[cfg(all(feature = "experimental", feature = "taproot"))]
+    #[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
+    Taproot(BitcoinTaproot),
 }
 
 /// Variations of a Bitcoin implementation. Strategy allows different Bitcoin implementations based

@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 use crate::bitcoin::{Bitcoin, BitcoinTaproot, Btc, Strategy};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
+use crate::crypto::{DeriveKeys, SharedKeyId, Signatures};
 //use crate::role::Arbitrating;
 
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
@@ -55,12 +55,17 @@ impl TryFrom<Btc> for Bitcoin<Taproot> {
     }
 }
 
-impl Keys for Bitcoin<Taproot> {
-    type SecretKey = KeyPair;
+impl DeriveKeys for Bitcoin<Taproot> {
     type PublicKey = XOnlyPublicKey;
+    type PrivateKey = KeyPair;
 
-    fn extra_keys() -> Vec<u16> {
+    fn extra_public_keys() -> Vec<u16> {
         // No extra key
+        vec![]
+    }
+
+    fn extra_shared_private_keys() -> Vec<SharedKeyId> {
+        // No shared key in Bitcoin, transparent ledger
         vec![]
     }
 }
@@ -75,46 +80,6 @@ impl CanonicalBytes for XOnlyPublicKey {
         Self: Sized,
     {
         XOnlyPublicKey::from_slice(bytes).map_err(consensus::Error::new)
-    }
-}
-
-/// Schnorr secret key shareable over the network if needed by the protocol.
-#[derive(Clone, Debug, Copy, Eq, PartialEq)]
-pub struct SecretSharedKey([u8; SECRET_KEY_SIZE]);
-
-impl SecretSharedKey {
-    /// Return a slice to the secret key bytes.
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    /// Return the secret key bytes.
-    pub fn to_bytes(self) -> [u8; SECRET_KEY_SIZE] {
-        self.0
-    }
-}
-
-impl CanonicalBytes for SecretSharedKey {
-    fn as_canonical_bytes(&self) -> Vec<u8> {
-        self.0.into()
-    }
-
-    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
-    where
-        Self: Sized,
-    {
-        Ok(SecretSharedKey(
-            bytes.try_into().map_err(consensus::Error::new)?,
-        ))
-    }
-}
-
-impl SharedSecretKeys for Bitcoin<Taproot> {
-    type SharedSecretKey = SecretSharedKey;
-
-    fn shared_keys() -> Vec<SharedKeyId> {
-        // No shared key in Bitcoin, transparent ledger
-        vec![]
     }
 }
 

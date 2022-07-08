@@ -34,7 +34,7 @@ jobs:
 
     - uses: Swatinem/rust-cache@v1.4.0
 
-    - run: cargo test --features serde --verbose
+    - run: cargo test --verbose
 
   rpc-test:
     name: Integration tests

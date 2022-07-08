@@ -6,23 +6,23 @@ use std::fmt;
 ///
 /// [`SwapRole`]: crate::role::SwapRole
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct DoubleKeys<PublicKey> {
+pub struct DoubleKeys<Pk> {
     /// Public key associated to Alice swap role.
-    pub alice: PublicKey,
+    pub alice: Pk,
     /// Public key associated to Bob swap role.
-    pub bob: PublicKey,
+    pub bob: Pk,
 }
 
-impl<PublicKey> DoubleKeys<PublicKey> {
+impl<Pk> DoubleKeys<Pk> {
     /// Store public keys for swap participant.
-    pub fn new(alice: PublicKey, bob: PublicKey) -> Self {
+    pub fn new(alice: Pk, bob: Pk) -> Self {
         Self { alice, bob }
     }
 }
 
-impl<PublicKey> fmt::Display for DoubleKeys<PublicKey>
+impl<Pk> fmt::Display for DoubleKeys<Pk>
 where
-    PublicKey: fmt::Display,
+    Pk: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Alice: {}, Bob: {}", self.alice, self.bob)
@@ -45,16 +45,16 @@ pub enum ScriptPath {
 ///
 /// [`Buyable`]: crate::transaction::Buyable
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct DataLock<Timelock, PublicKey> {
-    pub timelock: Timelock,
-    pub success: DoubleKeys<PublicKey>,
-    pub failure: DoubleKeys<PublicKey>,
+pub struct DataLock<Ti, Pk> {
+    pub timelock: Ti,
+    pub success: DoubleKeys<Pk>,
+    pub failure: DoubleKeys<Pk>,
 }
 
-impl<Timelock, PublicKey> fmt::Display for DataLock<Timelock, PublicKey>
+impl<Ti, Pk> fmt::Display for DataLock<Ti, Pk>
 where
-    Timelock: fmt::Display,
-    PublicKey: fmt::Display,
+    Ti: fmt::Display,
+    Pk: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -71,16 +71,16 @@ where
 ///
 /// [`Cancelable`]: crate::transaction::Cancelable
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct DataPunishableLock<Timelock, PublicKey> {
-    pub timelock: Timelock,
-    pub success: DoubleKeys<PublicKey>,
-    pub failure: PublicKey,
+pub struct DataPunishableLock<Ti, Pk> {
+    pub timelock: Ti,
+    pub success: DoubleKeys<Pk>,
+    pub failure: Pk,
 }
 
-impl<Timelock, PublicKey> fmt::Display for DataPunishableLock<Timelock, PublicKey>
+impl<Ti, Pk> fmt::Display for DataPunishableLock<Ti, Pk>
 where
-    Timelock: fmt::Display,
-    PublicKey: fmt::Display,
+    Ti: fmt::Display,
+    Pk: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(

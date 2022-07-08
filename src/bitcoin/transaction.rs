@@ -11,7 +11,6 @@ use bitcoin::util::psbt::{self, PartiallySignedTransaction};
 
 #[cfg(feature = "experimental")]
 use bitcoin::{
-    hashes::sha256d::Hash,
     secp256k1::{ecdsa::Signature, PublicKey},
     Amount,
 };
@@ -21,6 +20,7 @@ use thiserror::Error;
 use crate::bitcoin::{Bitcoin, Strategy};
 use crate::consensus::{self, CanonicalBytes};
 use crate::transaction::{Broadcastable, Error as FError, Finalizable, Linkable};
+use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 
 #[cfg(feature = "experimental")]
 use crate::{
@@ -86,7 +86,7 @@ pub struct Tx<T: SubTransaction> {
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-impl<T> Transaction<Bitcoin<SegwitV0>, MetadataOutput> for Tx<T>
+impl<T> Transaction<PartiallySignedTransaction, MetadataOutput, Amount> for Tx<T>
 where
     T: SubTransaction,
 {
@@ -131,12 +131,11 @@ where
     }
 }
 
-impl<T, S> Broadcastable<Bitcoin<S>> for Tx<T>
+impl<T> Broadcastable<bitcoin::Transaction> for Tx<T>
 where
     T: SubTransaction,
-    S: Strategy,
 {
-    fn extract(&self) -> bitcoin::blockdata::transaction::Transaction {
+    fn extract(&self) -> bitcoin::Transaction {
         self.psbt.clone().extract_tx()
     }
 }
@@ -166,14 +165,14 @@ where
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-impl<T> Witnessable<Bitcoin<SegwitV0>> for Tx<T>
+impl<T> Witnessable<Sha256dHash, PublicKey, Signature> for Tx<T>
 where
     T: SubTransaction,
 {
     /// ## Safety
     /// This function is used for generating the witness message for all transactions but not
     /// funding. So implying only 1 input is valid as all templates only have 1 input.
-    fn generate_witness_message(&self, _path: ScriptPath) -> Result<Hash, FError> {
+    fn generate_witness_message(&self, _path: ScriptPath) -> Result<Sha256dHash, FError> {
         let unsigned_tx = self.psbt.unsigned_tx.clone();
         let txin = TxInRef::new(&unsigned_tx, 0);
 

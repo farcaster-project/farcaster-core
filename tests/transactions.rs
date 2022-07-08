@@ -63,8 +63,8 @@ macro_rules! setup_txs {
 
         let datalock = DataLock {
             timelock: timelock::CSVTimelock::new(10),
-            success: DoubleKeys::new(&pubkey_a1, &pubkey_b1),
-            failure: DoubleKeys::new(&pubkey_a1, &pubkey_b1),
+            success: DoubleKeys::new(pubkey_a1, pubkey_b1),
+            failure: DoubleKeys::new(pubkey_a1, pubkey_b1),
         };
 
         let fee = FeeStrategy::Fixed(SatPerVByte::from_sat(1));
@@ -77,15 +77,15 @@ macro_rules! setup_txs {
         //
         let datapunishablelock = DataPunishableLock {
             timelock: timelock::CSVTimelock::new(10),
-            success: DoubleKeys::new(&pubkey_a1, &pubkey_b1),
-            failure: &pubkey_a1,
+            success: DoubleKeys::new(pubkey_a1, pubkey_b1),
+            failure: pubkey_a1,
         };
 
         let mut cancel =
             CancelTx::initialize(&lock, datalock.clone(), datapunishablelock.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        BitcoinSegwitV0::set_fee(cancel.as_partial_mut(), &fee, politic).unwrap();
+        cancel.as_partial_mut().set_fee(&fee, politic).unwrap();
 
         //
         // Create refund tx
@@ -94,7 +94,7 @@ macro_rules! setup_txs {
         let mut refund = RefundTx::initialize(&cancel, new_address.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        BitcoinSegwitV0::set_fee(refund.as_partial_mut(), &fee, politic).unwrap();
+        refund.as_partial_mut().set_fee(&fee, politic).unwrap();
 
         lock.verify_template(datalock.clone()).unwrap();
         cancel
@@ -120,7 +120,7 @@ macro_rules! setup_txs {
         // Finalize refund
         //
         let refund_finalized =
-            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut refund).unwrap();
+            Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut refund).unwrap();
 
         //
         // Co-Sign cancel
@@ -140,7 +140,7 @@ macro_rules! setup_txs {
         // Finalize cancel
         //
         let cancel_finalized =
-            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut cancel).unwrap();
+            Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut cancel).unwrap();
 
         //
         // Create buy tx
@@ -149,7 +149,7 @@ macro_rules! setup_txs {
         let mut buy = BuyTx::initialize(&lock, datalock.clone(), new_address.clone()).unwrap();
 
         // Set the fees according to the given strategy
-        BitcoinSegwitV0::set_fee(buy.as_partial_mut(), &fee, politic).unwrap();
+        buy.as_partial_mut().set_fee(&fee, politic).unwrap();
 
         buy.verify_template(new_address.clone()).unwrap();
 
@@ -167,7 +167,7 @@ macro_rules! setup_txs {
         // Finalize buy
         //
         let buy_finalized =
-            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut buy).unwrap();
+            Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut buy).unwrap();
 
         //
         // Sign lock tx
@@ -176,7 +176,7 @@ macro_rules! setup_txs {
         let sig = sign_hash(msg, &secret_a1).unwrap();
         lock.add_witness(pubkey_a1, sig).unwrap();
         let lock_finalized =
-            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut lock).unwrap();
+            Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut lock).unwrap();
 
         //
         // Create punish tx
@@ -186,7 +186,7 @@ macro_rules! setup_txs {
             PunishTx::initialize(&cancel, datapunishablelock, new_address.into()).unwrap();
 
         // Set the fees according to the given strategy
-        BitcoinSegwitV0::set_fee(punish.as_partial_mut(), &fee, politic).unwrap();
+        punish.as_partial_mut().set_fee(&fee, politic).unwrap();
 
         //
         // Sign punish
@@ -201,7 +201,7 @@ macro_rules! setup_txs {
         // Finalize buy
         //
         let punish_finalized =
-            Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut punish).unwrap();
+            Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut punish).unwrap();
 
         (
             lock_finalized,

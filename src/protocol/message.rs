@@ -4,53 +4,13 @@
 use std::io;
 
 use crate::blockchain::{Address, Onchain};
-use crate::bundle;
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
-use crate::crypto::{
-    self, Commit, Keys, SharedKeyId, SharedSecretKeys, Signatures, TaggedElement, TaggedElements,
-};
-use crate::swap::{Swap, SwapId};
+use crate::crypto::{self, Commit, SharedKeyId, Signatures, TaggedElement, TaggedElements};
+use crate::protocol::verify_vec_of_commitments;
+use crate::swap::SwapId;
 use crate::Error;
 
 use lightning_encoding::{strategies::AsStrict, Strategy};
-
-fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
-    wallet: &impl Commit<C>,
-    keys: &[TaggedElement<T, K>],
-) -> TaggedElements<T, C> {
-    keys.iter()
-        .map(|tagged_key| {
-            TaggedElement::new(
-                tagged_key.tag().clone(),
-                wallet.commit_to(tagged_key.elem().as_canonical_bytes()),
-            )
-        })
-        .collect()
-}
-
-fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
-    wallet: &impl Commit<C>,
-    keys: Vec<TaggedElement<T, K>>,
-    commitments: &[TaggedElement<T, C>],
-) -> Result<(), Error> {
-    keys.into_iter()
-        .map(|tagged_key| {
-            commitments
-                .iter()
-                .find(|tagged_commitment| tagged_commitment.tag() == tagged_key.tag())
-                .map(|tagged_commitment| {
-                    wallet
-                        .validate(
-                            tagged_key.elem().as_canonical_bytes(),
-                            tagged_commitment.elem().clone(),
-                        )
-                        .map_err(Error::Crypto)
-                })
-                .ok_or(Error::Crypto(crypto::Error::InvalidCommitment))
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map(|_| ())
-}
 
 // CommitAliceParameters
 
@@ -84,64 +44,50 @@ pub struct CommitAliceParameters<C> {
 
 // TODO impl Display
 
-// FIXME
-//impl<C> CommitAliceParameters<C>
-//where
-//    C: CanonicalBytes,
-//{
-//    pub fn commit_to_bundle(
-//        swap_id: SwapId,
-//        wallet: &impl Commit<C>,
-//        bundle: bundle::AliceParameters<Ctx>,
-//    ) -> Self {
-//        Self {
-//            swap_id,
-//            buy: wallet.commit_to(bundle.buy.as_canonical_bytes()),
-//            cancel: wallet.commit_to(bundle.cancel.as_canonical_bytes()),
-//            refund: wallet.commit_to(bundle.refund.as_canonical_bytes()),
-//            punish: wallet.commit_to(bundle.punish.as_canonical_bytes()),
-//            adaptor: wallet.commit_to(bundle.adaptor.as_canonical_bytes()),
-//            extra_arbitrating_keys: commit_to_vec(wallet, &bundle.extra_arbitrating_keys),
-//            arbitrating_shared_keys: commit_to_vec(wallet, &bundle.arbitrating_shared_keys),
-//            spend: wallet.commit_to(bundle.spend.as_canonical_bytes()),
-//            extra_accordant_keys: commit_to_vec(wallet, &bundle.extra_accordant_keys),
-//            accordant_shared_keys: commit_to_vec(wallet, &bundle.accordant_shared_keys),
-//        }
-//    }
-//
-//    pub fn verify_with_reveal(
-//        &self,
-//        wallet: &impl Commit<C>,
-//        reveal: RevealAliceParameters<Ctx>,
-//    ) -> Result<(), Error> {
-//        wallet.validate(reveal.buy.as_canonical_bytes(), self.buy.clone())?;
-//        wallet.validate(reveal.cancel.as_canonical_bytes(), self.cancel.clone())?;
-//        wallet.validate(reveal.refund.as_canonical_bytes(), self.refund.clone())?;
-//        wallet.validate(reveal.punish.as_canonical_bytes(), self.punish.clone())?;
-//        wallet.validate(reveal.adaptor.as_canonical_bytes(), self.adaptor.clone())?;
-//        verify_vec_of_commitments(
-//            wallet,
-//            reveal.extra_arbitrating_keys,
-//            &self.extra_arbitrating_keys,
-//        )?;
-//        verify_vec_of_commitments(
-//            wallet,
-//            reveal.arbitrating_shared_keys,
-//            &self.arbitrating_shared_keys,
-//        )?;
-//        wallet.validate(reveal.spend.as_canonical_bytes(), self.spend.clone())?;
-//        verify_vec_of_commitments(
-//            wallet,
-//            reveal.extra_accordant_keys,
-//            &self.extra_accordant_keys,
-//        )?;
-//        verify_vec_of_commitments(
-//            wallet,
-//            reveal.accordant_shared_keys,
-//            &self.accordant_shared_keys,
-//        )
-//    }
-//}
+impl<C> CommitAliceParameters<C>
+where
+    C: Eq + Clone + CanonicalBytes,
+{
+    pub fn verify_with_reveal<Pk, Qk, Rk, Sk, Addr>(
+        &self,
+        wallet: &impl Commit<C>,
+        reveal: RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>,
+    ) -> Result<(), Error>
+    where
+        Pk: CanonicalBytes,
+        Qk: CanonicalBytes,
+        Rk: CanonicalBytes,
+        Sk: CanonicalBytes,
+        Addr: CanonicalBytes,
+    {
+        wallet.validate(reveal.buy.as_canonical_bytes(), self.buy.clone())?;
+        wallet.validate(reveal.cancel.as_canonical_bytes(), self.cancel.clone())?;
+        wallet.validate(reveal.refund.as_canonical_bytes(), self.refund.clone())?;
+        wallet.validate(reveal.punish.as_canonical_bytes(), self.punish.clone())?;
+        wallet.validate(reveal.adaptor.as_canonical_bytes(), self.adaptor.clone())?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.extra_arbitrating_keys,
+            &self.extra_arbitrating_keys,
+        )?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.arbitrating_shared_keys,
+            &self.arbitrating_shared_keys,
+        )?;
+        wallet.validate(reveal.spend.as_canonical_bytes(), self.spend.clone())?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.extra_accordant_keys,
+            &self.extra_accordant_keys,
+        )?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.accordant_shared_keys,
+            &self.accordant_shared_keys,
+        )
+    }
+}
 
 impl<C> Encodable for CommitAliceParameters<C>
 where
@@ -219,62 +165,49 @@ pub struct CommitBobParameters<C> {
 
 // TODO impl Display
 
-// FIXME
-//impl<Ctx> CommitBobParameters<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    pub fn commit_to_bundle(
-//        swap_id: SwapId,
-//        wallet: &impl Commit<Ctx::Commitment>,
-//        bundle: bundle::BobParameters<Ctx>,
-//    ) -> Self {
-//        Self {
-//            swap_id,
-//            buy: wallet.commit_to(bundle.buy.as_canonical_bytes()),
-//            cancel: wallet.commit_to(bundle.cancel.as_canonical_bytes()),
-//            refund: wallet.commit_to(bundle.refund.as_canonical_bytes()),
-//            adaptor: wallet.commit_to(bundle.adaptor.as_canonical_bytes()),
-//            extra_arbitrating_keys: commit_to_vec(wallet, &bundle.extra_arbitrating_keys),
-//            arbitrating_shared_keys: commit_to_vec(wallet, &bundle.arbitrating_shared_keys),
-//            spend: wallet.commit_to(bundle.spend.as_canonical_bytes()),
-//            extra_accordant_keys: commit_to_vec(wallet, &bundle.extra_accordant_keys),
-//            accordant_shared_keys: commit_to_vec(wallet, &bundle.accordant_shared_keys),
-//        }
-//    }
-//
-//    pub fn verify_with_reveal(
-//        &self,
-//        wallet: &impl Commit<Ctx::Commitment>,
-//        reveal: RevealBobParameters<Ctx>,
-//    ) -> Result<(), Error> {
-//        wallet.validate(reveal.buy.as_canonical_bytes(), self.buy.clone())?;
-//        wallet.validate(reveal.cancel.as_canonical_bytes(), self.cancel.clone())?;
-//        wallet.validate(reveal.refund.as_canonical_bytes(), self.refund.clone())?;
-//        wallet.validate(reveal.adaptor.as_canonical_bytes(), self.adaptor.clone())?;
-//        verify_vec_of_commitments(
-//            wallet,
-//            reveal.extra_arbitrating_keys,
-//            &self.extra_arbitrating_keys,
-//        )?;
-//        verify_vec_of_commitments(
-//            wallet,
-//            reveal.arbitrating_shared_keys,
-//            &self.arbitrating_shared_keys,
-//        )?;
-//        wallet.validate(reveal.spend.as_canonical_bytes(), self.spend.clone())?;
-//        verify_vec_of_commitments(
-//            wallet,
-//            reveal.extra_accordant_keys,
-//            &self.extra_accordant_keys,
-//        )?;
-//        verify_vec_of_commitments(
-//            wallet,
-//            reveal.accordant_shared_keys,
-//            &self.accordant_shared_keys,
-//        )
-//    }
-//}
+impl<C> CommitBobParameters<C>
+where
+    C: Eq + Clone + CanonicalBytes,
+{
+    pub fn verify_with_reveal<Pk, Qk, Rk, Sk, Addr>(
+        &self,
+        wallet: &impl Commit<C>,
+        reveal: RevealBobParameters<Pk, Qk, Rk, Sk, Addr>,
+    ) -> Result<(), Error>
+    where
+        Pk: CanonicalBytes,
+        Qk: CanonicalBytes,
+        Rk: CanonicalBytes,
+        Sk: CanonicalBytes,
+        Addr: CanonicalBytes,
+    {
+        wallet.validate(reveal.buy.as_canonical_bytes(), self.buy.clone())?;
+        wallet.validate(reveal.cancel.as_canonical_bytes(), self.cancel.clone())?;
+        wallet.validate(reveal.refund.as_canonical_bytes(), self.refund.clone())?;
+        wallet.validate(reveal.adaptor.as_canonical_bytes(), self.adaptor.clone())?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.extra_arbitrating_keys,
+            &self.extra_arbitrating_keys,
+        )?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.arbitrating_shared_keys,
+            &self.arbitrating_shared_keys,
+        )?;
+        wallet.validate(reveal.spend.as_canonical_bytes(), self.spend.clone())?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.extra_accordant_keys,
+            &self.extra_accordant_keys,
+        )?;
+        verify_vec_of_commitments(
+            wallet,
+            reveal.accordant_shared_keys,
+            &self.accordant_shared_keys,
+        )
+    }
+}
 
 impl<C> Encodable for CommitBobParameters<C>
 where
@@ -323,19 +256,19 @@ impl<C> Strategy for CommitBobParameters<C> {
 // RevealProof
 
 /// Reveals the zero-knowledge proof for the discrete logarithm across curves.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RevealProof<P> {
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RevealProof<Pr> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// Reveal the cross-group discrete logarithm zero-knowledge proof.
-    pub proof: P,
+    pub proof: Pr,
 }
 
 // TODO impl Display
 
-impl<P> Encodable for RevealProof<P>
+impl<Pr> Encodable for RevealProof<Pr>
 where
-    P: CanonicalBytes,
+    Pr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
         let len = self.swap_id.consensus_encode(s)?;
@@ -343,21 +276,21 @@ where
     }
 }
 
-impl<P> Decodable for RevealProof<P>
+impl<Pr> Decodable for RevealProof<Pr>
 where
-    P: CanonicalBytes,
+    Pr: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
             swap_id: Decodable::consensus_decode(d)?,
-            proof: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            proof: Pr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
 
-impl_strict_encoding!(RevealProof<P>, P: CanonicalBytes);
+impl_strict_encoding!(RevealProof<Pr>, Pr: CanonicalBytes);
 
-impl<P> Strategy for RevealProof<P> {
+impl<Pr> Strategy for RevealProof<Pr> {
     type Strategy = AsStrict;
 }
 
@@ -378,48 +311,48 @@ impl<P> Strategy for RevealProof<P> {
 
 /// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
 ///
-/// - `A` the arbitrating address type
-/// - `P` the arbitrating Public Key type
-/// - `R` the arbitrating Shared Secret Key type
-/// - `Q` the accordant Public Key type
-/// - `S` the accordant Shared Secret Key type
+/// - `Addr` the arbitrating address type
+/// - `Pk` the arbitrating Public Key type
+/// - `Rk` the arbitrating Shared Secret Key type
+/// - `Qk` the accordant Public Key type
+/// - `Sk` the accordant Shared Secret Key type
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RevealAliceParameters<P, Q, R, S, A> {
+pub struct RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// Reveal the buy public key.
-    pub buy: P,
+    pub buy: Pk,
     /// Reveal the cancel public key.
-    pub cancel: P,
+    pub cancel: Pk,
     /// Reveal the refund public key.
-    pub refund: P,
+    pub refund: Pk,
     /// Reveal the punish public key.
-    pub punish: P,
+    pub punish: Pk,
     /// Reveal the adaptor public key.
-    pub adaptor: P,
+    pub adaptor: Pk,
     /// Reveal the vector of extra arbitrating public keys.
-    pub extra_arbitrating_keys: Vec<TaggedElement<u16, P>>,
+    pub extra_arbitrating_keys: Vec<TaggedElement<u16, Pk>>,
     /// Reveal the vector of extra arbitrating shared keys.
-    pub arbitrating_shared_keys: Vec<TaggedElement<SharedKeyId, R>>,
+    pub arbitrating_shared_keys: Vec<TaggedElement<SharedKeyId, Rk>>,
     /// Reveal the spend public key.
-    pub spend: Q,
+    pub spend: Qk,
     /// Reveal the vector of extra accordant public keys.
-    pub extra_accordant_keys: Vec<TaggedElement<u16, Q>>,
+    pub extra_accordant_keys: Vec<TaggedElement<u16, Qk>>,
     /// Reveal the vector of extra accordant shared keys.
-    pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, S>>,
+    pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Sk>>,
     /// Reveal the destination address.
-    pub address: A,
+    pub address: Addr,
 }
 
 // TODO impl Display
 
-impl<P, Q, R, S, A> Encodable for RevealAliceParameters<P, Q, R, S, A>
+impl<Pk, Qk, Rk, Sk, Addr> Encodable for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>
 where
-    P: CanonicalBytes,
-    Q: CanonicalBytes,
-    R: CanonicalBytes,
-    S: CanonicalBytes,
-    A: CanonicalBytes,
+    Pk: CanonicalBytes,
+    Qk: CanonicalBytes,
+    Rk: CanonicalBytes,
+    Sk: CanonicalBytes,
+    Addr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
         let mut len = self.swap_id.consensus_encode(s)?;
@@ -438,35 +371,35 @@ where
     }
 }
 
-impl<P, Q, R, S, A> Decodable for RevealAliceParameters<P, Q, R, S, A>
+impl<Pk, Qk, Rk, Sk, Addr> Decodable for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>
 where
-    P: CanonicalBytes,
-    Q: CanonicalBytes,
-    R: CanonicalBytes,
-    S: CanonicalBytes,
-    A: CanonicalBytes,
+    Pk: CanonicalBytes,
+    Qk: CanonicalBytes,
+    Rk: CanonicalBytes,
+    Sk: CanonicalBytes,
+    Addr: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
             swap_id: Decodable::consensus_decode(d)?,
-            buy: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            cancel: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            refund: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            punish: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            adaptor: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            buy: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            refund: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            punish: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            adaptor: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             extra_arbitrating_keys: Decodable::consensus_decode(d)?,
             arbitrating_shared_keys: Decodable::consensus_decode(d)?,
-            spend: Q::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            spend: Qk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             extra_accordant_keys: Decodable::consensus_decode(d)?,
             accordant_shared_keys: Decodable::consensus_decode(d)?,
-            address: A::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            address: Addr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
 
-impl_strict_encoding!(RevealAliceParameters<P, Q, R, S, A>, P: CanonicalBytes, Q: CanonicalBytes, R: CanonicalBytes, S: CanonicalBytes, A: CanonicalBytes);
+impl_strict_encoding!(RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes);
 
-impl<P, Q, R, S, A> Strategy for RevealAliceParameters<P, Q, R, S, A> {
+impl<Pk, Qk, Rk, Sk, Addr> Strategy for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
     type Strategy = AsStrict;
 }
 
@@ -495,46 +428,46 @@ impl<P, Q, R, S, A> Strategy for RevealAliceParameters<P, Q, R, S, A> {
 
 /// Reveals the parameters commited by the [`CommitBobParameters`] protocol message.
 ///
-/// - `A` the arbitrating address type
-/// - `P` the arbitrating Public Key type
-/// - `R` the arbitrating Shared Secret Key type
-/// - `Q` the accordant Public Key type
-/// - `S` the accordant Shared Secret Key type
+/// - `Addr` the arbitrating address type
+/// - `Pk` the arbitrating Public Key type
+/// - `Rk` the arbitrating Shared Secret Key type
+/// - `Qk` the accordant Public Key type
+/// - `Sk` the accordant Shared Secret Key type
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RevealBobParameters<P, Q, R, S, A> {
+pub struct RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// Reveal the buy public key.
-    pub buy: P,
+    pub buy: Pk,
     /// Reveal the cancel public key.
-    pub cancel: P,
+    pub cancel: Pk,
     /// Reveal the refund public key.
-    pub refund: P,
+    pub refund: Pk,
     /// Reveal the adaptor public key.
-    pub adaptor: P,
+    pub adaptor: Pk,
     /// Reveal the vector of extra arbitrating public keys.
-    pub extra_arbitrating_keys: Vec<TaggedElement<u16, P>>,
+    pub extra_arbitrating_keys: Vec<TaggedElement<u16, Pk>>,
     /// Reveal the vector of extra arbitrating shared keys.
-    pub arbitrating_shared_keys: Vec<TaggedElement<SharedKeyId, R>>,
+    pub arbitrating_shared_keys: Vec<TaggedElement<SharedKeyId, Rk>>,
     /// Reveal the spend public key.
-    pub spend: Q,
+    pub spend: Qk,
     /// Reveal the vector of extra accordant public keys.
-    pub extra_accordant_keys: Vec<TaggedElement<u16, Q>>,
+    pub extra_accordant_keys: Vec<TaggedElement<u16, Qk>>,
     /// Reveal the vector of extra accordant shared keys.
-    pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, S>>,
+    pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Sk>>,
     /// The refund Bitcoin address.
-    pub address: A,
+    pub address: Addr,
 }
 
 // TODO impl Display
 
-impl<P, Q, R, S, A> Encodable for RevealBobParameters<P, Q, R, S, A>
+impl<Pk, Qk, Rk, Sk, Addr> Encodable for RevealBobParameters<Pk, Qk, Rk, Sk, Addr>
 where
-    P: CanonicalBytes,
-    Q: CanonicalBytes,
-    R: CanonicalBytes,
-    S: CanonicalBytes,
-    A: CanonicalBytes,
+    Pk: CanonicalBytes,
+    Qk: CanonicalBytes,
+    Rk: CanonicalBytes,
+    Sk: CanonicalBytes,
+    Addr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
         let mut len = self.swap_id.consensus_encode(s)?;
@@ -551,34 +484,34 @@ where
     }
 }
 
-impl<P, Q, R, S, A> Decodable for RevealBobParameters<P, Q, R, S, A>
+impl<Pk, Qk, Rk, Sk, Addr> Decodable for RevealBobParameters<Pk, Qk, Rk, Sk, Addr>
 where
-    P: CanonicalBytes,
-    Q: CanonicalBytes,
-    R: CanonicalBytes,
-    S: CanonicalBytes,
-    A: CanonicalBytes,
+    Pk: CanonicalBytes,
+    Qk: CanonicalBytes,
+    Rk: CanonicalBytes,
+    Sk: CanonicalBytes,
+    Addr: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
             swap_id: Decodable::consensus_decode(d)?,
-            buy: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            cancel: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            refund: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            adaptor: P::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            buy: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            refund: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            adaptor: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             extra_arbitrating_keys: Decodable::consensus_decode(d)?,
             arbitrating_shared_keys: Decodable::consensus_decode(d)?,
-            spend: Q::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            spend: Qk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             extra_accordant_keys: Decodable::consensus_decode(d)?,
             accordant_shared_keys: Decodable::consensus_decode(d)?,
-            address: A::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            address: Addr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
 
-impl_strict_encoding!(RevealBobParameters<P, Q, R, S, A>, P: CanonicalBytes, Q: CanonicalBytes, R: CanonicalBytes, S: CanonicalBytes, A: CanonicalBytes);
+impl_strict_encoding!(RevealBobParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes);
 
-impl<P, Q, R, S, A> Strategy for RevealBobParameters<P, Q, R, S, A> {
+impl<Pk, Qk, Rk, Sk, Addr> Strategy for RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
     type Strategy = AsStrict;
 }
 
@@ -613,25 +546,25 @@ impl<P, Q, R, S, A> Strategy for RevealBobParameters<P, Q, R, S, A> {
 /// [`Lockable`]: crate::transaction::Lockable
 /// [`Cancelable`]: crate::transaction::Cancelable
 /// [`Refundable`]: crate::transaction::Refundable
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CoreArbitratingSetup<PartialTx, Sig> {
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CoreArbitratingSetup<Px, Sig> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// The arbitrating `lock (b)` transaction.
-    pub lock: PartialTx,
+    pub lock: Px,
     /// The arbitrating `cancel (d)` transaction.
-    pub cancel: PartialTx,
+    pub cancel: Px,
     /// The arbitrating `refund (e)` transaction.
-    pub refund: PartialTx,
+    pub refund: Px,
     /// The `Bc` `cancel (d)` signature.
     pub cancel_sig: Sig,
 }
 
 // TODO impl Display
 
-impl<PartialTx, Sig> Encodable for CoreArbitratingSetup<PartialTx, Sig>
+impl<Px, Sig> Encodable for CoreArbitratingSetup<Px, Sig>
 where
-    PartialTx: CanonicalBytes,
+    Px: CanonicalBytes,
     Sig: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
@@ -643,25 +576,25 @@ where
     }
 }
 
-impl<PartialTx, Sig> Decodable for CoreArbitratingSetup<PartialTx, Sig>
+impl<Px, Sig> Decodable for CoreArbitratingSetup<Px, Sig>
 where
-    PartialTx: CanonicalBytes,
+    Px: CanonicalBytes,
     Sig: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
             swap_id: Decodable::consensus_decode(d)?,
-            lock: PartialTx::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            cancel: PartialTx::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-            refund: PartialTx::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            lock: Px::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel: Px::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            refund: Px::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             cancel_sig: Sig::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
 
-impl_strict_encoding!(CoreArbitratingSetup<PartialTx, Sig>, PartialTx: CanonicalBytes, Sig: CanonicalBytes);
+impl_strict_encoding!(CoreArbitratingSetup<Px, Sig>, Px: CanonicalBytes, Sig: CanonicalBytes);
 
-impl<PartialTx, Sig> Strategy for CoreArbitratingSetup<PartialTx, Sig> {
+impl<Px, Sig> Strategy for CoreArbitratingSetup<Px, Sig> {
     type Strategy = AsStrict;
 }
 
@@ -700,7 +633,7 @@ impl<PartialTx, Sig> Strategy for CoreArbitratingSetup<PartialTx, Sig> {
 /// [`SwapRole::Bob`]: crate::role::SwapRole::Bob
 /// [`Cancelable`]: crate::transaction::Cancelable
 /// [`Refundable`]: crate::transaction::Refundable
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RefundProcedureSignatures<Sig, EncSig> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
@@ -779,21 +712,21 @@ impl<Sig, EncSig> Strategy for RefundProcedureSignatures<Sig, EncSig> {
 ///
 /// [`SwapRole::Bob`]: crate::role::SwapRole::Bob
 /// [`Buyable`]: crate::transaction::Buyable
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BuyProcedureSignature<PartialTx, EncSig> {
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BuyProcedureSignature<Px, EncSig> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// The arbitrating `buy (c)` transaction.
-    pub buy: PartialTx,
+    pub buy: Px,
     /// The `Bb(Ta)` `buy (c)` adaptor signature.
     pub buy_adaptor_sig: EncSig,
 }
 
 // TODO impl Display
 
-impl<PartialTx, EncSig> Encodable for BuyProcedureSignature<PartialTx, EncSig>
+impl<Px, EncSig> Encodable for BuyProcedureSignature<Px, EncSig>
 where
-    PartialTx: CanonicalBytes,
+    Px: CanonicalBytes,
     EncSig: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
@@ -807,28 +740,28 @@ where
     }
 }
 
-impl<PartialTx, EncSig> Decodable for BuyProcedureSignature<PartialTx, EncSig>
+impl<Px, EncSig> Decodable for BuyProcedureSignature<Px, EncSig>
 where
-    PartialTx: CanonicalBytes,
+    Px: CanonicalBytes,
     EncSig: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
             swap_id: Decodable::consensus_decode(d)?,
-            buy: PartialTx::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            buy: Px::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             buy_adaptor_sig: EncSig::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
 
-impl_strict_encoding!(BuyProcedureSignature<PartialTx, EncSig>, PartialTx: consensus::CanonicalBytes, EncSig: consensus::CanonicalBytes);
+impl_strict_encoding!(BuyProcedureSignature<Px, EncSig>, Px: consensus::CanonicalBytes, EncSig: consensus::CanonicalBytes);
 
-impl<PartialTx, EncSig> Strategy for BuyProcedureSignature<PartialTx, EncSig> {
+impl<Px, EncSig> Strategy for BuyProcedureSignature<Px, EncSig> {
     type Strategy = AsStrict;
 }
 
 // FIXME needs bundle change
-//impl<PartialTx, EncSig> From<(SwapId, bundle::SignedAdaptorBuy<Ctx::Ar>)> for BuyProcedureSignature<PartialTx, EncSig>
+//impl<Px, EncSig> From<(SwapId, bundle::SignedAdaptorBuy<Ctx::Ar>)> for BuyProcedureSignature<Px, EncSig>
 ////where
 ////    Ctx: Swap,
 //{

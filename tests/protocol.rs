@@ -1,24 +1,34 @@
+use farcaster_core::bitcoin::fee::SatPerVByte;
+use farcaster_core::bitcoin::timelock::CSVTimelock;
+use farcaster_core::bitcoin::BitcoinSegwitV0 as Btc;
 use farcaster_core::bitcoin::{
     segwitv0::{BuyTx, CancelTx, FundingTx, LockTx, PunishTx, RefundTx},
     BitcoinSegwitV0,
 };
+use farcaster_core::monero::Monero as Xmr;
 use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
 use farcaster_core::blockchain::{FeePriority, Network};
 use farcaster_core::consensus::deserialize;
+use farcaster_core::crypto::KeccakCommitment;
 use farcaster_core::crypto::{
     ArbitratingKeyId, CommitmentEngine, GenerateKey, ProveCrossGroupDleq,
 };
 use farcaster_core::negotiation::PublicOffer;
 use farcaster_core::protocol::message::*;
-use farcaster_core::role::{Alice, Bob};
+use farcaster_core::protocol::{Alice, Bob, Parameters};
 use farcaster_core::swap::SwapId;
 use farcaster_core::transaction::*;
 
 use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
-use bitcoin::secp256k1::{PublicKey, Secp256k1};
+use bitcoin::secp256k1::{PublicKey as BPub, Secp256k1, SecretKey as BPriv, Signature};
+use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
+
+use ecdsa_fun::adaptor::EncryptedSignature;
+
+use monero::{PrivateKey as MPriv, PublicKey as MPub};
 
 use std::str::FromStr;
 
@@ -30,21 +40,23 @@ macro_rules! test_strict_ser {
     };
 }
 
-fn init() -> (Alice<BtcXmr>, Bob<BtcXmr>, PublicOffer<BtcXmr>) {
+fn init() -> (
+    Alice<Address, Btc, Xmr>,
+    Bob<Address, Btc, Xmr>,
+    PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
+) {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
                a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
                27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
                00000000000000000000000260700";
 
-    let destination_address =
-        Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").expect("Parsable address");
+    let destination = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").unwrap();
     let fee_politic = FeePriority::Low;
-    let alice: Alice<BtcXmr> = Alice::new(destination_address, fee_politic);
-    let refund_address =
-        Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").expect("Parsable address");
-    let bob: Bob<BtcXmr> = Bob::new(refund_address, fee_politic);
+    let alice = Alice::new(Btc::new(), Xmr, destination, fee_politic);
+    let refund = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").unwrap();
+    let bob = Bob::new(Btc::new(), Xmr, refund, fee_politic);
 
-    let pub_offer: PublicOffer<BtcXmr> =
+    let pub_offer: PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
 
     (alice, bob, pub_offer)
@@ -78,31 +90,34 @@ fn execute_offline_protocol() {
     //
     // Commit/Reveal round
     //
-    let (alice_params, _alice_proof) = alice
+    let alice_params: Parameters<_, _, BPriv, MPriv, _, _, _, _> = alice
         .generate_parameters(&mut alice_key_manager, &pub_offer)
         .unwrap();
-    let commit_alice_params =
-        CommitAliceParameters::commit_to_bundle(swap_id, &commitment_engine, alice_params.clone());
-    test_strict_ser!(commit_alice_params, CommitAliceParameters<BtcXmr>);
 
-    let (bob_params, _bob_proof) = bob
+    let commit_alice_params = alice_params.commit_alice(swap_id, &commitment_engine);
+    test_strict_ser!(commit_alice_params, CommitAliceParameters<KeccakCommitment>);
+
+    let bob_params: Parameters<_, _, BPriv, MPriv, _, _, _, _> = bob
         .generate_parameters(&mut bob_key_manager, &pub_offer)
         .unwrap();
-    let commit_bob_params =
-        CommitBobParameters::commit_to_bundle(swap_id, &commitment_engine, bob_params.clone());
-    test_strict_ser!(commit_bob_params, CommitBobParameters<BtcXmr>);
+    let commit_bob_params = bob_params.commit_bob(swap_id, &commitment_engine);
+    test_strict_ser!(commit_bob_params, CommitBobParameters<KeccakCommitment>);
 
     // Reveal
-    let reveal_alice_params: RevealAliceParameters<BtcXmr> = (swap_id, alice_params.clone()).into();
-    test_strict_ser!(reveal_alice_params, RevealAliceParameters<BtcXmr>);
-    let reveal_bob_params: RevealBobParameters<BtcXmr> = (swap_id, bob_params.clone()).into();
-    test_strict_ser!(reveal_bob_params, RevealBobParameters<BtcXmr>);
+    let reveal_alice_params = alice_params
+        .clone()
+        .reveal_alice(swap_id, alice.destination_address.clone());
+    test_strict_ser!(reveal_alice_params, RevealAliceParameters<BPub, MPub, BPriv, MPriv, Address>);
+    let reveal_bob_params = bob_params
+        .clone()
+        .reveal_bob(swap_id, bob.refund_address.clone());
+    test_strict_ser!(reveal_bob_params, RevealBobParameters<BPub, MPub, BPriv, MPriv, Address>);
 
     assert!(commit_alice_params
-        .verify_with_reveal(&commitment_engine, reveal_alice_params)
+        .verify_with_reveal(&commitment_engine, reveal_alice_params.clone())
         .is_ok());
     assert!(commit_bob_params
-        .verify_with_reveal(&commitment_engine, reveal_bob_params)
+        .verify_with_reveal(&commitment_engine, reveal_bob_params.clone())
         .is_ok());
 
     //
@@ -133,60 +148,71 @@ fn execute_offline_protocol() {
     // Create core arb transactions
     //
     let core = bob
-        .core_arbitrating_transactions(&alice_params, &bob_params, funding, &pub_offer)
+        .core_arbitrating_transactions(
+            &alice_params,
+            &bob_params,
+            funding,
+            pub_offer.to_arbitrating_params(),
+        )
         .unwrap();
     let bob_cosign_cancel = bob
         .cosign_arbitrating_cancel(&mut bob_key_manager, &core)
         .unwrap();
 
-    let core_arb_setup: CoreArbitratingSetup<BtcXmr> =
-        (swap_id, core.clone(), bob_cosign_cancel.clone()).into();
-    test_strict_ser!(core_arb_setup, CoreArbitratingSetup<BtcXmr>);
+    let core_arb_setup = core
+        .clone()
+        .into_arbitrating_setup(swap_id, bob_cosign_cancel);
+    test_strict_ser!(core_arb_setup, CoreArbitratingSetup<PartiallySignedTransaction, Signature>);
 
     //
     // Sign the refund procedure
     //
-    let adaptor_refund = alice
+    let refund_adaptor_sig = alice
         .sign_adaptor_refund(
             &mut alice_key_manager,
             &alice_params,
             &bob_params,
             &core,
-            &pub_offer,
+            pub_offer.to_arbitrating_params(),
         )
         .unwrap();
-    let alice_cosign_cancel = alice
+    let cancel_sig = alice
         .cosign_arbitrating_cancel(
             &mut alice_key_manager,
             &alice_params,
             &bob_params,
             &core,
-            &pub_offer,
+            pub_offer.to_arbitrating_params(),
         )
         .unwrap();
 
-    let refund_proc_sig: RefundProcedureSignatures<BtcXmr> =
-        (swap_id, alice_cosign_cancel.clone(), adaptor_refund.clone()).into();
-    test_strict_ser!(refund_proc_sig, RefundProcedureSignatures<BtcXmr>);
+    let refund_proc_sig = RefundProcedureSignatures {
+        swap_id,
+        cancel_sig,
+        refund_adaptor_sig: refund_adaptor_sig.clone(),
+    };
+    test_strict_ser!(refund_proc_sig, RefundProcedureSignatures<Signature, EncryptedSignature>);
 
     //
     // Validate the refund procedure and sign the buy procedure
     //
-    bob.validate_adaptor_refund(
-        &mut bob_key_manager,
-        &alice_params,
-        &bob_params,
-        &core,
-        &adaptor_refund,
-    )
-    .unwrap();
-    let adaptor_buy = bob
-        .sign_adaptor_buy(
+    assert!(bob
+        .validate_adaptor_refund(
             &mut bob_key_manager,
             &alice_params,
             &bob_params,
             &core,
-            &pub_offer,
+            &refund_adaptor_sig,
+        )
+        .is_ok());
+    let adaptor_buy = bob
+        .sign_adaptor_buy(
+            swap_id,
+            &mut bob_key_manager,
+            &alice_params,
+            &bob_params,
+            &core,
+            pub_offer.to_arbitrating_params(),
         )
         .unwrap();
     let signed_lock = bob
@@ -194,14 +220,13 @@ fn execute_offline_protocol() {
         .unwrap();
 
     let mut lock = LockTx::from_partial(core.lock.clone());
-    lock.add_witness(funding_key, signed_lock.lock_sig).unwrap();
-    let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut lock).unwrap();
+    lock.add_witness(funding_key, signed_lock).unwrap();
+    assert!(Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut lock).is_ok());
 
     // ...seen arbitrating lock...
     // ...seen accordant lock...
 
-    let buy_proc_sig: BuyProcedureSignature<BtcXmr> = (swap_id, adaptor_buy.clone()).into();
-    test_strict_ser!(buy_proc_sig, BuyProcedureSignature<BtcXmr>);
+    test_strict_ser!(adaptor_buy, BuyProcedureSignature<PartiallySignedTransaction, EncryptedSignature>);
 
     //
     // IF BUY PATH:
@@ -216,7 +241,7 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            &pub_offer,
+            pub_offer.to_arbitrating_params(),
             &adaptor_buy,
         )
         .unwrap();
@@ -226,17 +251,17 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            &pub_offer,
+            pub_offer.to_arbitrating_params(),
             &adaptor_buy,
         )
         .unwrap();
 
     let mut buy = BuyTx::from_partial(adaptor_buy.buy.clone());
-    buy.add_witness(bob_params.buy, fully_sign_buy.buy_adapted_sig)
+    buy.add_witness(bob_params.buy, fully_sign_buy.adapted_sig)
         .unwrap();
-    buy.add_witness(alice_params.buy, fully_sign_buy.buy_sig)
+    buy.add_witness(alice_params.buy, fully_sign_buy.sig)
         .unwrap();
-    let buy_tx = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut buy).unwrap();
+    let buy_tx = Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut buy).unwrap();
 
     // ...seen buy tx on-chain...
 
@@ -245,21 +270,21 @@ fn execute_offline_protocol() {
         .expect("Considered valid in tests");
 
     let secp = Secp256k1::new();
-    let btc_adaptor_priv =
-        bob.recover_accordant_key(&mut bob_key_manager, &alice_params, adaptor_buy, buy_tx);
+    let btc_adaptor_priv = bob.recover_accordant_key(
+        &mut bob_key_manager,
+        &alice_params,
+        adaptor_buy.buy_adaptor_sig,
+        buy_tx,
+    );
     let mut secret_bits: Vec<u8> = (*btc_adaptor_priv.as_ref()).into();
     secret_bits.reverse();
-    let xmr_spend_priv =
-        monero::PrivateKey::from_slice(secret_bits.as_ref()).expect("Valid Monero Private Key");
+    let xmr_spend_priv = MPriv::from_slice(secret_bits.as_ref()).expect("Valid Monero Private Key");
 
     assert_eq!(
-        PublicKey::from_secret_key(&secp, &btc_adaptor_priv),
+        BPub::from_secret_key(&secp, &btc_adaptor_priv),
         btc_encryption_key,
     );
-    assert_eq!(
-        monero::PublicKey::from_private_key(&xmr_spend_priv),
-        xmr_public_spend,
-    );
+    assert_eq!(MPub::from_private_key(&xmr_spend_priv), xmr_public_spend,);
     assert!(bob_key_manager
         .verify_proof(&xmr_public_spend, &btc_encryption_key, dleq_proof)
         .is_ok());
@@ -270,12 +295,10 @@ fn execute_offline_protocol() {
 
     let mut cancel = CancelTx::from_partial(core.cancel.clone());
     cancel
-        .add_witness(bob_params.cancel, bob_cosign_cancel.cancel_sig)
+        .add_witness(bob_params.cancel, bob_cosign_cancel)
         .unwrap();
-    cancel
-        .add_witness(alice_params.cancel, alice_cosign_cancel.cancel_sig)
-        .unwrap();
-    let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut cancel).unwrap();
+    cancel.add_witness(alice_params.cancel, cancel_sig).unwrap();
+    let _ = Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut cancel).unwrap();
 
     // ...seen arbitrating cancel...
 
@@ -284,17 +307,18 @@ fn execute_offline_protocol() {
     //
 
     let fully_signed_refund = bob
-        .fully_sign_refund(&mut bob_key_manager, core.clone(), &adaptor_refund)
+        .fully_sign_refund(&mut bob_key_manager, &core, &refund_adaptor_sig)
         .unwrap();
 
     let mut refund = RefundTx::from_partial(core.refund.clone());
     refund
-        .add_witness(alice_params.refund, fully_signed_refund.refund_adapted_sig)
+        .add_witness(alice_params.refund, fully_signed_refund.adapted_sig)
         .unwrap();
     refund
-        .add_witness(bob_params.refund, fully_signed_refund.refund_sig)
+        .add_witness(bob_params.refund, fully_signed_refund.sig)
         .unwrap();
-    let refund_tx = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut refund).unwrap();
+    let refund_tx =
+        Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut refund).unwrap();
 
     // ...seen refund tx on-chain...
 
@@ -305,22 +329,18 @@ fn execute_offline_protocol() {
     let btc_adaptor_priv = alice.recover_accordant_key(
         &mut alice_key_manager,
         &bob_params,
-        adaptor_refund,
+        refund_adaptor_sig,
         refund_tx,
     );
     let mut secret_bits: Vec<u8> = (*btc_adaptor_priv.as_ref()).into();
     secret_bits.reverse();
-    let xmr_spend_priv =
-        monero::PrivateKey::from_slice(secret_bits.as_ref()).expect("Valid Monero Private Key");
+    let xmr_spend_priv = MPriv::from_slice(secret_bits.as_ref()).expect("Valid Monero Private Key");
 
     assert_eq!(
-        PublicKey::from_secret_key(&secp, &btc_adaptor_priv),
+        BPub::from_secret_key(&secp, &btc_adaptor_priv),
         btc_encryption_key,
     );
-    assert_eq!(
-        monero::PublicKey::from_private_key(&xmr_spend_priv),
-        xmr_public_spend,
-    );
+    assert_eq!(MPub::from_private_key(&xmr_spend_priv), xmr_public_spend,);
     assert!(alice_key_manager
         .verify_proof(&xmr_public_spend, &btc_encryption_key, dleq_proof)
         .is_ok());
@@ -335,13 +355,16 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            &pub_offer,
+            pub_offer.to_arbitrating_params(),
         )
         .unwrap();
 
     let mut punish = PunishTx::from_partial(fully_signed_punish.punish);
     punish
-        .add_witness(alice_params.punish, fully_signed_punish.punish_sig)
+        .add_witness(
+            alice_params.punish.expect("Alice has punish"),
+            fully_signed_punish.punish_sig,
+        )
         .unwrap();
-    let _ = Broadcastable::<BitcoinSegwitV0>::finalize_and_extract(&mut refund).unwrap();
+    let _ = Broadcastable::<bitcoin::Transaction>::finalize_and_extract(&mut refund).unwrap();
 }

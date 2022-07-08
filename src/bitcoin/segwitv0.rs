@@ -14,8 +14,8 @@ use crate::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Strategy};
 use crate::bitcoin::timelock::CSVTimelock;
 use crate::blockchain::Transactions;
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
-use crate::role::{Arbitrating, SwapRole};
+use crate::crypto::{DeriveKeys, SharedKeyId, Signatures};
+use crate::role::SwapRole;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 
 use bitcoin::blockdata::opcodes;
@@ -23,6 +23,7 @@ use bitcoin::blockdata::script::{Builder, Instruction, Script};
 use bitcoin::blockdata::transaction::EcdsaSighashType;
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey, Signing};
+use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::util::sighash::SighashCache;
 
 use ecdsa_fun::adaptor::EncryptedSignature;
@@ -337,7 +338,7 @@ impl PunishLock {
     }
 }
 
-impl Arbitrating for Bitcoin<SegwitV0> {}
+//impl Arbitrating for Bitcoin<SegwitV0> {}
 
 impl TryFrom<Btc> for Bitcoin<SegwitV0> {
     type Error = consensus::Error;
@@ -351,7 +352,15 @@ impl TryFrom<Btc> for Bitcoin<SegwitV0> {
 }
 
 impl Transactions for Bitcoin<SegwitV0> {
-    type Metadata = MetadataOutput;
+    type Addr = bitcoin::Address;
+    type Amt = bitcoin::Amount;
+    type Tx = bitcoin::Transaction;
+    type Px = PartiallySignedTransaction;
+    type Out = MetadataOutput;
+    type Ti = CSVTimelock;
+    type Ms = Sha256dHash;
+    type Pk = PublicKey;
+    type Si = Signature;
 
     type Funding = Funding;
     type Lock = Tx<Lock>;
@@ -361,12 +370,17 @@ impl Transactions for Bitcoin<SegwitV0> {
     type Punish = Tx<Punish>;
 }
 
-impl Keys for Bitcoin<SegwitV0> {
-    type SecretKey = SecretKey;
+impl DeriveKeys for Bitcoin<SegwitV0> {
     type PublicKey = PublicKey;
+    type PrivateKey = SecretKey;
 
-    fn extra_keys() -> Vec<u16> {
+    fn extra_public_keys() -> Vec<u16> {
         // No extra key
+        vec![]
+    }
+
+    fn extra_shared_private_keys() -> Vec<SharedKeyId> {
+        // No shared key in Bitcoin, transparent ledger
         vec![]
     }
 }
@@ -381,28 +395,6 @@ impl CanonicalBytes for SecretKey {
         Self: Sized,
     {
         SecretKey::from_slice(bytes).map_err(consensus::Error::new)
-    }
-}
-
-impl CanonicalBytes for PublicKey {
-    fn as_canonical_bytes(&self) -> Vec<u8> {
-        self.serialize().as_ref().into()
-    }
-
-    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
-    where
-        Self: Sized,
-    {
-        PublicKey::from_slice(bytes).map_err(consensus::Error::new)
-    }
-}
-
-impl SharedSecretKeys for Bitcoin<SegwitV0> {
-    type SharedSecretKey = SecretKey;
-
-    fn shared_keys() -> Vec<SharedKeyId> {
-        // No shared key in Bitcoin, transparent ledger
-        vec![]
     }
 }
 

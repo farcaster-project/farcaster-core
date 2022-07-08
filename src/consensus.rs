@@ -12,6 +12,8 @@ use std::error;
 use std::io;
 use std::str;
 
+use bitcoin::secp256k1::PublicKey;
+
 /// Encoding and decoding errors and data transformation errors (when converting data from one
 /// message type to another).
 #[derive(Error, Debug)]
@@ -420,6 +422,19 @@ macro_rules! impl_strict_encoding {
             }
         }
     };
+}
+
+impl CanonicalBytes for PublicKey {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.serialize().as_ref().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        PublicKey::from_slice(bytes).map_err(Error::new)
+    }
 }
 
 #[cfg(test)]

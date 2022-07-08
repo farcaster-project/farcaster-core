@@ -88,7 +88,7 @@ impl Error {
 /// Element `E` prefixed with a tag `T`. Used to tag content with some ids. Tag should be `Eq` to
 /// be used in vectors or sets and identify the content. Tags can be [`ArbitratingKeyId`],
 /// [`AccordantKeyId`] or any other type of identifiers.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaggedElement<T, E> {
     tag: T,
     elem: E,
@@ -301,34 +301,45 @@ impl Commit<KeccakCommitment> for CommitmentEngine {
     }
 }
 
-/// Required for [`Arbitrating`] and [`Accordant`] blockchains to fix the cryptographic secret key
-/// and public key types. The public key type is shared across the network and used in
-/// transactions, the secret key type is used during signing operation, proofs, etc.
+/// Required for [`Arbitrating`] and [`Accordant`] blockchains to dervice extra public keys (keys
+/// not automatically derives by the protocol by default) and extra shared private keys. Shared
+/// private keys are used in situation when e.g. blockchain is not transparent or when extra nonces
+/// should be exchanged.
+///
+/// ```
+/// use farcaster_core::crypto::DeriveKeys;
+/// use farcaster_core::crypto::SharedKeyId;
+/// use bitcoin::secp256k1::{PublicKey, SecretKey};
+///
+/// pub struct Bitcoin;
+///
+/// impl DeriveKeys for Bitcoin {
+///     type PublicKey = PublicKey;
+///     type PrivateKey = SecretKey;
+///
+///     fn extra_public_keys() -> Vec<u16> {
+///         // no extra needed
+///         vec![]
+///     }
+///
+///     fn extra_shared_private_keys() -> Vec<SharedKeyId> {
+///         // no shared key needed, transparent blockchain
+///         vec![]
+///     }
+/// }
+/// ```
 ///
 /// [`Arbitrating`]: crate::role::Arbitrating
 /// [`Accordant`]: crate::role::Accordant
-pub trait Keys {
-    /// Secret key type used for signing and proving.
-    type SecretKey;
-
-    /// Public key type used in transactions.
-    type PublicKey: Clone + Copy + PartialEq + Debug + fmt::Display + CanonicalBytes;
+pub trait DeriveKeys {
+    type PublicKey;
+    type PrivateKey;
 
     /// Return a list of extra public key identifiers to use during the setup phase.
-    fn extra_keys() -> Vec<u16>;
-}
-
-/// Required for [`Arbitrating`] and [`Accordant`] blockchains to fix the potential shared secret
-/// keys send over the network. E.g. the private `view` key needed to parse the Monero blockchain.
-///
-/// [`Arbitrating`]: crate::role::Arbitrating
-/// [`Accordant`]: crate::role::Accordant
-pub trait SharedSecretKeys {
-    /// Shareable secret key type used to parse, e.g., non-transparent blockchain.
-    type SharedSecretKey: Clone + PartialEq + Debug + CanonicalBytes;
+    fn extra_public_keys() -> Vec<u16>;
 
     /// Return a list of extra shared secret key identifiers to use during the setup phase.
-    fn shared_keys() -> Vec<SharedKeyId>;
+    fn extra_shared_private_keys() -> Vec<SharedKeyId>;
 }
 
 /// Trait required for [`Arbitrating`] blockchains to define the cryptographic message format to

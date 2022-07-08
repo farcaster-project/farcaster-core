@@ -1,3 +1,4 @@
+/*
 use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
 
 use farcaster_core::blockchain::FeePriority;
@@ -195,3 +196,4 @@ fn missing_commitment_in_vec() {
 }
 
 // What if you commit in vec but you don't reveal?
+*/

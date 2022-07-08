@@ -3,7 +3,7 @@
 
 use crate::blockchain::{self, Asset, Network};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{self, AccordantKeySet, AccordantKeys, Keys, SharedKeyId, SharedSecretKeys};
+use crate::crypto::{self, AccordantKeySet, AccordantKeys, DeriveKeys, SharedKeyId};
 use crate::role::Accordant;
 
 use monero::util::key::{PrivateKey, PublicKey};
@@ -22,7 +22,7 @@ pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
 
-impl Accordant for Monero {
+impl Accordant<PublicKey, PrivateKey, Address> for Monero {
     fn derive_lock_address(
         network: Network,
         keys: AccordantKeySet<PublicKey, PrivateKey>,
@@ -134,13 +134,18 @@ impl CanonicalBytes for Address {
     }
 }
 
-impl Keys for Monero {
-    type SecretKey = PrivateKey;
+impl DeriveKeys for Monero {
     type PublicKey = PublicKey;
+    type PrivateKey = PrivateKey;
 
-    fn extra_keys() -> Vec<u16> {
+    fn extra_public_keys() -> Vec<u16> {
         // No extra key
         vec![]
+    }
+
+    fn extra_shared_private_keys() -> Vec<SharedKeyId> {
+        // Share one key: the private view key
+        vec![SharedKeyId::new(SHARED_VIEW_KEY_ID)]
     }
 }
 
@@ -167,14 +172,5 @@ impl CanonicalBytes for PublicKey {
         Self: Sized,
     {
         PublicKey::from_slice(bytes).map_err(consensus::Error::new)
-    }
-}
-
-impl SharedSecretKeys for Monero {
-    type SharedSecretKey = PrivateKey;
-
-    fn shared_keys() -> Vec<SharedKeyId> {
-        // Share one key: the private view key
-        vec![SharedKeyId::new(SHARED_VIEW_KEY_ID)]
     }
 }

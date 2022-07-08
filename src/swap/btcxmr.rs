@@ -9,7 +9,7 @@ use crate::crypto::{
     ProveCrossGroupDleq, SharedKeyId,
 };
 #[cfg(feature = "experimental")]
-use crate::{bitcoin::BitcoinSegwitV0, crypto::Sign, monero::Monero, swap::Swap};
+use crate::{bitcoin::BitcoinSegwitV0, crypto::Sign, monero::Monero};
 use crate::{blockchain::Blockchain, crypto::dleq::DLEQProof};
 
 use monero::cryptonote::hash::Hash;
@@ -60,14 +60,14 @@ pub const CLAMPING_TO_252_BITS_MASK: u8 = 0b0000_1111;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BtcXmr;
 
-#[cfg(feature = "experimental")]
-#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-impl Swap for BtcXmr {
-    type Ar = BitcoinSegwitV0;
-    type Ac = Monero;
-    type Proof = DLEQProof;
-    type Commitment = KeccakCommitment;
-}
+//#[cfg(feature = "experimental")]
+//#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+//impl Swap for BtcXmr {
+//    type Ar = BitcoinSegwitV0;
+//    type Ac = Monero;
+//    type Proof = DLEQProof;
+//    type Commitment = KeccakCommitment;
+//}
 
 /// Retrieve the derivation path of something. Might be a blockchain, a type of key, anything that
 /// can contribute to the full derivation path of a key.

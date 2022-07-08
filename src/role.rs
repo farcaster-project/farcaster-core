@@ -6,13 +6,13 @@ use std::fmt::{Debug, Display};
 use std::io;
 use std::str::FromStr;
 
-use crate::blockchain::{Address, Asset, Fee, Network, Onchain, Timelock, Transactions};
+use crate::blockchain::{Address, Asset, Fee, Network, Onchain, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{self, AccordantKeySet, Keys, SharedSecretKeys, Signatures};
+use crate::crypto::{self, AccordantKeySet, Signatures};
 
 /// Possible roles during the negotiation phase. Any negotiation role can transition into any swap
 /// role when negotiation is completed, the transition is described in the public offer.
-#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Display, Debug, Clone, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum TradeRole {
     /// The maker role create the public offer during the negotiation phase and waits for incoming
@@ -68,7 +68,7 @@ impl FromStr for TradeRole {
 
 /// Possible roles during the swap phase. When negotitation phase is completed [`TradeRole`] will
 /// transition into swap role according to the [`PublicOffer`].
-#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Display, Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum SwapRole {
     /// Alice, the swap role, is the role starting with accordant blockchain assets and exchange
@@ -122,33 +122,20 @@ impl FromStr for SwapRole {
     }
 }
 
-/// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
-/// blockchain will use transaction to transfer the funds on both blockchains.
-pub trait Arbitrating:
-    Asset
-    + Address
-    + Fee
-    + Keys
-    + Onchain
-    + Signatures
-    + Timelock
-    + Transactions
-    + SharedSecretKeys
-    + Display
-    + Debug
-    + Clone
-    + Eq
-{
-}
+///// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
+///// blockchain will use transaction to transfer the funds on both blockchains.
+//pub trait Arbitrating:
+//    Asset + Address + Fee + Onchain + Signatures + Timelock + Display + Debug + Clone + Eq
+//{
+//}
 
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks: it is the blockchain with fewer requirements for an atomic swap.
-pub trait Accordant:
-    Asset + Address + Keys + SharedSecretKeys + Clone + Eq + Display + Debug
-{
+pub trait Accordant<Pk, Sk, Addr> {
+    //: Asset + Address + Clone + Eq + Display + Debug
     /// Derive the lock address for the accordant blockchain.
     fn derive_lock_address(
         network: Network,
-        keys: AccordantKeySet<Self::PublicKey, Self::SecretKey>,
-    ) -> Result<Self::Address, crypto::Error>;
+        keys: AccordantKeySet<Pk, Sk>,
+    ) -> Result<Addr, crypto::Error>;
 }

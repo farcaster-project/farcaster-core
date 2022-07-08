@@ -29,11 +29,11 @@ use tiny_keccak::{Hasher, Keccak};
 use std::fmt;
 use std::io;
 
-use crate::blockchain::{Asset, Fee, FeeStrategy, Network, Timelock};
+use crate::blockchain::{Asset, Blockchain, Fee, FeeStrategy, Network, Timelock};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
 use crate::hash::{HashString, OfferString};
+use crate::protocol::ArbitratingParameters;
 use crate::role::{SwapRole, TradeRole};
-use crate::swap::Swap;
 
 /// First six magic bytes of a public offer. Bytes are included inside the base58 encoded part.
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
@@ -118,45 +118,35 @@ impl<'de> Deserialize<'de> for OfferId {
 /// perspective. The daemon start when the maker is ready to finalize his offer, transforming the
 /// offer into a [`PublicOffer`] which contains the data needed to a taker to connect to the
 /// maker's daemon.
-#[derive(Debug, Clone, Eq)]
-pub struct Offer<Ctx: Swap> {
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct Offer<Amt, Bmt, Ti, F> {
     /// Type of offer and network to use.
     pub network: Network,
     /// The chosen arbitrating blockchain.
-    pub arbitrating_blockchain: Ctx::Ar,
+    pub arbitrating_blockchain: Blockchain,
     /// The chosen accordant blockchain.
-    pub accordant_blockchain: Ctx::Ac,
+    pub accordant_blockchain: Blockchain,
     /// Amount of arbitrating assets to exchanged.
-    pub arbitrating_amount: <Ctx::Ar as Asset>::AssetUnit,
+    pub arbitrating_amount: Amt,
     /// Amount of accordant assets to exchanged.
-    pub accordant_amount: <Ctx::Ac as Asset>::AssetUnit,
+    pub accordant_amount: Bmt,
     /// The cancel timelock parameter of the arbitrating blockchain.
-    pub cancel_timelock: <Ctx::Ar as Timelock>::Timelock,
+    pub cancel_timelock: Ti,
     /// The punish timelock parameter of the arbitrating blockchain.
-    pub punish_timelock: <Ctx::Ar as Timelock>::Timelock,
+    pub punish_timelock: Ti,
     /// The chosen fee strategy for the arbitrating transactions.
-    pub fee_strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>,
+    pub fee_strategy: FeeStrategy<F>,
     /// The future maker swap role.
     pub maker_role: SwapRole,
 }
 
-// https://doc.rust-lang.org/std/hash/trait.Hash.html#hash-and-eq
-impl<Ctx: Swap> PartialEq for Offer<Ctx> {
-    fn eq(&self, other: &Self) -> bool {
-        consensus::serialize_hex(self) == consensus::serialize_hex(other)
-    }
-}
-
-impl<Ctx: Swap> std::hash::Hash for Offer<Ctx> {
-    fn hash<H>(&self, hasher: &mut H)
-    where
-        H: std::hash::Hasher,
-    {
-        hasher.write(&consensus::serialize(self)[..]);
-    }
-}
-
-impl<Ctx: Swap> fmt::Display for Offer<Ctx> {
+impl<Amt, Bmt, Ti, F> fmt::Display for Offer<Amt, Bmt, Ti, F>
+where
+    Amt: fmt::Display,
+    Bmt: fmt::Display,
+    Ti: fmt::Display,
+    F: fmt::Display,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Network: {}", self.network)?;
         writeln!(f, "Blockchain: {}", self.arbitrating_blockchain)?;
@@ -171,13 +161,13 @@ impl<Ctx: Swap> fmt::Display for Offer<Ctx> {
     }
 }
 
-impl<Ctx: Swap> Offer<Ctx> {
+impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F> {
     /// Transform the offer in a public offer of [`Version`] 1.
     pub fn to_public_v1(
         self,
         node_id: PublicKey,
         peer_address: InetSocketAddr,
-    ) -> PublicOffer<Ctx> {
+    ) -> PublicOffer<Amt, Bmt, Ti, F> {
         PublicOffer {
             version: Version::new_v1(),
             offer: self,
@@ -193,7 +183,12 @@ impl<Ctx: Swap> Offer<Ctx> {
             TradeRole::Taker => self.maker_role.other(),
         }
     }
+}
 
+impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F>
+where
+    Self: Encodable,
+{
     /// Generate the [`OfferId`] from the offer.
     pub fn id(&self) -> OfferId {
         let mut keccak = Keccak::v256();
@@ -204,14 +199,17 @@ impl<Ctx: Swap> Offer<Ctx> {
     }
 }
 
-impl<Ctx> Encodable for Offer<Ctx>
+impl<Amt, Bmt, Ti, F> Encodable for Offer<Amt, Bmt, Ti, F>
 where
-    Ctx: Swap,
+    Amt: CanonicalBytes,
+    Bmt: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
         let mut len = self.network.consensus_encode(s)?;
-        len += self.arbitrating_blockchain.to_u32().consensus_encode(s)?;
-        len += self.accordant_blockchain.to_u32().consensus_encode(s)?;
+        len += self.arbitrating_blockchain.consensus_encode(s)?;
+        len += self.accordant_blockchain.consensus_encode(s)?;
         len += self
             .arbitrating_amount
             .as_canonical_bytes()
@@ -233,36 +231,31 @@ where
     }
 }
 
-impl<Ctx> Decodable for Offer<Ctx>
+impl<Amt, Bmt, Ti, F> Decodable for Offer<Amt, Bmt, Ti, F>
 where
-    Ctx: Swap,
+    Amt: CanonicalBytes,
+    Bmt: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Offer {
             network: Decodable::consensus_decode(d)?,
-            arbitrating_blockchain: Ctx::Ar::from_u32(Decodable::consensus_decode(d)?)
-                .ok_or(consensus::Error::UnknownType)?,
-            accordant_blockchain: Ctx::Ac::from_u32(Decodable::consensus_decode(d)?)
-                .ok_or(consensus::Error::UnknownType)?,
-            arbitrating_amount: <Ctx::Ar as Asset>::AssetUnit::from_canonical_bytes(
-                unwrap_vec_ref!(d).as_ref(),
-            )?,
-            accordant_amount: <Ctx::Ac as Asset>::AssetUnit::from_canonical_bytes(
-                unwrap_vec_ref!(d).as_ref(),
-            )?,
-            cancel_timelock: <Ctx::Ar as Timelock>::Timelock::from_canonical_bytes(
-                unwrap_vec_ref!(d).as_ref(),
-            )?,
-            punish_timelock: <Ctx::Ar as Timelock>::Timelock::from_canonical_bytes(
-                unwrap_vec_ref!(d).as_ref(),
-            )?,
+            arbitrating_blockchain: Decodable::consensus_decode(d)?,
+            accordant_blockchain: Decodable::consensus_decode(d)?,
+            arbitrating_amount: Amt::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            accordant_amount: Bmt::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel_timelock: Ti::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            punish_timelock: Ti::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             fee_strategy: Decodable::consensus_decode(d)?,
             maker_role: Decodable::consensus_decode(d)?,
         })
     }
 }
 
-impl_strict_encoding!(Offer<Ctx>, Ctx: Swap);
+impl_strict_encoding!(Offer<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
+
+/*
 
 /// Helper to create an offer from an arbitrating asset buyer perspective. Only works only for
 /// buying [`Arbitrating`] assets with some [`Accordant`] assets.  The reverse is not implemented
@@ -446,6 +439,8 @@ where
     }
 }
 
+*/
+
 fixed_hash::construct_fixed_hash!(
     /// Identify a public offer by it's content, internally store the hash of the offer serialized
     /// with Farcaster consensus.
@@ -491,12 +486,12 @@ impl_strict_encoding!(PublicOfferId);
 /// A public offer is shared across [`TradeRole::Maker`]'s prefered network to signal is willing of
 /// trading some assets at some conditions. The assets and condition are defined in the [`Offer`],
 /// maker peer connection information are contained in the public offer.
-#[derive(Debug, Clone, Eq)]
-pub struct PublicOffer<Ctx: Swap> {
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+pub struct PublicOffer<Amt, Bmt, Ti, F> {
     /// The public offer version.
     pub version: Version,
     /// The content of the offer.
-    pub offer: Offer<Ctx>,
+    pub offer: Offer<Amt, Bmt, Ti, F>,
     /// Node public key, used both as an ID and encryption key for per-session ECDH.
     pub node_id: PublicKey,
     /// Address of the listening daemon's peer. An internet socket address, which consists of an IP
@@ -504,7 +499,26 @@ pub struct PublicOffer<Ctx: Swap> {
     pub peer_address: InetSocketAddr,
 }
 
-impl<Ctx: Swap> PublicOffer<Ctx> {
+impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F>
+where
+    Amt: Copy,
+    Ti: Copy,
+    F: Copy,
+{
+    pub fn to_arbitrating_params(&self) -> ArbitratingParameters<Amt, Ti, F> {
+        ArbitratingParameters {
+            arbitrating_amount: self.offer.arbitrating_amount,
+            cancel_timelock: self.offer.cancel_timelock,
+            punish_timelock: self.offer.punish_timelock,
+            fee_strategy: self.offer.fee_strategy,
+        }
+    }
+}
+
+impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F>
+where
+    Self: Encodable,
+{
     /// Generate the [`PublicOfferId`] from the offer. Serialized the public offer with consensus
     /// encoding and return the keccak hash result with [`PublicOfferId`].
     pub fn id(&self) -> PublicOfferId {
@@ -517,36 +531,20 @@ impl<Ctx: Swap> PublicOffer<Ctx> {
 
     /// Returns the hex string representation of the consensus encoded public offer.
     pub fn to_hex(&self) -> String {
-        serialize_hex(&self.clone())
+        serialize_hex(self)
     }
 }
 
-// https://doc.rust-lang.org/std/hash/trait.Hash.html#hash-and-eq
-impl<Ctx: Swap> PartialEq for PublicOffer<Ctx> {
-    fn eq(&self, other: &Self) -> bool {
-        consensus::serialize_hex(self) == consensus::serialize_hex(other)
-    }
-}
-
-impl<Ctx: Swap> std::hash::Hash for PublicOffer<Ctx> {
-    fn hash<H>(&self, hasher: &mut H)
-    where
-        H: std::hash::Hasher,
-    {
-        hasher.write(&consensus::serialize(self)[..]);
-    }
-}
-
-impl<Ctx: Swap> PublicOffer<Ctx> {
+impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F> {
     /// Return the future swap role for the given trade role.
     pub fn swap_role(&self, trade_role: &TradeRole) -> SwapRole {
         self.offer.swap_role(trade_role)
     }
 }
 
-impl<Ctx> std::fmt::Display for PublicOffer<Ctx>
+impl<Amt, Bmt, Ti, F> std::fmt::Display for PublicOffer<Amt, Bmt, Ti, F>
 where
-    Ctx: Swap,
+    Self: Encodable,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let encoded = base58_monero::encode_check(consensus::serialize(self).as_ref())
@@ -555,9 +553,12 @@ where
     }
 }
 
-impl<Ctx> std::str::FromStr for PublicOffer<Ctx>
+impl<Amt, Bmt, Ti, F> std::str::FromStr for PublicOffer<Amt, Bmt, Ti, F>
 where
-    Ctx: Swap,
+    Amt: CanonicalBytes,
+    Bmt: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
 {
     type Err = consensus::Error;
 
@@ -572,9 +573,12 @@ where
 }
 
 // TODO: implement properly without encoding in base58 first
-impl<Ctx> Serialize for PublicOffer<Ctx>
+impl<Amt, Bmt, Ti, F> Serialize for PublicOffer<Amt, Bmt, Ti, F>
 where
-    Ctx: Swap,
+    Amt: CanonicalBytes,
+    Bmt: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -585,11 +589,14 @@ where
 }
 
 // TODO: implement properly without decoding from base58
-impl<'de, Ctx> Deserialize<'de> for PublicOffer<Ctx>
+impl<'de, Amt, Bmt, Ti, F> Deserialize<'de> for PublicOffer<Amt, Bmt, Ti, F>
 where
-    Ctx: Swap,
+    Amt: CanonicalBytes,
+    Bmt: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
 {
-    fn deserialize<D>(deserializer: D) -> Result<PublicOffer<Ctx>, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<PublicOffer<Amt, Bmt, Ti, F>, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -600,9 +607,12 @@ where
     }
 }
 
-impl<Ctx> Encodable for PublicOffer<Ctx>
+impl<Amt, Bmt, Ti, F> Encodable for PublicOffer<Amt, Bmt, Ti, F>
 where
-    Ctx: Swap,
+    Amt: CanonicalBytes,
+    Bmt: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
         let mut len = OFFER_MAGIC_BYTES.consensus_encode(s)?;
@@ -620,9 +630,12 @@ where
     }
 }
 
-impl<Ctx> Decodable for PublicOffer<Ctx>
+impl<Amt, Bmt, Ti, F> Decodable for PublicOffer<Amt, Bmt, Ti, F>
 where
-    Ctx: Swap,
+    Amt: CanonicalBytes,
+    Bmt: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let magic_bytes: [u8; 6] = Decodable::consensus_decode(d)?;
@@ -639,7 +652,7 @@ where
     }
 }
 
-impl_strict_encoding!(PublicOffer<Ctx>, Ctx: Swap);
+impl_strict_encoding!(PublicOffer<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
 
 #[cfg(test)]
 mod tests {
@@ -648,10 +661,10 @@ mod tests {
     use super::*;
     use crate::{
         bitcoin::{fee::SatPerVByte, timelock::CSVTimelock, BitcoinSegwitV0},
+        blockchain::Blockchain,
         consensus,
         monero::Monero,
         role::SwapRole,
-        swap::btcxmr::BtcXmr,
     };
     use inet2_addr::InetSocketAddr;
     use secp256k1::PublicKey;
@@ -674,11 +687,11 @@ mod tests {
             )
         };
 
-        pub static ref OFFER: Offer<BtcXmr> = {
+        pub static ref OFFER: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = {
             Offer {
                 network: Network::Testnet,
-                arbitrating_blockchain: BitcoinSegwitV0::new(),
-                accordant_blockchain: Monero,
+                arbitrating_blockchain: Blockchain::Bitcoin,
+                accordant_blockchain: Blockchain::Monero,
                 arbitrating_amount: bitcoin::Amount::from_sat(1350),
                 accordant_amount: monero::Amount::from_pico(10000),
                 cancel_timelock: CSVTimelock::new(4),
@@ -691,7 +704,8 @@ mod tests {
 
     #[test]
     fn parse_public_offer() {
-        let pub_offer = PublicOffer::<BtcXmr>::from_str(S);
+        let pub_offer =
+            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(S);
         assert!(pub_offer.is_ok());
 
         let pub_offer = pub_offer.unwrap();
@@ -703,7 +717,10 @@ mod tests {
 
     #[test]
     fn parse_public_offer_fail_without_prefix() {
-        let pub_offer = PublicOffer::<BtcXmr>::from_str(&S[5..]);
+        let pub_offer =
+            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(
+                &S[5..],
+            );
         match pub_offer {
             Err(consensus::Error::IncorrectMagicBytes) => (),
             _ => panic!("Should have return an error IncorrectMagicBytes"),
@@ -712,7 +729,7 @@ mod tests {
 
     #[test]
     fn display_offer() {
-        assert_eq!(&format!("{}", *OFFER), "Network: Testnet\nBlockchain: Bitcoin<SegwitV0>\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: Fixed: 1 satoshi/vByte\nMaker swap role: Bob\n");
+        assert_eq!(&format!("{}", *OFFER), "Network: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: Fixed: 1 satoshi/vByte\nMaker swap role: Bob\n");
     }
 
     #[test]
@@ -724,7 +741,7 @@ mod tests {
     #[test]
     fn serialize_public_offer_in_yaml() {
         let public_offer =
-            PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
             .expect("Valid public offer");
         let s = serde_yaml::to_string(&public_offer).expect("Encode public offer in yaml");
         assert_eq!(
@@ -738,7 +755,7 @@ mod tests {
         let s = "---\nOffer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R\n";
         let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
         assert_eq!(
-            PublicOffer::<BtcXmr>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
                 .expect("Valid public offer"),
             public_offer
         );

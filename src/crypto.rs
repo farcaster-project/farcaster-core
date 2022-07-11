@@ -453,14 +453,17 @@ pub trait RecoverSecret<PublicKey, SecretKey, Signature, EncryptedSignature> {
 
 /// Commitment generator and verifier. Generated commitments can be validated against candidates,
 /// if correct the commit/reveal process is validated.
-pub trait Commit<Commitment: Eq> {
+pub trait Commit<Commitment> {
     /// Provides a generic method to commit to any value referencable as stream of bytes.
     fn commit_to<T: AsRef<[u8]>>(&self, value: T) -> Commitment;
 
     /// Validate the equality between a candidate and a commitment, return `Ok(())` if the value
     /// commits to the same commitment's candidate, return [`Error::InvalidCommitment`]
     /// otherwise.
-    fn validate<T: AsRef<[u8]>>(&self, candidate: T, commitment: Commitment) -> Result<(), Error> {
+    fn validate<T: AsRef<[u8]>>(&self, candidate: T, commitment: Commitment) -> Result<(), Error>
+    where
+        Commitment: Eq,
+    {
         if self.commit_to(candidate) == commitment {
             Ok(())
         } else {

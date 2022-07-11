@@ -32,9 +32,9 @@ use std::str::FromStr;
 /// An amount of Bitcoin (internally in satoshis) representing the number of satoshis per virtual
 /// byte a transaction must use for its fee. A [`FeeStrategy`] can use one of more of this type
 /// depending of its complexity (fixed, range, etc).
-#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[display(display_sats_per_vbyte)]
-pub struct SatPerVByte(Amount);
+pub struct SatPerVByte(#[serde(with = "bitcoin::util::amount::serde::as_sat")] Amount);
 
 fn display_sats_per_vbyte(rate: &SatPerVByte) -> String {
     format!(
@@ -220,5 +220,19 @@ mod tests {
     fn display_sats_per_vbyte() {
         let fee_rate = SatPerVByte::from_sat(100);
         assert_eq!(format!("{}", fee_rate), "100 satoshi/vByte".to_string());
+    }
+
+    #[test]
+    fn serialize_fee_strat_in_yaml() {
+        let fee_strat = SatPerVByte::from_sat(10);
+        let s = serde_yaml::to_string(&fee_strat).expect("Encode fee strategy in yaml");
+        assert_eq!("---\n10\n", s);
+    }
+
+    #[test]
+    fn deserialize_fee_strat_in_yaml() {
+        let s = "---\n10\n";
+        let fee_strategy = serde_yaml::from_str(&s).expect("Decode fee strategy from yaml");
+        assert_eq!(SatPerVByte::from_sat(10), fee_strategy);
     }
 }

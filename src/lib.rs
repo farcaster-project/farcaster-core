@@ -69,7 +69,6 @@ pub mod bitcoin;
 pub mod blockchain;
 pub mod crypto;
 pub(crate) mod hash;
-pub mod instruction;
 pub mod monero;
 pub mod negotiation;
 pub mod protocol;

@@ -134,12 +134,12 @@ pub trait Transaction<Px, Out, Amt> {
 
 /// Defines the transaction Farcaster IDs for serialization and network communication.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
-#[display(Debug)]
 pub enum TxLabel {
     /// Represents the first transaction created outside of the system by an external wallet to
     /// fund the swap on the arbitrating blockchain.
     Funding,
     /// Represents the core locking arbitrating transaction.
+    #[display("Arbitrating Lock")]
     Lock,
     /// Represents the happy path for swapping the assets.
     Buy,
@@ -151,6 +151,7 @@ pub enum TxLabel {
     /// didn't act accordingly to the protocol.
     Punish,
     /// Represents the accordant lock transaction
+    #[display("Accordant Lock")]
     AccLock,
 }
 

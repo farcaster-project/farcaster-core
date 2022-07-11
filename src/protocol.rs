@@ -31,7 +31,7 @@ struct ValidatedCoreTransactions<Px, Ti, Pk> {
     punish_lock: DataPunishableLock<Ti, Pk>,
 }
 
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct CoreArbitratingTransactions<Px> {
     /// Partial transaction raw type representing the lock.
     pub lock: Px,
@@ -57,7 +57,7 @@ impl<Px> CoreArbitratingTransactions<Px> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct ArbitratingParameters<Amt, Ti, F> {
     pub arbitrating_amount: Amt,
     pub cancel_timelock: Ti,
@@ -65,19 +65,19 @@ pub struct ArbitratingParameters<Amt, Ti, F> {
     pub fee_strategy: FeeStrategy<F>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct TxSignatures<Sig> {
     pub sig: Sig,
     pub adapted_sig: Sig,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct FullySignedPunish<Px, Sig> {
     pub punish: Px,
     pub punish_sig: Sig,
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
     pub buy: Pk,
     pub cancel: Pk,

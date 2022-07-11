@@ -16,7 +16,7 @@ use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, 
 use crate::crypto::Signatures;
 use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum Blockchain {
     Bitcoin,

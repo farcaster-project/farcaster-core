@@ -778,7 +778,7 @@ impl<Px, EncSig> Strategy for BuyProcedureSignature<Px, EncSig> {
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.
 ///
 /// [`SwapRole`]: crate::role::SwapRole
-#[derive(Clone, Debug, Hash, Display)]
+#[derive(Clone, Debug, Hash, Display, Serialize, Deserialize)]
 #[display(Debug)]
 pub struct Abort {
     /// The swap identifier related to this message.

@@ -411,10 +411,9 @@ pub trait GenerateSharedKey<SharedKey> {
 
 // TODO give extra keys and/or shared keys in signing methods
 
-/// Signature and encrypted signature generator and verifier. Produce and verify signatures and
-/// encrypted sigantures based on public keys/key identifiers. Recover the private key through the
-/// complete encrypted/decrypted signature.
-pub trait Sign<PublicKey, SecretKey, Message, Signature, EncryptedSignature> {
+/// Signature generator and verifier. Produce and verify signatures based on public keys/key
+/// identifiers.
+pub trait Sign<PublicKey, Message, Signature> {
     /// Sign the message with the corresponding private key identified by the provided arbitrating
     /// key identifier.
     fn sign(&mut self, key: ArbitratingKeyId, msg: Message) -> Result<Signature, Error>;
@@ -422,7 +421,12 @@ pub trait Sign<PublicKey, SecretKey, Message, Signature, EncryptedSignature> {
     /// Verify a signature for a given message with the provided public key.
     fn verify_signature(&self, key: &PublicKey, msg: Message, sig: &Signature)
         -> Result<(), Error>;
+}
 
+/// Encrypted signature generator and verifier. Produce and verify encrypted sigantures based on
+/// public keys/key identifiers.  Decrypt encrypted signature through key identifier to recover
+/// signature.
+pub trait EncSign<PublicKey, Message, Signature, EncryptedSignature> {
     /// Sign the message with the corresponding private key identified by the provided arbitrating
     /// key identifier and encrypt it (create an adaptor signature) with the provided encryption
     /// public key.
@@ -450,7 +454,11 @@ pub trait Sign<PublicKey, SecretKey, Message, Signature, EncryptedSignature> {
         decryption_key: AccordantKeyId,
         sig: EncryptedSignature,
     ) -> Result<Signature, Error>;
+}
 
+/// Recover the secret key through the complete encrypted/decrypted signature and public
+/// encryption key.
+pub trait RecoverSecret<PublicKey, SecretKey, Signature, EncryptedSignature> {
     /// Recover the encryption key based on the encrypted signature, the encryption public key, and
     /// the regular (decrypted) signature.
     fn recover_secret_key(

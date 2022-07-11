@@ -4,8 +4,8 @@ use std::convert::TryInto;
 use std::str::FromStr;
 
 use farcaster_core::crypto::{
-    AccordantKeyId, ArbitratingKeyId, GenerateKey, GenerateSharedKey, ProveCrossGroupDleq,
-    SharedKeyId, Sign,
+    AccordantKeyId, ArbitratingKeyId, EncSign, GenerateKey, GenerateSharedKey, ProveCrossGroupDleq,
+    RecoverSecret, SharedKeyId, Sign,
 };
 use farcaster_core::monero::SHARED_VIEW_KEY_ID;
 use farcaster_core::swap::btcxmr::*;

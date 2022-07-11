@@ -133,7 +133,7 @@ pub trait Transaction<Px, Out, Amt> {
 }
 
 /// Defines the transaction Farcaster IDs for serialization and network communication.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
 pub enum TxLabel {
     /// Represents the first transaction created outside of the system by an external wallet to
     /// fund the swap on the arbitrating blockchain.

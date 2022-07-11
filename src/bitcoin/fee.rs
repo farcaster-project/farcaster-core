@@ -22,19 +22,21 @@ use bitcoin::util::amount::Denomination;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
 
+use crate::bitcoin::{transaction, Bitcoin, Strategy};
 use crate::blockchain::{Fee, FeePriority, FeeStrategy, FeeStrategyError};
 use crate::consensus::{self, CanonicalBytes};
 
-use crate::bitcoin::{transaction, Bitcoin, Strategy};
-
 use std::str::FromStr;
+
+use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::{de, Deserialize, Deserializer};
 
 /// An amount of Bitcoin (internally in satoshis) representing the number of satoshis per virtual
 /// byte a transaction must use for its fee. A [`FeeStrategy`] can use one of more of this type
 /// depending of its complexity (fixed, range, etc).
-#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Display, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Display)]
 #[display(display_sats_per_vbyte)]
-pub struct SatPerVByte(#[serde(with = "bitcoin::util::amount::serde::as_sat")] Amount);
+pub struct SatPerVByte(Amount);
 
 fn display_sats_per_vbyte(rate: &SatPerVByte) -> String {
     format!(
@@ -64,6 +66,27 @@ impl SatPerVByte {
     /// `bitcoin` crate amount.
     pub fn as_native_unit(&self) -> Amount {
         self.0
+    }
+}
+
+impl Serialize for SatPerVByte {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(format!("{}", self).as_ref())
+    }
+}
+
+impl<'de> Deserialize<'de> for SatPerVByte {
+    fn deserialize<D>(deserializer: D) -> Result<SatPerVByte, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(
+            SatPerVByte::from_str(&String::deserialize(deserializer)?)
+                .map_err(de::Error::custom)?,
+        )
     }
 }
 
@@ -195,6 +218,11 @@ impl Fee for PartiallySignedTransaction {
 mod tests {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct SerdeTest {
+        fee: SatPerVByte,
+    }
+
     #[test]
     fn parse_sats_per_vbyte() {
         for s in [
@@ -223,16 +251,23 @@ mod tests {
     }
 
     #[test]
-    fn serialize_fee_strat_in_yaml() {
-        let fee_strat = SatPerVByte::from_sat(10);
-        let s = serde_yaml::to_string(&fee_strat).expect("Encode fee strategy in yaml");
-        assert_eq!("---\n10\n", s);
+    fn serialize_fee_rate_in_yaml() {
+        let fee_rate = SerdeTest {
+            fee: SatPerVByte::from_sat(10),
+        };
+        let s = serde_yaml::to_string(&fee_rate).expect("Encode fee rate in yaml");
+        assert_eq!("---\nfee: 10 satoshi/vByte\n", s);
     }
 
     #[test]
-    fn deserialize_fee_strat_in_yaml() {
-        let s = "---\n10\n";
-        let fee_strategy = serde_yaml::from_str(&s).expect("Decode fee strategy from yaml");
-        assert_eq!(SatPerVByte::from_sat(10), fee_strategy);
+    fn deserialize_fee_rate_in_yaml() {
+        let s = "---\nfee: 10 satoshi/vByte\n";
+        let fee_rate = serde_yaml::from_str(&s).expect("Decode fee rate from yaml");
+        assert_eq!(
+            SerdeTest {
+                fee: SatPerVByte::from_sat(10)
+            },
+            fee_rate
+        );
     }
 }

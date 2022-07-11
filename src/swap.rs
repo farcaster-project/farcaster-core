@@ -7,7 +7,6 @@ use std::str::FromStr;
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::hash::HashString;
-//use crate::role::{Accordant, Arbitrating};
 
 use lightning_encoding::strategies::AsStrict;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -58,25 +57,6 @@ impl_strict_encoding!(SwapId);
 impl lightning_encoding::Strategy for SwapId {
     type Strategy = AsStrict;
 }
-
-/*
-/// Specify the context of a swap, fixing the arbitrating blockchain, the accordant blockchain and
-/// the link between them.
-pub trait Swap: Debug + Clone {
-    /// The arbitrating blockchain concrete implementation used for the swap.
-    type Ar: Arbitrating;
-
-    /// The accordant blockchain concrete implementation used for the swap.
-    type Ac: Accordant;
-
-    /// The proof type used to link both blockchain cryptographic groups to ensure correct secret
-    /// transmition.
-    type Proof: Clone + Debug + CanonicalBytes;
-
-    /// Commitment type used in the commit/reveal scheme during swap setup.
-    type Commitment: Clone + PartialEq + Eq + Debug + fmt::Display + CanonicalBytes;
-}
-*/
 
 #[cfg(test)]
 mod tests {

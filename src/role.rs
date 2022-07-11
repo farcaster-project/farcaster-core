@@ -122,13 +122,6 @@ impl FromStr for SwapRole {
     }
 }
 
-///// An arbitrating is the blockchain which will act as the decision engine, the arbitrating
-///// blockchain will use transaction to transfer the funds on both blockchains.
-//pub trait Arbitrating:
-//    Asset + Address + Fee + Onchain + Signatures + Timelock + Display + Debug + Clone + Eq
-//{
-//}
-
 /// An accordant is the blockchain which does not need transaction inside the protocol nor
 /// timelocks: it is the blockchain with fewer requirements for an atomic swap.
 pub trait Accordant<Pk, Sk, Addr> {

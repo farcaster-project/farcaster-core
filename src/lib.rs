@@ -67,7 +67,6 @@ pub mod consensus;
 
 pub mod bitcoin;
 pub mod blockchain;
-//pub mod bundle;
 pub mod crypto;
 pub(crate) mod hash;
 pub mod instruction;

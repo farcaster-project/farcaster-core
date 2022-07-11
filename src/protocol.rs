@@ -892,10 +892,22 @@ pub struct Bob<Addr, Ar, Ac> {
     pub fee_politic: FeePriority,
 }
 
-/*
-impl<Ctx: Swap> Encodable for Bob<Ctx> {
+impl<Addr, Ar, Ac> Encodable for Bob<Addr, Ar, Ac>
+where
+    Ar: CanonicalBytes,
+    Ac: CanonicalBytes,
+    Addr: CanonicalBytes,
+{
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let len = self.fee_politic.consensus_encode(writer)?;
+        let len = self
+            .arbitrating
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
+        let len = self
+            .accordant
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
         Ok(len
             + self
                 .refund_address
@@ -904,18 +916,25 @@ impl<Ctx: Swap> Encodable for Bob<Ctx> {
     }
 }
 
-impl<Ctx: Swap> Decodable for Bob<Ctx> {
+impl<Addr, Ar, Ac> Decodable for Bob<Addr, Ar, Ac>
+where
+    Ar: CanonicalBytes,
+    Ac: CanonicalBytes,
+    Addr: CanonicalBytes,
+{
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let fee_politic = FeePriority::consensus_decode(d)?;
-        let refund_address =
-            <Ctx::Ar as Address>::Address::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+        let arbitrating = Ar::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+        let accordant = Ac::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+        let refund_address = Addr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
         Ok(Bob {
+            arbitrating,
+            accordant,
             refund_address,
             fee_politic,
         })
     }
 }
-*/
 
 impl<Addr, Ar, Ac> Bob<Addr, Ar, Ac> {
     /// Create a new [`Bob`] role with the local parameters.

@@ -398,12 +398,6 @@ impl CanonicalBytes for SecretKey {
     }
 }
 
-//impl Signatures for Bitcoin<SegwitV0> {
-//    type Message = Sha256dHash;
-//    type Signature = Signature;
-//    type EncryptedSignature = EncryptedSignature;
-//}
-
 impl CanonicalBytes for Signature {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         self.serialize_compact().into()

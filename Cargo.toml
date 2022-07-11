@@ -31,7 +31,7 @@ default = ["experimental", "taproot"]
 [dependencies]
 amplify = "3"
 base58-monero = { version = "0.3", default-features = false, features = ["check"] }
-bitcoin_hashes = { version = "0.10" }
+bitcoin_hashes = { version = "0.11" }
 bitvec = { version = "1.0" }
 fixed-hash = { version = "0.7", default-features = false }
 hex = "0.4"

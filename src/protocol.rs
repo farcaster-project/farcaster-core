@@ -329,8 +329,8 @@ where
         public_offer: &PublicOffer<Amt, Bmt, Ti, F>,
     ) -> Res<Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>>
     where
-        Ar: DeriveKeys,
-        Ac: DeriveKeys,
+        Ar: DeriveKeys<PublicKey = Pk, PrivateKey = Rk>,
+        Ac: DeriveKeys<PublicKey = Qk, PrivateKey = Sk>,
         Ti: Copy,
         F: Copy,
         Kg: KeyGenerator<Pk, Qk, Rk, Sk, Pr>,
@@ -969,8 +969,8 @@ where
         public_offer: &PublicOffer<Amt, Bmt, Ti, F>,
     ) -> Res<Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>>
     where
-        Ar: DeriveKeys,
-        Ac: DeriveKeys,
+        Ar: DeriveKeys<PublicKey = Pk, PrivateKey = Rk>,
+        Ac: DeriveKeys<PublicKey = Qk, PrivateKey = Sk>,
         Ti: Copy,
         F: Clone,
         Kg: KeyGenerator<Pk, Qk, Rk, Sk, Pr>,

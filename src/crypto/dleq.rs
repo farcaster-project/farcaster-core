@@ -8,7 +8,7 @@ use crate::{
 };
 use amplify::num::u256;
 
-use bitcoin_hashes::{self, Hash};
+use bitcoin::hashes::{self, Hash};
 
 use bitvec::{order::Lsb0, prelude::BitSlice};
 use curve25519_dalek::{
@@ -74,7 +74,7 @@ fn _max_secp256k1() -> u256 {
 #[allow(non_snake_case)]
 fn H_p() -> secp256k1Point {
     let hash_H: [u8; 32] =
-        bitcoin_hashes::sha256::Hash::hash(&H.to_bytes_uncompressed()).into_inner();
+        bitcoin::hashes::sha256::Hash::hash(&H.to_bytes_uncompressed()).into_inner();
     let even_y_prepend_hash_H: [u8; 33] = [2u8]
         .iter()
         .chain(hash_H.iter())
@@ -260,7 +260,7 @@ fn ring_hash(term0: [u8; 32], term1: [u8; 33], term2: [u8; 32], term3: [u8; 33])
         .collect::<Vec<u8>>()
         .try_into()
         .unwrap();
-    bitcoin_hashes::sha256::Hash::hash(&preimage).into_inner()
+    bitcoin::hashes::sha256::Hash::hash(&preimage).into_inner()
 }
 
 fn verify_ring_sig(

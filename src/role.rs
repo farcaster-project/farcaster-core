@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use crate::blockchain::{Address, Asset, Fee, Network, Onchain, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::{self, AccordantKeySet, Signatures};
+use crate::crypto::{self, AccordantKeySet};
 
 /// Possible roles during the negotiation phase. Any negotiation role can transition into any swap
 /// role when negotiation is completed, the transition is described in the public offer.

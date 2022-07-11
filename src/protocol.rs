@@ -6,8 +6,9 @@ use crate::blockchain::{Address, Fee, FeePriority, Onchain, Timelock, Transactio
 use crate::blockchain::{Asset, FeeStrategy};
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
-    self, AccordantKeyId, ArbitratingKeyId, Commit, DeriveKeys, KeyGenerator, SharedKeyId, Sign,
-    Signatures, TaggedElement, TaggedElements, TaggedExtraKeys, TaggedSharedKeys,
+    self, AccordantKeyId, ArbitratingKeyId, Commit, DeriveKeys, EncSign, KeyGenerator,
+    RecoverSecret, SharedKeyId, Sign, TaggedElement, TaggedElements, TaggedExtraKeys,
+    TaggedSharedKeys,
 };
 use crate::negotiation::PublicOffer;
 use crate::protocol::message::{
@@ -328,8 +329,8 @@ where
         public_offer: &PublicOffer<Amt, Bmt, Ti, F>,
     ) -> Res<Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>>
     where
-        Ar: DeriveKeys,
-        Ac: DeriveKeys,
+        Ar: DeriveKeys<PublicKey = Pk, PrivateKey = Rk>,
+        Ac: DeriveKeys<PublicKey = Qk, PrivateKey = Sk>,
         Ti: Copy,
         F: Copy,
         Kg: KeyGenerator<Pk, Qk, Rk, Sk, Pr>,
@@ -430,7 +431,7 @@ where
         arb_params: ArbitratingParameters<Amt, Ti, F>,
     ) -> Res<EncSig>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: EncSign<Pk, Ms, Si, EncSig>,
         Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone + Fee<FeeUnit = F>,
         Pk: Copy,
@@ -478,7 +479,7 @@ where
     ///
     /// Returns the witness inside the [`CosignedArbitratingCancel`] bundle.
     ///
-    pub fn cosign_arbitrating_cancel<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
+    pub fn cosign_arbitrating_cancel<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si>(
         &self,
         wallet: &mut S,
         alice_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
@@ -487,7 +488,7 @@ where
         arb_params: ArbitratingParameters<Amt, Ti, F>,
     ) -> Res<Si>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: Sign<Pk, Ms, Si>,
         Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone + Fee<FeeUnit = F>,
         Pk: Copy,
@@ -543,7 +544,7 @@ where
         adaptor_buy: &BuyProcedureSignature<Px, EncSig>,
     ) -> Res<()>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: EncSign<Pk, Ms, Si, EncSig>,
         Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone + Fee<FeeUnit = F>,
         Pk: Copy,
@@ -626,7 +627,7 @@ where
         adaptor_buy: &BuyProcedureSignature<Px, EncSig>,
     ) -> Res<TxSignatures<Si>>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: Sign<Pk, Ms, Si> + EncSign<Pk, Ms, Si, EncSig>,
         Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone + Fee<FeeUnit = F>,
         Pk: Copy,
@@ -695,7 +696,7 @@ where
     ///
     /// [`validate_adaptor_buy`]: Alice::validate_adaptor_buy
     ///
-    pub fn fully_sign_punish<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
+    pub fn fully_sign_punish<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si>(
         &self,
         wallet: &mut S,
         alice_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
@@ -704,14 +705,13 @@ where
         arb_params: ArbitratingParameters<Amt, Ti, F>,
     ) -> Res<FullySignedPunish<Px, Si>>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: Sign<Pk, Ms, Si>,
         Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone + Fee<FeeUnit = F>,
         Pk: Copy,
         Ti: Copy,
         F: Copy,
         Amt: Copy + PartialEq,
-        EncSig: Clone,
     {
         // Verifies the core arbitrating transactions.
         let ValidatedCoreTransactions {
@@ -743,7 +743,7 @@ where
     }
 
     // TODO: transform into other private key type
-    pub fn recover_accordant_key<Amt, Tx, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
+    pub fn recover_accordant_key<Amt, Tx, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Si, EncSig>(
         &self,
         wallet: &mut S,
         bob_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
@@ -751,17 +751,8 @@ where
         refund_tx: Tx,
     ) -> Rk
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
-        Ar: Transactions<
-            Addr = Addr,
-            Amt = Amt,
-            Ti = Ti,
-            Ms = Ms,
-            Pk = Pk,
-            Si = Si,
-            Px = Px,
-            Tx = Tx,
-        >,
+        S: RecoverSecret<Pk, Rk, Si, EncSig>,
+        Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Pk = Pk, Si = Si, Px = Px, Tx = Tx>,
     {
         let encryption_key = &bob_parameters.adaptor;
         let signature = <Ar::Refund>::extract_witness(refund_tx);
@@ -978,8 +969,8 @@ where
         public_offer: &PublicOffer<Amt, Bmt, Ti, F>,
     ) -> Res<Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>>
     where
-        Ar: DeriveKeys,
-        Ac: DeriveKeys,
+        Ar: DeriveKeys<PublicKey = Pk, PrivateKey = Rk>,
+        Ac: DeriveKeys<PublicKey = Qk, PrivateKey = Sk>,
         Ti: Copy,
         F: Clone,
         Kg: KeyGenerator<Pk, Qk, Rk, Sk, Pr>,
@@ -1074,7 +1065,7 @@ where
     ///
     /// [`FeeStrategy`]: crate::blockchain::FeeStrategy
     ///
-    pub fn core_arbitrating_transactions<Amt, Tx, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, Si, Out>(
+    pub fn core_arbitrating_transactions<Amt, Tx, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, Out>(
         &self,
         alice_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
         bob_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
@@ -1082,16 +1073,7 @@ where
         arb_params: ArbitratingParameters<Amt, Ti, F>,
     ) -> Res<CoreArbitratingTransactions<Px>>
     where
-        Ar: Transactions<
-            Addr = Addr,
-            Amt = Amt,
-            Tx = Tx,
-            Out = Out,
-            Ti = Ti,
-            Pk = Pk,
-            Si = Si,
-            Px = Px,
-        >,
+        Ar: Transactions<Addr = Addr, Amt = Amt, Tx = Tx, Out = Out, Ti = Ti, Pk = Pk, Px = Px>,
         Px: Fee<FeeUnit = F>,
         Out: Eq,
         Pk: Copy,
@@ -1191,13 +1173,13 @@ where
     ///
     /// [`cosign_arbitrating_cancel`]: Bob::cosign_arbitrating_cancel
     ///
-    pub fn cosign_arbitrating_cancel<S, Px, Si, Pk, Rk, Ms, EncSig>(
+    pub fn cosign_arbitrating_cancel<S, Px, Si, Pk, Ms>(
         &self,
         wallet: &mut S,
         core: &CoreArbitratingTransactions<Px>,
     ) -> Res<Si>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: Sign<Pk, Ms, Si>,
         Ar: Transactions<Addr = Addr, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone,
     {
@@ -1254,7 +1236,7 @@ where
         refund_adaptor_sig: &EncSig,
     ) -> Res<()>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: EncSign<Pk, Ms, Si, EncSig>,
         Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone,
     {
@@ -1325,7 +1307,7 @@ where
         arb_params: ArbitratingParameters<Amt, Ti, F>,
     ) -> Res<BuyProcedureSignature<Px, EncSig>>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: EncSign<Pk, Ms, Si, EncSig>,
         Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone + Fee<FeeUnit = F>,
         Pk: Copy,
@@ -1403,13 +1385,13 @@ where
     /// [`sign_arbitrating_lock`]: Bob::sign_arbitrating_lock
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
-    pub fn sign_arbitrating_lock<S, Px, Si, Pk, Rk, Ms, EncSig>(
+    pub fn sign_arbitrating_lock<S, Px, Si, Pk, Ms>(
         &self,
         wallet: &mut S,
         core: &CoreArbitratingTransactions<Px>,
     ) -> Res<Si>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: Sign<Pk, Ms, Si>,
         Ar: Transactions<Addr = Addr, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone,
     {
@@ -1453,14 +1435,14 @@ where
     ///
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
-    pub fn fully_sign_refund<S, Px, Si, Pk, Rk, Ms, EncSig>(
+    pub fn fully_sign_refund<S, Px, Si, Pk, Ms, EncSig>(
         &self,
         wallet: &mut S,
         core: &CoreArbitratingTransactions<Px>,
         signed_adaptor_refund: &EncSig,
     ) -> Res<TxSignatures<Si>>
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
+        S: Sign<Pk, Ms, Si> + EncSign<Pk, Ms, Si, EncSig>,
         Ar: Transactions<Addr = Addr, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         EncSig: Clone,
         Px: Clone,
@@ -1485,7 +1467,7 @@ where
         })
     }
 
-    pub fn recover_accordant_key<S, Tx, Px, Si, Pk, Qk, Rk, Sk, Ti, F, Pr, Ms, EncSig>(
+    pub fn recover_accordant_key<S, Tx, Px, Si, Pk, Qk, Rk, Sk, Ti, F, Pr, EncSig>(
         &self,
         wallet: &mut S,
         alice_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
@@ -1493,8 +1475,8 @@ where
         buy_tx: Tx,
     ) -> Rk
     where
-        S: Sign<Pk, Rk, Ms, Si, EncSig>,
-        Ar: Transactions<Addr = Addr, Tx = Tx, Px = Px, Ms = Ms, Pk = Pk, Si = Si>,
+        S: RecoverSecret<Pk, Rk, Si, EncSig>,
+        Ar: Transactions<Addr = Addr, Tx = Tx, Px = Px, Pk = Pk, Si = Si>,
     {
         let encryption_key = &alice_parameters.adaptor;
         let signature = <Ar::Buy>::extract_witness(buy_tx);

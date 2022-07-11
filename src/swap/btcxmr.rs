@@ -9,7 +9,11 @@ use crate::crypto::{
     ProveCrossGroupDleq, SharedKeyId,
 };
 #[cfg(feature = "experimental")]
-use crate::{bitcoin::BitcoinSegwitV0, crypto::Sign, monero::Monero};
+use crate::{
+    bitcoin::BitcoinSegwitV0,
+    crypto::{EncSign, RecoverSecret, Sign},
+    monero::Monero,
+};
 use crate::{blockchain::Blockchain, crypto::dleq::DLEQProof};
 
 use monero::cryptonote::hash::Hash;
@@ -294,7 +298,7 @@ impl GenerateSharedKey<SecretKey> for KeyManager {
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for KeyManager {
+impl Sign<PublicKey, Sha256dHash, Signature> for KeyManager {
     fn sign(
         &mut self,
         key: ArbitratingKeyId,
@@ -325,7 +329,11 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
         secp.verify_ecdsa(&message, sig, key)
             .map_err(crypto::Error::new)
     }
+}
 
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+impl EncSign<PublicKey, Sha256dHash, Signature, EncryptedSignature> for KeyManager {
     fn encrypt_sign(
         &mut self,
         signing_key: ArbitratingKeyId,
@@ -390,7 +398,11 @@ impl Sign<PublicKey, SecretKey, Sha256dHash, Signature, EncryptedSignature> for 
 
         Ok(adaptor.decrypt_signature(&decryption_key, sig).into())
     }
+}
 
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+impl RecoverSecret<PublicKey, SecretKey, Signature, EncryptedSignature> for KeyManager {
     fn recover_secret_key(
         &self,
         encrypted_sig: EncryptedSignature,

@@ -14,7 +14,7 @@ use crate::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Strategy};
 use crate::bitcoin::timelock::CSVTimelock;
 use crate::blockchain::Transactions;
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{DeriveKeys, SharedKeyId, Signatures};
+use crate::crypto::{DeriveKeys, SharedKeyId};
 use crate::role::SwapRole;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 
@@ -396,12 +396,6 @@ impl CanonicalBytes for SecretKey {
     {
         SecretKey::from_slice(bytes).map_err(consensus::Error::new)
     }
-}
-
-impl Signatures for Bitcoin<SegwitV0> {
-    type Message = Sha256dHash;
-    type Signature = Signature;
-    type EncryptedSignature = EncryptedSignature;
 }
 
 impl CanonicalBytes for Signature {

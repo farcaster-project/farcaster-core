@@ -13,7 +13,6 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable};
-use crate::crypto::Signatures;
 use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, Serialize, Deserialize)]

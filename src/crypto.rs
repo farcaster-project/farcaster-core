@@ -342,24 +342,6 @@ pub trait DeriveKeys {
     fn extra_shared_private_keys() -> Vec<SharedKeyId>;
 }
 
-/// Trait required for [`Arbitrating`] blockchains to define the cryptographic message format to
-/// sign, the signature format and adaptor signature format used in the cryptographic operations
-/// such as signing and verifying signatures and adaptor signatures.
-///
-/// [`Arbitrating`]: crate::role::Arbitrating
-pub trait Signatures {
-    /// Type of the message passed to sign or adaptor sign methods, transactions will produce
-    /// messages that will be passed to these methods.
-    type Message: Clone + Debug;
-
-    /// Defines the signature format for the arbitrating blockchain.
-    type Signature: Clone + Debug + fmt::Display + CanonicalBytes;
-
-    /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
-    /// have a different format from the signature depending on the cryptographic primitives used.
-    type EncryptedSignature: Clone + Debug + fmt::Display + CanonicalBytes;
-}
-
 /// Meta trait regrouping all the needed trait combinations a key manager must implement to manage
 /// all the keys needed when executing the protocol on [`Alice`] and [`Bob`] methods. This trait is
 /// auto-implemented for all `T` meeting the requirements.
@@ -411,10 +393,9 @@ pub trait GenerateSharedKey<SharedKey> {
 
 // TODO give extra keys and/or shared keys in signing methods
 
-/// Signature and encrypted signature generator and verifier. Produce and verify signatures and
-/// encrypted sigantures based on public keys/key identifiers. Recover the private key through the
-/// complete encrypted/decrypted signature.
-pub trait Sign<PublicKey, SecretKey, Message, Signature, EncryptedSignature> {
+/// Signature generator and verifier. Produce and verify signatures based on public keys/key
+/// identifiers.
+pub trait Sign<PublicKey, Message, Signature> {
     /// Sign the message with the corresponding private key identified by the provided arbitrating
     /// key identifier.
     fn sign(&mut self, key: ArbitratingKeyId, msg: Message) -> Result<Signature, Error>;
@@ -422,7 +403,12 @@ pub trait Sign<PublicKey, SecretKey, Message, Signature, EncryptedSignature> {
     /// Verify a signature for a given message with the provided public key.
     fn verify_signature(&self, key: &PublicKey, msg: Message, sig: &Signature)
         -> Result<(), Error>;
+}
 
+/// Encrypted signature generator and verifier. Produce and verify encrypted sigantures based on
+/// public keys/key identifiers.  Decrypt encrypted signature through key identifier to recover
+/// signature.
+pub trait EncSign<PublicKey, Message, Signature, EncryptedSignature> {
     /// Sign the message with the corresponding private key identified by the provided arbitrating
     /// key identifier and encrypt it (create an adaptor signature) with the provided encryption
     /// public key.
@@ -450,7 +436,11 @@ pub trait Sign<PublicKey, SecretKey, Message, Signature, EncryptedSignature> {
         decryption_key: AccordantKeyId,
         sig: EncryptedSignature,
     ) -> Result<Signature, Error>;
+}
 
+/// Recover the secret key through the complete encrypted/decrypted signature and public
+/// encryption key.
+pub trait RecoverSecret<PublicKey, SecretKey, Signature, EncryptedSignature> {
     /// Recover the encryption key based on the encrypted signature, the encryption public key, and
     /// the regular (decrypted) signature.
     fn recover_secret_key(
@@ -463,14 +453,17 @@ pub trait Sign<PublicKey, SecretKey, Message, Signature, EncryptedSignature> {
 
 /// Commitment generator and verifier. Generated commitments can be validated against candidates,
 /// if correct the commit/reveal process is validated.
-pub trait Commit<Commitment: Eq> {
+pub trait Commit<Commitment> {
     /// Provides a generic method to commit to any value referencable as stream of bytes.
     fn commit_to<T: AsRef<[u8]>>(&self, value: T) -> Commitment;
 
     /// Validate the equality between a candidate and a commitment, return `Ok(())` if the value
     /// commits to the same commitment's candidate, return [`Error::InvalidCommitment`]
     /// otherwise.
-    fn validate<T: AsRef<[u8]>>(&self, candidate: T, commitment: Commitment) -> Result<(), Error> {
+    fn validate<T: AsRef<[u8]>>(&self, candidate: T, commitment: Commitment) -> Result<(), Error>
+    where
+        Commitment: Eq,
+    {
         if self.commit_to(candidate) == commitment {
             Ok(())
         } else {

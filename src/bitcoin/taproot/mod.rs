@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 use crate::bitcoin::{Bitcoin, BitcoinTaproot, Btc, Strategy};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{DeriveKeys, SharedKeyId, Signatures};
+use crate::crypto::{DeriveKeys, SharedKeyId};
 //use crate::role::Arbitrating;
 
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
@@ -83,11 +83,11 @@ impl CanonicalBytes for XOnlyPublicKey {
     }
 }
 
-impl Signatures for Bitcoin<Taproot> {
-    type Message = Sha256dHash;
-    type Signature = Signature;
-    type EncryptedSignature = Signature;
-}
+//impl Signatures for Bitcoin<Taproot> {
+//    type Message = Sha256dHash;
+//    type Signature = Signature;
+//    type EncryptedSignature = Signature;
+//}
 
 impl CanonicalBytes for Signature {
     fn as_canonical_bytes(&self) -> Vec<u8> {

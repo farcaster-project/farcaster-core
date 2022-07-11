@@ -7,7 +7,7 @@ use crate::blockchain::{Asset, FeeStrategy};
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
     self, AccordantKeyId, ArbitratingKeyId, Commit, DeriveKeys, EncSign, KeyGenerator,
-    RecoverSecret, SharedKeyId, Sign, Signatures, TaggedElement, TaggedElements, TaggedExtraKeys,
+    RecoverSecret, SharedKeyId, Sign, TaggedElement, TaggedElements, TaggedExtraKeys,
     TaggedSharedKeys,
 };
 use crate::negotiation::PublicOffer;

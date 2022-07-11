@@ -9,7 +9,6 @@ use thiserror::Error;
 
 use crate::blockchain::{Address, Asset, Fee, Network, Onchain, Timelock};
 use crate::consensus::{self, Decodable, Encodable};
-use crate::crypto::Signatures;
 use crate::script::{DataLock, DataPunishableLock, ScriptPath};
 
 /// A list specifying general categories of transaction error.

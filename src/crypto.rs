@@ -342,24 +342,6 @@ pub trait DeriveKeys {
     fn extra_shared_private_keys() -> Vec<SharedKeyId>;
 }
 
-/// Trait required for [`Arbitrating`] blockchains to define the cryptographic message format to
-/// sign, the signature format and adaptor signature format used in the cryptographic operations
-/// such as signing and verifying signatures and adaptor signatures.
-///
-/// [`Arbitrating`]: crate::role::Arbitrating
-pub trait Signatures {
-    /// Type of the message passed to sign or adaptor sign methods, transactions will produce
-    /// messages that will be passed to these methods.
-    type Message: Clone + Debug;
-
-    /// Defines the signature format for the arbitrating blockchain.
-    type Signature: Clone + Debug + fmt::Display + CanonicalBytes;
-
-    /// Defines the adaptor signature format for the arbitrating blockchain. Adaptor signature may
-    /// have a different format from the signature depending on the cryptographic primitives used.
-    type EncryptedSignature: Clone + Debug + fmt::Display + CanonicalBytes;
-}
-
 /// Meta trait regrouping all the needed trait combinations a key manager must implement to manage
 /// all the keys needed when executing the protocol on [`Alice`] and [`Bob`] methods. This trait is
 /// auto-implemented for all `T` meeting the requirements.

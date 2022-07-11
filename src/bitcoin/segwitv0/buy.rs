@@ -3,15 +3,20 @@ use std::marker::PhantomData;
 use bitcoin::blockdata::transaction::{TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
 use bitcoin::secp256k1::ecdsa::Signature;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::ecdsa::EcdsaSig;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
+use bitcoin::Amount;
+use bitcoin::Transaction;
 
 use crate::role::SwapRole;
 use crate::script;
 use crate::transaction::{Buyable, Error as FError, Lockable};
 
+use crate::bitcoin::segwitv0::Sha256dHash;
 use crate::bitcoin::segwitv0::{CoopLock, SegwitV0};
+use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
@@ -53,10 +58,32 @@ impl SubTransaction for Buy {
     }
 }
 
-impl Buyable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Buy> {
+impl
+    Buyable<
+        Address,
+        Transaction,
+        PartiallySignedTransaction,
+        MetadataOutput,
+        Amount,
+        CSVTimelock,
+        Sha256dHash,
+        PublicKey,
+        Signature,
+    > for Tx<Buy>
+{
     fn initialize(
-        prev: &impl Lockable<Bitcoin<SegwitV0>, MetadataOutput>,
-        _lock: script::DataLock<Bitcoin<SegwitV0>>,
+        prev: &impl Lockable<
+            Address,
+            Transaction,
+            PartiallySignedTransaction,
+            MetadataOutput,
+            Amount,
+            CSVTimelock,
+            Sha256dHash,
+            PublicKey,
+            Signature,
+        >,
+        _lock: script::DataLock<CSVTimelock, PublicKey>,
         destination_target: Address,
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;

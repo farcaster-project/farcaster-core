@@ -2,13 +2,20 @@ use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
+use bitcoin::secp256k1::ecdsa::Signature;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
+use bitcoin::Amount;
+use bitcoin::Transaction;
 
 use crate::role::SwapRole;
 use crate::script;
 use crate::transaction::{Cancelable, Error as FError, Lockable};
 
+use crate::bitcoin::segwitv0::Sha256dHash;
 use crate::bitcoin::segwitv0::{CoopLock, PunishLock, SegwitV0};
+use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
@@ -50,11 +57,33 @@ impl SubTransaction for Cancel {
     }
 }
 
-impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Cancel> {
+impl
+    Cancelable<
+        Address,
+        Transaction,
+        PartiallySignedTransaction,
+        MetadataOutput,
+        Amount,
+        CSVTimelock,
+        Sha256dHash,
+        PublicKey,
+        Signature,
+    > for Tx<Cancel>
+{
     fn initialize(
-        prev: &impl Lockable<Bitcoin<SegwitV0>, MetadataOutput>,
-        lock: script::DataLock<Bitcoin<SegwitV0>>,
-        punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
+        prev: &impl Lockable<
+            Address,
+            Transaction,
+            PartiallySignedTransaction,
+            MetadataOutput,
+            Amount,
+            CSVTimelock,
+            Sha256dHash,
+            PublicKey,
+            Signature,
+        >,
+        lock: script::DataLock<CSVTimelock, PublicKey>,
+        punish_lock: script::DataPunishableLock<CSVTimelock, PublicKey>,
     ) -> Result<Self, FError> {
         let script = PunishLock::script(punish_lock);
         let output_metadata = prev.get_consumable_output()?;
@@ -92,8 +121,8 @@ impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Cancel> {
 
     fn verify_template(
         &self,
-        lock: script::DataLock<Bitcoin<SegwitV0>>,
-        punish_lock: script::DataPunishableLock<Bitcoin<SegwitV0>>,
+        lock: script::DataLock<CSVTimelock, PublicKey>,
+        punish_lock: script::DataPunishableLock<CSVTimelock, PublicKey>,
     ) -> Result<(), FError> {
         (self.psbt.unsigned_tx.version == 2)
             .then(|| 0)

@@ -12,6 +12,8 @@ use std::error;
 use std::io;
 use std::str;
 
+use bitcoin::secp256k1::PublicKey;
+
 /// Encoding and decoding errors and data transformation errors (when converting data from one
 /// message type to another).
 #[derive(Error, Debug)]
@@ -100,7 +102,7 @@ where
 
 /// Encode an object into a vector of bytes. The vector can be [`deserialize`]d to retrieve the
 /// data.
-pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
+pub fn serialize<T: Encodable + ?Sized>(data: &T) -> Vec<u8> {
     let mut encoder = Vec::new();
     let len = data.consensus_encode(&mut encoder).unwrap();
     debug_assert_eq!(len, encoder.len());
@@ -108,7 +110,7 @@ pub fn serialize<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> Vec<u8> {
 }
 
 /// Encode an object into a hex-encoded string.
-pub fn serialize_hex<T: Encodable + std::fmt::Debug + ?Sized>(data: &T) -> String {
+pub fn serialize_hex<T: Encodable + ?Sized>(data: &T) -> String {
     hex_encode(serialize(data))
 }
 
@@ -420,6 +422,19 @@ macro_rules! impl_strict_encoding {
             }
         }
     };
+}
+
+impl CanonicalBytes for PublicKey {
+    fn as_canonical_bytes(&self) -> Vec<u8> {
+        self.serialize().as_ref().into()
+    }
+
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        PublicKey::from_slice(bytes).map_err(Error::new)
+    }
 }
 
 #[cfg(test)]

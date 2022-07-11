@@ -41,7 +41,6 @@
 //! ### Features
 //! As default the `experimental` feature is enable.
 //!
-//! - **serde**: enable serde implementation on some of the types in the library.
 //! - **experimental**: enable experimental cryptography, i.e. not battle tested nor peer reviewed
 //! and not intended for production use.
 //! - **taproot**: enable support for Bitcoin Taproot on-chain scripts as the arbitrating engine
@@ -58,9 +57,8 @@
 #[macro_use]
 extern crate amplify;
 
-#[cfg(feature = "serde")]
 #[macro_use]
-extern crate serde_crate as serde;
+extern crate serde;
 
 use thiserror::Error;
 
@@ -69,13 +67,12 @@ pub mod consensus;
 
 pub mod bitcoin;
 pub mod blockchain;
-pub mod bundle;
 pub mod crypto;
 pub(crate) mod hash;
 pub mod instruction;
 pub mod monero;
 pub mod negotiation;
-pub mod protocol_message;
+pub mod protocol;
 pub mod role;
 pub mod script;
 pub mod swap;

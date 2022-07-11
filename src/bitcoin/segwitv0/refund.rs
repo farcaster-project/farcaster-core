@@ -3,15 +3,20 @@ use std::marker::PhantomData;
 use bitcoin::blockdata::transaction::{TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
 use bitcoin::secp256k1::ecdsa::Signature;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::ecdsa::EcdsaSig;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
+use bitcoin::Amount;
+use bitcoin::Transaction;
 
 use crate::role::SwapRole;
 use crate::script::ScriptPath;
 use crate::transaction::{Cancelable, Error as FError, Refundable};
 
+use crate::bitcoin::segwitv0::Sha256dHash;
 use crate::bitcoin::segwitv0::{PunishLock, SegwitV0};
+use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
 use crate::bitcoin::Bitcoin;
 
@@ -58,9 +63,31 @@ impl SubTransaction for Refund {
     }
 }
 
-impl Refundable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Refund> {
+impl
+    Refundable<
+        Address,
+        Transaction,
+        PartiallySignedTransaction,
+        MetadataOutput,
+        Amount,
+        CSVTimelock,
+        Sha256dHash,
+        PublicKey,
+        Signature,
+    > for Tx<Refund>
+{
     fn initialize(
-        prev: &impl Cancelable<Bitcoin<SegwitV0>, MetadataOutput>,
+        prev: &impl Cancelable<
+            Address,
+            Transaction,
+            PartiallySignedTransaction,
+            MetadataOutput,
+            Amount,
+            CSVTimelock,
+            Sha256dHash,
+            PublicKey,
+            Signature,
+        >,
         refund_target: Address,
     ) -> Result<Self, FError> {
         let output_metadata = prev.get_consumable_output()?;

@@ -13,12 +13,33 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable};
-use crate::crypto::{Keys, Signatures};
+use crate::crypto::Signatures;
 use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display)]
+#[display(Debug)]
 pub enum Blockchain {
     Bitcoin,
     Monero,
+}
+
+impl Decodable for Blockchain {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x80000000u32 => Ok(Blockchain::Bitcoin),
+            0x80000080u32 => Ok(Blockchain::Monero),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl Encodable for Blockchain {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        match self {
+            Blockchain::Bitcoin => 0x80000000u32.consensus_encode(writer),
+            Blockchain::Monero => 0x80000080u32.consensus_encode(writer),
+        }
+    }
 }
 
 /// Defines the type for a blockchain address, this type is used when manipulating transactions.
@@ -63,29 +84,113 @@ pub trait Onchain {
 
 /// Fix the types for all arbitrating transactions needed for the swap: [`Fundable`], [`Lockable`],
 /// [`Buyable`], [`Cancelable`], [`Refundable`], and [`Punishable`] transactions.
-pub trait Transactions: Timelock + Address + Fee + Keys + Signatures + Sized {
-    /// The returned type of the consumable output and the `base_on` transaction method, used to
-    /// reference the funds and chain other transactions on it. This must contain all necessary
-    /// data to latter create a valid unlocking witness for the output and identify the funds.
-    type Metadata: Clone + Eq + Debug;
+///
+/// This injects concrete types to manage all the transactions.
+pub trait Transactions {
+    type Addr;
+    type Amt;
+    type Tx;
+    type Px;
+    type Out: Eq;
+    type Ti;
+    type Ms;
+    type Pk;
+    type Si;
 
     /// Defines the type for the `funding (a)` transaction
-    type Funding: Fundable<Self, Self::Metadata>;
+    type Funding: Fundable<Self::Tx, Self::Out, Self::Addr, Self::Pk>;
     /// Defines the type for the `lock (b)` transaction
-    type Lock: Lockable<Self, Self::Metadata>;
+    type Lock: Lockable<
+        Self::Addr,
+        Self::Tx,
+        Self::Px,
+        Self::Out,
+        Self::Amt,
+        Self::Ti,
+        Self::Ms,
+        Self::Pk,
+        Self::Si,
+    >;
     /// Defines the type for the `buy (c)` transaction
-    type Buy: Buyable<Self, Self::Metadata>;
+    type Buy: Buyable<
+        Self::Addr,
+        Self::Tx,
+        Self::Px,
+        Self::Out,
+        Self::Amt,
+        Self::Ti,
+        Self::Ms,
+        Self::Pk,
+        Self::Si,
+    >;
     /// Defines the type for the `cancel (d)` transaction
-    type Cancel: Cancelable<Self, Self::Metadata>;
+    type Cancel: Cancelable<
+        Self::Addr,
+        Self::Tx,
+        Self::Px,
+        Self::Out,
+        Self::Amt,
+        Self::Ti,
+        Self::Ms,
+        Self::Pk,
+        Self::Si,
+    >;
     /// Defines the type for the `refund (e)` transaction
-    type Refund: Refundable<Self, Self::Metadata>;
+    type Refund: Refundable<
+        Self::Addr,
+        Self::Tx,
+        Self::Px,
+        Self::Out,
+        Self::Amt,
+        Self::Ti,
+        Self::Ms,
+        Self::Pk,
+        Self::Si,
+    >;
     /// Defines the type for the `punish (f)` transaction
-    type Punish: Punishable<Self, Self::Metadata>;
+    type Punish: Punishable<
+        Self::Addr,
+        Self::Tx,
+        Self::Px,
+        Self::Out,
+        Self::Amt,
+        Self::Ti,
+        Self::Ms,
+        Self::Pk,
+        Self::Si,
+    >;
+}
+
+/// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
+/// a fee strategy can be: fixed or range. When the fee strategy allows multiple possibilities, a
+/// [`FeePriority`] is used to determine what to apply.
+///
+/// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
+/// upon reception by the other participant.
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub enum FeeStrategy<T> {
+    /// A fixed strategy with the exact amount to set.
+    Fixed(T),
+    /// A range with a minimum and maximum (inclusive) possible fees.
+    Range { min_inc: T, max_inc: T },
+}
+
+impl<T> FeeStrategy<T>
+where
+    T: PartialEq + PartialOrd,
+{
+    pub fn check(&self, value: &T) -> bool {
+        match self {
+            Self::Fixed(fee_strat) => value == fee_strat,
+            // Check in range including min and max bounds
+            Self::Range { min_inc, max_inc } => value >= min_inc && value <= max_inc,
+        }
+    }
 }
 
 impl<T> FromStr for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes + FromStr,
+    T: FromStr,
 {
     type Err = consensus::Error;
 
@@ -98,57 +203,23 @@ where
     }
 }
 
-/// A fee strategy to be applied on an arbitrating transaction. As described in the specifications
-/// a fee strategy can be: fixed or range. When the fee strategy allows multiple possibilities, a
-/// [`FeePriority`] is used to determine what to apply.
-///
-/// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
-/// upon reception by the other participant.
-#[derive(Debug, Clone, Eq, PartialEq, Display)]
-#[display(fee_strategy_fmt)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
-pub enum FeeStrategy<T>
+impl<T> fmt::Display for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
+    T: fmt::Display,
 {
-    /// A fixed strategy with the exact amount to set.
-    Fixed(T),
-    /// A range with a minimum and maximum (inclusive) possible fees.
-    Range { min_inc: T, max_inc: T },
-}
-
-impl<T> FeeStrategy<T>
-where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
-{
-    pub fn check(&self, value: &T) -> bool {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Fixed(fee_strat) => value == fee_strat,
-            // Check in range including min and max bounds
-            Self::Range { min_inc, max_inc } => value >= min_inc && value <= max_inc,
-        }
-    }
-}
-
-fn fee_strategy_fmt<T>(strategy: &FeeStrategy<T>) -> String
-where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
-{
-    match strategy {
-        FeeStrategy::Fixed(t) => format!("Fixed: {}", t),
-        FeeStrategy::Range { min_inc, max_inc } => {
-            format!("Range: from {} to {} (inclusive)", min_inc, max_inc)
+            FeeStrategy::Fixed(t) => write!(f, "Fixed: {}", t),
+            FeeStrategy::Range { min_inc, max_inc } => {
+                write!(f, "Range: from {} to {} (inclusive)", min_inc, max_inc)
+            }
         }
     }
 }
 
 impl<T> Encodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
+    T: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
@@ -167,7 +238,7 @@ where
 
 impl<T> Decodable for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes,
+    T: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         match Decodable::consensus_decode(d)? {
@@ -186,7 +257,7 @@ where
 
 impl<T> CanonicalBytes for FeeStrategy<T>
 where
-    T: Clone + PartialOrd + PartialEq + Debug + fmt::Display + CanonicalBytes,
+    T: CanonicalBytes,
 {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         serialize(self)
@@ -200,10 +271,7 @@ where
     }
 }
 
-impl_strict_encoding!(
-    FeeStrategy<T>,
-    T: Clone + PartialOrd + PartialEq + fmt::Display + CanonicalBytes
-);
+impl_strict_encoding!(FeeStrategy<T>, T: CanonicalBytes);
 
 /// Define the type of errors a fee strategy can encounter during calculation, application, and
 /// validation of fees on a partial transaction.
@@ -251,13 +319,8 @@ impl FeeStrategyError {
 }
 
 /// Defines how to set the fee when a [`FeeStrategy`] allows multiple possibilities.
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum FeePriority {
     /// Set the fee at the minimum allowed by the strategy.
     Low,
@@ -296,28 +359,60 @@ impl FromStr for FeePriority {
     }
 }
 
+// FIXME: doc
 /// Enable fee management for an arbitrating blockchain. This trait require implementing the
 /// [`Onchain`] trait to have access to transaction associated type and the [`Asset`] trait for
 /// returning the amount of fee set on a transaction. The fee is carried in the
 /// [`Offer`](crate::negotiation::Offer) through a [`FeeStrategy`] to fix the strategy to apply on
 /// transactions.
-pub trait Fee: Onchain + Asset {
-    /// Type for describing the fee of a blockchain.
-    type FeeUnit: Clone + PartialOrd + PartialEq + Eq + Display + Debug + CanonicalBytes;
+///
+/// ```
+/// use bitcoin::Amount;
+/// use bitcoin::util::psbt::PartiallySignedTransaction;
+/// use farcaster_core::crypto::SharedKeyId;
+/// use farcaster_core::blockchain::{Fee, FeeStrategy, FeePriority, FeeStrategyError};
+///
+/// pub struct Psbt(PartiallySignedTransaction);
+/// pub struct SatPerBytes(f32);
+///
+/// impl Fee for Psbt {
+///     type FeeUnit = SatPerBytes;
+///     type Amount = Amount;
+///
+///     fn set_fee(
+///         &mut self, strategy:
+///         &FeeStrategy<SatPerBytes>,
+///         politic: FeePriority
+///     ) -> Result<Self::Amount, FeeStrategyError> {
+///         todo!()
+///     }
+///
+///     fn validate_fee(
+///         &self,
+///         strategy: &FeeStrategy<SatPerBytes>
+///     ) -> Result<bool, FeeStrategyError> {
+///         todo!()
+///     }
+/// }
+/// ```
+pub trait Fee {
+    /// Type for describing the fee rate of a blockchain.
+    type FeeUnit;
+
+    /// Type of asset quantity.
+    type Amount;
 
     /// Calculates and sets the fee on the given transaction and return the amount of fee set in
     /// the blockchain native amount format.
     fn set_fee(
-        tx: &mut Self::PartialTransaction,
+        &mut self,
         strategy: &FeeStrategy<Self::FeeUnit>,
         politic: FeePriority,
-    ) -> Result<Self::AssetUnit, FeeStrategyError>;
+    ) -> Result<Self::Amount, FeeStrategyError>;
 
     /// Validates that the fee for the given transaction are set accordingly to the strategy.
-    fn validate_fee(
-        tx: &Self::PartialTransaction,
-        strategy: &FeeStrategy<Self::FeeUnit>,
-    ) -> Result<bool, FeeStrategyError>;
+    fn validate_fee(&self, strategy: &FeeStrategy<Self::FeeUnit>)
+        -> Result<bool, FeeStrategyError>;
 }
 
 impl FromStr for Network {
@@ -346,13 +441,10 @@ impl From<bitcoin::Network> for Network {
 
 /// Defines a blockchain network, identifies in which context the system interacts with the
 /// blockchain.
-#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display)]
-#[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
+#[derive(
+    Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display, Serialize, Deserialize,
 )]
+#[display(Debug)]
 pub enum Network {
     /// Represents a real asset on his valuable network.
     Mainnet,

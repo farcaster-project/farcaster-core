@@ -70,7 +70,7 @@ impl Linkable<MetadataOutput> for Funding {
     }
 }
 
-impl Fundable<Bitcoin<SegwitV0>, MetadataOutput> for Funding {
+impl Fundable<Transaction, MetadataOutput, Address, PublicKey> for Funding {
     fn initialize(pubkey: PublicKey, network: Network) -> Result<Self, FError> {
         Ok(Funding {
             pubkey: Some(pubkey),

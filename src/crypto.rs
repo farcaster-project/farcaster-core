@@ -11,7 +11,6 @@ use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
-use crate::role::Accordant;
 
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
@@ -86,27 +85,16 @@ impl Error {
     }
 }
 
-/// Element `E` prefixed with a tag `T`. Used to tag content with some ids. Tag needs `Eq` to be
-/// used in vectors or sets and identify the content. Tags can be [`ArbitratingKeyId`],
+/// Element `E` prefixed with a tag `T`. Used to tag content with some ids. Tag should be `Eq` to
+/// be used in vectors or sets and identify the content. Tags can be [`ArbitratingKeyId`],
 /// [`AccordantKeyId`] or any other type of identifiers.
-#[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
-pub struct TaggedElement<T, E>
-where
-    T: Eq,
-{
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TaggedElement<T, E> {
     tag: T,
     elem: E,
 }
 
-impl<T, E> TaggedElement<T, E>
-where
-    T: Eq,
-{
+impl<T, E> TaggedElement<T, E> {
     /// Create a new tagged element `E` with the tag `T`.
     pub fn new(tag: T, elem: E) -> Self {
         Self { tag, elem }
@@ -125,7 +113,7 @@ where
 
 impl<T, E> fmt::Display for TaggedElement<T, E>
 where
-    T: Eq + fmt::Display,
+    T: fmt::Display,
     E: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -135,7 +123,7 @@ where
 
 impl<T, E> Encodable for TaggedElement<T, E>
 where
-    T: Eq + Encodable,
+    T: Encodable,
     E: CanonicalBytes,
 {
     #[inline]
@@ -147,7 +135,7 @@ where
 
 impl<T, E> Decodable for TaggedElement<T, E>
 where
-    T: Eq + Decodable,
+    T: Decodable,
     E: CanonicalBytes,
 {
     #[inline]
@@ -170,13 +158,8 @@ pub type TaggedSharedKeys<E> = Vec<TaggedElement<SharedKeyId, E>>;
 /// List of all possible arbitrating keys as defined for the base protocol in the RFCs. Extra keys
 /// can be defined with [`Self::Extra`] variant and an `u16` identifier. Those keys can be used for
 /// extra off-chain protocol such as multi-signature or multi-party computation schemes.
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum ArbitratingKeyId {
     /// Arbitrating key used to fund the [`Lockable`] transaction through [`Fundable`].
     ///
@@ -207,13 +190,8 @@ pub enum ArbitratingKeyId {
 
 /// Defines the base accordant key identifier [`Self::Spend`] and all possible extra keys with
 /// [`Self::Extra`] variant containing the `u16` identifier.
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub enum AccordantKeyId {
     /// Accordant bought/sold key over the arbitrating blockchain.
     Spend,
@@ -224,13 +202,8 @@ pub enum AccordantKeyId {
 
 /// Identifier for shared private keys over the arbitrating and accordant blockchains. E.g. the
 /// `view` key needed to parse the Monero blockchain is a shared private key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[display(Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 pub struct SharedKeyId(u16);
 
 impl SharedKeyId {
@@ -259,31 +232,32 @@ impl Decodable for SharedKeyId {
     }
 }
 
-/// The list of possible [`Accordant`] keys (secret and public) a swap role has after reveal.
-pub struct AccordantKeys<A: Accordant> {
-    /// The accordant spend public key.
-    pub spend_key: A::PublicKey,
+/// The full set of keys (secret and public) a swap role has after the reveal round for the
+/// [`Accordant`] blockchain in the swap (e.g. the Monero blockchain).
+///
+/// [`Accordant`]: crate::role::Accordant
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccordantKeys<PublicKey, SharedSecretKey> {
+    /// The full accordant spend public key.
+    pub public_spend_key: PublicKey,
     /// A list of extra accordant public keys.
-    pub extra_accordant_keys: Vec<TaggedElement<u16, A::PublicKey>>,
+    pub extra_public_keys: Vec<TaggedElement<u16, PublicKey>>,
     /// A list of secret shared keys, e.g. shared view keys in non-transparent blockchains.
-    pub shared_keys: Vec<TaggedElement<SharedKeyId, A::SharedSecretKey>>,
+    pub shared_secret_keys: Vec<TaggedElement<SharedKeyId, SharedSecretKey>>,
 }
 
-/// The list of all accordant keys swap roles have after reveal.
-pub struct SwapAccordantKeys<A: Accordant> {
+/// The full set of all keys related to the accordant blockchain available after the reveal round.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccordantKeySet<PublicKey, SharedSecretKey> {
     /// Alice's accordant keys (secret and public).
-    pub alice: AccordantKeys<A>,
+    pub alice: AccordantKeys<PublicKey, SharedSecretKey>,
     /// Bob's accordant keys (secret and public).
-    pub bob: AccordantKeys<A>,
+    pub bob: AccordantKeys<PublicKey, SharedSecretKey>,
 }
 
 fixed_hash::construct_fixed_hash!(
     /// Result of a keccak256 commitment.
-    #[cfg_attr(
-        feature = "serde",
-        derive(Serialize, Deserialize),
-        serde(crate = "serde_crate"),
-    )]
+    #[derive(Serialize, Deserialize)]
     pub struct KeccakCommitment(32);
 );
 
@@ -313,7 +287,8 @@ impl CanonicalBytes for KeccakCommitment {
 }
 
 /// Engine to produce and validate hash commitments.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[display(Debug)]
 pub struct CommitmentEngine;
 
 impl Commit<KeccakCommitment> for CommitmentEngine {
@@ -326,34 +301,45 @@ impl Commit<KeccakCommitment> for CommitmentEngine {
     }
 }
 
-/// Required for [`Arbitrating`] and [`Accordant`] blockchains to fix the cryptographic secret key
-/// and public key types. The public key type is shared across the network and used in
-/// transactions, the secret key type is used during signing operation, proofs, etc.
+/// Required for [`Arbitrating`] and [`Accordant`] blockchains to dervice extra public keys (keys
+/// not automatically derives by the protocol by default) and extra shared private keys. Shared
+/// private keys are used in situation when e.g. blockchain is not transparent or when extra nonces
+/// should be exchanged.
+///
+/// ```
+/// use farcaster_core::crypto::DeriveKeys;
+/// use farcaster_core::crypto::SharedKeyId;
+/// use bitcoin::secp256k1::{PublicKey, SecretKey};
+///
+/// pub struct Bitcoin;
+///
+/// impl DeriveKeys for Bitcoin {
+///     type PublicKey = PublicKey;
+///     type PrivateKey = SecretKey;
+///
+///     fn extra_public_keys() -> Vec<u16> {
+///         // no extra needed
+///         vec![]
+///     }
+///
+///     fn extra_shared_private_keys() -> Vec<SharedKeyId> {
+///         // no shared key needed, transparent blockchain
+///         vec![]
+///     }
+/// }
+/// ```
 ///
 /// [`Arbitrating`]: crate::role::Arbitrating
 /// [`Accordant`]: crate::role::Accordant
-pub trait Keys {
-    /// Secret key type used for signing and proving.
-    type SecretKey;
-
-    /// Public key type used in transactions.
-    type PublicKey: Clone + PartialEq + Debug + fmt::Display + CanonicalBytes;
+pub trait DeriveKeys {
+    type PublicKey;
+    type PrivateKey;
 
     /// Return a list of extra public key identifiers to use during the setup phase.
-    fn extra_keys() -> Vec<u16>;
-}
-
-/// Required for [`Arbitrating`] and [`Accordant`] blockchains to fix the potential shared secret
-/// keys send over the network. E.g. the private `view` key needed to parse the Monero blockchain.
-///
-/// [`Arbitrating`]: crate::role::Arbitrating
-/// [`Accordant`]: crate::role::Accordant
-pub trait SharedSecretKeys {
-    /// Shareable secret key type used to parse, e.g., non-transparent blockchain.
-    type SharedSecretKey: Clone + PartialEq + Debug + CanonicalBytes;
+    fn extra_public_keys() -> Vec<u16>;
 
     /// Return a list of extra shared secret key identifiers to use during the setup phase.
-    fn shared_keys() -> Vec<SharedKeyId>;
+    fn extra_shared_private_keys() -> Vec<SharedKeyId>;
 }
 
 /// Trait required for [`Arbitrating`] blockchains to define the cryptographic message format to

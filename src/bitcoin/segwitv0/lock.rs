@@ -2,12 +2,17 @@ use std::marker::PhantomData;
 
 use bitcoin::blockdata::transaction::{TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
+use bitcoin::secp256k1::ecdsa::Signature;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
 use bitcoin::Amount;
+use bitcoin::Transaction;
 
 use crate::script;
 use crate::transaction::{Error as FError, Fundable, Lockable};
 
+use crate::bitcoin::segwitv0::Sha256dHash;
 use crate::bitcoin::segwitv0::{CoopLock, SegwitV0};
 use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
@@ -31,10 +36,22 @@ impl SubTransaction for Lock {
     }
 }
 
-impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
+impl
+    Lockable<
+        Address,
+        Transaction,
+        PartiallySignedTransaction,
+        MetadataOutput,
+        Amount,
+        CSVTimelock,
+        Sha256dHash,
+        PublicKey,
+        Signature,
+    > for Tx<Lock>
+{
     fn initialize(
-        prev: &impl Fundable<Bitcoin<SegwitV0>, MetadataOutput>,
-        lock: script::DataLock<Bitcoin<SegwitV0>>,
+        prev: &impl Fundable<Transaction, MetadataOutput, Address, PublicKey>,
+        lock: script::DataLock<CSVTimelock, PublicKey>,
         target_amount: Amount,
     ) -> Result<Self, FError> {
         let script = CoopLock::script(lock);
@@ -75,7 +92,10 @@ impl Lockable<Bitcoin<SegwitV0>, MetadataOutput> for Tx<Lock> {
         })
     }
 
-    fn verify_template(&self, lock: script::DataLock<Bitcoin<SegwitV0>>) -> Result<(), FError> {
+    fn verify_template(
+        &self,
+        lock: script::DataLock<CSVTimelock, PublicKey>,
+    ) -> Result<(), FError> {
         (self.psbt.unsigned_tx.version == 2)
             .then(|| 0)
             .ok_or(FError::WrongTemplate("Tx version is not 2"))?;

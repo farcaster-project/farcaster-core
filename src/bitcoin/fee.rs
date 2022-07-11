@@ -32,7 +32,7 @@ use std::str::FromStr;
 /// An amount of Bitcoin (internally in satoshis) representing the number of satoshis per virtual
 /// byte a transaction must use for its fee. A [`FeeStrategy`] can use one of more of this type
 /// depending of its complexity (fixed, range, etc).
-#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Display)]
 #[display(display_sats_per_vbyte)]
 pub struct SatPerVByte(Amount);
 
@@ -117,22 +117,24 @@ fn get_available_input_sat(tx: &PartiallySignedTransaction) -> Result<Amount, Fe
     ))
 }
 
-impl<S: Strategy> Fee for Bitcoin<S> {
+impl Fee for PartiallySignedTransaction {
     type FeeUnit = SatPerVByte;
+
+    type Amount = Amount;
 
     /// Calculates and sets the fees on the given transaction and return the fees set
     fn set_fee(
-        tx: &mut PartiallySignedTransaction,
+        &mut self,
         strategy: &FeeStrategy<SatPerVByte>,
         politic: FeePriority,
-    ) -> Result<Amount, FeeStrategyError> {
-        if tx.unsigned_tx.output.len() != 1 {
+    ) -> Result<Self::Amount, FeeStrategyError> {
+        if self.unsigned_tx.output.len() != 1 {
             return Err(FeeStrategyError::new(
                 transaction::Error::MultiUTXOUnsuported,
             ));
         }
 
-        let input_sum = get_available_input_sat(tx)?;
+        let input_sum = get_available_input_sat(self)?;
 
         // FIXME This does not account for witnesses
         // currently the fees are wrong
@@ -142,7 +144,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         // times four. For transactions with a witness, this is the non-witness
         // consensus-serialized size multiplied by three plus the with-witness consensus-serialized
         // size.
-        let weight = tx.unsigned_tx.weight() as u64;
+        let weight = self.unsigned_tx.weight() as u64;
 
         // Compute the fee amount to set in total
         let fee_amount = match strategy {
@@ -155,7 +157,7 @@ impl<S: Strategy> Fee for Bitcoin<S> {
         .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
 
         // Apply the fee on the first output
-        tx.unsigned_tx.output[0].value = input_sum
+        self.unsigned_tx.output[0].value = input_sum
             .checked_sub(fee_amount)
             .ok_or(FeeStrategyError::NotEnoughAssets)?
             .as_sat();
@@ -165,22 +167,19 @@ impl<S: Strategy> Fee for Bitcoin<S> {
     }
 
     /// Validates that the fees for the given transaction are set accordingly to the strategy
-    fn validate_fee(
-        tx: &PartiallySignedTransaction,
-        strategy: &FeeStrategy<SatPerVByte>,
-    ) -> Result<bool, FeeStrategyError> {
-        if tx.unsigned_tx.output.len() != 1 {
+    fn validate_fee(&self, strategy: &FeeStrategy<SatPerVByte>) -> Result<bool, FeeStrategyError> {
+        if self.unsigned_tx.output.len() != 1 {
             return Err(FeeStrategyError::new(
                 transaction::Error::MultiUTXOUnsuported,
             ));
         }
 
-        let input_sum = get_available_input_sat(tx)?.as_sat();
-        let output_sum = tx.unsigned_tx.output[0].value;
+        let input_sum = get_available_input_sat(self)?.as_sat();
+        let output_sum = self.unsigned_tx.output[0].value;
         let fee = input_sum
             .checked_sub(output_sum)
             .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
-        let weight = tx.unsigned_tx.weight() as u64;
+        let weight = self.unsigned_tx.weight() as u64;
 
         let effective_sat_per_vbyte = SatPerVByte::from_sat(
             weight

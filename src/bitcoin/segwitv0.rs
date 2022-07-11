@@ -11,10 +11,11 @@ use crate::bitcoin::transaction::TxInRef;
 use crate::bitcoin::transaction::{MetadataOutput, Tx};
 use crate::bitcoin::{Bitcoin, BitcoinSegwitV0, Btc, Strategy};
 
+use crate::bitcoin::timelock::CSVTimelock;
 use crate::blockchain::Transactions;
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{Keys, SharedKeyId, SharedSecretKeys, Signatures};
-use crate::role::{Arbitrating, SwapRole};
+use crate::crypto::{DeriveKeys, SharedKeyId, Signatures};
+use crate::role::SwapRole;
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 
 use bitcoin::blockdata::opcodes;
@@ -22,6 +23,7 @@ use bitcoin::blockdata::script::{Builder, Instruction, Script};
 use bitcoin::blockdata::transaction::EcdsaSighashType;
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 use bitcoin::secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey, Signing};
+use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::util::sighash::SighashCache;
 
 use ecdsa_fun::adaptor::EncryptedSignature;
@@ -86,20 +88,20 @@ pub struct CoopLock {
 }
 
 impl CoopLock {
-    pub fn script(data: DataLock<BitcoinSegwitV0>) -> Script {
+    pub fn script(data: DataLock<CSVTimelock, PublicKey>) -> Script {
         let DataLock {
             success: DoubleKeys { alice, bob },
             ..
         } = data;
         Builder::new()
-            .push_key(&bitcoin::util::key::PublicKey::new(*alice))
+            .push_key(&bitcoin::util::key::PublicKey::new(alice))
             .push_opcode(opcodes::all::OP_CHECKSIGVERIFY)
-            .push_key(&bitcoin::util::key::PublicKey::new(*bob))
+            .push_key(&bitcoin::util::key::PublicKey::new(bob))
             .push_opcode(opcodes::all::OP_CHECKSIG)
             .into_script()
     }
 
-    pub fn v0_p2wsh(data: DataLock<BitcoinSegwitV0>) -> Script {
+    pub fn v0_p2wsh(data: DataLock<CSVTimelock, PublicKey>) -> Script {
         Self::script(data).to_v0_p2wsh()
     }
 
@@ -177,7 +179,7 @@ pub struct PunishLock {
 }
 
 impl PunishLock {
-    pub fn script(data: DataPunishableLock<BitcoinSegwitV0>) -> Script {
+    pub fn script(data: DataPunishableLock<CSVTimelock, PublicKey>) -> Script {
         let DataPunishableLock {
             timelock,
             success: DoubleKeys { alice, bob },
@@ -185,21 +187,21 @@ impl PunishLock {
         } = data;
         Builder::new()
             .push_opcode(opcodes::all::OP_IF)
-            .push_key(&bitcoin::util::key::PublicKey::new(*alice))
+            .push_key(&bitcoin::util::key::PublicKey::new(alice))
             .push_opcode(opcodes::all::OP_CHECKSIGVERIFY)
-            .push_key(&bitcoin::util::key::PublicKey::new(*bob))
+            .push_key(&bitcoin::util::key::PublicKey::new(bob))
             .push_opcode(opcodes::all::OP_CHECKSIG)
             .push_opcode(opcodes::all::OP_ELSE)
             .push_int(timelock.as_u32().into())
             .push_opcode(opcodes::all::OP_CSV)
             .push_opcode(opcodes::all::OP_DROP)
-            .push_key(&bitcoin::util::key::PublicKey::new(*failure))
+            .push_key(&bitcoin::util::key::PublicKey::new(failure))
             .push_opcode(opcodes::all::OP_CHECKSIG)
             .push_opcode(opcodes::all::OP_ENDIF)
             .into_script()
     }
 
-    pub fn v0_p2wsh(data: DataPunishableLock<BitcoinSegwitV0>) -> Script {
+    pub fn v0_p2wsh(data: DataPunishableLock<CSVTimelock, PublicKey>) -> Script {
         Self::script(data).to_v0_p2wsh()
     }
 
@@ -336,7 +338,7 @@ impl PunishLock {
     }
 }
 
-impl Arbitrating for Bitcoin<SegwitV0> {}
+//impl Arbitrating for Bitcoin<SegwitV0> {}
 
 impl TryFrom<Btc> for Bitcoin<SegwitV0> {
     type Error = consensus::Error;
@@ -350,7 +352,15 @@ impl TryFrom<Btc> for Bitcoin<SegwitV0> {
 }
 
 impl Transactions for Bitcoin<SegwitV0> {
-    type Metadata = MetadataOutput;
+    type Addr = bitcoin::Address;
+    type Amt = bitcoin::Amount;
+    type Tx = bitcoin::Transaction;
+    type Px = PartiallySignedTransaction;
+    type Out = MetadataOutput;
+    type Ti = CSVTimelock;
+    type Ms = Sha256dHash;
+    type Pk = PublicKey;
+    type Si = Signature;
 
     type Funding = Funding;
     type Lock = Tx<Lock>;
@@ -360,12 +370,17 @@ impl Transactions for Bitcoin<SegwitV0> {
     type Punish = Tx<Punish>;
 }
 
-impl Keys for Bitcoin<SegwitV0> {
-    type SecretKey = SecretKey;
+impl DeriveKeys for Bitcoin<SegwitV0> {
     type PublicKey = PublicKey;
+    type PrivateKey = SecretKey;
 
-    fn extra_keys() -> Vec<u16> {
+    fn extra_public_keys() -> Vec<u16> {
         // No extra key
+        vec![]
+    }
+
+    fn extra_shared_private_keys() -> Vec<SharedKeyId> {
+        // No shared key in Bitcoin, transparent ledger
         vec![]
     }
 }
@@ -380,28 +395,6 @@ impl CanonicalBytes for SecretKey {
         Self: Sized,
     {
         SecretKey::from_slice(bytes).map_err(consensus::Error::new)
-    }
-}
-
-impl CanonicalBytes for PublicKey {
-    fn as_canonical_bytes(&self) -> Vec<u8> {
-        self.serialize().as_ref().into()
-    }
-
-    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, consensus::Error>
-    where
-        Self: Sized,
-    {
-        PublicKey::from_slice(bytes).map_err(consensus::Error::new)
-    }
-}
-
-impl SharedSecretKeys for Bitcoin<SegwitV0> {
-    type SharedSecretKey = SecretKey;
-
-    fn shared_keys() -> Vec<SharedKeyId> {
-        // No shared key in Bitcoin, transparent ledger
-        vec![]
     }
 }
 

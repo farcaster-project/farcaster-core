@@ -3,7 +3,7 @@
 
 use crate::blockchain::{self, Asset, Network};
 use crate::consensus::{self, CanonicalBytes};
-use crate::crypto::{self, AccordantKeys, Keys, SharedKeyId, SharedSecretKeys, SwapAccordantKeys};
+use crate::crypto::{self, AccordantKeySet, AccordantKeys, DeriveKeys, SharedKeyId};
 use crate::role::Accordant;
 
 use monero::util::key::{PrivateKey, PublicKey};
@@ -22,36 +22,36 @@ pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
 
-impl Accordant for Monero {
+impl Accordant<PublicKey, PrivateKey, Address> for Monero {
     fn derive_lock_address(
         network: Network,
-        keys: SwapAccordantKeys<Self>,
+        keys: AccordantKeySet<PublicKey, PrivateKey>,
     ) -> Result<Address, crypto::Error> {
-        let SwapAccordantKeys {
+        let AccordantKeySet {
             alice:
                 AccordantKeys {
-                    spend_key: alice_spend_key,
-                    shared_keys: alice_shared_keys,
+                    public_spend_key: alice_public_spend_key,
+                    shared_secret_keys: alice_shared_secret_keys,
                     ..
                 },
             bob:
                 AccordantKeys {
-                    spend_key: bob_spend_key,
-                    shared_keys: bob_shared_keys,
+                    public_spend_key: bob_public_spend_key,
+                    shared_secret_keys: bob_shared_secret_keys,
                     ..
                 },
         } = keys;
 
-        let alice_tagged_view_secretkey = alice_shared_keys
+        let alice_tagged_view_secretkey = alice_shared_secret_keys
             .iter()
             .find(|tagged_key| *tagged_key.tag() == SharedKeyId::new(SHARED_VIEW_KEY_ID))
             .ok_or(crypto::Error::MissingKey)?;
-        let bob_tagged_view_secretkey = bob_shared_keys
+        let bob_tagged_view_secretkey = bob_shared_secret_keys
             .iter()
             .find(|tagged_key| *tagged_key.tag() == SharedKeyId::new(SHARED_VIEW_KEY_ID))
             .ok_or(crypto::Error::MissingKey)?;
 
-        let public_spend = alice_spend_key + bob_spend_key;
+        let public_spend = alice_public_spend_key + bob_public_spend_key;
         let secret_view = alice_tagged_view_secretkey.elem() + bob_tagged_view_secretkey.elem();
         let public_view = PublicKey::from_private_key(&secret_view);
 
@@ -134,13 +134,18 @@ impl CanonicalBytes for Address {
     }
 }
 
-impl Keys for Monero {
-    type SecretKey = PrivateKey;
+impl DeriveKeys for Monero {
     type PublicKey = PublicKey;
+    type PrivateKey = PrivateKey;
 
-    fn extra_keys() -> Vec<u16> {
+    fn extra_public_keys() -> Vec<u16> {
         // No extra key
         vec![]
+    }
+
+    fn extra_shared_private_keys() -> Vec<SharedKeyId> {
+        // Share one key: the private view key
+        vec![SharedKeyId::new(SHARED_VIEW_KEY_ID)]
     }
 }
 
@@ -167,14 +172,5 @@ impl CanonicalBytes for PublicKey {
         Self: Sized,
     {
         PublicKey::from_slice(bytes).map_err(consensus::Error::new)
-    }
-}
-
-impl SharedSecretKeys for Monero {
-    type SharedSecretKey = PrivateKey;
-
-    fn shared_keys() -> Vec<SharedKeyId> {
-        // Share one key: the private view key
-        vec![SharedKeyId::new(SHARED_VIEW_KEY_ID)]
     }
 }

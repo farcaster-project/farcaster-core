@@ -289,7 +289,7 @@ pub trait Fundable<Tx, Out, Addr, Pk>: Linkable<Out> {
         Self: Sized;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Funding
     }
 }
@@ -337,7 +337,7 @@ pub trait Lockable<Addr, Tx, Px, Out, Amt, Ti, Ms, Pk, Si>:
     }
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Lock
     }
 }
@@ -377,7 +377,7 @@ where
     fn extract_witness(tx: Tx) -> Si;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Buy
     }
 }
@@ -418,7 +418,7 @@ where
     ) -> Result<(), Error>;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Cancel
     }
 }
@@ -456,7 +456,7 @@ where
     fn extract_witness(tx: Tx) -> Si;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Refund
     }
 }
@@ -495,7 +495,7 @@ where
         Self: Sized;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Punish
     }
 }

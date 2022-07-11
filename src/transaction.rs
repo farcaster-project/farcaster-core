@@ -134,12 +134,12 @@ pub trait Transaction<Px, Out, Amt> {
 
 /// Defines the transaction Farcaster IDs for serialization and network communication.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
-#[display(Debug)]
 pub enum TxLabel {
     /// Represents the first transaction created outside of the system by an external wallet to
     /// fund the swap on the arbitrating blockchain.
     Funding,
     /// Represents the core locking arbitrating transaction.
+    #[display("Arbitrating Lock")]
     Lock,
     /// Represents the happy path for swapping the assets.
     Buy,
@@ -151,6 +151,7 @@ pub enum TxLabel {
     /// didn't act accordingly to the protocol.
     Punish,
     /// Represents the accordant lock transaction
+    #[display("Accordant Lock")]
     AccLock,
 }
 
@@ -288,7 +289,7 @@ pub trait Fundable<Tx, Out, Addr, Pk>: Linkable<Out> {
         Self: Sized;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Funding
     }
 }
@@ -336,7 +337,7 @@ pub trait Lockable<Addr, Tx, Px, Out, Amt, Ti, Ms, Pk, Si>:
     }
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Lock
     }
 }
@@ -376,7 +377,7 @@ where
     fn extract_witness(tx: Tx) -> Si;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Buy
     }
 }
@@ -417,7 +418,7 @@ where
     ) -> Result<(), Error>;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Cancel
     }
 }
@@ -455,7 +456,7 @@ where
     fn extract_witness(tx: Tx) -> Si;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Refund
     }
 }
@@ -494,7 +495,7 @@ where
         Self: Sized;
 
     /// Return the Farcaster transaction identifier.
-    fn get_id(&self) -> TxLabel {
+    fn get_label(&self) -> TxLabel {
         TxLabel::Punish
     }
 }

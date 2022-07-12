@@ -108,10 +108,7 @@ impl<'de> Deserialize<'de> for OfferId {
     where
         D: Deserializer<'de>,
     {
-        Ok(
-            OfferId::from_str(&deserializer.deserialize_string(HashString)?)
-                .map_err(de::Error::custom)?,
-        )
+        OfferId::from_str(&deserializer.deserialize_string(HashString)?).map_err(de::Error::custom)
     }
 }
 
@@ -314,10 +311,8 @@ impl<'de> Deserialize<'de> for PublicOfferId {
     where
         D: Deserializer<'de>,
     {
-        Ok(
-            PublicOfferId::from_str(&deserializer.deserialize_string(HashString)?)
-                .map_err(de::Error::custom)?,
-        )
+        PublicOfferId::from_str(&deserializer.deserialize_string(HashString)?)
+            .map_err(de::Error::custom)
     }
 }
 

@@ -1,5 +1,8 @@
 //! Protocol execution and messages exchanged between peers.
 
+// For this file we allow having complex types
+#![allow(clippy::type_complexity)]
+
 use std::io;
 
 use crate::blockchain::{Fee, FeePriority, FeeStrategy, Transactions};
@@ -769,7 +772,7 @@ where
     //  correctly)
     //  * the target amount from the offer is correct (for the lock transaction)
     //  * the fee strategy validation passes
-    fn validate_core<'a, Amt, Pk, Qk, Rk, Sk, Ti, F, Pr, Ms, Si, Px>(
+    fn validate_core<Amt, Pk, Qk, Rk, Sk, Ti, F, Pr, Ms, Si, Px>(
         &self,
         alice_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
         bob_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
@@ -841,7 +844,7 @@ where
         let cancel = <Ar::Cancel>::from_partial(partial_cancel);
         // Check that the cancel transaction is build on top of the lock.
         cancel.is_build_on_top_of(&lock)?;
-        cancel.verify_template(data_lock.clone(), punish_lock)?;
+        cancel.verify_template(data_lock, punish_lock)?;
         // Validate the fee strategy
         cancel.as_partial().validate_fee(fee_strategy)?;
 
@@ -1460,10 +1463,7 @@ where
         let adapted_sig =
             wallet.decrypt_signature(AccordantKeyId::Spend, signed_adaptor_refund.clone())?;
 
-        Ok(TxSignatures {
-            sig: sig,
-            adapted_sig: adapted_sig,
-        })
+        Ok(TxSignatures { sig, adapted_sig })
     }
 
     pub fn recover_accordant_key<S, Tx, Px, Si, Pk, Qk, Rk, Sk, Ti, F, Pr, EncSig>(

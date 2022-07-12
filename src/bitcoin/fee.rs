@@ -83,10 +83,7 @@ impl<'de> Deserialize<'de> for SatPerVByte {
     where
         D: Deserializer<'de>,
     {
-        Ok(
-            SatPerVByte::from_str(&String::deserialize(deserializer)?)
-                .map_err(de::Error::custom)?,
-        )
+        SatPerVByte::from_str(&String::deserialize(deserializer)?).map_err(de::Error::custom)
     }
 }
 

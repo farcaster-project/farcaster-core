@@ -31,21 +31,19 @@ impl SubTransaction for Buy {
 
         let swaplock = CoopLock::from_script(&script)?;
 
-        let alice_sig = psbt.inputs[0]
+        let alice_sig = *psbt.inputs[0]
             .partial_sigs
             .get(&bitcoin::PublicKey::new(
                 *swaplock.get_pubkey(SwapRole::Alice),
             ))
-            .ok_or(FError::MissingSignature)?
-            .clone();
+            .ok_or(FError::MissingSignature)?;
 
-        let bob_sig = psbt.inputs[0]
+        let bob_sig = *psbt.inputs[0]
             .partial_sigs
             .get(&bitcoin::PublicKey::new(
                 *swaplock.get_pubkey(SwapRole::Bob),
             ))
-            .ok_or(FError::MissingSignature)?
-            .clone();
+            .ok_or(FError::MissingSignature)?;
 
         psbt.inputs[0].final_script_witness = Some(Witness::from_vec(vec![
             bob_sig.to_vec(),

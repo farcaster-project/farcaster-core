@@ -31,10 +31,7 @@ impl<'de> Deserialize<'de> for SwapId {
     where
         D: Deserializer<'de>,
     {
-        Ok(
-            SwapId::from_str(&deserializer.deserialize_string(HashString)?)
-                .map_err(de::Error::custom)?,
-        )
+        SwapId::from_str(&deserializer.deserialize_string(HashString)?).map_err(de::Error::custom)
     }
 }
 

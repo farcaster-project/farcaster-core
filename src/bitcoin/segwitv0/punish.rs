@@ -31,15 +31,14 @@ impl SubTransaction for Punish {
 
         let swaplock = PunishLock::from_script(&script)?;
 
-        let punish_sig = psbt.inputs[0]
+        let punish_sig = *psbt.inputs[0]
             .partial_sigs
             .get(&bitcoin::PublicKey::new(
                 *swaplock
                     .get_pubkey(SwapRole::Alice, ScriptPath::Success)
                     .ok_or(Error::MissingPublicKey)?,
             ))
-            .ok_or(Error::MissingSignature)?
-            .clone();
+            .ok_or(Error::MissingSignature)?;
 
         psbt.inputs[0].final_script_witness = Some(Witness::from_vec(vec![
             punish_sig.to_vec(),

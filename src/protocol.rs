@@ -248,12 +248,12 @@ where
     Addr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        let len = self.fee_politic.consensus_encode(writer)?;
-        let len = self
+        let mut len = self.fee_politic.consensus_encode(writer)?;
+        len += self
             .arbitrating
             .as_canonical_bytes()
             .consensus_encode(writer)?;
-        let len = self
+        len += self
             .accordant
             .as_canonical_bytes()
             .consensus_encode(writer)?;
@@ -889,12 +889,12 @@ where
     Addr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
-        let len = self.fee_politic.consensus_encode(writer)?;
-        let len = self
+        let mut len = self.fee_politic.consensus_encode(writer)?;
+        len += self
             .arbitrating
             .as_canonical_bytes()
             .consensus_encode(writer)?;
-        let len = self
+        len += self
             .accordant
             .as_canonical_bytes()
             .consensus_encode(writer)?;

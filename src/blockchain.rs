@@ -223,10 +223,26 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // range parsing not implemented
-        match s.parse::<T>() {
-            Ok(x) => Ok(Self::Fixed(x)),
-            Err(_) => Err(consensus::Error::ParseFailed("Failed parsing FeeStrategy")),
+        let mut parts: Vec<&str> = s.split("-").collect();
+        match parts.len() {
+            1 => match s.parse::<T>() {
+                Ok(x) => Ok(Self::Fixed(x)),
+                Err(_) => Err(consensus::Error::ParseFailed("Failed parsing FeeStrategy")),
+            },
+            2 => {
+                let max_inc = parts
+                    .pop()
+                    .expect("lenght is checked")
+                    .parse::<T>()
+                    .map_err(|_| consensus::Error::ParseFailed("Failed parsing FeeStrategy"))?;
+                let min_inc = parts
+                    .pop()
+                    .expect("lenght is checked")
+                    .parse::<T>()
+                    .map_err(|_| consensus::Error::ParseFailed("Failed parsing FeeStrategy"))?;
+                Ok(Self::Range { min_inc, max_inc })
+            }
+            _ => Err(consensus::Error::ParseFailed("Failed parsing FeeStrategy")),
         }
     }
 }
@@ -237,9 +253,9 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            FeeStrategy::Fixed(t) => write!(f, "Fixed: {}", t),
+            FeeStrategy::Fixed(t) => write!(f, "{}", t),
             FeeStrategy::Range { min_inc, max_inc } => {
-                write!(f, "Range: from {} to {} (inclusive)", min_inc, max_inc)
+                write!(f, "{}-{}", min_inc, max_inc)
             }
         }
     }
@@ -588,21 +604,55 @@ mod tests {
     }
 
     #[test]
-    fn display_fee_strategy() {
+    fn fee_strategy_display() {
         let strategy = FeeStrategy::Fixed(SatPerVByte::from_sat(100));
-        assert_eq!(&format!("{}", strategy), "Fixed: 100 satoshi/vByte");
+        assert_eq!(&format!("{}", strategy), "100 satoshi/vByte");
         let strategy = FeeStrategy::Range {
             min_inc: SatPerVByte::from_sat(50),
             max_inc: SatPerVByte::from_sat(150),
         };
         assert_eq!(
             &format!("{}", strategy),
-            "Range: from 50 satoshi/vByte to 150 satoshi/vByte (inclusive)"
+            "50 satoshi/vByte-150 satoshi/vByte"
         )
     }
 
     #[test]
-    fn check_range_fee_strategy() {
+    fn fee_strategy_parse() {
+        let strings = ["100 satoshi/vByte", "50 satoshi/vByte-150 satoshi/vByte"];
+        let res = [
+            FeeStrategy::Fixed(SatPerVByte::from_sat(100)),
+            FeeStrategy::Range {
+                min_inc: SatPerVByte::from_sat(50),
+                max_inc: SatPerVByte::from_sat(150),
+            },
+        ];
+        for (s, r) in strings.iter().zip(res) {
+            let strategy = FeeStrategy::<SatPerVByte>::from_str(s);
+            assert!(strategy.is_ok());
+            assert_eq!(strategy.unwrap(), r);
+        }
+    }
+
+    #[test]
+    fn fee_strategy_to_str_from_str() {
+        let strats = [
+            FeeStrategy::Fixed(SatPerVByte::from_sat(1)),
+            FeeStrategy::Range {
+                min_inc: SatPerVByte::from_sat(1),
+                max_inc: SatPerVByte::from_sat(7),
+            },
+        ];
+        for strat in strats.iter() {
+            assert_eq!(
+                FeeStrategy::<SatPerVByte>::from_str(&strat.to_string()).unwrap(),
+                *strat
+            )
+        }
+    }
+
+    #[test]
+    fn fee_strategy_check_range() {
         let strategy = FeeStrategy::Range {
             min_inc: SatPerVByte::from_sat(50),
             max_inc: SatPerVByte::from_sat(150),

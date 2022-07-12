@@ -737,7 +737,7 @@ mod tests {
 
     #[test]
     fn display_offer() {
-        assert_eq!(&format!("{}", *OFFER), "Network: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: Fixed: 1 satoshi/vByte\nMaker swap role: Bob\n");
+        assert_eq!(&format!("{}", *OFFER), "Network: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: 1 satoshi/vByte\nMaker swap role: Bob\n");
     }
 
     #[test]

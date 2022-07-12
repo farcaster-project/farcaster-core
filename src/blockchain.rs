@@ -10,16 +10,45 @@ use std::fmt::{self, Debug, Display};
 use std::io;
 use std::str::FromStr;
 
+use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 
 use crate::consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable};
 use crate::transaction::{Buyable, Cancelable, Fundable, Lockable, Punishable, Refundable};
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, Serialize, Deserialize)]
+/// The list of supported blockchains (coins) by this library.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    Parser,
+    Display,
+    Serialize,
+    Deserialize,
+    StrictEncode,
+    StrictDecode,
+)]
 #[display(Debug)]
 pub enum Blockchain {
+    /// The Bitcoin (BTC) blockchain.
     Bitcoin,
+    /// The Monero (XMR) blockchain.
     Monero,
+}
+
+impl FromStr for Blockchain {
+    type Err = consensus::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Bitcoin" | "bitcoin" | "btc" | "BTC" => Ok(Blockchain::Bitcoin),
+            "Monero" | "monero" | "xmr" | "XMR" => Ok(Blockchain::Monero),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
 }
 
 impl Decodable for Blockchain {

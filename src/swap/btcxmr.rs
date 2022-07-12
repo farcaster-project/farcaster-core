@@ -24,10 +24,13 @@ use ecdsa_fun::{
     fun::{Point, Scalar},
     nonce, ECDSA,
 };
+// FIXME: when secp256kfun as new crates.io release
 #[cfg(feature = "experimental")]
 use rand::rngs::ThreadRng;
 #[cfg(feature = "experimental")]
 use rand_chacha::ChaCha20Rng;
+#[cfg(feature = "experimental")]
+use secp256kfun::marker::*;
 #[cfg(feature = "experimental")]
 use sha2::Sha256;
 
@@ -306,7 +309,12 @@ impl Sign<PublicKey, Sha256dHash, Signature> for KeyManager {
     ) -> Result<Signature, crypto::Error> {
         let secret_key = self.get_or_derive_bitcoin_key(key)?;
 
-        let secret_key = Scalar::from(secret_key);
+        // FIXME: when new version is released on crates.io
+        // let secret_key = Scalar::from(secret_key);
+        let secret_key = Scalar::from_slice(&secret_key[..])
+            .unwrap()
+            .mark::<NonZero>()
+            .expect("SecretKey is never zero");
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -315,7 +323,12 @@ impl Sign<PublicKey, Sha256dHash, Signature> for KeyManager {
         let nonce_gen = nonce::Synthetic::<Sha256, nonce::GlobalRng<ThreadRng>>::default();
         let ecdsa = ECDSA::new(nonce_gen);
 
-        Ok(ecdsa.sign(&secret_key, message_hash).into())
+        // FIXME
+        // Ok(ecdsa.sign(&secret_key, message_hash).into())
+        Ok(
+            Signature::from_compact(ecdsa.sign(&secret_key, message_hash).to_bytes().as_ref())
+                .unwrap(),
+        )
     }
 
     fn verify_signature(
@@ -343,8 +356,15 @@ impl EncSign<PublicKey, Sha256dHash, Signature, EncryptedSignature> for KeyManag
         let secret_key = self.get_or_derive_bitcoin_key(signing_key)?;
 
         let engine = Adaptor::<Transcript, NonceGen>::default();
-        let secret_signing_key = Scalar::from(secret_key);
-        let encryption_key = Point::from(*encryption_key);
+        // FIXME
+        // let secret_signing_key = Scalar::from(secret_key);
+        let secret_signing_key = Scalar::from_slice(&secret_key[..])
+            .unwrap()
+            .mark::<NonZero>()
+            .expect("SecretKey is never zero");
+        // FIXME
+        // let encryption_key = Point::from(*encryption_key);
+        let encryption_key = Point::from_bytes(encryption_key.serialize()).unwrap();
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -361,8 +381,11 @@ impl EncSign<PublicKey, Sha256dHash, Signature, EncryptedSignature> for KeyManag
         sig: &EncryptedSignature,
     ) -> Result<(), crypto::Error> {
         let engine = Adaptor::<Transcript, NonceGen>::default();
-        let verification_key = Point::from(*signing_key);
-        let encryption_key = Point::from(*encryption_key);
+        // FIXME
+        // let verification_key = Point::from(*signing_key);
+        // let encryption_key = Point::from(*encryption_key);
+        let verification_key = Point::from_bytes(signing_key.serialize()).unwrap();
+        let encryption_key = Point::from_bytes(encryption_key.serialize()).unwrap();
         let message_hash: &[u8; 32] = {
             use bitcoin::hashes::Hash;
             msg.as_inner()
@@ -394,9 +417,22 @@ impl EncSign<PublicKey, Sha256dHash, Signature, EncryptedSignature> for KeyManag
             .map_err(crypto::Error::new)?;
 
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let decryption_key = Scalar::from(secret_key);
+        // FIXME
+        // let decryption_key = Scalar::from(secret_key);
+        let decryption_key = Scalar::from_slice(&secret_key[..])
+            .unwrap()
+            .mark::<NonZero>()
+            .expect("SecretKey is never zero");
 
-        Ok(adaptor.decrypt_signature(&decryption_key, sig).into())
+        // FIXME
+        // Ok(adaptor.decrypt_signature(&decryption_key, sig).into())
+        Ok(Signature::from_compact(
+            adaptor
+                .decrypt_signature(&decryption_key, sig)
+                .to_bytes()
+                .as_ref(),
+        )
+        .unwrap())
     }
 }
 
@@ -410,11 +446,18 @@ impl RecoverSecret<PublicKey, SecretKey, Signature, EncryptedSignature> for KeyM
         sig: Signature,
     ) -> SecretKey {
         let adaptor = Adaptor::<Transcript, NonceGen>::default();
-        let encryption_key = Point::from(*encryption_key);
-        let signature = ecdsa_fun::Signature::from(sig);
+        // FIXME
+        // let encryption_key = Point::from(*encryption_key);
+        //let signature = ecdsa_fun::Signature::from(sig);
+        let encryption_key = Point::from_bytes(encryption_key.serialize()).unwrap();
+        let signature = ecdsa_fun::Signature::from_bytes(sig.serialize_compact()).unwrap();
 
         match adaptor.recover_decryption_key(&encryption_key, &signature, &encrypted_sig) {
-            Some(decryption_key) => decryption_key.into(),
+            // FIXME
+            // Some(decryption_key) => decryption_key.into(),
+            Some(decryption_key) => {
+                SecretKey::from_slice(decryption_key.to_bytes().as_ref()).unwrap()
+            }
             None => panic!("signature is not the decryption of our original encrypted signature"),
         }
     }
@@ -456,7 +499,9 @@ impl ProveCrossGroupDleq<PublicKey, monero::PublicKey, DLEQProof> for KeyManager
                 .point
                 .decompress()
                 .expect("Valid point to decompress"),
-            ecdsa_fun::fun::Point::from(*encryption_key),
+            // FIXME
+            //ecdsa_fun::fun::Point::from(*encryption_key),
+            Point::from_bytes(encryption_key.serialize()).unwrap(),
         )
     }
 }

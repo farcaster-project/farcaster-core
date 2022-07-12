@@ -427,29 +427,42 @@ impl FromStr for Network {
     }
 }
 
-impl From<bitcoin::Network> for Network {
-    fn from(btc_network: bitcoin::Network) -> Self {
-        match btc_network {
-            bitcoin::Network::Bitcoin => Self::Mainnet,
-            bitcoin::Network::Testnet => Self::Testnet,
-            bitcoin::Network::Signet => Self::Testnet,
-            bitcoin::Network::Regtest => Self::Local,
-        }
-    }
-}
-
 /// Defines a blockchain network, identifies in which context the system interacts with the
 /// blockchain.
+///
+/// When adding support for a new blockchain in the library a [`From`] implementation must be
+/// provided such that it is possible to know what blockchain network to use for each of the three
+/// generic contexts: `mainnet`, `testnet`, and `local`.
+///
+/// ```rust
+/// use farcaster_core::blockchain::Network;
+///
+/// pub enum MyNet {
+///     MyNet,
+///     Test,
+///     Regtest,
+/// }
+///
+/// impl From<Network> for MyNet {
+///     fn from(net: Network) -> Self {
+///         match net {
+///             Network::Mainnet => Self::MyNet,
+///             Network::Testnet => Self::Test,
+///             Network::Local => Self::Regtest,
+///         }
+///     }
+/// }
+/// ```
 #[derive(
     Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug, Display, Serialize, Deserialize,
 )]
 #[display(Debug)]
 pub enum Network {
-    /// Represents a real asset on his valuable network.
+    /// Valuable, real, assets on its production network.
     Mainnet,
-    /// Represents non-valuable assets on test networks.
+    /// Non-valuable assets on its online test networks.
     Testnet,
-    /// Local and private testnets.
+    /// Non-valuable assets on offline test network.
     Local,
 }
 
@@ -498,11 +511,51 @@ mod tests {
     }
 
     #[test]
-    fn network_conversion() {
+    fn bitcoin_network_conversion() {
         assert_eq!(Network::from(bitcoin::Network::Bitcoin), Network::Mainnet);
         assert_eq!(Network::from(bitcoin::Network::Testnet), Network::Testnet);
         assert_eq!(Network::from(bitcoin::Network::Signet), Network::Testnet);
         assert_eq!(Network::from(bitcoin::Network::Regtest), Network::Local);
+        assert_eq!(
+            bitcoin::Network::from(Network::Mainnet),
+            bitcoin::Network::Bitcoin
+        );
+        assert_eq!(
+            Into::<bitcoin::Network>::into(Network::Mainnet),
+            bitcoin::Network::Bitcoin,
+        );
+        assert_eq!(
+            bitcoin::Network::from(Network::Testnet),
+            bitcoin::Network::Testnet
+        );
+        assert_eq!(
+            Into::<bitcoin::Network>::into(Network::Testnet),
+            bitcoin::Network::Testnet,
+        );
+        assert_eq!(
+            bitcoin::Network::from(Network::Local),
+            bitcoin::Network::Regtest
+        );
+        assert_eq!(
+            Into::<bitcoin::Network>::into(Network::Local),
+            bitcoin::Network::Regtest,
+        );
+    }
+
+    #[test]
+    fn monero_network_conversion() {
+        assert_eq!(
+            monero::Network::from(Network::Mainnet),
+            monero::Network::Mainnet
+        );
+        assert_eq!(
+            monero::Network::from(Network::Testnet),
+            monero::Network::Stagenet
+        );
+        assert_eq!(
+            monero::Network::from(Network::Local),
+            monero::Network::Mainnet
+        );
     }
 
     #[test]

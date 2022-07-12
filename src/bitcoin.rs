@@ -8,7 +8,7 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 use bitcoin::Amount;
 
-use crate::blockchain::{self, Asset, Onchain, Timelock};
+use crate::blockchain::{self, Asset, Network, Onchain, Timelock};
 
 pub(crate) mod address;
 pub(crate) mod amount;
@@ -100,4 +100,25 @@ impl<S: Strategy> Timelock for Bitcoin<S> {
 impl<S: Strategy> Onchain for Bitcoin<S> {
     type PartialTransaction = PartiallySignedTransaction;
     type Transaction = bitcoin::Transaction;
+}
+
+impl From<Network> for bitcoin::Network {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Mainnet => Self::Bitcoin,
+            Network::Testnet => Self::Testnet,
+            Network::Local => Self::Regtest,
+        }
+    }
+}
+
+impl From<bitcoin::Network> for Network {
+    fn from(network: bitcoin::Network) -> Self {
+        match network {
+            bitcoin::Network::Bitcoin => Self::Mainnet,
+            bitcoin::Network::Testnet => Self::Testnet,
+            bitcoin::Network::Signet => Self::Testnet,
+            bitcoin::Network::Regtest => Self::Local,
+        }
+    }
 }

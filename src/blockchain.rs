@@ -70,46 +70,6 @@ impl Encodable for Blockchain {
     }
 }
 
-/// Defines the type for a blockchain address, this type is used when manipulating transactions.
-pub trait Address {
-    /// Defines the address format for the arbitrating blockchain.
-    type Address: Clone + Debug + CanonicalBytes;
-}
-
-/// Defines the type for a blockchain timelock, this type is used when manipulating transactions
-/// and is carried in the [`Offer`](crate::negotiation::Offer) to fix the two timelocks.
-pub trait Timelock {
-    /// Defines the type of timelock used for the arbitrating transactions.
-    type Timelock: Copy + PartialEq + Eq + Debug + Display + CanonicalBytes;
-}
-
-/// Defines the asset identifier for a blockchain and its associated asset unit type, it is carried
-/// in the [`Offer`](crate::negotiation::Offer) to fix exchanged amounts.
-pub trait Asset: Copy + Debug {
-    /// Type for the traded asset unit for a blockchain.
-    type AssetUnit: Copy + Eq + Debug + Display + CanonicalBytes;
-
-    /// Parse an 32 bits identifier as defined in [SLIP
-    /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044)
-    /// and return a blockchain if existant.
-    fn from_u32(bytes: u32) -> Option<Self>;
-
-    /// Return the 32 bits identifier for the blockchain as defined in [SLIP
-    /// 44](https://github.com/satoshilabs/slips/blob/master/slip-0044.md#slip-0044--registered-coin-types-for-bip-0044).
-    fn to_u32(&self) -> u32;
-}
-
-/// Defines the types a blockchain needs to interact on-chain, i.e. the transaction exchanged
-/// between participants and used over the network.
-pub trait Onchain {
-    /// Defines the transaction format used to transfer partial transaction between participant for
-    /// the arbitrating blockchain.
-    type PartialTransaction: Clone + Debug + CanonicalBytes;
-
-    /// Defines the finalized transaction format for the arbitrating blockchain.
-    type Transaction: Clone + Debug + CanonicalBytes;
-}
-
 /// Fix the types for all arbitrating transactions needed for the swap: [`Fundable`], [`Lockable`],
 /// [`Buyable`], [`Cancelable`], [`Refundable`], and [`Punishable`] transactions.
 ///

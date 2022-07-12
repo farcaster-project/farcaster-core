@@ -6,7 +6,7 @@ use farcaster_core::bitcoin::{
     BitcoinSegwitV0,
 };
 use farcaster_core::monero::Monero as Xmr;
-use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
+use farcaster_core::swap::btcxmr::KeyManager;
 
 use farcaster_core::blockchain::{FeePriority, Network};
 use farcaster_core::consensus::deserialize;

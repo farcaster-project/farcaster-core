@@ -8,7 +8,7 @@ use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 use bitcoin::Amount;
 
-use crate::blockchain::{self, Asset, Network, Onchain, Timelock};
+use crate::blockchain::{self, Network};
 
 pub(crate) mod address;
 pub(crate) mod amount;
@@ -72,34 +72,6 @@ impl<S: Strategy> Default for Bitcoin<S> {
     fn default() -> Self {
         Self::new()
     }
-}
-
-impl<S: Strategy> Asset for Bitcoin<S> {
-    type AssetUnit = Amount;
-
-    fn from_u32(bytes: u32) -> Option<Self> {
-        match bytes {
-            0x80000000 => Some(Self::new()),
-            _ => None,
-        }
-    }
-
-    fn to_u32(&self) -> u32 {
-        0x80000000
-    }
-}
-
-impl<S: Strategy> blockchain::Address for Bitcoin<S> {
-    type Address = Address;
-}
-
-impl<S: Strategy> Timelock for Bitcoin<S> {
-    type Timelock = timelock::CSVTimelock;
-}
-
-impl<S: Strategy> Onchain for Bitcoin<S> {
-    type PartialTransaction = PartiallySignedTransaction;
-    type Transaction = bitcoin::Transaction;
 }
 
 impl From<Network> for bitcoin::Network {

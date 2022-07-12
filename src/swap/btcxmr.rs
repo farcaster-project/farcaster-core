@@ -91,19 +91,6 @@ pub const SHARED_KEY_DERIVE_INDEX: u32 = 3;
 /// discrete logarithm proof.
 pub const CLAMPING_TO_252_BITS_MASK: u8 = 0b0000_1111;
 
-/// The context for a Bitcoin and Monero [`Swap`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BtcXmr;
-
-//#[cfg(feature = "experimental")]
-//#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-//impl Swap for BtcXmr {
-//    type Ar = BitcoinSegwitV0;
-//    type Ac = Monero;
-//    type Proof = DLEQProof;
-//    type Commitment = KeccakCommitment;
-//}
-
 /// Retrieve the derivation path of something. Might be a blockchain, a type of key, anything that
 /// can contribute to the full derivation path of a key.
 pub trait Derivation {

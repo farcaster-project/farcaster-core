@@ -6,7 +6,7 @@ use std::fmt::{Debug, Display};
 use std::io;
 use std::str::FromStr;
 
-use crate::blockchain::{Address, Asset, Fee, Network, Onchain, Timelock};
+use crate::blockchain::{Fee, Network};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, AccordantKeySet};
 

@@ -3,7 +3,6 @@
 
 use std::io;
 
-use crate::blockchain::{Address, Onchain};
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{self, Commit, SharedKeyId, TaggedElement, TaggedElements};
 use crate::protocol::verify_vec_of_commitments;

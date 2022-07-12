@@ -31,7 +31,7 @@ use tiny_keccak::{Hasher, Keccak};
 use std::fmt;
 use std::io;
 
-use crate::blockchain::{Asset, Blockchain, Fee, FeeStrategy, Network, Timelock};
+use crate::blockchain::{Blockchain, Fee, FeeStrategy, Network};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
 use crate::hash::{HashString, OfferString};
 use crate::protocol::ArbitratingParameters;

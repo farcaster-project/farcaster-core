@@ -7,7 +7,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::blockchain::{Address, Asset, Fee, Network, Onchain, Timelock};
+use crate::blockchain::{Fee, Network};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::script::{DataLock, DataPunishableLock, ScriptPath};
 

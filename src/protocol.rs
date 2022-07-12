@@ -2,8 +2,7 @@
 
 use std::io;
 
-use crate::blockchain::{Address, Fee, FeePriority, Onchain, Timelock, Transactions};
-use crate::blockchain::{Asset, FeeStrategy};
+use crate::blockchain::{Fee, FeePriority, FeeStrategy, Transactions};
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{
     self, AccordantKeyId, ArbitratingKeyId, Commit, DeriveKeys, EncSign, KeyGenerator,

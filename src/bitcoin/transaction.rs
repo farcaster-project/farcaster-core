@@ -17,14 +17,13 @@ use bitcoin::{
 
 use thiserror::Error;
 
-use crate::bitcoin::{Bitcoin, Strategy};
 use crate::consensus::{self, CanonicalBytes};
 use crate::transaction::{Broadcastable, Error as FError, Finalizable, Linkable};
 use bitcoin::hashes::sha256d::Hash as Sha256dHash;
 
 #[cfg(feature = "experimental")]
 use crate::{
-    bitcoin::segwitv0::{signature_hash, SegwitV0},
+    bitcoin::segwitv0::signature_hash,
     script::ScriptPath,
     transaction::{Transaction, Witnessable},
 };

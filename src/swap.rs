@@ -1,11 +1,10 @@
 //! Defines the high level of a swap between a Arbitrating blockchain and a Accordant blockchain
 //! and its concrete instances of swaps.
 
-use std::fmt::{self, Debug};
 use std::io;
 use std::str::FromStr;
 
-use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
+use crate::consensus::{self, Decodable, Encodable};
 use crate::hash::HashString;
 
 use lightning_encoding::strategies::AsStrict;

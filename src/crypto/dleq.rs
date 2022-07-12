@@ -8,7 +8,7 @@ use crate::{
 };
 use amplify::num::u256;
 
-use bitcoin::hashes::{self, Hash};
+use bitcoin::hashes::Hash;
 
 use bitvec::{order::Lsb0, prelude::BitSlice};
 use curve25519_dalek::{

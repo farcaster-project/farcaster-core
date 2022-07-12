@@ -22,13 +22,13 @@ use bitcoin::util::amount::Denomination;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
 
-use crate::bitcoin::{transaction, Bitcoin, Strategy};
+use crate::bitcoin::transaction;
 use crate::blockchain::{Fee, FeePriority, FeeStrategy, FeeStrategyError};
 use crate::consensus::{self, CanonicalBytes};
 
 use std::str::FromStr;
 
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{Serialize, Serializer};
 use serde::{de, Deserialize, Deserializer};
 
 /// An amount of Bitcoin (internally in satoshis) representing the number of satoshis per virtual

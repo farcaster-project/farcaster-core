@@ -1,7 +1,7 @@
 //! Implementation of the Monero blockchain as an accordant blockchain in a swap. This
 //! implementation should work in pair with any other arbitrating implementation, like Bitcoin.
 
-use crate::blockchain::{self, Network};
+use crate::blockchain::Network;
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{self, AccordantKeySet, AccordantKeys, DeriveKeys, SharedKeyId};
 use crate::role::Accordant;

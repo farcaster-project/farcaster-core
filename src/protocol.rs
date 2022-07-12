@@ -12,7 +12,7 @@ use crate::crypto::{
 use crate::negotiation::PublicOffer;
 use crate::protocol::message::{
     BuyProcedureSignature, CommitAliceParameters, CommitBobParameters, CoreArbitratingSetup,
-    RefundProcedureSignatures, RevealAliceParameters, RevealBobParameters, RevealProof,
+    RevealAliceParameters, RevealBobParameters,
 };
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 use crate::swap::SwapId;

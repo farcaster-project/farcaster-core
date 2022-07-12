@@ -6,17 +6,13 @@ use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self,
     slip10::{ChildNumber, DerivationPath, Ed25519ExtSecretKey, Secp256k1ExtSecretKey},
-    AccordantKeyId, ArbitratingKeyId, GenerateKey, GenerateSharedKey, KeccakCommitment,
-    ProveCrossGroupDleq, SharedKeyId,
+    AccordantKeyId, ArbitratingKeyId, GenerateKey, GenerateSharedKey, ProveCrossGroupDleq,
+    SharedKeyId,
 };
 use crate::negotiation;
 use crate::protocol;
 #[cfg(feature = "experimental")]
-use crate::{
-    bitcoin::BitcoinSegwitV0,
-    crypto::{EncSign, RecoverSecret, Sign},
-    monero::Monero,
-};
+use crate::crypto::{EncSign, RecoverSecret, Sign};
 use crate::{blockchain::Blockchain, crypto::dleq::DLEQProof};
 
 use monero::cryptonote::hash::Hash;

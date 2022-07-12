@@ -4,11 +4,7 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use bitcoin::util::psbt::PartiallySignedTransaction;
-use bitcoin::Address;
-use bitcoin::Amount;
-
-use crate::blockchain::{self, Network};
+use crate::blockchain::Network;
 
 pub(crate) mod address;
 pub(crate) mod amount;

@@ -6,7 +6,7 @@
 //! or must not conflict with any registered entity.
 
 use std::error;
-use std::fmt::{self, Debug, Display};
+use std::fmt::{self, Debug};
 use std::io;
 use std::str::FromStr;
 

@@ -21,7 +21,7 @@
 
 use bitcoin::secp256k1::PublicKey;
 use inet2_addr::InetSocketAddr;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{Serialize, Serializer};
 use serde::{de, Deserialize, Deserializer};
 use std::fmt::Display;
 use std::str::FromStr;
@@ -31,9 +31,9 @@ use tiny_keccak::{Hasher, Keccak};
 use std::fmt;
 use std::io;
 
-use crate::blockchain::{Blockchain, Fee, FeeStrategy, Network};
+use crate::blockchain::{Blockchain, FeeStrategy, Network};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
-use crate::hash::{HashString, OfferString};
+use crate::hash::HashString;
 use crate::protocol::ArbitratingParameters;
 use crate::role::{SwapRole, TradeRole};
 
@@ -668,10 +668,9 @@ mod tests {
 
     use super::*;
     use crate::{
-        bitcoin::{fee::SatPerVByte, timelock::CSVTimelock, BitcoinSegwitV0},
+        bitcoin::{fee::SatPerVByte, timelock::CSVTimelock},
         blockchain::Blockchain,
         consensus,
-        monero::Monero,
         role::SwapRole,
     };
     use inet2_addr::InetSocketAddr;

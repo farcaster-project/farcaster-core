@@ -6,13 +6,10 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 
 use crate::blockchain::Network;
+use crate::consensus::{CanonicalBytes, Decodable, Encodable};
 use crate::transaction::{Error as FError, Fundable, Linkable};
 
-use crate::bitcoin::segwitv0::SegwitV0;
 use crate::bitcoin::transaction::{Error, MetadataOutput};
-use crate::bitcoin::Bitcoin;
-
-use crate::consensus::{CanonicalBytes, Decodable, Encodable};
 
 /// Manages the steps to handle on-chain funding. Receives the public key derived from the key
 /// manager, receives the network of operations and the raw funding transaction when seen.

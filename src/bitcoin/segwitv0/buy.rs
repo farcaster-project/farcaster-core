@@ -14,11 +14,10 @@ use crate::role::SwapRole;
 use crate::script;
 use crate::transaction::{Buyable, Error as FError, Lockable};
 
+use crate::bitcoin::segwitv0::CoopLock;
 use crate::bitcoin::segwitv0::Sha256dHash;
-use crate::bitcoin::segwitv0::{CoopLock, SegwitV0};
 use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Buy;

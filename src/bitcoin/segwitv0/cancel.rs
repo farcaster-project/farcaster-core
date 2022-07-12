@@ -14,10 +14,9 @@ use crate::script;
 use crate::transaction::{Cancelable, Error as FError, Lockable};
 
 use crate::bitcoin::segwitv0::Sha256dHash;
-use crate::bitcoin::segwitv0::{CoopLock, PunishLock, SegwitV0};
+use crate::bitcoin::segwitv0::{CoopLock, PunishLock};
 use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Cancel;

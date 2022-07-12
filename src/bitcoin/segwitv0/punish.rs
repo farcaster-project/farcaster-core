@@ -14,11 +14,10 @@ use crate::script;
 use crate::script::ScriptPath;
 use crate::transaction::{Cancelable, Error, Punishable};
 
+use crate::bitcoin::segwitv0::PunishLock;
 use crate::bitcoin::segwitv0::Sha256dHash;
-use crate::bitcoin::segwitv0::{PunishLock, SegwitV0};
 use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{self, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Punish;

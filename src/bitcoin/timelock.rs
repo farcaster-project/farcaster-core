@@ -38,6 +38,30 @@ impl CSVTimelock {
     }
 }
 
+impl From<u32> for CSVTimelock {
+    fn from(u: u32) -> Self {
+        Self::new(u)
+    }
+}
+
+impl From<CSVTimelock> for u32 {
+    fn from(ti: CSVTimelock) -> Self {
+        ti.as_u32()
+    }
+}
+
+impl From<u16> for CSVTimelock {
+    fn from(u: u16) -> Self {
+        Self::new(u as u32)
+    }
+}
+
+impl From<u8> for CSVTimelock {
+    fn from(u: u8) -> Self {
+        Self::new(u as u32)
+    }
+}
+
 impl CanonicalBytes for CSVTimelock {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         bitcoin::consensus::encode::serialize(&self.0)

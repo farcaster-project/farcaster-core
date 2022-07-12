@@ -30,7 +30,7 @@ default = ["experimental", "taproot"]
 
 [dependencies]
 amplify = "3"
-base58-monero = { version = "0.3", default-features = false, features = ["check"] }
+base58-monero = "1"
 bitvec = { version = "1.0" }
 clap = { version = "3", features = ["derive"] }
 fixed-hash = { version = "0.7", default-features = false }

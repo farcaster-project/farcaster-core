@@ -60,6 +60,9 @@ extern crate amplify;
 #[macro_use]
 extern crate serde;
 
+#[macro_use]
+extern crate clap;
+
 use thiserror::Error;
 
 #[macro_use]

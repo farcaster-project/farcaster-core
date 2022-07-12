@@ -62,9 +62,19 @@ impl Accordant<PublicKey, PrivateKey, Address> for Monero {
 impl From<Network> for monero::Network {
     fn from(network: Network) -> Self {
         match network {
-            Network::Mainnet => monero::Network::Mainnet,
-            Network::Testnet => monero::Network::Stagenet,
-            Network::Local => monero::Network::Mainnet,
+            Network::Mainnet => Self::Mainnet,
+            Network::Testnet => Self::Stagenet,
+            Network::Local => Self::Mainnet,
+        }
+    }
+}
+
+impl From<monero::Network> for Network {
+    fn from(network: monero::Network) -> Self {
+        match network {
+            monero::Network::Mainnet => Self::Mainnet,
+            monero::Network::Stagenet => Self::Testnet,
+            monero::Network::Testnet => Self::Testnet,
         }
     }
 }

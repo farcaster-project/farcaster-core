@@ -14,9 +14,8 @@ use farcaster_core::crypto::KeccakCommitment;
 use farcaster_core::crypto::{
     ArbitratingKeyId, CommitmentEngine, GenerateKey, ProveCrossGroupDleq,
 };
-use farcaster_core::negotiation::PublicOffer;
 use farcaster_core::protocol::message::*;
-use farcaster_core::protocol::{Alice, Bob, Parameters};
+use farcaster_core::swap::btcxmr::{Alice, Bob, Parameters, PublicOffer};
 use farcaster_core::swap::SwapId;
 use farcaster_core::transaction::*;
 
@@ -40,11 +39,7 @@ macro_rules! test_strict_ser {
     };
 }
 
-fn init() -> (
-    Alice<Address, Btc, Xmr>,
-    Bob<Address, Btc, Xmr>,
-    PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
-) {
+fn init() -> (Alice, Bob, PublicOffer) {
     let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
                a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
                27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
@@ -56,7 +51,7 @@ fn init() -> (
     let refund = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").unwrap();
     let bob = Bob::new(Btc::new(), Xmr, refund, fee_politic);
 
-    let pub_offer: PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let pub_offer: PublicOffer =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public offer");
 
     (alice, bob, pub_offer)
@@ -90,14 +85,14 @@ fn execute_offline_protocol() {
     //
     // Commit/Reveal round
     //
-    let alice_params: Parameters<_, _, BPriv, MPriv, _, _, _, _> = alice
+    let alice_params: Parameters = alice
         .generate_parameters(&mut alice_key_manager, &pub_offer)
         .unwrap();
 
     let commit_alice_params = alice_params.commit_alice(swap_id, &commitment_engine);
     test_strict_ser!(commit_alice_params, CommitAliceParameters<KeccakCommitment>);
 
-    let bob_params: Parameters<_, _, BPriv, MPriv, _, _, _, _> = bob
+    let bob_params: Parameters = bob
         .generate_parameters(&mut bob_key_manager, &pub_offer)
         .unwrap();
     let commit_bob_params = bob_params.commit_bob(swap_id, &commitment_engine);

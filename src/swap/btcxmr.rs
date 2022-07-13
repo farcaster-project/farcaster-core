@@ -50,15 +50,17 @@ use secp256kfun::marker::*;
 #[cfg(feature = "experimental")]
 use sha2::Sha256;
 
+use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
+use bitcoin::util::psbt::PartiallySignedTransaction;
 #[cfg(feature = "experimental")]
 use bitcoin::{
     hashes::sha256d::Hash as Sha256dHash, secp256k1::ecdsa::Signature, secp256k1::Message,
 };
 
-use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-
 use std::collections::HashMap;
 use std::str::FromStr;
+
+pub mod message;
 
 #[cfg(feature = "experimental")]
 type Transcript = HashTranscript<Sha256, ChaCha20Rng>;
@@ -90,6 +92,16 @@ pub type Offer = negotiation::Offer<bitcoin::Amount, monero::Amount, CSVTimelock
 /// Fully defined type for Bitcoin-Monero atomic swap Bob public offer.
 pub type PublicOffer =
     negotiation::PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
+
+pub type ArbitratingParameters =
+    protocol::ArbitratingParameters<bitcoin::Amount, CSVTimelock, SatPerVByte>;
+
+pub type CoreArbitratingTransactions =
+    protocol::CoreArbitratingTransactions<PartiallySignedTransaction>;
+
+pub type FullySignedPunish = protocol::FullySignedPunish<PartiallySignedTransaction, Signature>;
+
+pub type TxSignatures = protocol::TxSignatures<Signature>;
 
 /// Index, used as hardened derivation, to derive standard keys defined in the protocol for Bitcoin
 /// and Monero.

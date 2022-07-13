@@ -15,7 +15,6 @@ pub mod segwitv0;
 #[cfg(all(feature = "experimental", feature = "taproot"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "experimental", feature = "taproot"))))]
 pub mod taproot;
-pub mod tasks;
 pub mod timelock;
 pub mod transaction;
 

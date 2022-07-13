@@ -12,8 +12,6 @@ use monero::Amount;
 
 use std::fmt::{self, Debug};
 
-pub mod tasks;
-
 /// The identifier for the only shared private key on the Monero side: the secret view key.
 pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
 

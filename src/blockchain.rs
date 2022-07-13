@@ -183,7 +183,7 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parts: Vec<&str> = s.split("-").collect();
+        let mut parts: Vec<&str> = s.split('-').collect();
         match parts.len() {
             1 => match s.parse::<T>() {
                 Ok(x) => Ok(Self::Fixed(x)),

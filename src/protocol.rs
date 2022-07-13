@@ -192,6 +192,8 @@ where
     }
 }
 
+impl_strict_encoding!(Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes, Pr: CanonicalBytes);
+
 fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: &[TaggedElement<T, K>],

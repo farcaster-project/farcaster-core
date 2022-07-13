@@ -1,6 +1,4 @@
-use farcaster_core::bitcoin::fee::SatPerVByte;
 use farcaster_core::bitcoin::segwitv0::{BuyTx, CancelTx, FundingTx, LockTx, PunishTx, RefundTx};
-use farcaster_core::bitcoin::timelock::CSVTimelock;
 use farcaster_core::bitcoin::BitcoinSegwitV0 as Btc;
 use farcaster_core::monero::Monero as Xmr;
 use farcaster_core::swap::btcxmr::KeyManager;

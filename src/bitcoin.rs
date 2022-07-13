@@ -21,8 +21,10 @@ use std::fmt::Debug;
 use std::io;
 use std::marker::PhantomData;
 
+use ecdsa_fun::adaptor::EncryptedSignature;
+
 use crate::blockchain::Network;
-use crate::consensus::{self, Decodable, Encodable};
+use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 
 pub(crate) mod address;
 pub(crate) mod amount;
@@ -124,5 +126,17 @@ impl From<bitcoin::Network> for Network {
             bitcoin::Network::Signet => Self::Testnet,
             bitcoin::Network::Regtest => Self::Local,
         }
+    }
+}
+
+impl Encodable for EncryptedSignature {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        self.as_canonical_bytes().consensus_encode(writer)
+    }
+}
+
+impl Decodable for EncryptedSignature {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Self::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())
     }
 }

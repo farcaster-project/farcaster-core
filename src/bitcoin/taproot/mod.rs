@@ -1,7 +1,7 @@
 //! Implementation of a Taproot strategy with on-chain scripts for the arbitrating blockchain
 //! as Bitcoin. Inner implementation of [`BitcoinTaproot`].
 
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::fmt;
 use std::str::FromStr;
 
@@ -10,8 +10,7 @@ use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{DeriveKeys, SharedKeyId};
 //use crate::role::Arbitrating;
 
-use bitcoin::hashes::sha256d::Hash as Sha256dHash;
-use bitcoin::secp256k1::{constants::SECRET_KEY_SIZE, schnorr::Signature, KeyPair, XOnlyPublicKey};
+use bitcoin::secp256k1::{schnorr::Signature, KeyPair, XOnlyPublicKey};
 
 /// Inner type for the Taproot strategy with on-chain scripts.
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]

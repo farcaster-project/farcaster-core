@@ -1,8 +1,6 @@
 use farcaster_core::bitcoin::fee::SatPerVByte;
 use farcaster_core::bitcoin::timelock::CSVTimelock;
-use farcaster_core::bitcoin::BitcoinSegwitV0;
 use farcaster_core::blockchain::Blockchain;
-use farcaster_core::monero::Monero;
 
 use farcaster_core::blockchain::{FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};

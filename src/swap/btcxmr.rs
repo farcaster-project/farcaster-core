@@ -1,22 +1,19 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
-use crate::bitcoin::{fee::SatPerVByte, timelock::CSVTimelock};
+use crate::bitcoin::{fee::SatPerVByte, timelock::CSVTimelock, BitcoinSegwitV0};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self,
     slip10::{ChildNumber, DerivationPath, Ed25519ExtSecretKey, Secp256k1ExtSecretKey},
-    AccordantKeyId, ArbitratingKeyId, GenerateKey, GenerateSharedKey, KeccakCommitment,
-    ProveCrossGroupDleq, SharedKeyId,
+    AccordantKeyId, ArbitratingKeyId, GenerateKey, GenerateSharedKey, ProveCrossGroupDleq,
+    SharedKeyId,
 };
+#[cfg(feature = "experimental")]
+use crate::crypto::{EncSign, RecoverSecret, Sign};
+use crate::monero::Monero;
 use crate::negotiation;
 use crate::protocol;
-#[cfg(feature = "experimental")]
-use crate::{
-    bitcoin::BitcoinSegwitV0,
-    crypto::{EncSign, RecoverSecret, Sign},
-    monero::Monero,
-};
 use crate::{blockchain::Blockchain, crypto::dleq::DLEQProof};
 
 use monero::cryptonote::hash::Hash;
@@ -90,19 +87,6 @@ pub const SHARED_KEY_DERIVE_INDEX: u32 = 3;
 /// 27742317777372353535851937790883648493`, we need to clamp it to `<= 2^252` for the cross group
 /// discrete logarithm proof.
 pub const CLAMPING_TO_252_BITS_MASK: u8 = 0b0000_1111;
-
-/// The context for a Bitcoin and Monero [`Swap`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BtcXmr;
-
-//#[cfg(feature = "experimental")]
-//#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
-//impl Swap for BtcXmr {
-//    type Ar = BitcoinSegwitV0;
-//    type Ac = Monero;
-//    type Proof = DLEQProof;
-//    type Commitment = KeccakCommitment;
-//}
 
 /// Retrieve the derivation path of something. Might be a blockchain, a type of key, anything that
 /// can contribute to the full derivation path of a key.

@@ -1,12 +1,7 @@
-use farcaster_core::bitcoin::fee::SatPerVByte;
-use farcaster_core::bitcoin::timelock::CSVTimelock;
+use farcaster_core::bitcoin::segwitv0::{BuyTx, CancelTx, FundingTx, LockTx, PunishTx, RefundTx};
 use farcaster_core::bitcoin::BitcoinSegwitV0 as Btc;
-use farcaster_core::bitcoin::{
-    segwitv0::{BuyTx, CancelTx, FundingTx, LockTx, PunishTx, RefundTx},
-    BitcoinSegwitV0,
-};
 use farcaster_core::monero::Monero as Xmr;
-use farcaster_core::swap::btcxmr::{BtcXmr, KeyManager};
+use farcaster_core::swap::btcxmr::KeyManager;
 
 use farcaster_core::blockchain::{FeePriority, Network};
 use farcaster_core::consensus::deserialize;
@@ -21,7 +16,7 @@ use farcaster_core::transaction::*;
 
 use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
-use bitcoin::secp256k1::{PublicKey as BPub, Secp256k1, SecretKey as BPriv, Signature};
+use bitcoin::secp256k1::{ecdsa::Signature, PublicKey as BPub, Secp256k1, SecretKey as BPriv};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 

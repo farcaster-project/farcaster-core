@@ -14,10 +14,9 @@ use crate::script;
 use crate::transaction::{Cancelable, Error as FError, Lockable};
 
 use crate::bitcoin::segwitv0::Sha256dHash;
-use crate::bitcoin::segwitv0::{CoopLock, PunishLock, SegwitV0};
+use crate::bitcoin::segwitv0::{CoopLock, PunishLock};
 use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{Error, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Cancel;
@@ -31,21 +30,19 @@ impl SubTransaction for Cancel {
 
         let swaplock = CoopLock::from_script(&script)?;
 
-        let alice_sig = psbt.inputs[0]
+        let alice_sig = *psbt.inputs[0]
             .partial_sigs
             .get(&bitcoin::PublicKey::new(
                 *swaplock.get_pubkey(SwapRole::Alice),
             ))
-            .ok_or(FError::MissingSignature)?
-            .clone();
+            .ok_or(FError::MissingSignature)?;
 
-        let bob_sig = psbt.inputs[0]
+        let bob_sig = *psbt.inputs[0]
             .partial_sigs
             .get(&bitcoin::PublicKey::new(
                 *swaplock.get_pubkey(SwapRole::Bob),
             ))
-            .ok_or(FError::MissingSignature)?
-            .clone();
+            .ok_or(FError::MissingSignature)?;
 
         psbt.inputs[0].final_script_witness = Some(Witness::from_vec(vec![
             bob_sig.to_vec(),

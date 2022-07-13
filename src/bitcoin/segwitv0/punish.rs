@@ -14,11 +14,10 @@ use crate::script;
 use crate::script::ScriptPath;
 use crate::transaction::{Cancelable, Error, Punishable};
 
+use crate::bitcoin::segwitv0::PunishLock;
 use crate::bitcoin::segwitv0::Sha256dHash;
-use crate::bitcoin::segwitv0::{PunishLock, SegwitV0};
 use crate::bitcoin::timelock::CSVTimelock;
 use crate::bitcoin::transaction::{self, MetadataOutput, SubTransaction, Tx};
-use crate::bitcoin::Bitcoin;
 
 #[derive(Debug)]
 pub struct Punish;
@@ -32,15 +31,14 @@ impl SubTransaction for Punish {
 
         let swaplock = PunishLock::from_script(&script)?;
 
-        let punish_sig = psbt.inputs[0]
+        let punish_sig = *psbt.inputs[0]
             .partial_sigs
             .get(&bitcoin::PublicKey::new(
                 *swaplock
                     .get_pubkey(SwapRole::Alice, ScriptPath::Success)
                     .ok_or(Error::MissingPublicKey)?,
             ))
-            .ok_or(Error::MissingSignature)?
-            .clone();
+            .ok_or(Error::MissingSignature)?;
 
         psbt.inputs[0].final_script_witness = Some(Witness::from_vec(vec![
             punish_sig.to_vec(),

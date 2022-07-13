@@ -1,7 +1,7 @@
 //! Implementation of the Monero blockchain as an accordant blockchain in a swap. This
 //! implementation should work in pair with any other arbitrating implementation, like Bitcoin.
 
-use crate::blockchain::{self, Asset, Network};
+use crate::blockchain::Network;
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{self, AccordantKeySet, AccordantKeys, DeriveKeys, SharedKeyId};
 use crate::role::Accordant;
@@ -11,8 +11,6 @@ use monero::Address;
 use monero::Amount;
 
 use std::fmt::{self, Debug};
-
-pub mod tasks;
 
 /// The identifier for the only shared private key on the Monero side: the secret view key.
 pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
@@ -96,22 +94,6 @@ impl fmt::Display for Monero {
     }
 }
 
-impl Asset for Monero {
-    /// Type for the traded asset unit
-    type AssetUnit = Amount;
-
-    fn from_u32(bytes: u32) -> Option<Self> {
-        match bytes {
-            0x80000080 => Some(Self),
-            _ => None,
-        }
-    }
-
-    fn to_u32(&self) -> u32 {
-        0x80000080
-    }
-}
-
 impl CanonicalBytes for Amount {
     fn as_canonical_bytes(&self) -> Vec<u8> {
         monero::consensus::encode::serialize(&self.as_pico())
@@ -125,10 +107,6 @@ impl CanonicalBytes for Amount {
             monero::consensus::encode::deserialize(bytes).map_err(consensus::Error::new)?,
         ))
     }
-}
-
-impl blockchain::Address for Monero {
-    type Address = Address;
 }
 
 impl CanonicalBytes for Address {

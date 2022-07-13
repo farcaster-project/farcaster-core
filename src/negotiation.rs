@@ -21,7 +21,7 @@
 
 use bitcoin::secp256k1::PublicKey;
 use inet2_addr::InetSocketAddr;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{Serialize, Serializer};
 use serde::{de, Deserialize, Deserializer};
 use std::fmt::Display;
 use std::str::FromStr;
@@ -31,9 +31,9 @@ use tiny_keccak::{Hasher, Keccak};
 use std::fmt;
 use std::io;
 
-use crate::blockchain::{Asset, Blockchain, Fee, FeeStrategy, Network, Timelock};
+use crate::blockchain::{Blockchain, FeeStrategy, Network};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
-use crate::hash::{HashString, OfferString};
+use crate::hash::HashString;
 use crate::protocol::ArbitratingParameters;
 use crate::role::{SwapRole, TradeRole};
 
@@ -108,10 +108,7 @@ impl<'de> Deserialize<'de> for OfferId {
     where
         D: Deserializer<'de>,
     {
-        Ok(
-            OfferId::from_str(&deserializer.deserialize_string(HashString)?)
-                .map_err(de::Error::custom)?,
-        )
+        OfferId::from_str(&deserializer.deserialize_string(HashString)?).map_err(de::Error::custom)
     }
 }
 
@@ -294,192 +291,6 @@ where
 
 impl_strict_encoding!(Offer<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
 
-/*
-
-/// Helper to create an offer from an arbitrating asset buyer perspective. Only works only for
-/// buying [`Arbitrating`] assets with some [`Accordant`] assets.  The reverse is not implemented
-/// for the [`Buy`] helper, use the [`Sell`] helper instead.
-///
-/// [`Arbitrating`]: crate::role::Arbitrating
-/// [`Accordant`]: crate::role::Accordant
-pub struct Buy<Ctx>(BuilderState<Ctx>)
-where
-    Ctx: Swap;
-
-impl<Ctx> Buy<Ctx>
-where
-    Ctx: Swap,
-{
-    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
-    /// defined in the `with` method.
-    pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Asset>::AssetUnit) -> Self {
-        let mut buy = Self(BuilderState::default());
-        buy.0.arbitrating_blockchain = Some(asset);
-        buy.0.arbitrating_amount = Some(amount);
-        buy
-    }
-
-    /// Defines the asset and its amount the maker will send to get the assets defined in the
-    /// `some` method.
-    pub fn with(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Asset>::AssetUnit) -> Self {
-        self.0.accordant_blockchain = Some(asset);
-        self.0.accordant_amount = Some(amount);
-        self
-    }
-
-    /// Sets the timelocks for the proposed offer.
-    pub fn with_timelocks(
-        mut self,
-        cancel: <Ctx::Ar as Timelock>::Timelock,
-        punish: <Ctx::Ar as Timelock>::Timelock,
-    ) -> Self {
-        self.0.cancel_timelock = Some(cancel);
-        self.0.punish_timelock = Some(punish);
-        self
-    }
-
-    /// Sets the fee strategy for the proposed offer.
-    pub fn with_fee(mut self, strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>) -> Self {
-        self.0.fee_strategy = Some(strategy);
-        self
-    }
-
-    /// Sets the network for the proposed offer.
-    pub fn on(mut self, network: Network) -> Self {
-        self.0.network = Some(network);
-        self
-    }
-
-    /// Transform the internal state into an offer if all parameters have been set properly,
-    /// otherwise return `None`.
-    ///
-    /// This function automatically sets the maker swap role as [`SwapRole::Alice`] to comply with
-    /// the buy contract.
-    pub fn to_offer(mut self) -> Option<Offer<Ctx>> {
-        self.0.maker_role = Some(SwapRole::Alice);
-        Some(Offer {
-            network: self.0.network?,
-            arbitrating_blockchain: self.0.arbitrating_blockchain?,
-            accordant_blockchain: self.0.accordant_blockchain?,
-            arbitrating_amount: self.0.arbitrating_amount?,
-            accordant_amount: self.0.accordant_amount?,
-            cancel_timelock: self.0.cancel_timelock?,
-            punish_timelock: self.0.punish_timelock?,
-            fee_strategy: self.0.fee_strategy?,
-            maker_role: self.0.maker_role?,
-        })
-    }
-}
-
-/// Helper to create an offer from an arbitrating asset seller perspective. Only works only for
-/// selling [`Arbitrating`] assets for some [`Accordant`] assets.  The reverse is not implemented
-/// for the [`Sell`] helper, use the [`Buy`] helper instead.
-///
-/// [`Arbitrating`]: crate::role::Arbitrating
-/// [`Accordant`]: crate::role::Accordant
-pub struct Sell<Ctx>(BuilderState<Ctx>)
-where
-    Ctx: Swap;
-
-impl<Ctx> Sell<Ctx>
-where
-    Ctx: Swap,
-{
-    /// Defines the asset and its amount the maker will send to get the assets defined in the
-    /// `for_some` method.
-    pub fn some(asset: Ctx::Ar, amount: <Ctx::Ar as Asset>::AssetUnit) -> Self {
-        let mut buy = Self(BuilderState::default());
-        buy.0.arbitrating_blockchain = Some(asset);
-        buy.0.arbitrating_amount = Some(amount);
-        buy
-    }
-
-    /// Defines the asset and its amount the maker will receive in exchange of the asset and amount
-    /// defined in the `some` method.
-    pub fn for_some(mut self, asset: Ctx::Ac, amount: <Ctx::Ac as Asset>::AssetUnit) -> Self {
-        self.0.accordant_blockchain = Some(asset);
-        self.0.accordant_amount = Some(amount);
-        self
-    }
-
-    /// Sets the timelocks for the proposed offer.
-    pub fn with_timelocks(
-        mut self,
-        cancel: <Ctx::Ar as Timelock>::Timelock,
-        punish: <Ctx::Ar as Timelock>::Timelock,
-    ) -> Self {
-        self.0.cancel_timelock = Some(cancel);
-        self.0.punish_timelock = Some(punish);
-        self
-    }
-
-    /// Sets the fee strategy for the proposed offer.
-    pub fn with_fee(mut self, strategy: FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>) -> Self {
-        self.0.fee_strategy = Some(strategy);
-        self
-    }
-
-    /// Sets the network for the proposed offer.
-    pub fn on(mut self, network: Network) -> Self {
-        self.0.network = Some(network);
-        self
-    }
-
-    /// Transform the internal state into an offer if all parameters have been set properly,
-    /// otherwise return `None`.
-    ///
-    /// This function automatically sets the maker swap role as [`SwapRole::Bob`] to comply with
-    /// the buy contract.
-    pub fn to_offer(mut self) -> Option<Offer<Ctx>> {
-        self.0.maker_role = Some(SwapRole::Bob);
-        Some(Offer {
-            network: self.0.network?,
-            arbitrating_blockchain: self.0.arbitrating_blockchain?,
-            accordant_blockchain: self.0.accordant_blockchain?,
-            arbitrating_amount: self.0.arbitrating_amount?,
-            accordant_amount: self.0.accordant_amount?,
-            cancel_timelock: self.0.cancel_timelock?,
-            punish_timelock: self.0.punish_timelock?,
-            fee_strategy: self.0.fee_strategy?,
-            maker_role: self.0.maker_role?,
-        })
-    }
-}
-
-// Internal state of an offer builder
-struct BuilderState<Ctx: Swap> {
-    network: Option<Network>,
-    arbitrating_blockchain: Option<Ctx::Ar>,
-    accordant_blockchain: Option<Ctx::Ac>,
-    arbitrating_amount: Option<<Ctx::Ar as Asset>::AssetUnit>,
-    accordant_amount: Option<<Ctx::Ac as Asset>::AssetUnit>,
-    cancel_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
-    punish_timelock: Option<<Ctx::Ar as Timelock>::Timelock>,
-    fee_strategy: Option<FeeStrategy<<Ctx::Ar as Fee>::FeeUnit>>,
-    maker_role: Option<SwapRole>,
-}
-
-impl<Ctx> Default for BuilderState<Ctx>
-where
-    Ctx: Swap,
-{
-    fn default() -> BuilderState<Ctx> {
-        BuilderState {
-            network: None,
-            arbitrating_blockchain: None,
-            accordant_blockchain: None,
-            arbitrating_amount: None,
-            accordant_amount: None,
-            cancel_timelock: None,
-            punish_timelock: None,
-            fee_strategy: None,
-            maker_role: None,
-        }
-    }
-}
-
-*/
-
 fixed_hash::construct_fixed_hash!(
     /// Identify a public offer by it's content, internally store the hash of the offer serialized
     /// with Farcaster consensus.
@@ -500,10 +311,8 @@ impl<'de> Deserialize<'de> for PublicOfferId {
     where
         D: Deserializer<'de>,
     {
-        Ok(
-            PublicOfferId::from_str(&deserializer.deserialize_string(HashString)?)
-                .map_err(de::Error::custom)?,
-        )
+        PublicOfferId::from_str(&deserializer.deserialize_string(HashString)?)
+            .map_err(de::Error::custom)
     }
 }
 
@@ -668,10 +477,9 @@ mod tests {
 
     use super::*;
     use crate::{
-        bitcoin::{fee::SatPerVByte, timelock::CSVTimelock, BitcoinSegwitV0},
+        bitcoin::{fee::SatPerVByte, timelock::CSVTimelock},
         blockchain::Blockchain,
         consensus,
-        monero::Monero,
         role::SwapRole,
     };
     use inet2_addr::InetSocketAddr;

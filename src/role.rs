@@ -2,11 +2,11 @@
 //! Defines the trading roles and swap roles distributed among participants and blockchain roles
 //! implemented on Bitcoin, Monero, etc.
 
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::io;
 use std::str::FromStr;
 
-use crate::blockchain::{Address, Asset, Fee, Network, Onchain, Timelock};
+use crate::blockchain::Network;
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, AccordantKeySet};
 

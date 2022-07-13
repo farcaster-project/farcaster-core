@@ -21,7 +21,7 @@ use std::io;
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Commit, SharedKeyId, TaggedElement};
-use crate::protocol::verify_vec_of_commitments;
+use crate::protocol::{verify_vec_of_commitments, CoreArbitratingTransactions};
 use crate::swap::SwapId;
 use crate::Error;
 
@@ -573,6 +573,18 @@ pub struct CoreArbitratingSetup<Px, Sig> {
     pub refund: Px,
     /// The `Bc` `cancel (d)` signature.
     pub cancel_sig: Sig,
+}
+
+impl<Px, Sig> CoreArbitratingSetup<Px, Sig> {
+    /// Transform the arbitrating setup into a core arbitrating transaction structure used in
+    /// protocol methods on Alice and Bob.
+    pub fn into_arbitrating_tx(self) -> CoreArbitratingTransactions<Px> {
+        CoreArbitratingTransactions {
+            lock: self.lock,
+            cancel: self.cancel,
+            refund: self.refund,
+        }
+    }
 }
 
 // TODO impl Display

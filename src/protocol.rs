@@ -264,11 +264,7 @@ where
         }
     }
 
-    pub fn reveal_alice(
-        self,
-        swap_id: SwapId,
-        address: Addr,
-    ) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn reveal_alice(self, swap_id: SwapId) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
         RevealAliceParameters {
             swap_id,
             buy: self.buy,
@@ -281,7 +277,7 @@ where
             spend: self.spend,
             extra_accordant_keys: self.extra_accordant_keys,
             accordant_shared_keys: self.accordant_shared_keys,
-            address,
+            address: self.destination_address,
         }
     }
 
@@ -304,11 +300,7 @@ where
         }
     }
 
-    pub fn reveal_bob(
-        self,
-        swap_id: SwapId,
-        address: Addr,
-    ) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn reveal_bob(self, swap_id: SwapId) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
         RevealBobParameters {
             swap_id,
             buy: self.buy,
@@ -320,7 +312,7 @@ where
             spend: self.spend,
             extra_accordant_keys: self.extra_accordant_keys,
             accordant_shared_keys: self.accordant_shared_keys,
-            address,
+            address: self.destination_address,
         }
     }
 }

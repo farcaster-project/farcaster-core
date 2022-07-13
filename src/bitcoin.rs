@@ -18,9 +18,11 @@
 //! strategies (ECDSA, Taproot, Taproot+MuSig2).
 
 use std::fmt::Debug;
+use std::io;
 use std::marker::PhantomData;
 
 use crate::blockchain::Network;
+use crate::consensus::{self, Decodable, Encodable};
 
 pub(crate) mod address;
 pub(crate) mod amount;
@@ -39,6 +41,25 @@ pub mod transaction;
 #[cfg(feature = "experimental")]
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
 pub type BitcoinSegwitV0 = Bitcoin<segwitv0::SegwitV0>;
+
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+impl Decodable for BitcoinSegwitV0 {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x80000000u32 => Ok(Self::new()),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+#[cfg(feature = "experimental")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental")))]
+impl Encodable for BitcoinSegwitV0 {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        0x80000000u32.consensus_encode(writer)
+    }
+}
 
 /// Bitcoin blockchain using SegWit version 1 transaction outputs and Schnorr cryptography. This
 /// type is experimental because its cryptography for Adaptor Signatures is not ready for

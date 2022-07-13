@@ -18,7 +18,7 @@
 //! implementation should work in pair with any other arbitrating implementation, like Bitcoin.
 
 use crate::blockchain::Network;
-use crate::consensus::{self, CanonicalBytes};
+use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{self, AccordantKeySet, AccordantKeys, DeriveKeys, SharedKeyId};
 use crate::role::Accordant;
 
@@ -27,6 +27,7 @@ use monero::Address;
 use monero::Amount;
 
 use std::fmt::{self, Debug};
+use std::io;
 
 /// The identifier for the only shared private key on the Monero side: the secret view key.
 pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
@@ -35,6 +36,21 @@ pub const SHARED_VIEW_KEY_ID: u16 = 0x01;
 /// blockchain role.
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct Monero;
+
+impl Decodable for Monero {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        match Decodable::consensus_decode(d)? {
+            0x80000080u32 => Ok(Self),
+            _ => Err(consensus::Error::UnknownType),
+        }
+    }
+}
+
+impl Encodable for Monero {
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        0x80000080u32.consensus_encode(writer)
+    }
+}
 
 impl Accordant<PublicKey, PrivateKey, Address> for Monero {
     fn derive_lock_address(

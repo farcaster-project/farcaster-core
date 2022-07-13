@@ -1,6 +1,7 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
+use crate::bitcoin::{fee::SatPerVByte, timelock::CSVTimelock};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self,
@@ -8,6 +9,8 @@ use crate::crypto::{
     AccordantKeyId, ArbitratingKeyId, GenerateKey, GenerateSharedKey, KeccakCommitment,
     ProveCrossGroupDleq, SharedKeyId,
 };
+use crate::negotiation;
+use crate::protocol;
 #[cfg(feature = "experimental")]
 use crate::{
     bitcoin::BitcoinSegwitV0,
@@ -49,6 +52,31 @@ type Transcript = HashTranscript<Sha256, ChaCha20Rng>;
 
 #[cfg(feature = "experimental")]
 type NonceGen = nonce::Synthetic<Sha256, nonce::GlobalRng<ThreadRng>>;
+
+/// Fully defined type for Bitcoin-Monero atomic swap sets of parameters.
+pub type Parameters = protocol::Parameters<
+    PublicKey,
+    monero::PublicKey,
+    SecretKey,
+    monero::PrivateKey,
+    bitcoin::Address,
+    CSVTimelock,
+    SatPerVByte,
+    DLEQProof,
+>;
+
+/// Fully defined type for Bitcoin-Monero atomic swap Alice protocol role.
+pub type Alice = protocol::Alice<bitcoin::Address, BitcoinSegwitV0, Monero>;
+
+/// Fully defined type for Bitcoin-Monero atomic swap Bob protocol role.
+pub type Bob = protocol::Bob<bitcoin::Address, BitcoinSegwitV0, Monero>;
+
+/// Fully defined type for Bitcoin-Monero atomic swap Bob public offer.
+pub type Offer = negotiation::Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
+
+/// Fully defined type for Bitcoin-Monero atomic swap Bob public offer.
+pub type PublicOffer =
+    negotiation::PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
 
 /// Index, used as hardened derivation, to derive standard keys defined in the protocol for Bitcoin
 /// and Monero.

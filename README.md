@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/farcaster_core.svg)](https://crates.io/crates/farcaster_core)
 [![Documentation](https://docs.rs/farcaster_core/badge.svg)](https://docs.rs/farcaster_core)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
-[![MSRV](https://img.shields.io/badge/MSRV-1.56.1-blue)](https://blog.rust-lang.org/2021/11/01/Rust-1.56.1.html)
+[![MSRV](https://img.shields.io/badge/MSRV-1.57.0-blue)](https://blog.rust-lang.org/2021/12/02/Rust-1.57.0.html)
 
 # Farcaster Core Library
 

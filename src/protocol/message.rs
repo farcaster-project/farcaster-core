@@ -20,6 +20,7 @@
 use std::fmt;
 use std::io;
 
+use crate::protocol::Parameters;
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Commit, SharedKeyId, TaggedElement};
 use crate::protocol::{verify_vec_of_commitments, CoreArbitratingTransactions};
@@ -381,6 +382,28 @@ pub struct RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
     pub address: Addr,
 }
 
+impl<Pk, Qk, Rk, Sk, Addr> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn into_parameters<Ti, F, Pr>(self) -> Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
+        Parameters {
+            buy: self.buy,
+            cancel: self.cancel,
+            refund: self.refund,
+            punish: Some(self.punish),
+            adaptor: self.adaptor,
+            extra_arbitrating_keys: self.extra_arbitrating_keys,
+            arbitrating_shared_keys: self.arbitrating_shared_keys,
+            spend: self.spend,
+            extra_accordant_keys: self.extra_accordant_keys,
+            accordant_shared_keys: self.accordant_shared_keys,
+            proof: None,
+            destination_address: self.address,
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
+}
+
 impl<Pk, Qk, Rk, Sk, Addr> fmt::Display for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>
 where
     Pk: fmt::Debug,
@@ -505,6 +528,28 @@ pub struct RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Sk>>,
     /// The refund Bitcoin address.
     pub address: Addr,
+}
+
+impl<Pk, Qk, Rk, Sk, Addr> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn into_parameters<Ti, F, Pr>(self) -> Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
+        Parameters {
+            buy: self.buy,
+            cancel: self.cancel,
+            refund: self.refund,
+            punish: None,
+            adaptor: self.adaptor,
+            extra_arbitrating_keys: self.extra_arbitrating_keys,
+            arbitrating_shared_keys: self.arbitrating_shared_keys,
+            spend: self.spend,
+            extra_accordant_keys: self.extra_accordant_keys,
+            accordant_shared_keys: self.accordant_shared_keys,
+            proof: None,
+            destination_address: self.address,
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
 }
 
 impl<Pk, Qk, Rk, Sk, Addr> fmt::Display for RevealBobParameters<Pk, Qk, Rk, Sk, Addr>

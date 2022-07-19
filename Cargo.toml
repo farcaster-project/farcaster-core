@@ -17,7 +17,7 @@ repository = "https://github.com/farcaster-project/farcaster-core"
 description = "Farcaster project core library, blockchain atomic swaps."
 
 edition = "2018"
-rust-version = "1.56.1"
+rust-version = "1.57.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -110,13 +110,9 @@ fn execute_offline_protocol() {
     test_strict_ser!(commit_bob_params, CommitBobParameters<KeccakCommitment>);
 
     // Reveal
-    let reveal_alice_params = alice_params
-        .clone()
-        .reveal_alice(swap_id, alice.destination_address.clone());
+    let reveal_alice_params = alice_params.clone().reveal_alice(swap_id);
     test_strict_ser!(reveal_alice_params, RevealAliceParameters<BPub, MPub, BPriv, MPriv, Address>);
-    let reveal_bob_params = bob_params
-        .clone()
-        .reveal_bob(swap_id, bob.refund_address.clone());
+    let reveal_bob_params = bob_params.clone().reveal_bob(swap_id);
     test_strict_ser!(reveal_bob_params, RevealBobParameters<BPub, MPub, BPriv, MPriv, Address>);
 
     assert!(commit_alice_params

@@ -22,7 +22,7 @@ use std::fmt::Debug;
 use std::str::FromStr;
 
 /// An `OP_CSV` value (32-bits integer) to use in transactions and scripts.
-#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, Copy, Display, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, Hash, Copy, Display, Serialize, Deserialize)]
 #[display("{0} blocks")]
 pub struct CSVTimelock(u32);
 

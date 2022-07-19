@@ -36,7 +36,7 @@ use monero::cryptonote::hash::Hash;
 
 #[cfg(feature = "experimental")]
 use ecdsa_fun::{
-    adaptor::{Adaptor, EncryptedSignature, HashTranscript},
+    adaptor::{Adaptor, HashTranscript},
     fun::{Point, Scalar},
     nonce, ECDSA,
 };
@@ -53,9 +53,7 @@ use sha2::Sha256;
 use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use bitcoin::util::psbt::PartiallySignedTransaction;
 #[cfg(feature = "experimental")]
-use bitcoin::{
-    hashes::sha256d::Hash as Sha256dHash, secp256k1::ecdsa::Signature, secp256k1::Message,
-};
+use bitcoin::{hashes::sha256d::Hash as Sha256dHash, secp256k1::Message};
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -102,6 +100,10 @@ pub type CoreArbitratingTransactions =
 pub type FullySignedPunish = protocol::FullySignedPunish<PartiallySignedTransaction, Signature>;
 
 pub type TxSignatures = protocol::TxSignatures<Signature>;
+
+pub use bitcoin::secp256k1::ecdsa::Signature;
+
+pub use ecdsa_fun::adaptor::EncryptedSignature;
 
 /// Index, used as hardened derivation, to derive standard keys defined in the protocol for Bitcoin
 /// and Monero.

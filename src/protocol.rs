@@ -108,12 +108,91 @@ pub struct Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
     pub spend: Qk,
     pub extra_accordant_keys: Vec<TaggedElement<u16, Qk>>,
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Sk>>,
-    pub proof: Pr,
+    pub proof: Option<Pr>,
     pub destination_address: Addr,
     pub cancel_timelock: Option<Ti>,
     pub punish_timelock: Option<Ti>,
     pub fee_strategy: Option<FeeStrategy<F>>,
 }
+
+impl<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> Encodable for Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>
+where
+    Pk: CanonicalBytes,
+    Qk: CanonicalBytes,
+    Rk: CanonicalBytes,
+    Sk: CanonicalBytes,
+    Addr: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
+    Pr: CanonicalBytes,
+{
+    fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
+        let mut len = self.buy.as_canonical_bytes().consensus_encode(writer)?;
+        len += self.cancel.as_canonical_bytes().consensus_encode(writer)?;
+        len += self.refund.as_canonical_bytes().consensus_encode(writer)?;
+        len += self.punish.as_canonical_bytes().consensus_encode(writer)?;
+        len += self.adaptor.as_canonical_bytes().consensus_encode(writer)?;
+        len += self.extra_arbitrating_keys.consensus_encode(writer)?;
+        len += self.arbitrating_shared_keys.consensus_encode(writer)?;
+        len += self.spend.as_canonical_bytes().consensus_encode(writer)?;
+        len += self.extra_accordant_keys.consensus_encode(writer)?;
+        len += self.accordant_shared_keys.consensus_encode(writer)?;
+        len += self.proof.as_canonical_bytes().consensus_encode(writer)?;
+        len += self
+            .destination_address
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
+        len += self
+            .cancel_timelock
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
+        len += self
+            .punish_timelock
+            .as_canonical_bytes()
+            .consensus_encode(writer)?;
+        Ok(len
+            + self
+                .fee_strategy
+                .as_canonical_bytes()
+                .consensus_encode(writer)?)
+    }
+}
+
+impl<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> Decodable for Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>
+where
+    Pk: CanonicalBytes,
+    Qk: CanonicalBytes,
+    Rk: CanonicalBytes,
+    Sk: CanonicalBytes,
+    Addr: CanonicalBytes,
+    Ti: CanonicalBytes,
+    F: CanonicalBytes,
+    Pr: CanonicalBytes,
+{
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Parameters {
+            buy: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            refund: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            punish: Option::<Pk>::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            adaptor: Pk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            extra_arbitrating_keys: Decodable::consensus_decode(d)?,
+            arbitrating_shared_keys: Decodable::consensus_decode(d)?,
+            spend: Qk::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            extra_accordant_keys: Decodable::consensus_decode(d)?,
+            accordant_shared_keys: Decodable::consensus_decode(d)?,
+            proof: Option::<Pr>::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            destination_address: Addr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            cancel_timelock: Option::<Ti>::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            punish_timelock: Option::<Ti>::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            fee_strategy: Option::<FeeStrategy<F>>::from_canonical_bytes(
+                unwrap_vec_ref!(d).as_ref(),
+            )?,
+        })
+    }
+}
+
+impl_strict_encoding!(Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes, Pr: CanonicalBytes);
 
 fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
@@ -185,11 +264,7 @@ where
         }
     }
 
-    pub fn reveal_alice(
-        self,
-        swap_id: SwapId,
-        address: Addr,
-    ) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn reveal_alice(self, swap_id: SwapId) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
         RevealAliceParameters {
             swap_id,
             buy: self.buy,
@@ -202,7 +277,7 @@ where
             spend: self.spend,
             extra_accordant_keys: self.extra_accordant_keys,
             accordant_shared_keys: self.accordant_shared_keys,
-            address,
+            address: self.destination_address,
         }
     }
 
@@ -225,11 +300,7 @@ where
         }
     }
 
-    pub fn reveal_bob(
-        self,
-        swap_id: SwapId,
-        address: Addr,
-    ) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn reveal_bob(self, swap_id: SwapId) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
         RevealBobParameters {
             swap_id,
             buy: self.buy,
@@ -241,7 +312,7 @@ where
             spend: self.spend,
             extra_accordant_keys: self.extra_accordant_keys,
             accordant_shared_keys: self.accordant_shared_keys,
-            address,
+            address: self.destination_address,
         }
     }
 }
@@ -262,20 +333,14 @@ pub struct Alice<Addr, Ar, Ac> {
 
 impl<Addr, Ar, Ac> Encodable for Alice<Addr, Ar, Ac>
 where
-    Ar: CanonicalBytes,
-    Ac: CanonicalBytes,
+    Ar: Encodable,
+    Ac: Encodable,
     Addr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let mut len = self.fee_politic.consensus_encode(writer)?;
-        len += self
-            .arbitrating
-            .as_canonical_bytes()
-            .consensus_encode(writer)?;
-        len += self
-            .accordant
-            .as_canonical_bytes()
-            .consensus_encode(writer)?;
+        len += self.arbitrating.consensus_encode(writer)?;
+        len += self.accordant.consensus_encode(writer)?;
         Ok(len
             + self
                 .destination_address
@@ -286,14 +351,14 @@ where
 
 impl<Addr, Ar, Ac> Decodable for Alice<Addr, Ar, Ac>
 where
-    Ar: CanonicalBytes,
-    Ac: CanonicalBytes,
+    Ar: Decodable,
+    Ac: Decodable,
     Addr: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let fee_politic = FeePriority::consensus_decode(d)?;
-        let arbitrating = Ar::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
-        let accordant = Ac::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+        let arbitrating = Decodable::consensus_decode(d)?;
+        let accordant = Decodable::consensus_decode(d)?;
         let destination_address = Addr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
         Ok(Alice {
             arbitrating,
@@ -398,7 +463,7 @@ where
             spend,
             extra_accordant_keys: extra_accordant_keys?,
             accordant_shared_keys: accordant_shared_keys?,
-            proof,
+            proof: Some(proof),
             destination_address: self.destination_address.clone(),
             cancel_timelock: Some(public_offer.offer.cancel_timelock),
             punish_timelock: Some(public_offer.offer.punish_timelock),
@@ -903,20 +968,14 @@ pub struct Bob<Addr, Ar, Ac> {
 
 impl<Addr, Ar, Ac> Encodable for Bob<Addr, Ar, Ac>
 where
-    Ar: CanonicalBytes,
-    Ac: CanonicalBytes,
+    Ar: Encodable,
+    Ac: Encodable,
     Addr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, writer: &mut W) -> Result<usize, io::Error> {
         let mut len = self.fee_politic.consensus_encode(writer)?;
-        len += self
-            .arbitrating
-            .as_canonical_bytes()
-            .consensus_encode(writer)?;
-        len += self
-            .accordant
-            .as_canonical_bytes()
-            .consensus_encode(writer)?;
+        len += self.arbitrating.consensus_encode(writer)?;
+        len += self.accordant.consensus_encode(writer)?;
         Ok(len
             + self
                 .refund_address
@@ -927,14 +986,14 @@ where
 
 impl<Addr, Ar, Ac> Decodable for Bob<Addr, Ar, Ac>
 where
-    Ar: CanonicalBytes,
-    Ac: CanonicalBytes,
+    Ar: Decodable,
+    Ac: Decodable,
     Addr: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let fee_politic = FeePriority::consensus_decode(d)?;
-        let arbitrating = Ar::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
-        let accordant = Ac::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
+        let arbitrating = Decodable::consensus_decode(d)?;
+        let accordant = Decodable::consensus_decode(d)?;
         let refund_address = Addr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
         Ok(Bob {
             arbitrating,
@@ -1038,7 +1097,7 @@ where
             spend,
             extra_accordant_keys: extra_accordant_keys?,
             accordant_shared_keys: accordant_shared_keys?,
-            proof,
+            proof: Some(proof),
             destination_address: self.refund_address.clone(),
             cancel_timelock: Some(public_offer.offer.cancel_timelock),
             punish_timelock: Some(public_offer.offer.punish_timelock),

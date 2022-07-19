@@ -17,11 +17,13 @@
 //! Protocol messages exchanged between swap daemons at each step of the swap protocol. These
 //! messages are untrusted and must be validated uppon reception by each swap participant.
 
+use std::fmt;
 use std::io;
 
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Commit, SharedKeyId, TaggedElement};
-use crate::protocol::verify_vec_of_commitments;
+use crate::protocol::Parameters;
+use crate::protocol::{verify_vec_of_commitments, CoreArbitratingTransactions};
 use crate::swap::SwapId;
 use crate::Error;
 
@@ -56,8 +58,6 @@ pub struct CommitAliceParameters<C> {
     /// Commitments to the accordant shared keys.
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, C>>,
 }
-
-// TODO impl Display
 
 impl<C> CommitAliceParameters<C>
 where
@@ -101,6 +101,15 @@ where
             reveal.accordant_shared_keys,
             &self.accordant_shared_keys,
         )
+    }
+}
+
+impl<C> fmt::Display for CommitAliceParameters<C>
+where
+    C: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -178,8 +187,6 @@ pub struct CommitBobParameters<C> {
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, C>>,
 }
 
-// TODO impl Display
-
 impl<C> CommitBobParameters<C>
 where
     C: Eq + Clone + CanonicalBytes,
@@ -221,6 +228,15 @@ where
             reveal.accordant_shared_keys,
             &self.accordant_shared_keys,
         )
+    }
+}
+
+impl<C> fmt::Display for CommitBobParameters<C>
+where
+    C: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -279,7 +295,14 @@ pub struct RevealProof<Pr> {
     pub proof: Pr,
 }
 
-// TODO impl Display
+impl<Pr> fmt::Display for RevealProof<Pr>
+where
+    Pr: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 impl<Pr> Encodable for RevealProof<Pr>
 where
@@ -359,7 +382,40 @@ pub struct RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
     pub address: Addr,
 }
 
-// TODO impl Display
+impl<Pk, Qk, Rk, Sk, Addr> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn into_parameters<Ti, F, Pr>(self) -> Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
+        Parameters {
+            buy: self.buy,
+            cancel: self.cancel,
+            refund: self.refund,
+            punish: Some(self.punish),
+            adaptor: self.adaptor,
+            extra_arbitrating_keys: self.extra_arbitrating_keys,
+            arbitrating_shared_keys: self.arbitrating_shared_keys,
+            spend: self.spend,
+            extra_accordant_keys: self.extra_accordant_keys,
+            accordant_shared_keys: self.accordant_shared_keys,
+            proof: None,
+            destination_address: self.address,
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
+}
+
+impl<Pk, Qk, Rk, Sk, Addr> fmt::Display for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>
+where
+    Pk: fmt::Debug,
+    Qk: fmt::Debug,
+    Rk: fmt::Debug,
+    Sk: fmt::Debug,
+    Addr: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 impl<Pk, Qk, Rk, Sk, Addr> Encodable for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>
 where
@@ -474,7 +530,40 @@ pub struct RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
     pub address: Addr,
 }
 
-// TODO impl Display
+impl<Pk, Qk, Rk, Sk, Addr> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn into_parameters<Ti, F, Pr>(self) -> Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
+        Parameters {
+            buy: self.buy,
+            cancel: self.cancel,
+            refund: self.refund,
+            punish: None,
+            adaptor: self.adaptor,
+            extra_arbitrating_keys: self.extra_arbitrating_keys,
+            arbitrating_shared_keys: self.arbitrating_shared_keys,
+            spend: self.spend,
+            extra_accordant_keys: self.extra_accordant_keys,
+            accordant_shared_keys: self.accordant_shared_keys,
+            proof: None,
+            destination_address: self.address,
+            cancel_timelock: None,
+            punish_timelock: None,
+            fee_strategy: None,
+        }
+    }
+}
+
+impl<Pk, Qk, Rk, Sk, Addr> fmt::Display for RevealBobParameters<Pk, Qk, Rk, Sk, Addr>
+where
+    Pk: fmt::Debug,
+    Qk: fmt::Debug,
+    Rk: fmt::Debug,
+    Sk: fmt::Debug,
+    Addr: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 impl<Pk, Qk, Rk, Sk, Addr> Encodable for RevealBobParameters<Pk, Qk, Rk, Sk, Addr>
 where
@@ -575,7 +664,27 @@ pub struct CoreArbitratingSetup<Px, Sig> {
     pub cancel_sig: Sig,
 }
 
-// TODO impl Display
+impl<Px, Sig> CoreArbitratingSetup<Px, Sig> {
+    /// Transform the arbitrating setup into a core arbitrating transaction structure used in
+    /// protocol methods on Alice and Bob.
+    pub fn into_arbitrating_tx(self) -> CoreArbitratingTransactions<Px> {
+        CoreArbitratingTransactions {
+            lock: self.lock,
+            cancel: self.cancel,
+            refund: self.refund,
+        }
+    }
+}
+
+impl<Px, Sig> fmt::Display for CoreArbitratingSetup<Px, Sig>
+where
+    Px: fmt::Debug,
+    Sig: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 impl<Px, Sig> Encodable for CoreArbitratingSetup<Px, Sig>
 where
@@ -658,7 +767,15 @@ pub struct RefundProcedureSignatures<Sig, EncSig> {
     pub refund_adaptor_sig: EncSig,
 }
 
-// TODO impl Display
+impl<Sig, EncSig> fmt::Display for RefundProcedureSignatures<Sig, EncSig>
+where
+    Sig: fmt::Debug,
+    EncSig: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 impl<Sig, EncSig> Encodable for RefundProcedureSignatures<Sig, EncSig>
 where
@@ -737,7 +854,15 @@ pub struct BuyProcedureSignature<Px, EncSig> {
     pub buy_adaptor_sig: EncSig,
 }
 
-// TODO impl Display
+impl<Px, EncSig> fmt::Display for BuyProcedureSignature<Px, EncSig>
+where
+    Px: fmt::Debug,
+    EncSig: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 impl<Px, EncSig> Encodable for BuyProcedureSignature<Px, EncSig>
 where

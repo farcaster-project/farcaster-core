@@ -50,7 +50,7 @@ use serde::{de, Deserialize, Deserializer};
 /// An amount of Bitcoin (internally in satoshis) representing the number of satoshis per virtual
 /// byte a transaction must use for its fee. A [`FeeStrategy`] can use one of more of this type
 /// depending of its complexity (fixed, range, etc).
-#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Hash, Eq, Display)]
 #[display(display_sats_per_vbyte)]
 pub struct SatPerVByte(Amount);
 

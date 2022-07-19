@@ -20,9 +20,9 @@
 use std::fmt;
 use std::io;
 
-use crate::protocol::Parameters;
 use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Commit, SharedKeyId, TaggedElement};
+use crate::protocol::Parameters;
 use crate::protocol::{verify_vec_of_commitments, CoreArbitratingTransactions};
 use crate::swap::SwapId;
 use crate::Error;

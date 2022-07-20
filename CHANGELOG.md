@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump dependencies
 - Bump MSRV (Minimum Supported Rust Version) from 1.54.0 to 1.57.0
 - Bump bitvec to version 1
+- Move to Rust edition 2021
 
 ## [0.4.4] - 2022-02-27
 

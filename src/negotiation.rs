@@ -627,7 +627,7 @@ where
             strict_encoding::StrictEncode::strict_encode(&self.peer_address, s).map_err(|_| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "Failed to encode RemoteNodeAddr",
+                    "Failed to encode InetSocketAddr",
                 )
             })?;
         Ok(len)

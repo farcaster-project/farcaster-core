@@ -17,6 +17,7 @@
 //! Discrete Logarithm Equality Proof system across the different groups secp256k1 and curve25519.
 
 use std::convert::TryInto;
+use std::fmt;
 
 use crate::{
     consensus::{self, deserialize, serialize, CanonicalBytes, Decodable, Encodable},
@@ -531,7 +532,7 @@ impl
 }
 
 /// A Discrete Logarithm Equality Proof across secp256k1 and curve25519 groups.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct DLEQProof {
     c_g: Vec<ed25519Point>,
@@ -539,6 +540,24 @@ pub struct DLEQProof {
     ring_signatures: Vec<RingSignature<ed25519Scalar, secp256k1Scalar>>,
     pok_0: (ed25519Point, ed25519Scalar),
     pok_1: ecdsa_fun::Signature,
+}
+
+impl fmt::Debug for DLEQProof {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DLEQProof")
+            .field("c_g", &"[..]")
+            .field("c_h", &"[..]")
+            .field("ring_signatures", &"[..]")
+            .field("pok_0", &self.pok_0)
+            .field("pok_1", &self.pok_1)
+            .finish()
+    }
+}
+
+impl fmt::Display for DLEQProof {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "DLEQProof {{ .. }}")
+    }
 }
 
 impl Encodable for ed25519Point {

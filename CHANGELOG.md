@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2022-07-27
+
 ### Added
 
 - Proper serde support on principal types ([#259](https://github.com/farcaster-project/farcaster-core/pull/259))
@@ -138,7 +140,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages exchanged between farcaster-node's microservices
 - Tasks and blockchain events used by syncers
 
-[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.4...HEAD
+[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.1...v0.4.2

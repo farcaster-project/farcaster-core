@@ -287,7 +287,7 @@ impl<C> Strategy for CommitBobParameters<C> {
 // RevealProof
 
 /// Reveals the zero-knowledge proof for the discrete logarithm across curves.
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RevealProof<Pr> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
@@ -295,12 +295,21 @@ pub struct RevealProof<Pr> {
     pub proof: Pr,
 }
 
+impl<Pr> fmt::Debug for RevealProof<Pr> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RevealProof")
+            .field("swap_id", &self.swap_id)
+            .field("proof", &"..")
+            .finish()
+    }
+}
+
 impl<Pr> fmt::Display for RevealProof<Pr>
 where
     Pr: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "RevealProof {{ swap_id: {}, proof: .. }}", self.swap_id)
     }
 }
 

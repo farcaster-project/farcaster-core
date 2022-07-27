@@ -14,7 +14,8 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-//! Protocol execution and messages exchanged between peers.
+//! Protocol execution and messages exchanged between peers. Execution steps of a swap are carried
+//! by [`Alice`] and [`Bob`] structures. Each contain the list of methods needed to proceed a swap.
 
 // For this file we allow having complex types
 #![allow(clippy::type_complexity)]
@@ -50,6 +51,8 @@ struct ValidatedCoreTransactions<Px, Ti, Pk> {
     punish_lock: DataPunishableLock<Ti, Pk>,
 }
 
+/// Container for the three main transactions used as the arbitrating engine on-chain. The `lock`,
+/// the lock `cancel`, and the cancel `refund`.
 #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct CoreArbitratingTransactions<Px> {
     /// Partial transaction raw type representing the lock.
@@ -76,6 +79,8 @@ impl<Px> CoreArbitratingTransactions<Px> {
     }
 }
 
+/// Container for the set of parameters needed to build or verify some parameters on the
+/// [`CoreArbitratingTransactions`].
 #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct ArbitratingParameters<Amt, Ti, F> {
     pub arbitrating_amount: Amt,
@@ -84,18 +89,30 @@ pub struct ArbitratingParameters<Amt, Ti, F> {
     pub fee_strategy: FeeStrategy<F>,
 }
 
+/// A pair of signatures, one regular and one encrypted.
 #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct TxSignatures<Sig> {
     pub sig: Sig,
     pub adapted_sig: Sig,
 }
 
+/// The partial `punish` transaction with its signature.
 #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct FullySignedPunish<Px, Sig> {
     pub punish: Px,
     pub punish_sig: Sig,
 }
 
+/// One has to produce a set of parameters at the start of a swap and receive a mostly equivalent
+/// set from counter-party during the reveal procedure. Container for all the parameters a
+/// participant needs to execture a swap.
+///
+/// The proof is optional because one receives the proof after receiving the parameters in the
+/// receal process, the option allows to create the struct at the first step and add the swap if
+/// needed later.
+///
+/// Timelocks and fee strategy are only present in the `local` set of parameters and not part of
+/// the reveal process, thus they are optional too.
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
     pub buy: Pk,
@@ -194,7 +211,9 @@ where
 
 impl_strict_encoding!(Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes, Pr: CanonicalBytes);
 
-fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
+/// Transform a vector of tagged elements `K` into a vector of tagged commitments.
+/// [`CanonicalBytes`] are used for computing the commitment of each elements.
+pub fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: &[TaggedElement<T, K>],
 ) -> TaggedElements<T, C> {
@@ -208,7 +227,10 @@ fn commit_to_vec<T: Clone + Eq, K: CanonicalBytes, C: Clone + Eq>(
         .collect()
 }
 
-fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
+/// Verifies a vector of tagged commitments against a vector of revealed tagged elements. Fails if
+/// a tag is not found in the commitments or doesn't match the commitment.  [`CanonicalBytes`] are
+/// used for computing the commitment of each elements.
+pub fn verify_vec_of_commitments<T: Eq, K: CanonicalBytes, C: Clone + Eq>(
     wallet: &impl Commit<C>,
     keys: Vec<TaggedElement<T, K>>,
     commitments: &[TaggedElement<T, C>],
@@ -239,6 +261,7 @@ where
     Rk: CanonicalBytes,
     Sk: CanonicalBytes,
 {
+    /// Generates protocol message that commits to Alice's parameters.
     pub fn commit_alice<C: Clone + Eq>(
         &self,
         swap_id: SwapId,
@@ -264,6 +287,7 @@ where
         }
     }
 
+    /// Create the reveal protocol message based on the set of parameters.
     pub fn reveal_alice(self, swap_id: SwapId) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
         RevealAliceParameters {
             swap_id,
@@ -281,6 +305,7 @@ where
         }
     }
 
+    /// Generates protocol message that commits to Bob's parameters.
     pub fn commit_bob<C: Clone + Eq>(
         &self,
         swap_id: SwapId,
@@ -300,6 +325,7 @@ where
         }
     }
 
+    /// Create the reveal protocol message based on the set of parameters.
     pub fn reveal_bob(self, swap_id: SwapId) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
         RevealBobParameters {
             swap_id,
@@ -317,8 +343,10 @@ where
     }
 }
 
-/// Alice, a [`SwapRole`], starts with [`Accordant`] blockchain assets and exchange them for
-/// [`Arbitrating`] blockchain assets.
+/// Alice, a [`SwapRole`], starts with accordant blockchain assets and exchange them for
+/// arbitrating blockchain assets.
+///
+/// [`SwapRole`]: crate::role::SwapRole
 #[derive(Debug, Clone)]
 pub struct Alice<Addr, Ar, Ac> {
     /// The **arbitrating** blockchain to use during the swap
@@ -390,21 +418,12 @@ impl<Addr, Ar, Ac> Alice<Addr, Ar, Ac>
 where
     Addr: Clone,
 {
-    /// Generate Alice's parameters for the protocol execution based on the key generator public
-    /// offer agreed upon during the negotiation phase.
+    /// Generate Alice's parameters for the protocol execution based on the key generator.
     ///
     /// # Safety
     ///
     /// All the data passed to the function are considered trusted and does not require extra
-    /// validation.
-    ///
-    /// The parameters contain:
-    ///
-    ///  * The public keys used in the arbitrating and accordant blockchains
-    ///  * The cryptographic proof
-    ///  * The shared private keys (for reading opaque blockchains)
-    ///  * The timelock parameters from the public offer
-    ///  * The target arbitrating address used by Alice
+    /// validation. Thus we assume the public offer has been validated upfront.
     ///
     pub fn generate_parameters<Kg, Amt, Bmt, Ti, F, Pk, Qk, Rk, Sk, Pr>(
         &self,
@@ -471,39 +490,40 @@ where
         })
     }
 
-    // FIXME: check if doc is up-to-date
-    /// Generates the witness on the [`Refundable`] transaction and adaptor sign it.
+    /// Generates the witness on the refund transaction and encrypt it.
     ///
     /// # Safety
     ///
-    /// [`BobParameters`] bundle is created and validated with the protocol messages that commit
-    /// and reveal the values present in the bundle.
+    /// Bob's parameter are created and validated with the protocol messages that commit and reveal
+    /// the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
     ///
-    /// [`CoreArbitratingTransactions`] bundle is created by Bob and requries extra validation.
+    /// [`CoreArbitratingTransactions`] protocol message is created by Bob and requries extra
+    /// validation.
     ///
     /// _Previously verified data_:
-    ///  * `bob_parameters`: Bob's parameters bundle
+    ///  * `bob_parameters`: Bob's parameters
+    ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `ar_engine`: Alice's arbitrating seed
-    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `wallet`: Alice's arbitrating seed
+    ///  * `alice_parameters`: Alice's parameters
     ///
     /// _Verified data_:
-    ///  * `core`: Core arbitrating transactions bundle
+    ///  * `core`: Core arbitrating transactions
     ///
     /// # Execution
     ///
-    ///  * Parse the [`Refundable`] partial transaction in [`CoreArbitratingTransactions`]
+    ///  * Parse the refund partial transaction in core arbitrating set
     ///  * Validate the [`Lockable`], [`Cancelable`], [`Refundable`] partial transactions in
     ///  [`CoreArbitratingTransactions`]
-    ///  * Retrieve Bob's adaptor public key from [`BobParameters`] bundle
-    ///  * Retrieve Alice's refund public key from [`AliceParameters`] bundle
+    ///  * Retrieve Bob's adaptor public key from [`Parameters`]
+    ///  * Retrieve Alice's refund public key from [`Parameters`]
     ///  * Generate the witness data and adaptor sign it
     ///
-    /// Returns the adaptor signature inside the [`SignedAdaptorRefund`] bundle.
+    /// Returns the adaptor(encrypted) signature.
     ///
     pub fn sign_adaptor_refund<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
         &self,
@@ -535,22 +555,23 @@ where
             .map_err(Into::into)
     }
 
-    // FIXME check doc
-    /// Generates the witness on the [`Cancelable`] transaction and sign it.
+    /// Generates the witness on the cancel transaction and sign it.
     ///
     /// # Safety
     ///
-    /// [`CoreArbitratingTransactions`] bundle is created by Bob and requries extra validation.
+    /// [`CoreArbitratingTransactions`] protocol message is created by Bob and requries extra
+    /// validation.
     ///
     /// _Previously verified data_:
-    ///  * `bob_parameters`: Bob's parameters bundle
+    ///  * `bob_parameters`: Bob's parameters
+    ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `ar_engine`: Alice's arbitrating seed
-    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `wallet`: Alice's arbitrating seed
+    ///  * `alice_parameters`: Alice's parameters
     ///
     /// _Verified data_:
-    ///  * `core`: Core arbitrating transactions bundle
+    ///  * `core`: Core arbitrating transactions
     ///
     /// # Execution
     ///
@@ -560,7 +581,7 @@ where
     ///  * Retreive Alice's cancel public key from the parameters
     ///  * Generate the witness data and sign it
     ///
-    /// Returns the witness inside the [`CosignedArbitratingCancel`] bundle.
+    /// Returns the witness signature.
     ///
     pub fn cosign_arbitrating_cancel<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si>(
         &self,
@@ -595,27 +616,29 @@ where
     ///
     /// # Safety
     ///
-    /// [`BobParameters`] bundle is created and validated with the protocol messages that commit
-    /// and reveal the values present in the bundle.
+    /// Bob's [`Parameters`] are created and validated with the protocol messages that commit and
+    /// reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
     ///
     /// _Previously verified data_:
-    ///  * `bob_parameters`: Bob's parameters bundle
+    ///  * `bob_parameters`: Bob's parameters
+    ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `wallet`: Alice's arbitrating seed
+    ///  * `alice_parameters`: Alice's parameters
     ///
     /// _Verified data_:
-    ///  * `core`: Core arbitrating transactions bundle
+    ///  * `core`: Core arbitrating transactions
     ///  * `adaptor_buy`: The adaptor witness to verify
     ///
     /// # Execution
     ///
-    ///  * Parse the [`Buyable`] partial transaction in [`SignedAdaptorBuy`]
-    ///  * Verify the adaptor witness in [`SignedAdaptorBuy`] with the public keys from the
-    ///  parameters bundles
+    ///  * Parse the [`Buyable`] partial transaction in [`BuyProcedureSignature`]
+    ///  * Verify the adaptor witness in [`BuyProcedureSignature`] with the public keys from the
+    ///  parameters
     ///
     pub fn validate_adaptor_buy<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
         &self,
@@ -642,8 +665,8 @@ where
 
         let fee_strategy = &arb_params.fee_strategy;
 
-        // Extract the partial transaction from the adaptor buy bundle, this operation should not
-        // error if the bundle is well formed.
+        // Extract the partial transaction from the adaptor buy, this operation should not error if
+        // well formed.
         let partial_buy = adaptor_buy.buy.clone();
 
         // Initialize the buy transaction based on the extracted partial transaction format.
@@ -665,38 +688,40 @@ where
         Ok(())
     }
 
-    /// Sign the arbitrating [`Buyable`] transaction and adapt the counter-party adaptor witness
-    /// with the private adaptor key.
+    /// Sign the arbitrating buy transaction and adapt the counter-party adaptor witness with the
+    /// private adaptor key.
     ///
     /// # Safety
     ///
     /// This function **MUST NOT** be run if [`validate_adaptor_buy`] is not successful.
     ///
-    /// [`SignedAdaptorBuy`] bundle is created by Bob and must be verified to be a valid encrypted
-    /// signature and a valid transaction.
+    /// [`BuyProcedureSignature`] protocol message is created by Bob and must be verified to be a
+    /// valid encrypted signature and a valid transaction.
     ///
     /// **This function assumes that the adaptor signature has been validated and assumes that all
     /// cryptographic proof needed for securing the system have passed the validation.**
     ///
     /// _Previously verified data_:
-    ///  * `signed_adaptor_buy`: Verified by [`validate_adaptor_buy`]
+    ///  * `adaptor_buy`: Verified by [`validate_adaptor_buy`]
+    ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `ar_engine`, `ac_engine`: Bob's arbitrating and accordant seeds
-    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `wallet`: Alice's arbitrating and accordant seeds
+    ///  * `alice_parameters`: Alice's parameters
+    ///  * `bob_parameters`: Bob's parameters
     ///
     /// _Verified data_:
-    ///  * `core`: Core arbitrating transactions bundle
+    ///  * `core`: Core arbitrating transactions
     ///
     /// # Execution
     ///
-    ///  * Parse the [`Buyable`] partial transaction in [`SignedAdaptorBuy`]
+    ///  * Parse the [`Buyable`] partial transaction in [`BuyProcedureSignature`]
     ///  * Retreive the buy public key from the paramters
     ///  * Generate the buy witness data and sign it
     ///  * Retreive the adaptor public key from the parameters
     ///  * Adapt the signature
     ///
-    /// Returns the signatures inside a [`TxSignatures`] bundle.
+    /// Returns the signatures inside a [`TxSignatures`].
     ///
     /// [`validate_adaptor_buy`]: Alice::validate_adaptor_buy
     ///
@@ -726,8 +751,8 @@ where
 
         let fee_strategy = &arb_params.fee_strategy;
 
-        // Extract the partial transaction from the adaptor buy bundle, this operation should not
-        // error if the bundle is well formed.
+        // Extract the partial transaction from the adaptor buy protocol message, this operation
+        // should not error if the message is well formed.
         let partial_buy = adaptor_buy.buy.clone();
 
         // Initialize the buy transaction based on the extracted partial transaction format.
@@ -748,11 +773,12 @@ where
         Ok(TxSignatures { sig, adapted_sig })
     }
 
-    /// Create and sign the arbitrating [`Punishable`] transaction.
+    /// Create and sign the arbitrating punish transaction.
     ///
     /// # Safety
     ///
-    /// [`CoreArbitratingTransactions`] bundle is created by Bob and requries extra validation.
+    /// [`CoreArbitratingTransactions`] protocol message is created by Bob and requries extra
+    /// validation.
     ///
     /// This transaction does not require the same validation of Bob's parameters because the
     /// adaptor is not used and no private key is revealed during the process. Alice's should
@@ -760,22 +786,15 @@ where
     /// correctly validated.
     ///
     /// _Previously verified data_:
-    ///  * `bob_parameters`: Bob's parameters bundle
+    ///  * `bob_parameters`: Bob's parameters
     ///  * `core`: The core arbitrating transactions
+    ///  * `arb_params`: The core arbitrating parameter used in verification
     ///
     /// _Trusted data_:
-    ///  * `ar_engine`: Alice's arbitrating seed
-    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `wallet`: Alice's arbitrating seed
+    ///  * `alice_parameters`: Alice's parameters
     ///
-    /// # Execution
-    ///
-    ///  * Parse the [`Buyable`] partial transaction in [`SignedAdaptorBuy`]
-    ///  * Retreive the buy public key from the parameters
-    ///  * Generate the buy witness data
-    ///  * Retreive the adaptor public key from the parameters
-    ///  * Adapt the signature
-    ///
-    /// Returns the signatures inside a [`TxSignatures`] bundle.
+    /// Returns the signatures inside [`FullySignedPunish`].
     ///
     /// [`validate_adaptor_buy`]: Alice::validate_adaptor_buy
     ///
@@ -825,7 +844,10 @@ where
         })
     }
 
-    // TODO: transform into other private key type
+    /// Given the Bob's parameters, the refund transaction and the encrypted signature for the
+    /// refund transaction, return the secret key used to encrypt the signature.
+    ///
+    /// This method is used if the refund occurs to allow Alice to unlock her funds.
     pub fn recover_accordant_key<Amt, Tx, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Si, EncSig>(
         &self,
         wallet: &mut S,
@@ -842,17 +864,17 @@ where
         wallet.recover_secret_key(refund_adaptor_sig, encryption_key, signature)
     }
 
-    // FIXME check doc
     // Internal method to parse and validate the core arbitratring transactions received by Alice
     // from Bob.
     //
-    // Each transaction is parsed from the bundle and initialized from its partial transaction
-    // format. After initialization validation tests are performed to ensure:
+    // Each transaction is parsed from the protocol message and initialized from its partial
+    // transaction format. After initialization validation tests are performed to ensure:
     //
     //  * the transaction template is valid (transaction is well formed, contract and keys are used
     //  correctly)
     //  * the target amount from the offer is correct (for the lock transaction)
     //  * the fee strategy validation passes
+    //
     fn validate_core<Amt, Pk, Qk, Rk, Sk, Ti, F, Pr, Ms, Si, Px>(
         &self,
         alice_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
@@ -867,8 +889,8 @@ where
         Pk: Copy,
         Ti: Copy,
     {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
+        // Extract the partial transaction from the core arbitrating message, this operation should
+        // not error if the message is well formed.
         let partial_lock = core.lock.clone();
 
         // Initialize the lock transaction based on the extracted partial transaction format.
@@ -917,8 +939,8 @@ where
             failure: alice_punish,
         };
 
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
+        // Extract the partial transaction from the core arbitrating protocol message, this
+        // operation should not error if the message is well formed.
         let partial_cancel = core.cancel.clone();
 
         // Initialize the lock transaction based on the extracted partial transaction format.
@@ -929,8 +951,8 @@ where
         // Validate the fee strategy
         cancel.as_partial().validate_fee(fee_strategy)?;
 
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
+        // Extract the partial transaction from the core arbitrating protocol message, this
+        // operation should not error if the message is well formed.
         let partial_refund = core.refund.clone();
 
         // Initialize the refund transaction based on the extracted partial transaction format.
@@ -951,8 +973,10 @@ where
     }
 }
 
-/// Bob, a [`SwapRole`], starts with [`Arbitrating`] blockchain assets and exchange them for
-/// [`Accordant`] blockchain assets.
+/// Bob, a [`SwapRole`], starts with arbitrating blockchain assets and exchange them for accordant
+/// blockchain assets.
+///
+/// [`SwapRole`]: crate::role::SwapRole
 #[derive(Debug, Clone)]
 pub struct Bob<Addr, Ar, Ac> {
     /// The **arbitrating** blockchain to use during the swap
@@ -1025,13 +1049,13 @@ impl<Addr, Ar, Ac> Bob<Addr, Ar, Ac>
 where
     Addr: Clone,
 {
-    /// Generate Bob's parameters for the protocol execution based on the arbitrating and accordant
-    /// seeds and the public offer agreed upon during the negotiation phase.
+    /// Generate Bob's parameters for the protocol execution based on his seed and the public offer
+    /// agreed upon during the negotiation phase.
     ///
     /// # Safety
     ///
     /// All the data passed to the function are considered trusted and does not require extra
-    /// validation.
+    /// validation. The public offer is assumend to be validated by user upfront.
     ///
     /// The parameters contain:
     ///
@@ -1110,24 +1134,25 @@ where
     ///
     /// # Safety
     ///
-    /// [`AliceParameters`] bundle is created and validated with the protocol messages that commit
-    /// and reveal the values present in the bundle.
+    /// Alice's [`Parameters`] are created and validated with the protocol messages that commit and
+    /// reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
     ///
     /// _Previously verified data_:
-    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `alice_parameters`: Alice's parameters
+    ///  * `arb_params`: The core arbitrating parameter used in verification
     ///
     /// _Trusted data_:
-    ///  * `bob_parameters`: Bob's parameters bundle
-    ///  * `funding_bundle`: Funding transaction bundle
+    ///  * `bob_parameters`: Bob's parameters
+    ///  * `funding`: Funding transaction
     ///
     /// # Execution
     ///
     /// The parameters to create the three transactions are:
-    ///  * Alice's public keys present in Alice's parameters bundle: [`AliceParameters`]
-    ///  * Bob's public keys present in Bob's parameters bundle: [`BobParameters`]
+    ///  * Alice's public keys present in Alice's [`Parameters`]
+    ///  * Bob's public keys present in Bob's [`Parameters`]
     ///  * The [`Fundable`] transaction
     ///  * The [`FeeStrategy`] and the [`FeePriority`]
     ///
@@ -1237,8 +1262,7 @@ where
     ///
     /// All the data passed to [`cosign_arbitrating_cancel`] are considered trusted.
     ///
-    /// [`CoreArbitratingTransactions`] bundle is created by Bob and does not require any extra
-    /// validation.
+    /// The signature is created by Bob and does not require any extra validation.
     ///
     /// # Execution
     ///
@@ -1246,7 +1270,7 @@ where
     ///  * Retreive the cancel public key from the paramters
     ///  * Generate the witness data and sign it
     ///
-    /// Returns the signature inside [`CosignedArbitratingCancel`] bundle.
+    /// Returns the signature.
     ///
     /// [`cosign_arbitrating_cancel`]: Bob::cosign_arbitrating_cancel
     ///
@@ -1260,8 +1284,8 @@ where
         Ar: Transactions<Addr = Addr, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone,
     {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
+        // Extract the partial transaction from the core arbitrating protocol message, this
+        // operation should not error if the message is well formed.
         let partial_cancel = core.cancel.clone();
 
         // Initialize the cancel transaction based on the partial transaction format.
@@ -1279,30 +1303,29 @@ where
     ///
     /// # Safety
     ///
-    /// [`AliceParameters`] bundle is created and validated with the protocol messages that commit
-    /// and reveal the values present in the bundle.
+    /// Alice's [`Parameters`] are created and validated with the protocol messages that commit and
+    /// reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
     ///
-    /// [`CoreArbitratingTransactions`] bundle is created by Bob and does not require any extra
-    /// validation.
+    /// [`CoreArbitratingTransactions`] protocol message is created by Bob and does not require any
+    /// extra validation.
     ///
     /// _Previously verified data_:
-    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `alice_parameters`: Alice's parameters
     ///
     /// _Trusted data_:
-    ///  * `bob_parameters`: Bob's parameters bundle
-    ///  * `core`: Core arbitrating transactions bundle
+    ///  * `bob_parameters`: Bob's parameters
+    ///  * `core`: Core arbitrating transactions
     ///
     /// _Verified data_:
-    ///  * `adaptor_refund`: The adaptor witness to verify
+    ///  * `refund_adaptor_sig`: The adaptor witness to verify
     ///
     /// # Execution
     ///
     ///  * Parse the [`Refundable`] partial transaction in [`CoreArbitratingTransactions`]
-    ///  * Verify the adaptor witness in [`SignedAdaptorRefund`] with the public keys from the
-    ///  parameters bundles
+    ///  * Verify the adaptor witness with the public keys from the parameters
     ///
     pub fn validate_adaptor_refund<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
         &self,
@@ -1317,8 +1340,8 @@ where
         Ar: Transactions<Addr = Addr, Amt = Amt, Ti = Ti, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone,
     {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
+        // Extract the partial transaction from the core arbitrating protocol message, this
+        // operation should not error if the message is well formed.
         let partial_refund = core.refund.clone();
 
         // Initialize the refund transaction based on the partial transaction format.
@@ -1344,32 +1367,34 @@ where
     ///
     /// This function **MUST NOT** be run if the accordant assets are not confirmed on-chain.
     ///
-    /// [`AliceParameters`] bundle is created and validated with the protocol messages that commit
-    /// and reveal the values present in the bundle.
+    /// Alice's [`Parameters`] are created and validated with the protocol messages that commit
+    /// and reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
     ///
-    /// [`CoreArbitratingTransactions`] bundle is created by Bob and does not require any extra
-    /// validation.
+    /// [`CoreArbitratingTransactions`] protocol message is created by Bob and does not require any
+    /// extra validation.
     ///
     /// _Previously verified data_:
-    ///  * `alice_parameters`: Alice's parameters bundle
+    ///  * `alice_parameters`: Alice's parameters
+    ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `ar_engine`: Bob's arbitrating seed
-    ///  * `bob_parameters`: Bob's parameters bundle
-    ///  * `core`: Core arbitrating transactions bundle
+    ///  * `wallet`: Bob's arbitrating seed
+    ///  * `bob_parameters`: Bob's parameters
+    ///  * `core`: Core arbitrating transactions
     ///
     /// # Execution
     ///
     ///  * Parse the [`Lockable`] partial transaction in [`CoreArbitratingTransactions`]
     ///  * Generate the [`DataLock`] structure from Alice and Bob parameters and the public offer
-    ///  * Retrieve Alice's adaptor public key from [`AliceParameters`] bundle
+    ///  * Retrieve Alice's adaptor public key from Alice's [`Parameters`]
     ///  * Retreive the buy public key from the paramters
     ///  * Generate the adaptor witness data and sign it
     ///
-    /// Returns the partial transaction and the signature inside the [`SignedAdaptorBuy`] bundle.
+    /// Returns the partial transaction and the signature inside the [`BuyProcedureSignature`]
+    /// protocol message.
     ///
     /// [`sign_adaptor_buy`]: Bob::sign_adaptor_buy
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
@@ -1390,8 +1415,8 @@ where
         Pk: Copy,
         Ti: Copy,
     {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
+        // Extract the partial transaction from the core arbitrating protocol message, this
+        // operation should not error if the message is well formed.
         let partial_lock = core.lock.clone();
 
         // Initialize the lock transaction based on the partial transaction format.
@@ -1448,8 +1473,8 @@ where
     ///
     /// All the data passed to [`sign_arbitrating_lock`] are considered trusted.
     ///
-    /// [`CoreArbitratingTransactions`] bundle is created by Bob and does not require any extra
-    /// validation.
+    /// [`CoreArbitratingTransactions`] protocol message is created by Bob and does not require any
+    /// extra validation.
     ///
     /// # Execution
     ///
@@ -1457,7 +1482,7 @@ where
     ///  * Retreive the funding public key from the paramters
     ///  * Generate the witness data and sign it
     ///
-    /// Returns the signature inside a [`SignedArbitratingLock`] bundle.
+    /// Returns the signature.
     ///
     /// [`sign_arbitrating_lock`]: Bob::sign_arbitrating_lock
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
@@ -1472,8 +1497,8 @@ where
         Ar: Transactions<Addr = Addr, Ms = Ms, Pk = Pk, Si = Si, Px = Px>,
         Px: Clone,
     {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
+        // Extract the partial transaction from the core arbitrating protocol message, this
+        // operation should not error if the message is well formed.
         let partial_lock = core.lock.clone();
 
         // Initialize the lock transaction based on the partial transaction format.
@@ -1491,14 +1516,13 @@ where
     ///
     /// This function **MUST NOT** be run if [`validate_adaptor_refund`] is not successful.
     ///
-    /// [`SignedAdaptorRefund`] bundle is created by Alice and must be verified to be a valid
-    /// encrypted signature.
+    /// The encrypted signature is created by Alice and must be verified to be a valid.
     ///
     /// **This function assumes that the adaptor signature has been validated and assumes that all
     /// cryptographic proof needed for securing the system have passed the validation.**
     ///
-    /// [`CoreArbitratingTransactions`] bundle is created by Bob and does not require any extra
-    /// validation.
+    /// [`CoreArbitratingTransactions`] protocol message is created by Bob and does not require any
+    /// extra validation.
     ///
     /// # Execution
     ///
@@ -1508,7 +1532,7 @@ where
     ///  * Retreive the adaptor public key from the pamaters
     ///  * Adapt the signature
     ///
-    /// Returns the signatures inside a [`SignedArbitratingLock`] bundle.
+    /// Returns the signatures inside a [`TxSignatures`] structure.
     ///
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
@@ -1524,8 +1548,8 @@ where
         EncSig: Clone,
         Px: Clone,
     {
-        // Extract the partial transaction from the core arbitrating bundle, this operation should
-        // not error if the bundle is well formed.
+        // Extract the partial transaction from the core arbitrating protocol message, this
+        // operation should not error if the message is well formed.
         let partial_refund = core.refund.clone();
 
         // Initialize the refund transaction based on the partial transaction format.
@@ -1541,6 +1565,8 @@ where
         Ok(TxSignatures { sig, adapted_sig })
     }
 
+    /// This function allows to recover the secret key used to encrypt the buy signature, allowing
+    /// Bob to recover Alice's secret and transfer ownership of funds.
     pub fn recover_accordant_key<S, Tx, Px, Si, Pk, Qk, Rk, Sk, Ti, F, Pr, EncSig>(
         &self,
         wallet: &mut S,

@@ -84,6 +84,8 @@ impl FromStr for TradeRole {
 
 /// Possible roles during the swap phase. When negotitation phase is completed [`TradeRole`] will
 /// transition into swap role according to the [`PublicOffer`].
+///
+/// [`PublicOffer`]: crate::negotiation::PublicOffer
 #[derive(Display, Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum SwapRole {

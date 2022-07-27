@@ -230,6 +230,7 @@ impl_fixed_array!(32);
 impl_fixed_array!(33);
 impl_fixed_array!(64);
 
+/// Helper that deserialize a consensus encoded byte vector.
 #[macro_export]
 macro_rules! unwrap_vec_ref {
     ($reader: ident) => {{
@@ -400,6 +401,7 @@ impl Decodable for String {
     }
 }
 
+/// Implement strict encoding by wrapping the de/serialization of consensus encoding.
 #[macro_export]
 macro_rules! impl_strict_encoding {
     ($thing:ty, $($args:tt)*) => {

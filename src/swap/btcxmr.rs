@@ -84,25 +84,31 @@ pub type Alice = protocol::Alice<bitcoin::Address, BitcoinSegwitV0, Monero>;
 /// Fully defined type for Bitcoin-Monero atomic swap Bob protocol role.
 pub type Bob = protocol::Bob<bitcoin::Address, BitcoinSegwitV0, Monero>;
 
-/// Fully defined type for Bitcoin-Monero atomic swap Bob public offer.
+/// Fully defined type for Bitcoin-Monero atomic swap offer.
 pub type Offer = negotiation::Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
 
-/// Fully defined type for Bitcoin-Monero atomic swap Bob public offer.
+/// Fully defined type for Bitcoin-Monero atomic swap public offer.
 pub type PublicOffer =
     negotiation::PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
 
+/// Fully defined type for Bitcoin-Monero atomic swap arbitrating parameters.
 pub type ArbitratingParameters =
     protocol::ArbitratingParameters<bitcoin::Amount, CSVTimelock, SatPerVByte>;
 
+/// Fully defined type for Bitcoin-Monero atomic swap arbitrating set of transaction.
 pub type CoreArbitratingTransactions =
     protocol::CoreArbitratingTransactions<PartiallySignedTransaction>;
 
+/// Fully defined type for Bitcoin-Monero atomic swap fully signed punish transaction.
 pub type FullySignedPunish = protocol::FullySignedPunish<PartiallySignedTransaction, Signature>;
 
+/// Fully defined type for Bitcoin-Monero atomic swap transaction signatures.
 pub type TxSignatures = protocol::TxSignatures<Signature>;
 
+/// An ECDSA signature used in Bitcoin blockchain.
 pub use bitcoin::secp256k1::ecdsa::Signature;
 
+/// An encrypted ECDSA signature exchanged between peers during a swap.
 pub use ecdsa_fun::adaptor::EncryptedSignature;
 
 /// Index, used as hardened derivation, to derive standard keys defined in the protocol for Bitcoin

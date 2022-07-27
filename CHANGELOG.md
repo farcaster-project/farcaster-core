@@ -14,16 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Impl `From` for timelocks ([#265](https://github.com/farcaster-project/farcaster-core/pull/265))
 - Impl some traits to replace node's `Coin` structure with core's `Blockchain` ([#266](https://github.com/farcaster-project/farcaster-core/pull/266))
 - More type transformation to ease usage in node ([#275](https://github.com/farcaster-project/farcaster-core/pull/275))
+- Re-export concrete types for _Bitcoin-Monero_ swap pair ([#273](https://github.com/farcaster-project/farcaster-core/pull/273))
 
 ### Changed
 
 - Replaced `Ctx: Swap` generic context with specific generics ([#255](https://github.com/farcaster-project/farcaster-core/pull/255), [#256](https://github.com/farcaster-project/farcaster-core/pull/256))
-- Rework blockchain management and serialization ([#264](https://github.com/farcaster-project/farcaster-core/pull/264))
+- Re-work blockchain management and serialization ([#264](https://github.com/farcaster-project/farcaster-core/pull/264))
 - Bump node related dependencies ([#220](https://github.com/farcaster-project/farcaster-core/pull/220), [#281](https://github.com/farcaster-project/farcaster-core/pull/281))
-- Bump MSRV (Minimum Supported Rust Version) from 1.54.0 to 1.59.0
 - Bump bitvec to version 1 ([#238](https://github.com/farcaster-project/farcaster-core/pull/238))
 - Move to Rust edition 2021 ([#279](https://github.com/farcaster-project/farcaster-core/pull/279))
 - Use bytes convertion to keep secpfun compatibility ([#269](https://github.com/farcaster-project/farcaster-core/pull/269))
+- Bump MSRV (Minimum Supported Rust Version) from 1.54.0 to 1.59.0
 
 ### Fixed
 
@@ -32,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - `serde` feature is removed and always enabled
-- Remove instruction module ([#257](https://github.com/farcaster-project/farcaster-core/pull/257))
+- Remove instruction module and general clean up ([#257](https://github.com/farcaster-project/farcaster-core/pull/257), [#271](https://github.com/farcaster-project/farcaster-core/pull/271))
 
 ## [0.4.4] - 2022-02-27
 

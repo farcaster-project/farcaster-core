@@ -38,7 +38,7 @@ hex = "0.4"
 inet2_addr = { version = "0.8", default-features = false, features = ["tor", "strict_encoding", "serde"] }
 lightning_encoding = "0.6"
 serde = { version = "1", features = ["derive"] }
-strict_encoding = "0.8.0"
+strict_encoding = "0.8"
 strict_encoding_derive = "1.7"
 thiserror = "1"
 tiny-keccak = { version = "2", features = ["keccak"] }

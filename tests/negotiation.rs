@@ -117,7 +117,7 @@ fn serialize_public_offer() {
     .unwrap()
     .inner;
     let node_id = secp256k1::PublicKey::from_secret_key(&secp, &sk);
-    let peer_address = InetSocketAddr::new(ip, port);
+    let peer_address = InetSocketAddr::socket(ip, port);
     let public_offer = offer.to_public_v1(node_id, peer_address);
 
     assert_eq!(hex, serialize_hex(&public_offer));

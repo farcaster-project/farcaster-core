@@ -36,7 +36,7 @@ clap = { version = "3", features = ["derive"] }
 fixed-hash = { version = "0.7", default-features = false }
 hex = "0.4"
 inet2_addr = { version = "0.8", default-features = false, features = ["tor", "strict_encoding", "serde"] }
-lightning_encoding = "0.6"
+lightning_encoding = "0.8"
 serde = { version = "1", features = ["derive"] }
 strict_encoding = "0.8"
 strict_encoding_derive = "1.7"

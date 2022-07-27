@@ -317,10 +317,10 @@ impl Commit<KeccakCommitment> for CommitmentEngine {
     }
 }
 
-/// Required for [`Arbitrating`] and [`Accordant`] blockchains to dervice extra public keys (keys
-/// not automatically derives by the protocol by default) and extra shared private keys. Shared
-/// private keys are used in situation when e.g. blockchain is not transparent or when extra nonces
-/// should be exchanged.
+/// Required for arbitrating and accordant blockchains to dervice extra public keys (keys not
+/// automatically derives by the protocol by default) and extra shared private keys. Shared private
+/// keys are used in situation when e.g. blockchain is not transparent or when extra nonces should
+/// be exchanged.
 ///
 /// ```
 /// use farcaster_core::crypto::DeriveKeys;
@@ -362,8 +362,8 @@ pub trait DeriveKeys {
 /// all the keys needed when executing the protocol on [`Alice`] and [`Bob`] methods. This trait is
 /// auto-implemented for all `T` meeting the requirements.
 ///
-/// [`Alice`]: crate::role::Alice
-/// [`Bob`]: crate::role::Bob
+/// [`Alice`]: crate::protocol::Alice
+/// [`Bob`]: crate::protocol::Bob
 pub trait KeyGenerator<ArPublicKey, AcPublicKey, ArSharedKey, AcSharedKey, Proof>:
     GenerateKey<ArPublicKey, ArbitratingKeyId>
     + GenerateKey<AcPublicKey, AccordantKeyId>

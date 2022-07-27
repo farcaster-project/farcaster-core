@@ -14,6 +14,8 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
+//! A set of re-export messages with concrete types for Bitcoin and Monero swaps.
+
 use crate::crypto::dleq::DLEQProof;
 use crate::crypto::KeccakCommitment;
 use crate::protocol::message;

@@ -379,12 +379,13 @@ impl FromStr for FeePriority {
     }
 }
 
-// FIXME: doc
-/// Enable fee management for an arbitrating blockchain. This trait require implementing the
-/// [`Onchain`] trait to have access to transaction associated type and the [`Asset`] trait for
-/// returning the amount of fee set on a transaction. The fee is carried in the
-/// [`Offer`](crate::negotiation::Offer) through a [`FeeStrategy`] to fix the strategy to apply on
-/// transactions.
+/// Enable fee management for an arbitrating blockchain. The [`Fee`] trait declares a fee unit used
+/// in fee strategies and an amount used in transactions. Implementing this trait allow to set and
+/// verify fees on transactions given a strategy and a priority.
+///
+/// The fee to apply on transactions is carried in the [`Offer`](crate::negotiation::Offer) through
+/// a [`FeeStrategy`], in case the fee strategy allow multiple values a [`FeePriority`] is used to
+/// fix the amount.
 ///
 /// ```
 /// use bitcoin::Amount;

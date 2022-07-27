@@ -14,51 +14,43 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-//!  ⚠️ **This library is a 🚧 work in progress 🚧 and does not implement everything yet, nor is
-//!  suitable for production use.**
+//! Farcaster core library aims to implement in Rust the core principles described in Farcaster
+//! [RFCs](https://github.com/farcaster-project/RFCs):
 //!
-//! Farcaster core library aims to implement in Rust:
-//!
-//! - Swap offers
-//! - Swap roles and trade roles
+//! - Swap offers, data needed to start a swap with a counter-party
+//! - Swap roles and trade roles, who do what in the protocol
 //! - Transaction templates implementing on-chain behaviours
-//! - Messages exchanged between
-//!   [farcaster-node](https://github.com/farcaster-project/farcaster-node)'s microservices
-//! - Tasks and blockchain events used by syncers
 //! - Signature and cryptographic utilities
-//!   - `experimental` ECDSA adaptor signatures (with `ecdsa_fun`)
+//!   - ECDSA adaptor signatures
 //!   - Cross-group discrete logarithm proof system
-//!   - Schnorr adaptor signature
+//!   - Schnorr adaptor signature [work in progress]
 //!
 //! ## Core framework
 //! This library is twofold: providing a flexible framework to add specific blockchain support and
 //! implementing these specific blockchains. The framework is accessible in all modules at the root
 //! of the crate. The blockchains support are added under the the following modules:
 //!
-//! - `bitcoin`: support for Bitcoin, implementation of the `Arbitrating` role.
-//! - `monero`: support for Monero, implementation of the `Accordant` role.
+//! - `bitcoin`: support for Bitcoin, implementation of the `Arbitrating` blockchain role.
+//! - `monero`: support for Monero, implementation of the `Accordant` blockchain role.
 //! - `swap/btcxmr`: definition of a swap between `bitcoin` and `monero` implementations.
 //!
 //! ### Adding blockchain support
-//! To add a blockchain implementation you must implements `Aribtrating` or `Accordant` trait on
-//! your blockchain definition, the trait implemented depends on its blockchain on-chain features,
-//! see [RFCs](https://github.com/farcaster-project/RFCs) for more details.
+//! To add a blockchain implementation you must implements the `Aribtrating` or `Accordant` role
+//! requirements on your blockchain. That depends on its blockchain on-chain features, see
+//! [RFCs](https://github.com/farcaster-project/RFCs) for more details.
 //!
-//! The implementation of blockchain roles is void but requires a list of other traits (see
-//! `role`). Some traits only associate types, some carry more logic such as `Keys` in `crypto`
-//! module that defines the type of keys (public and private) and the number of extra keys needed
-//! during the swap. This is useful when off-chain cryptographic protocols such as MuSig2 is used
-//! in the implementation and requires extra keys, e.g. nonces.
+//! The protocol is executed with `protocol::Alice` and `protocol::Bob` structures, each implement
+//! a list of generic functions that allow performing one step in the protocol execution. Adding
+//! support for a chain means having the correct types to run those functions.
 //!
-//! For an arbitrating implementation transactions are required through `Onchain` and
-//! `Transactions` traits, former associate types for partial and final transaction and latter give
-//! concrete implementation for every type of transaction.
+//! For an arbitrating implementation on-chain transactions are required, the trait `Transactions`
+//! allow defining the set of transaction to build and use during the swap execution.
 //!
 //! ### Features
 //! As default the `experimental` feature is enable.
 //!
-//! - **experimental**: enable experimental cryptography, i.e. not battle tested nor peer reviewed
-//! and not intended for production use.
+//! - **experimental**: enable experimental cryptography, i.e. not battle tested nor peer reviewed,
+//! use it at your own risks.
 //! - **taproot**: enable support for Bitcoin Taproot on-chain scripts as the arbitrating engine
 //! method.
 

@@ -37,9 +37,8 @@ jobs:
     strategy:
       matrix:
         rust: [
-            1.57.0,
-            stable,
-            nightly
+            1.59.0,
+            stable
         ]
 
     runs-on: ubuntu-latest

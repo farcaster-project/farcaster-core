@@ -7,7 +7,7 @@
 
 # Farcaster Core Library
 
-The Farcaster atomic swaps project core library aim to implement in Rust the following functionnalities needed to build a swap node:
+The Farcaster atomic swaps project core library aim to implement in Rust the following functionalities needed to build a swap node:
 
 - [x] Swap offers (contains all necessary information to start a trade)
 - [x] Swap roles and trade roles (who do what during the trade)
@@ -16,15 +16,15 @@ The Farcaster atomic swaps project core library aim to implement in Rust the fol
   - [x] ECDSA adaptor signatures
   - [x] Cross-group discrete logarithm proof system
   - [ ] Schnorr adaptor signature
-- [x] Messages exchanged between [farcaster nodes](https://github.com/farcaster-project/farcaster-node), e.i. the peer-to-peer messages also called _protocol messages_.
+- [x] Messages exchanged between [farcaster nodes](https://github.com/farcaster-project/farcaster-node), i.e. the peer-to-peer messages also called _protocol messages_.
 
 ## Documentation
 
-Check out the documentation of this library on [docs.rs/farcaster_core](https://docs.rs/farcaster_core). All possible improvments, to add usage examples and to expand on existing docs would be extremely appreciated.
+Check out the documentation of this library on [docs.rs/farcaster_core](https://docs.rs/farcaster_core). All possible improvements, such as adding usage examples and expanding on existing docs would be extremely appreciated.
 
 ## Core framework
 
-This library is twofold: providing a flexible framework to add specific blockchain support and implementing these specific blockchain (currently _bitcoin_ and _monero_). The framework split in modules at the root of the crate:
+This library is twofold: providing a flexible framework to add specific blockchain support and implementing these specific blockchain (currently _bitcoin_ and _monero_). The framework is split in modules at the root of the crate:
 
 - `blockchain`: generic types and traits for declaring assets/chains and on-chain behavior.
 - `consensus`: encoding and decoding implementation for all types in the crate, used to serialize and deserialize messages exchanged.
@@ -34,7 +34,7 @@ This library is twofold: providing a flexible framework to add specific blockcha
 - `role`: role definitions (trade and swap) and trait for the generic framework.
 - `script`: generic types for transaction data management.
 - `swap`: swap related types and swap concrete instances (e.g. _bitcoin-monero_).
-- `transaction`: transaction traits for building and validating the arbitrating set of transaction, e.i. the on-chain engine that guarantees the protocol's game-theory.
+- `transaction`: transaction traits for building and validating the arbitrating set of transactions, i.e. the on-chain engine that implements the protocol's game-theoretic mechanism.
 
 The blockchain specific support is added under the the following modules:
 
@@ -44,9 +44,9 @@ The blockchain specific support is added under the the following modules:
 
 ### Features
 
-As default the `experimental` feature is enable.
+The `experimental` a,d `taproot` features are enabled by default.
 
-- **experimental**: enables experimental cryptography, i.e. not battle tested nor peer reviewed, use it as your own risks.
+- **experimental**: enables experimental cryptography, i.e. not battle tested nor peer reviewed, use it at your own risks.
 - **taproot**: [work in progress] enables support for Bitcoin Taproot on-chain scripts as the arbitrating engine method.
 
 ### Adding blockchain support

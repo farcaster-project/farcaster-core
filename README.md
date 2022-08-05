@@ -20,7 +20,7 @@ The Farcaster atomic swaps project core library aim to implement in Rust the fol
 
 ## Documentation
 
-Check out the documentation of this library on [docs.rs/farcaster_core](https://docs.rs/farcaster_core). All possible improvments, to add usage examples and to expand on existing docs would be extremely appreciated.
+Check out the documentation of this library on [docs.rs/farcaster_core](https://docs.rs/farcaster_core). All possible improvements, to add usage examples and to expand on existing docs would be extremely appreciated.
 
 ## Core framework
 

@@ -20,20 +20,21 @@ use farcaster_core::blockchain::Blockchain;
 
 use farcaster_core::blockchain::{FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};
-use farcaster_core::negotiation::{Offer, OfferId, PublicOffer, PublicOfferId};
+use farcaster_core::negotiation::{Offer, OfferFingerprint, PublicOffer};
 use farcaster_core::role::SwapRole;
 
 use bitcoin::Amount;
-
 use inet2_addr::InetSocketAddr;
+use uuid::uuid;
 
 use std::str::FromStr;
 
 #[test]
 fn create_offer() {
-    let hex = "02000000808000008008000500000000000000080006000000000000000400070000000400080000000\
+    let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000000000000000400070000000400080000000\
                10800090000000000000002";
     let offer: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = Offer {
+        uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
         network: Network::Testnet,
         arbitrating_blockchain: Blockchain::Bitcoin,
         accordant_blockchain: Blockchain::Monero,
@@ -54,49 +55,42 @@ fn create_offer() {
 }
 
 #[test]
-fn get_offer_id() {
-    let hex = "02000000808000008008000500000000000000080006000000000000000400070000000400080000000\
-               10800090000000000000002";
+fn get_offer_fingerprint() {
+    let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000\
+               00000000000040007000000040008000000010800090000000000000002";
     let res: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
-    let id = OfferId::from_str("f79b29ccb233b37cea3aa35b94c5ece25c58a8098afc18f046810a3c04591599")
-        .unwrap();
-    assert_eq!(id, res.id());
-}
-
-/*
-#[test]
-fn maker_buy_arbitrating_assets_offer() {
-    let offer: Option<Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>> = Buy::some(BitcoinSegwitV0::new(), Amount::from_sat(100000))
-        .with(Monero, monero::Amount::from_pico(200))
-        .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
-        .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
-        .on(Network::Testnet)
-        .to_offer();
-    assert!(offer.is_some());
-    assert_eq!(offer.expect("an offer").maker_role, SwapRole::Alice);
+    let id = OfferFingerprint::from_str(
+        "f79b29ccb233b37cea3aa35b94c5ece25c58a8098afc18f046810a3c04591599",
+    )
+    .unwrap();
+    assert_eq!(id, res.fingerprint());
+    // other uuid
+    let hex = "4351e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000\
+               00000000000040007000000040008000000010800090000000000000002";
+    let res: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+        strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
+    // same fingerprint
+    assert_eq!(id, res.fingerprint());
 }
 
 #[test]
-fn maker_sell_arbitrating_assets_offer() {
-    let offer: Option<Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>> = Sell::some(BitcoinSegwitV0::new(), Amount::from_sat(100000))
-        .for_some(Monero, monero::Amount::from_pico(200))
-        .with_timelocks(CSVTimelock::new(10), CSVTimelock::new(10))
-        .with_fee(FeeStrategy::Fixed(SatPerVByte::from_sat(20)))
-        .on(Network::Testnet)
-        .to_offer();
-    assert!(offer.is_some());
-    assert_eq!(offer.expect("an offer").maker_role, SwapRole::Bob);
+fn get_offer_uuid() {
+    let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000\
+               00000000000040007000000040008000000010800090000000000000002";
+    let res: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+        strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
+    assert_eq!(uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"), res.uuid());
 }
-*/
 
 #[test]
 fn serialize_public_offer() {
-    let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
-               a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
-               27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
-               00000000000000000000000260700";
+    let hex = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
+               00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
+               03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
+               0000000000000000000000000000000000000000000000000000000260700";
     let offer: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = Offer {
+        uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
         network: Network::Testnet,
         arbitrating_blockchain: Blockchain::Bitcoin,
         accordant_blockchain: Blockchain::Monero,
@@ -129,47 +123,70 @@ fn serialize_public_offer() {
 }
 
 #[test]
-fn get_public_offer_id() {
-    let hex = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
-               a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
-               27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
-               00000000000000000000000260700";
+fn get_public_offer_fingerprint() {
+    let hex = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
+               00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
+               03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
+               0000000000000000000000000000000000000000000000000000000260700";
     let res: PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
-    let id =
-        PublicOfferId::from_str("3a466a0a0cff7bf800808653460076549621d07db78e697b9dfaebaba0ab8b33")
-            .unwrap();
-    assert_eq!(id, res.id());
+    let id = OfferFingerprint::from_str(
+        "3a466a0a0cff7bf800808653460076549621d07db78e697b9dfaebaba0ab8b33",
+    )
+    .unwrap();
+    assert_eq!(id, res.fingerprint());
+    // other uuid
+    let hex = "46435357415001004754e567b1206f429247bb680e5fe0c80200000080800000800800a08601000\
+               00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
+               03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
+               0000000000000000000000000000000000000000000000000000000260700";
+    let res: PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+        strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
+    // same fingerprint
+    assert_eq!(id, res.fingerprint());
+}
+
+#[test]
+fn get_public_offer_uuid() {
+    let hex = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
+               00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
+               03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
+               0000000000000000000000000000000000000000000000000000000260700";
+    let res: PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+        strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
+    assert_eq!(uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"), res.uuid());
 }
 
 #[test]
 fn check_public_offer_magic_bytes() {
-    let valid = "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
-                 a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
-                 27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
-                 00000000000000000000000260700";
+    let valid = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
+                 00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
+                 03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
+                 0000000000000000000000000000000000000000000000000000000260700";
     let pub_offer: Result<
         PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
         consensus::Error,
     > = deserialize(&hex::decode(valid).unwrap()[..]);
     assert!(pub_offer.is_ok());
 
-    let invalid = "474353574150010002000000808000008008a08601000000000008c800000000000000040a00000\
-                   0040a0000000108140000000000000002";
+    let inval = "47435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
+                 00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
+                 03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
+                 0000000000000000000000000000000000000000000000000000000260700";
     let pub_offer: Result<
         PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
         consensus::Error,
-    > = deserialize(&hex::decode(invalid).unwrap()[..]);
+    > = deserialize(&hex::decode(inval).unwrap()[..]);
     assert!(pub_offer.is_err());
 }
 
 #[test]
 fn parse_public_offer() {
     for hex in [
-        "46435357415001000200000080800000800800a0860100000000000800c80000000000000004000\
-         a00000004000a000000010800140000000000000002210003b31a0a70343bb46f3db3768296ac50\
-         27f9873921b37f852860c690063ff9e4c9000000000000000000000000000000000000000000000\
-         00000000000000000000000260700",
+        "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
+         00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
+         03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
+         0000000000000000000000000000000000000000000000000000000260700",
     ]
     .iter_mut()
     {

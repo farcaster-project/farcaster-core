@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Offer `uuid` of type `Uuid`
+- Offer and public offer `fingerprint` functions, returns `OfferFingerprint`
+
+### Removed
+
+- `OfferId` and `PublicOfferId` are replaced by the new offer `uuid` and `fingerprint` functions
+
 ## [0.5.0] - 2022-07-27
 
 ### Added

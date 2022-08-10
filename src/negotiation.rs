@@ -43,6 +43,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
+use uuid::Uuid;
 
 use std::fmt;
 use std::io;
@@ -107,10 +108,10 @@ pub enum Error {
 fixed_hash::construct_fixed_hash!(
     /// Identify an offer by it's content, internally store the hash of the offer serialized with
     /// Farcaster consensus.
-    pub struct OfferId(32);
+    pub struct OfferFingerprint(32);
 );
 
-impl Serialize for OfferId {
+impl Serialize for OfferFingerprint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -119,12 +120,13 @@ impl Serialize for OfferId {
     }
 }
 
-impl<'de> Deserialize<'de> for OfferId {
-    fn deserialize<D>(deserializer: D) -> Result<OfferId, D::Error>
+impl<'de> Deserialize<'de> for OfferFingerprint {
+    fn deserialize<D>(deserializer: D) -> Result<OfferFingerprint, D::Error>
     where
         D: Deserializer<'de>,
     {
-        OfferId::from_str(&deserializer.deserialize_string(HashString)?).map_err(de::Error::custom)
+        OfferFingerprint::from_str(&deserializer.deserialize_string(HashString)?)
+            .map_err(de::Error::custom)
     }
 }
 
@@ -140,6 +142,8 @@ impl<'de> Deserialize<'de> for OfferId {
 /// de/serialize generic amounts.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Offer<Amt, Bmt, Ti, F> {
+    /// The offer unique identifier.
+    pub uuid: Uuid,
     /// Type of offer and network to use.
     pub network: Network,
     /// The chosen arbitrating blockchain.
@@ -194,12 +198,15 @@ mod string {
 
 impl<Amt, Bmt, Ti, F> Display for Offer<Amt, Bmt, Ti, F>
 where
+    Self: Encodable,
     Amt: Display,
     Bmt: Display,
     Ti: Display,
     F: Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Uuid: {}", self.uuid)?;
+        writeln!(f, "Fingerprint: {:?}", self.fingerprint())?;
         writeln!(f, "Network: {}", self.network)?;
         writeln!(f, "Blockchain: {}", self.arbitrating_blockchain)?;
         writeln!(f, "- amount: {}", self.arbitrating_amount)?;
@@ -237,17 +244,35 @@ impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F> {
     }
 }
 
+impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F> {
+    /// Return the unique offer identifier. Same as [`Self::uuid()`].
+    pub fn id(&self) -> Uuid {
+        self.uuid()
+    }
+
+    /// Return the unique offer identifier.
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+
+    /// Reset offer's uuid with a new identifier.
+    pub fn randomize_uuid(&mut self) {
+        self.uuid = Uuid::new_v4();
+    }
+}
+
 impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F>
 where
     Self: Encodable,
 {
-    /// Generate the [`OfferId`] from the offer.
-    pub fn id(&self) -> OfferId {
+    /// Generate the [`OfferFingerprint`] from the offer. The fingerprint identifies the content of
+    /// an offer (**without the uuid**) by taking the hash value of its serialization.
+    pub fn fingerprint(&self) -> OfferFingerprint {
         let mut keccak = Keccak::v256();
         let mut out = [0u8; 32];
-        keccak.update(serialize(self).as_ref());
+        keccak.update(&serialize(self)[16..]);
         keccak.finalize(&mut out);
-        OfferId(out)
+        OfferFingerprint(out)
     }
 }
 
@@ -259,7 +284,8 @@ where
     F: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.network.consensus_encode(s)?;
+        let mut len = self.uuid.to_bytes_le().consensus_encode(s)?;
+        len += self.network.consensus_encode(s)?;
         len += self.arbitrating_blockchain.consensus_encode(s)?;
         len += self.accordant_blockchain.consensus_encode(s)?;
         len += self
@@ -292,6 +318,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Offer {
+            uuid: Uuid::from_bytes_le(Decodable::consensus_decode(d)?),
             network: Decodable::consensus_decode(d)?,
             arbitrating_blockchain: Decodable::consensus_decode(d)?,
             accordant_blockchain: Decodable::consensus_decode(d)?,
@@ -306,46 +333,6 @@ where
 }
 
 impl_strict_encoding!(Offer<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
-
-fixed_hash::construct_fixed_hash!(
-    /// Identify a public offer by it's content, internally store the hash of the offer serialized
-    /// with Farcaster consensus.
-    pub struct PublicOfferId(32);
-);
-
-impl Serialize for PublicOfferId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(format!("{:#x}", self).as_ref())
-    }
-}
-
-impl<'de> Deserialize<'de> for PublicOfferId {
-    fn deserialize<D>(deserializer: D) -> Result<PublicOfferId, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        PublicOfferId::from_str(&deserializer.deserialize_string(HashString)?)
-            .map_err(de::Error::custom)
-    }
-}
-
-impl Encodable for PublicOfferId {
-    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        self.0.consensus_encode(s)
-    }
-}
-
-impl Decodable for PublicOfferId {
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
-        Ok(Self::from_slice(&bytes))
-    }
-}
-
-impl_strict_encoding!(PublicOfferId);
 
 /// A public offer is shared across [`TradeRole::Maker`]'s prefered network to signal is willing of
 /// trading some assets at some conditions. The assets and condition are defined in the [`Offer`],
@@ -387,14 +374,16 @@ impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F>
 where
     Self: Encodable,
 {
-    /// Generate the [`PublicOfferId`] from the offer. Serialized the public offer with consensus
-    /// encoding and return the keccak hash result with [`PublicOfferId`].
-    pub fn id(&self) -> PublicOfferId {
+    /// Generate the public offer [`OfferFingerprint`]. Serialized the public offer (**without
+    /// uuid**) and return its keccak hash.
+    pub fn fingerprint(&self) -> OfferFingerprint {
         let mut keccak = Keccak::v256();
         let mut out = [0u8; 32];
-        keccak.update(serialize(self).as_ref());
+        let ser = serialize(self);
+        keccak.update(&ser[..8]);
+        keccak.update(&ser[24..]);
         keccak.finalize(&mut out);
-        PublicOfferId(out)
+        OfferFingerprint(out)
     }
 
     /// Returns the hex string representation of the consensus encoded public offer.
@@ -404,6 +393,21 @@ where
 }
 
 impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F> {
+    /// Return the unique offer identifier. Same as [`Self::uuid()`].
+    pub fn id(&self) -> Uuid {
+        self.uuid()
+    }
+
+    /// Return the unique offer identifier.
+    pub fn uuid(&self) -> Uuid {
+        self.offer.uuid()
+    }
+
+    /// Reset offer's uuid with a new identifier.
+    pub fn randomize_uuid(&mut self) {
+        self.offer.randomize_uuid();
+    }
+
     /// Return the future swap role for the given trade role.
     pub fn swap_role(&self, trade_role: &TradeRole) -> SwapRole {
         self.offer.swap_role(trade_role)
@@ -500,8 +504,9 @@ mod tests {
     };
     use inet2_addr::InetSocketAddr;
     use secp256k1::PublicKey;
+    use uuid::uuid;
 
-    const S: &str = "Offer:Cke4ftrP5A71LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD1111114A4TUWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoExnA3T";
+    const S: &str = "Offer:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD1111114A4TUWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoZeAW1q";
 
     lazy_static::lazy_static! {
         pub static ref NODE_ID: PublicKey = {
@@ -521,6 +526,7 @@ mod tests {
 
         pub static ref OFFER: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = {
             Offer {
+                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
                 network: Network::Testnet,
                 arbitrating_blockchain: Blockchain::Bitcoin,
                 accordant_blockchain: Blockchain::Monero,
@@ -561,7 +567,7 @@ mod tests {
 
     #[test]
     fn display_offer() {
-        assert_eq!(&format!("{}", *OFFER), "Network: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: 1 satoshi/vByte\nMaker swap role: Bob\n");
+        assert_eq!(&format!("{}", *OFFER), "Uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nFingerprint: 0xd68b1483de11001050026ca012a2b440818dac23341384c60680f668b52697b0\nNetwork: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: 1 satoshi/vByte\nMaker swap role: Bob\n");
     }
 
     #[test]
@@ -573,6 +579,7 @@ mod tests {
     #[test]
     fn serialize_offer_in_yaml() {
         let offer: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = Offer {
+            uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
             network: Network::Testnet,
             arbitrating_blockchain: Blockchain::Bitcoin,
             accordant_blockchain: Blockchain::Monero,
@@ -585,17 +592,18 @@ mod tests {
         };
         let s = serde_yaml::to_string(&offer).expect("Encode public offer in yaml");
         assert_eq!(
-            "---\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/vByte\nmaker_role: Bob\n",
+            "---\nuuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/vByte\nmaker_role: Bob\n",
             s
         );
     }
 
     #[test]
     fn deserialize_offer_from_yaml() {
-        let s = "---\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/vByte\nmaker_role: Bob\n";
+        let s = "---\nuuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/vByte\nmaker_role: Bob\n";
         let offer = serde_yaml::from_str(&s).expect("Decode offer from yaml");
         assert_eq!(
             Offer {
+                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
                 network: Network::Testnet,
                 arbitrating_blockchain: Blockchain::Bitcoin,
                 accordant_blockchain: Blockchain::Monero,
@@ -613,21 +621,21 @@ mod tests {
     #[test]
     fn serialize_public_offer_in_yaml() {
         let public_offer =
-            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Offer:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
             .expect("Valid public offer");
         let s = serde_yaml::to_string(&public_offer).expect("Encode public offer in yaml");
         assert_eq!(
-            "---\nversion: 1\noffer:\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n",
+            "---\nversion: 1\noffer:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n",
             s
         );
     }
 
     #[test]
     fn deserialize_public_offer_from_yaml() {
-        let s = "---\nversion: 1\noffer:\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n";
+        let s = "---\nversion: 1\noffer:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n";
         let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
         assert_eq!(
-            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Offer:Cke4ftrP5A71W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBum3er3R")
+            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Offer:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
                 .expect("Valid public offer"),
             public_offer
         );

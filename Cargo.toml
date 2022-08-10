@@ -43,6 +43,7 @@ strict_encoding = "0.8"
 strict_encoding_derive = "1.7"
 thiserror = "1"
 tiny-keccak = { version = "2", features = ["keccak"] }
+uuid = { version = "1.1", features = ["v4", "serde"] }
 
 # crypto libs
 

@@ -19,6 +19,11 @@ jobs:
             stable,
             nightly
         ]
+        include:
+        - rust: stable
+          features: default
+        - rust: nightly
+          features: default,nightly
 
     runs-on: ubuntu-latest
 
@@ -34,7 +39,7 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2.0.0
 
-    - run: cargo test --verbose
+    - run: cargo test --verbose --features ${{ matrix.features }}
 
   rpc-test:
     name: Integration tests
@@ -44,6 +49,11 @@ jobs:
             stable,
             nightly
         ]
+        include:
+        - rust: stable
+          features: default,rpc
+        - rust: nightly
+          features: default,rpc,nightly
 
     runs-on: ubuntu-latest
     container:
@@ -74,7 +84,7 @@ jobs:
         profile: minimal
 
     - name: Run regtest Bitcoin transactions
-      run: cargo test --verbose --test transactions --features rpc -- --test-threads=1
+      run: cargo test --verbose --test transactions --features ${{ matrix.features }} -- --test-threads=1
       env:
         RPC_HOST: bitcoind
         RPC_PORT: 18443

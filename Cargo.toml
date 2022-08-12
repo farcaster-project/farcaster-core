@@ -25,6 +25,7 @@ rust-version = "1.59.0"
 rpc = []
 experimental = ["ecdsa_fun", "secp256kfun", "rand", "sha2", "rand_chacha", "bincode"]
 taproot = []
+nightly = []
 
 default = ["experimental", "taproot"]
 

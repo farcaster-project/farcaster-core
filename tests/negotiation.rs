@@ -169,14 +169,14 @@ fn check_public_offer_magic_bytes() {
     > = deserialize(&hex::decode(valid).unwrap()[..]);
     assert!(pub_offer.is_ok());
 
-    let inval = "47435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
+    let invalid = "47435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
                  00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                  03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                  0000000000000000000000000000000000000000000000000000000260700";
     let pub_offer: Result<
         PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
         consensus::Error,
-    > = deserialize(&hex::decode(inval).unwrap()[..]);
+    > = deserialize(&hex::decode(invalid).unwrap()[..]);
     assert!(pub_offer.is_err());
 }
 

@@ -20,7 +20,7 @@ jobs:
             nightly
         ]
         include:
-        - rust: nightly
+        - rust: stable
           features: default
         - rust: nightly
           features: default,nightly
@@ -50,7 +50,7 @@ jobs:
             nightly
         ]
         include:
-        - rust: nightly
+        - rust: stable
           features: default,rpc
         - rust: nightly
           features: default,rpc,nightly

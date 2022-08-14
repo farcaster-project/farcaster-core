@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Offer `uuid` of type `Uuid` ([#292](https://github.com/farcaster-project/farcaster-core/pull/292))
+- Offer and public offer `fingerprint` functions, returns `OfferFingerprint` ([#292](https://github.com/farcaster-project/farcaster-core/pull/292))
+
+### Removed
+
+- `OfferId` and `PublicOfferId` are replaced by the new offer `uuid` and `fingerprint` functions ([#292](https://github.com/farcaster-project/farcaster-core/pull/292))
+
 ## [0.5.0] - 2022-07-27
 
 ### Added

@@ -23,7 +23,6 @@ use std::str::FromStr;
 use crate::consensus::{self, Decodable, Encodable};
 use crate::hash::HashString;
 
-use lightning_encoding::strategies::AsStrict;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod btcxmr;
@@ -65,10 +64,6 @@ impl Decodable for SwapId {
 }
 
 impl_strict_encoding!(SwapId);
-
-impl lightning_encoding::Strategy for SwapId {
-    type Strategy = AsStrict;
-}
 
 #[cfg(test)]
 mod tests {

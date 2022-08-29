@@ -27,8 +27,6 @@ use crate::protocol::{verify_vec_of_commitments, CoreArbitratingTransactions};
 use crate::swap::SwapId;
 use crate::Error;
 
-use lightning_encoding::{strategies::AsStrict, Strategy};
-
 // CommitAliceParameters
 
 /// Forces Alice to commit to the result of her cryptographic setup before receiving Bob's setup.
@@ -155,10 +153,6 @@ where
 
 impl_strict_encoding!(CommitAliceParameters<C>, C: CanonicalBytes);
 
-impl<C> Strategy for CommitAliceParameters<C> {
-    type Strategy = AsStrict;
-}
-
 // CommitBobParameters
 
 /// Forces Bob to commit to the result of his cryptographic setup before receiving Alice's setup.
@@ -280,10 +274,6 @@ where
 
 impl_strict_encoding!(CommitBobParameters<C>, C: CanonicalBytes);
 
-impl<C> Strategy for CommitBobParameters<C> {
-    type Strategy = AsStrict;
-}
-
 // RevealProof
 
 /// Reveals the zero-knowledge proof for the discrete logarithm across curves.
@@ -336,10 +326,6 @@ where
 }
 
 impl_strict_encoding!(RevealProof<Pr>, Pr: CanonicalBytes);
-
-impl<Pr> Strategy for RevealProof<Pr> {
-    type Strategy = AsStrict;
-}
 
 // FIXME
 //impl<Ctx> From<(SwapId, bundle::Proof<Ctx>)> for RevealProof<Ctx>
@@ -478,10 +464,6 @@ where
 }
 
 impl_strict_encoding!(RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes);
-
-impl<Pk, Qk, Rk, Sk, Addr> Strategy for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
-    type Strategy = AsStrict;
-}
 
 // FIXME
 //impl<Ctx> From<(SwapId, bundle::AliceParameters<Ctx>)> for RevealAliceParameters<Ctx>
@@ -624,10 +606,6 @@ where
 
 impl_strict_encoding!(RevealBobParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes);
 
-impl<Pk, Qk, Rk, Sk, Addr> Strategy for RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
-    type Strategy = AsStrict;
-}
-
 // FIXME
 //impl<Ctx> From<(SwapId, bundle::BobParameters<Ctx>)> for RevealBobParameters<Ctx>
 //where
@@ -727,10 +705,6 @@ where
 
 impl_strict_encoding!(CoreArbitratingSetup<Px, Sig>, Px: CanonicalBytes, Sig: CanonicalBytes);
 
-impl<Px, Sig> Strategy for CoreArbitratingSetup<Px, Sig> {
-    type Strategy = AsStrict;
-}
-
 // FIXME
 //impl<Ctx>
 //    From<(
@@ -818,10 +792,6 @@ where
 
 impl_strict_encoding!(RefundProcedureSignatures<Sig, EncSig>, Sig: CanonicalBytes, EncSig: CanonicalBytes);
 
-impl<Sig, EncSig> Strategy for RefundProcedureSignatures<Sig, EncSig> {
-    type Strategy = AsStrict;
-}
-
 // FIXME: needs bundle change
 //impl<Ctx>
 //    From<(
@@ -905,10 +875,6 @@ where
 
 impl_strict_encoding!(BuyProcedureSignature<Px, EncSig>, Px: consensus::CanonicalBytes, EncSig: consensus::CanonicalBytes);
 
-impl<Px, EncSig> Strategy for BuyProcedureSignature<Px, EncSig> {
-    type Strategy = AsStrict;
-}
-
 // FIXME needs bundle change
 //impl<Px, EncSig> From<(SwapId, bundle::SignedAdaptorBuy<Ctx::Ar>)> for BuyProcedureSignature<Px, EncSig>
 ////where
@@ -953,7 +919,3 @@ impl Decodable for Abort {
 }
 
 impl_strict_encoding!(Abort);
-
-impl Strategy for Abort {
-    type Strategy = AsStrict;
-}

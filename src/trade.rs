@@ -42,7 +42,6 @@ use std::fmt::Display;
 use std::str::FromStr;
 use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
-use uuid::Uuid;
 
 use std::fmt;
 use std::io;
@@ -52,6 +51,7 @@ use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable
 use crate::hash::HashString;
 use crate::protocol::ArbitratingParameters;
 use crate::role::{SwapRole, TradeRole};
+use crate::Uuid;
 
 /// First six magic bytes of a deal. Bytes are included inside the base58 encoded part.
 pub const DEAL_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
@@ -252,7 +252,7 @@ impl<Amt, Bmt, Ti, F> DealParameters<Amt, Bmt, Ti, F> {
 
     /// Reset deal's uuid with a new identifier.
     pub fn randomize_uuid(&mut self) {
-        self.uuid = Uuid::new_v4();
+        self.uuid = Uuid::new();
     }
 }
 
@@ -280,7 +280,7 @@ where
     F: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.uuid.to_bytes_le().consensus_encode(s)?;
+        let mut len = self.uuid.consensus_encode(s)?;
         len += self.network.consensus_encode(s)?;
         len += self.arbitrating_blockchain.consensus_encode(s)?;
         len += self.accordant_blockchain.consensus_encode(s)?;
@@ -314,7 +314,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(DealParameters {
-            uuid: Uuid::from_bytes_le(Decodable::consensus_decode(d)?),
+            uuid: Decodable::consensus_decode(d)?,
             network: Decodable::consensus_decode(d)?,
             arbitrating_blockchain: Decodable::consensus_decode(d)?,
             accordant_blockchain: Decodable::consensus_decode(d)?,
@@ -522,7 +522,7 @@ mod tests {
 
         pub static ref DEAL_PARAMS: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = {
             DealParameters {
-                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
                 network: Network::Testnet,
                 arbitrating_blockchain: Blockchain::Bitcoin,
                 accordant_blockchain: Blockchain::Monero,
@@ -573,7 +573,7 @@ mod tests {
     fn serialize_deal_params_in_yaml() {
         let deal_params: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
             DealParameters {
-                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
                 network: Network::Testnet,
                 arbitrating_blockchain: Blockchain::Bitcoin,
                 accordant_blockchain: Blockchain::Monero,
@@ -597,7 +597,7 @@ mod tests {
         let deal_params = serde_yaml::from_str(&s).expect("Decode deal from yaml");
         assert_eq!(
             DealParameters {
-                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
                 network: Network::Testnet,
                 arbitrating_blockchain: Blockchain::Bitcoin,
                 accordant_blockchain: Blockchain::Monero,

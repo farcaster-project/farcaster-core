@@ -24,15 +24,14 @@ use crate::consensus::{self, CanonicalBytes, Decodable, Encodable};
 use crate::crypto::{Commit, SharedKeyId, TaggedElement};
 use crate::protocol::Parameters;
 use crate::protocol::{verify_vec_of_commitments, CoreArbitratingTransactions};
-use crate::swap::SwapId;
-use crate::Error;
+use crate::{Error, Uuid};
 
 /// Forces Alice to commit to the result of her cryptographic setup before receiving Bob's setup.
 /// This is done to remove adaptive behavior in the cryptographic parameters.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommitAliceParameters<C> {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// Commitment to the buy public key.
     pub buy: C,
     /// Commitment to the cancel public key.
@@ -156,7 +155,7 @@ impl_strict_encoding!(CommitAliceParameters<C>, C: CanonicalBytes);
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommitBobParameters<C> {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// Commitment to the buy public key.
     pub buy: C,
     /// Commitment to the cancel public key.
@@ -274,7 +273,7 @@ impl_strict_encoding!(CommitBobParameters<C>, C: CanonicalBytes);
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RevealProof<Pr> {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// Reveal the cross-group discrete logarithm zero-knowledge proof.
     pub proof: Pr,
 }
@@ -331,7 +330,7 @@ impl_strict_encoding!(RevealProof<Pr>, Pr: CanonicalBytes);
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// Reveal the buy public key.
     pub buy: Pk,
     /// Reveal the cancel public key.
@@ -454,7 +453,7 @@ impl_strict_encoding!(RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>, Pk: Canonical
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// Reveal the buy public key.
     pub buy: Pk,
     /// Reveal the cancel public key.
@@ -574,7 +573,7 @@ impl_strict_encoding!(RevealBobParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBy
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoreArbitratingSetup<Px, Sig> {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// The arbitrating `lock (b)` transaction.
     pub lock: Px,
     /// The arbitrating `cancel (d)` transaction.
@@ -650,7 +649,7 @@ impl_strict_encoding!(CoreArbitratingSetup<Px, Sig>, Px: CanonicalBytes, Sig: Ca
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RefundProcedureSignatures<Sig, EncSig> {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// The `Ac` `cancel (d)` signature.
     pub cancel_sig: Sig,
     /// The `Ar(Tb)` `refund (e)` adaptor signature.
@@ -708,7 +707,7 @@ impl_strict_encoding!(RefundProcedureSignatures<Sig, EncSig>, Sig: CanonicalByte
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BuyProcedureSignature<Px, EncSig> {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// The arbitrating `buy (c)` transaction.
     pub buy: Px,
     /// The `Bb(Ta)` `buy (c)` adaptor signature.
@@ -765,7 +764,7 @@ impl_strict_encoding!(BuyProcedureSignature<Px, EncSig>, Px: consensus::Canonica
 #[display(Debug)]
 pub struct Abort {
     /// The swap identifier related to this message.
-    pub swap_id: SwapId,
+    pub swap_id: Uuid,
     /// OPTIONAL `body`: error string.
     pub error_body: Option<String>,
 }

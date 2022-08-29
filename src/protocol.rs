@@ -34,12 +34,12 @@ use crate::protocol::message::{
     RevealAliceParameters, RevealBobParameters,
 };
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
-use crate::swap::SwapId;
 use crate::trade::Deal;
 use crate::transaction::{
     Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction,
     Witnessable,
 };
+use crate::Uuid;
 use crate::{Error, Res};
 
 pub mod message;
@@ -64,13 +64,16 @@ pub struct CoreArbitratingTransactions<Px> {
 }
 
 impl<Px> CoreArbitratingTransactions<Px> {
-    pub fn into_arbitrating_setup<Sig>(
+    pub fn into_arbitrating_setup<Sig, U>(
         self,
-        swap_id: SwapId,
+        swap_id: U,
         cancel_sig: Sig,
-    ) -> CoreArbitratingSetup<Px, Sig> {
+    ) -> CoreArbitratingSetup<Px, Sig>
+    where
+        U: Into<Uuid>,
+    {
         CoreArbitratingSetup {
-            swap_id,
+            swap_id: swap_id.into(),
             lock: self.lock,
             cancel: self.cancel,
             refund: self.refund,
@@ -262,13 +265,13 @@ where
     Sk: CanonicalBytes,
 {
     /// Generates protocol message that commits to Alice's parameters.
-    pub fn commit_alice<C: Clone + Eq>(
+    pub fn commit_alice<C: Clone + Eq, U: Into<Uuid>>(
         &self,
-        swap_id: SwapId,
+        swap_id: U,
         wallet: &impl Commit<C>,
     ) -> CommitAliceParameters<C> {
         CommitAliceParameters {
-            swap_id,
+            swap_id: swap_id.into(),
             buy: wallet.commit_to(self.buy.as_canonical_bytes()),
             cancel: wallet.commit_to(self.cancel.as_canonical_bytes()),
             refund: wallet.commit_to(self.refund.as_canonical_bytes()),
@@ -288,9 +291,12 @@ where
     }
 
     /// Create the reveal protocol message based on the set of parameters.
-    pub fn reveal_alice(self, swap_id: SwapId) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn reveal_alice<U: Into<Uuid>>(
+        self,
+        swap_id: U,
+    ) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
         RevealAliceParameters {
-            swap_id,
+            swap_id: swap_id.into(),
             buy: self.buy,
             cancel: self.cancel,
             refund: self.refund,
@@ -306,13 +312,13 @@ where
     }
 
     /// Generates protocol message that commits to Bob's parameters.
-    pub fn commit_bob<C: Clone + Eq>(
+    pub fn commit_bob<C: Clone + Eq, U: Into<Uuid>>(
         &self,
-        swap_id: SwapId,
+        swap_id: U,
         wallet: &impl Commit<C>,
     ) -> CommitBobParameters<C> {
         CommitBobParameters {
-            swap_id,
+            swap_id: swap_id.into(),
             buy: wallet.commit_to(self.buy.as_canonical_bytes()),
             cancel: wallet.commit_to(self.cancel.as_canonical_bytes()),
             refund: wallet.commit_to(self.refund.as_canonical_bytes()),
@@ -326,9 +332,12 @@ where
     }
 
     /// Create the reveal protocol message based on the set of parameters.
-    pub fn reveal_bob(self, swap_id: SwapId) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
+    pub fn reveal_bob<U: Into<Uuid>>(
+        self,
+        swap_id: U,
+    ) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
         RevealBobParameters {
-            swap_id,
+            swap_id: swap_id.into(),
             buy: self.buy,
             cancel: self.cancel,
             refund: self.refund,
@@ -1399,9 +1408,9 @@ where
     /// [`sign_adaptor_buy`]: Bob::sign_adaptor_buy
     /// [`validate_adaptor_refund`]: Bob::validate_adaptor_refund
     ///
-    pub fn sign_adaptor_buy<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
+    pub fn sign_adaptor_buy<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig, U>(
         &self,
-        swap_id: SwapId,
+        swap_id: U,
         wallet: &mut S,
         alice_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
         bob_parameters: &Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>,
@@ -1414,6 +1423,7 @@ where
         Px: Clone + Fee<FeeUnit = F>,
         Pk: Copy,
         Ti: Copy,
+        U: Into<Uuid>,
     {
         // Extract the partial transaction from the core arbitrating protocol message, this
         // operation should not error if the message is well formed.
@@ -1459,7 +1469,7 @@ where
         let sig = wallet.encrypt_sign(ArbitratingKeyId::Buy, adaptor, msg)?;
 
         Ok(BuyProcedureSignature {
-            swap_id,
+            swap_id: swap_id.into(),
             buy: buy.to_partial(),
             buy_adaptor_sig: sig,
         })

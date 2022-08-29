@@ -27,8 +27,8 @@ use farcaster_core::crypto::{
 };
 use farcaster_core::protocol::message::*;
 use farcaster_core::swap::btcxmr::{Alice, Bob, Deal, Parameters};
-use farcaster_core::swap::SwapId;
 use farcaster_core::transaction::*;
+use farcaster_core::Uuid;
 
 use bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
 use bitcoin::blockdata::witness::Witness;
@@ -90,7 +90,7 @@ fn execute_offline_protocol() {
     )
     .unwrap();
 
-    let swap_id = SwapId::random();
+    let swap_id = Uuid::random();
 
     //
     // Commit/Reveal round

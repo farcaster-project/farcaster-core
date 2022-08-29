@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Module `negotiation` is renamed `trade`
+- `Offer` and `PublicOffer` are renamed `Trade` and `PublicTrade`, these structs are used to initialized a swap and should be the outcome of a proper negotiation phase
+
 ### Removed
 
 - `lightning_encoding` is removed for the protocol messages

@@ -9,7 +9,7 @@
 
 The Farcaster atomic swaps project core library aim to implement in Rust the following functionalities needed to build a swap node:
 
-- [x] Swap offers (contains all necessary information to start a trade)
+- [x] Swap trades (contains all necessary information to start a trade)
 - [x] Swap roles and trade roles (who do what during the trade)
 - [x] Transaction templates implementing on-chain behaviours (arbitration engine, e.g. on Bitcoin blockchain)
 - [x] Signature and cryptographic utilities
@@ -29,7 +29,7 @@ This library is twofold: providing a flexible framework to add specific blockcha
 - `blockchain`: generic types and traits for declaring assets/chains and on-chain behavior.
 - `consensus`: encoding and decoding implementation for all types in the crate, used to serialize and deserialize messages exchanged.
 - `crypto`: traits and generic types to define cryptographic interactions (wallet capability, commit/reveal scheme, signature and key types, etc).
-- `negotiation`: generic types and utilities for handling the negotiation phase, e.g. creating a public offer.
+- `trade`: generic types and utilities for handling the trade phase, e.g. creating a public trade.
 - `protocol`: generic types related to the execution of the protocol and messages exchanged between peers.
 - `role`: role definitions (trade and swap) and trait for the generic framework.
 - `script`: generic types for transaction data management.

@@ -27,8 +27,6 @@ use crate::protocol::{verify_vec_of_commitments, CoreArbitratingTransactions};
 use crate::swap::SwapId;
 use crate::Error;
 
-// CommitAliceParameters
-
 /// Forces Alice to commit to the result of her cryptographic setup before receiving Bob's setup.
 /// This is done to remove adaptive behavior in the cryptographic parameters.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -153,8 +151,6 @@ where
 
 impl_strict_encoding!(CommitAliceParameters<C>, C: CanonicalBytes);
 
-// CommitBobParameters
-
 /// Forces Bob to commit to the result of his cryptographic setup before receiving Alice's setup.
 /// This is done to remove adaptive behavior in the cryptographic parameters.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -274,8 +270,6 @@ where
 
 impl_strict_encoding!(CommitBobParameters<C>, C: CanonicalBytes);
 
-// RevealProof
-
 /// Reveals the zero-knowledge proof for the discrete logarithm across curves.
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RevealProof<Pr> {
@@ -326,21 +320,6 @@ where
 }
 
 impl_strict_encoding!(RevealProof<Pr>, Pr: CanonicalBytes);
-
-// FIXME
-//impl<Ctx> From<(SwapId, bundle::Proof<Ctx>)> for RevealProof<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    fn from(bundle: (SwapId, bundle::Proof<Ctx>)) -> Self {
-//        Self {
-//            swap_id: bundle.0,
-//            proof: bundle.1.proof,
-//        }
-//    }
-//}
-
-// RevealAliceParameters
 
 /// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
 ///
@@ -465,29 +444,6 @@ where
 
 impl_strict_encoding!(RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes);
 
-// FIXME
-//impl<Ctx> From<(SwapId, bundle::AliceParameters<Ctx>)> for RevealAliceParameters<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    fn from(bundle: (SwapId, bundle::AliceParameters<Ctx>)) -> Self {
-//        Self {
-//            swap_id: bundle.0,
-//            buy: bundle.1.buy,
-//            cancel: bundle.1.cancel,
-//            refund: bundle.1.refund,
-//            punish: bundle.1.punish,
-//            adaptor: bundle.1.adaptor,
-//            extra_arbitrating_keys: bundle.1.extra_arbitrating_keys,
-//            arbitrating_shared_keys: bundle.1.arbitrating_shared_keys,
-//            spend: bundle.1.spend,
-//            extra_accordant_keys: bundle.1.extra_accordant_keys,
-//            accordant_shared_keys: bundle.1.accordant_shared_keys,
-//            address: bundle.1.destination_address,
-//        }
-//    }
-//}
-
 /// Reveals the parameters commited by the [`CommitBobParameters`] protocol message.
 ///
 /// - `Addr` the arbitrating address type
@@ -606,28 +562,6 @@ where
 
 impl_strict_encoding!(RevealBobParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes);
 
-// FIXME
-//impl<Ctx> From<(SwapId, bundle::BobParameters<Ctx>)> for RevealBobParameters<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    fn from(bundle: (SwapId, bundle::BobParameters<Ctx>)) -> Self {
-//        Self {
-//            swap_id: bundle.0,
-//            buy: bundle.1.buy,
-//            cancel: bundle.1.cancel,
-//            refund: bundle.1.refund,
-//            adaptor: bundle.1.adaptor,
-//            extra_arbitrating_keys: bundle.1.extra_arbitrating_keys,
-//            arbitrating_shared_keys: bundle.1.arbitrating_shared_keys,
-//            spend: bundle.1.spend,
-//            extra_accordant_keys: bundle.1.extra_accordant_keys,
-//            accordant_shared_keys: bundle.1.accordant_shared_keys,
-//            address: bundle.1.refund_address,
-//        }
-//    }
-//}
-
 /// Sends the [`Lockable`], [`Cancelable`] and [`Refundable`] arbritrating transactions from
 /// [`SwapRole::Bob`] to [`SwapRole::Alice`], as well as Bob's signature for the [`Cancelable`]
 /// transaction.
@@ -705,33 +639,6 @@ where
 
 impl_strict_encoding!(CoreArbitratingSetup<Px, Sig>, Px: CanonicalBytes, Sig: CanonicalBytes);
 
-// FIXME
-//impl<Ctx>
-//    From<(
-//        SwapId,
-//        bundle::CoreArbitratingTransactions<Ctx::Ar>,
-//        bundle::CosignedArbitratingCancel<Ctx::Ar>,
-//    )> for CoreArbitratingSetup<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    fn from(
-//        bundles: (
-//            SwapId,
-//            bundle::CoreArbitratingTransactions<Ctx::Ar>,
-//            bundle::CosignedArbitratingCancel<Ctx::Ar>,
-//        ),
-//    ) -> Self {
-//        Self {
-//            swap_id: bundles.0,
-//            lock: bundles.1.lock,
-//            cancel: bundles.1.cancel,
-//            refund: bundles.1.refund,
-//            cancel_sig: bundles.2.cancel_sig,
-//        }
-//    }
-//}
-
 /// Protocol message is intended to transmit [`SwapRole::Alice`]'s signature for the [`Cancelable`]
 /// transaction and Alice's adaptor signature for the [`Refundable`] transaction. Uppon reception
 /// [`SwapRole::Bob`] must validate the signatures.
@@ -792,31 +699,6 @@ where
 
 impl_strict_encoding!(RefundProcedureSignatures<Sig, EncSig>, Sig: CanonicalBytes, EncSig: CanonicalBytes);
 
-// FIXME: needs bundle change
-//impl<Ctx>
-//    From<(
-//        SwapId,
-//        bundle::CosignedArbitratingCancel<Ctx::Ar>,
-//        bundle::SignedAdaptorRefund<Ctx::Ar>,
-//    )> for RefundProcedureSignatures<Ctx>
-//where
-//    Ctx: Swap,
-//{
-//    fn from(
-//        bundles: (
-//            SwapId,
-//            bundle::CosignedArbitratingCancel<Ctx::Ar>,
-//            bundle::SignedAdaptorRefund<Ctx::Ar>,
-//        ),
-//    ) -> Self {
-//        Self {
-//            swap_id: bundles.0,
-//            cancel_sig: bundles.1.cancel_sig.clone(),
-//            refund_adaptor_sig: bundles.2.refund_adaptor_sig,
-//        }
-//    }
-//}
-
 /// Protocol message intended to transmit [`SwapRole::Bob`]'s adaptor signature for the [`Buyable`]
 /// transaction and the transaction itself. Uppon reception Alice must validate the transaction and
 /// the adaptor signature.
@@ -874,20 +756,6 @@ where
 }
 
 impl_strict_encoding!(BuyProcedureSignature<Px, EncSig>, Px: consensus::CanonicalBytes, EncSig: consensus::CanonicalBytes);
-
-// FIXME needs bundle change
-//impl<Px, EncSig> From<(SwapId, bundle::SignedAdaptorBuy<Ctx::Ar>)> for BuyProcedureSignature<Px, EncSig>
-////where
-////    Ctx: Swap,
-//{
-//    fn from(bundle: (SwapId, bundle::SignedAdaptorBuy<Ctx::Ar>)) -> Self {
-//        Self {
-//            swap_id: bundle.0,
-//            buy: bundle.1.buy.clone(),
-//            buy_adaptor_sig: bundle.1.buy_adaptor_sig,
-//        }
-//    }
-//}
 
 /// Optional courtesy message from either [`SwapRole`] to inform the counterparty
 /// that they have aborted the swap with an `OPTIONAL` message body to provide the reason.

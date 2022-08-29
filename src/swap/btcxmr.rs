@@ -85,11 +85,11 @@ pub type Alice = protocol::Alice<bitcoin::Address, BitcoinSegwitV0, Monero>;
 pub type Bob = protocol::Bob<bitcoin::Address, BitcoinSegwitV0, Monero>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap trade.
-pub type Trade = trade::Trade<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
+pub type DealParameters =
+    trade::DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap public trade.
-pub type PublicTrade =
-    trade::PublicTrade<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
+pub type Deal = trade::Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap arbitrating parameters.
 pub type ArbitratingParameters =

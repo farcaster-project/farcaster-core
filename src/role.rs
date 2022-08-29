@@ -83,9 +83,7 @@ impl FromStr for TradeRole {
 }
 
 /// Possible roles during the swap phase. When trade phase is completed [`TradeRole`] will
-/// transition into swap role according to the [`PublicTrade`].
-///
-/// [`PublicTrade`]: crate::trade::PublicTrade
+/// transition into swap role according to the [`Deal`](crate::trade::Deal).
 #[derive(Display, Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum SwapRole {

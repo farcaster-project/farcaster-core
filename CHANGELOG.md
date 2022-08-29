@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Module `negotiation` is renamed `trade`
-- `Offer` and `PublicOffer` are renamed `Trade` and `PublicTrade`, these structs are used to initialized a swap and should be the outcome of a proper negotiation phase
+- `Offer` and `PublicOffer` are renamed `DealParameters` and `Deal`, these structs are used to initialized a swap and should be the outcome of a proper negotiation phase
 
 ### Removed
 

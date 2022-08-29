@@ -26,7 +26,7 @@ use farcaster_core::crypto::{
     ArbitratingKeyId, CommitmentEngine, GenerateKey, ProveCrossGroupDleq,
 };
 use farcaster_core::protocol::message::*;
-use farcaster_core::swap::btcxmr::{Alice, Bob, Parameters, PublicTrade};
+use farcaster_core::swap::btcxmr::{Alice, Bob, Deal, Parameters};
 use farcaster_core::swap::SwapId;
 use farcaster_core::transaction::*;
 
@@ -50,7 +50,7 @@ macro_rules! test_strict_ser {
     };
 }
 
-fn init() -> (Alice, Bob, PublicTrade) {
+fn init() -> (Alice, Bob, Deal) {
     let hex = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
                00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
@@ -62,7 +62,7 @@ fn init() -> (Alice, Bob, PublicTrade) {
     let refund = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").unwrap();
     let bob = Bob::new(Btc::new(), Xmr, refund, fee_politic);
 
-    let pub_trade: PublicTrade =
+    let pub_trade: Deal =
         deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public trade");
 
     (alice, bob, pub_trade)

@@ -35,7 +35,7 @@ use crate::protocol::message::{
 };
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 use crate::swap::SwapId;
-use crate::trade::PublicTrade;
+use crate::trade::Deal;
 use crate::transaction::{
     Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction,
     Witnessable,
@@ -428,7 +428,7 @@ where
     pub fn generate_parameters<Kg, Amt, Bmt, Ti, F, Pk, Qk, Rk, Sk, Pr>(
         &self,
         key_gen: &mut Kg,
-        public_trade: &PublicTrade<Amt, Bmt, Ti, F>,
+        deal: &Deal<Amt, Bmt, Ti, F>,
     ) -> Res<Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>>
     where
         Ar: DeriveKeys<PublicKey = Pk, PrivateKey = Rk>,
@@ -484,9 +484,9 @@ where
             accordant_shared_keys: accordant_shared_keys?,
             proof: Some(proof),
             destination_address: self.destination_address.clone(),
-            cancel_timelock: Some(public_trade.trade.cancel_timelock),
-            punish_timelock: Some(public_trade.trade.punish_timelock),
-            fee_strategy: Some(public_trade.trade.fee_strategy),
+            cancel_timelock: Some(deal.parameters.cancel_timelock),
+            punish_timelock: Some(deal.parameters.punish_timelock),
+            fee_strategy: Some(deal.parameters.fee_strategy),
         })
     }
 
@@ -1067,7 +1067,7 @@ where
     pub fn generate_parameters<Amt, Bmt, Pk, Qk, Rk, Sk, Ti, F, Pr, Kg>(
         &self,
         key_gen: &mut Kg,
-        public_trade: &PublicTrade<Amt, Bmt, Ti, F>,
+        deal: &Deal<Amt, Bmt, Ti, F>,
     ) -> Res<Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>>
     where
         Ar: DeriveKeys<PublicKey = Pk, PrivateKey = Rk>,
@@ -1123,9 +1123,9 @@ where
             accordant_shared_keys: accordant_shared_keys?,
             proof: Some(proof),
             destination_address: self.refund_address.clone(),
-            cancel_timelock: Some(public_trade.trade.cancel_timelock),
-            punish_timelock: Some(public_trade.trade.punish_timelock),
-            fee_strategy: Some(public_trade.trade.fee_strategy.clone()),
+            cancel_timelock: Some(deal.parameters.cancel_timelock),
+            punish_timelock: Some(deal.parameters.punish_timelock),
+            fee_strategy: Some(deal.parameters.fee_strategy.clone()),
         })
     }
 

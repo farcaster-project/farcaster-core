@@ -383,8 +383,8 @@ impl FromStr for FeePriority {
 /// in fee strategies and an amount used in transactions. Implementing this trait allow to set and
 /// verify fees on transactions given a strategy and a priority.
 ///
-/// The fee to apply on transactions is carried in the [`Trade`](crate::trade::Trade) through
-/// a [`FeeStrategy`], in case the fee strategy allow multiple values a [`FeePriority`] is used to
+/// The fee to apply on transactions is carried in the [`Deal`](crate::trade::Deal) through a
+/// [`FeeStrategy`], in case the fee strategy allow multiple values a [`FeePriority`] is used to
 /// fix the amount.
 ///
 /// ```

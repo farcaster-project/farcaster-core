@@ -29,13 +29,13 @@ use crate::crypto::{
     RecoverSecret, SharedKeyId, Sign, TaggedElement, TaggedElements, TaggedExtraKeys,
     TaggedSharedKeys,
 };
-use crate::trade::PublicOffer;
 use crate::protocol::message::{
     BuyProcedureSignature, CommitAliceParameters, CommitBobParameters, CoreArbitratingSetup,
     RevealAliceParameters, RevealBobParameters,
 };
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 use crate::swap::SwapId;
+use crate::trade::PublicTrade;
 use crate::transaction::{
     Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction,
     Witnessable,
@@ -423,12 +423,12 @@ where
     /// # Safety
     ///
     /// All the data passed to the function are considered trusted and does not require extra
-    /// validation. Thus we assume the public offer has been validated upfront.
+    /// validation. Thus we assume the public trade has been validated upfront.
     ///
     pub fn generate_parameters<Kg, Amt, Bmt, Ti, F, Pk, Qk, Rk, Sk, Pr>(
         &self,
         key_gen: &mut Kg,
-        public_offer: &PublicOffer<Amt, Bmt, Ti, F>,
+        public_trade: &PublicTrade<Amt, Bmt, Ti, F>,
     ) -> Res<Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>>
     where
         Ar: DeriveKeys<PublicKey = Pk, PrivateKey = Rk>,
@@ -484,9 +484,9 @@ where
             accordant_shared_keys: accordant_shared_keys?,
             proof: Some(proof),
             destination_address: self.destination_address.clone(),
-            cancel_timelock: Some(public_offer.offer.cancel_timelock),
-            punish_timelock: Some(public_offer.offer.punish_timelock),
-            fee_strategy: Some(public_offer.offer.fee_strategy),
+            cancel_timelock: Some(public_trade.trade.cancel_timelock),
+            punish_timelock: Some(public_trade.trade.punish_timelock),
+            fee_strategy: Some(public_trade.trade.fee_strategy),
         })
     }
 
@@ -829,7 +829,7 @@ where
         let mut punish =
             <Ar::Punish>::initialize(&cancel, punish_lock, self.destination_address.clone())?;
 
-        // Set the fees according to the strategy in the offer and the local politic.
+        // Set the fees according to the strategy in the trade and the local politic.
         punish
             .as_partial_mut()
             .set_fee(fee_strategy, self.fee_politic)?;
@@ -872,7 +872,7 @@ where
     //
     //  * the transaction template is valid (transaction is well formed, contract and keys are used
     //  correctly)
-    //  * the target amount from the offer is correct (for the lock transaction)
+    //  * the target amount from the trade is correct (for the lock transaction)
     //  * the fee strategy validation passes
     //
     fn validate_core<Amt, Pk, Qk, Rk, Sk, Ti, F, Pr, Ms, Si, Px>(
@@ -914,7 +914,7 @@ where
 
         // Verify the lock transaction template.
         lock.verify_template(data_lock)?;
-        // The target amount is dictated from the public offer.
+        // The target amount is dictated from the public trade.
         let target_amount = arb_params.arbitrating_amount;
         // Verify the target amount
         lock.verify_target_amount(target_amount)?;
@@ -1049,25 +1049,25 @@ impl<Addr, Ar, Ac> Bob<Addr, Ar, Ac>
 where
     Addr: Clone,
 {
-    /// Generate Bob's parameters for the protocol execution based on his seed and the public offer
+    /// Generate Bob's parameters for the protocol execution based on his seed and the public trade
     /// agreed upon during the negotiation phase.
     ///
     /// # Safety
     ///
     /// All the data passed to the function are considered trusted and does not require extra
-    /// validation. The public offer is assumend to be validated by user upfront.
+    /// validation. The public trade is assumend to be validated by user upfront.
     ///
     /// The parameters contain:
     ///
     ///  * The public keys used in the arbitrating and accordant blockchains
     ///  * The shared private keys (for reading opaque blockchains)
-    ///  * The timelock parameters from the public offer
+    ///  * The timelock parameters from the public trade
     ///  * The target arbitrating address used by Bob
     ///
     pub fn generate_parameters<Amt, Bmt, Pk, Qk, Rk, Sk, Ti, F, Pr, Kg>(
         &self,
         key_gen: &mut Kg,
-        public_offer: &PublicOffer<Amt, Bmt, Ti, F>,
+        public_trade: &PublicTrade<Amt, Bmt, Ti, F>,
     ) -> Res<Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr>>
     where
         Ar: DeriveKeys<PublicKey = Pk, PrivateKey = Rk>,
@@ -1123,9 +1123,9 @@ where
             accordant_shared_keys: accordant_shared_keys?,
             proof: Some(proof),
             destination_address: self.refund_address.clone(),
-            cancel_timelock: Some(public_offer.offer.cancel_timelock),
-            punish_timelock: Some(public_offer.offer.punish_timelock),
-            fee_strategy: Some(public_offer.offer.fee_strategy.clone()),
+            cancel_timelock: Some(public_trade.trade.cancel_timelock),
+            punish_timelock: Some(public_trade.trade.punish_timelock),
+            fee_strategy: Some(public_trade.trade.fee_strategy.clone()),
         })
     }
 
@@ -1163,7 +1163,7 @@ where
     /// # Transaction Fee
     ///
     /// The fee on each transactions are set according to the [`FeeStrategy`] specified in the
-    /// public offer and the [`FeePriority`] in `self`.
+    /// public trade and the [`FeePriority`] in `self`.
     ///
     /// [`FeeStrategy`]: crate::blockchain::FeeStrategy
     ///
@@ -1204,12 +1204,12 @@ where
             failure: DoubleKeys::new(alice_cancel, bob_cancel),
         };
 
-        // The target amount is dictated from the public offer.
+        // The target amount is dictated from the public trade.
         let target_amount = arb_params.arbitrating_amount;
 
         // Initialize the lockable transaction based on the fundable structure. The lockable
         // transaction prepare the on-chain contract for a buy or a cancel. The amount of available
-        // assets is defined as the target by the public offer.
+        // assets is defined as the target by the public trade.
         let lock = <Ar::Lock>::initialize(&funding, cancel_lock, target_amount)?;
 
         // Ensure that the transaction contains enough assets to pass the fee validation latter.
@@ -1235,7 +1235,7 @@ where
         // buy and moving them into a punisable on-chain contract.
         let mut cancel = <Ar::Cancel>::initialize(&lock, cancel_lock, punish_lock)?;
 
-        // Set the fees according to the strategy in the offer and the local politic.
+        // Set the fees according to the strategy in the trade and the local politic.
         cancel
             .as_partial_mut()
             .set_fee(fee_strategy, self.fee_politic)?;
@@ -1244,7 +1244,7 @@ where
         // the punishable lock to Bob's refund address.
         let mut refund = <Ar::Refund>::initialize(&cancel, self.refund_address.clone())?;
 
-        // Set the fees according to the strategy in the offer and the local politic.
+        // Set the fees according to the strategy in the trade and the local politic.
         refund
             .as_partial_mut()
             .set_fee(fee_strategy, self.fee_politic)?;
@@ -1388,7 +1388,7 @@ where
     /// # Execution
     ///
     ///  * Parse the [`Lockable`] partial transaction in [`CoreArbitratingTransactions`]
-    ///  * Generate the [`DataLock`] structure from Alice and Bob parameters and the public offer
+    ///  * Generate the [`DataLock`] structure from Alice and Bob parameters and the public trade
     ///  * Retrieve Alice's adaptor public key from Alice's [`Parameters`]
     ///  * Retreive the buy public key from the paramters
     ///  * Generate the adaptor witness data and sign it
@@ -1447,7 +1447,7 @@ where
             alice_parameters.destination_address.clone(),
         )?;
 
-        // Set the fees according to the strategy in the offer and the local politic.
+        // Set the fees according to the strategy in the trade and the local politic.
         let fee_strategy = &arb_params.fee_strategy;
         buy.as_partial_mut()
             .set_fee(fee_strategy, self.fee_politic)?;

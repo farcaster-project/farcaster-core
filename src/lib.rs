@@ -82,11 +82,11 @@ pub mod blockchain;
 pub mod crypto;
 pub(crate) mod hash;
 pub mod monero;
-pub mod trade;
 pub mod protocol;
 pub mod role;
 pub mod script;
 pub mod swap;
+pub mod trade;
 pub mod transaction;
 
 /// A list of possible errors when performing a cross-chain atomic swap with the **Farcaster**

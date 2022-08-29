@@ -27,14 +27,14 @@ use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, AccordantKeySet};
 
 /// Possible roles during the trade phase. Any trade role can transition into any swap role when
-/// trade setup is completed, the transition is described in the public offer.
+/// trade setup is completed, the transition is described in the public trade.
 #[derive(Display, Debug, Clone, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum TradeRole {
-    /// The maker role create the public offer during the trade phase and waits for incoming
+    /// The maker role create the public trade during the trade phase and waits for incoming
     /// connections.
     Maker,
-    /// The taker role parses public offers and choose to connect to a maker node to start
+    /// The taker role parses public trades and choose to connect to a maker node to start
     /// swapping.
     Taker,
 }
@@ -83,9 +83,9 @@ impl FromStr for TradeRole {
 }
 
 /// Possible roles during the swap phase. When trade phase is completed [`TradeRole`] will
-/// transition into swap role according to the [`PublicOffer`].
+/// transition into swap role according to the [`PublicTrade`].
 ///
-/// [`PublicOffer`]: crate::trade::PublicOffer
+/// [`PublicTrade`]: crate::trade::PublicTrade
 #[derive(Display, Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum SwapRole {

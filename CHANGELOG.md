@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Uuid` wrapper type against `uuid:Uuid` to identify trades and swaps, the wrapper implements strict encoding functionalities
+
 ### Changed
 
 - Module `negotiation` is renamed as the `trade` module
 - `Offer` and `PublicOffer` are renamed `DealParameters` and `Deal`, these structs are used to initialized a swap during the trade setup and should be the outcome of a proper negotiation phase currently out-of-scope for this library
+- Deal `uuid` type is switched to a wrapper type
 
 ### Removed
 
+- `SwapId` is removed and use the new `Uuid` wrapper type
 - `lightning_encoding` is removed for the protocol messages
 
 ## [0.5.1] - 2022-08-15

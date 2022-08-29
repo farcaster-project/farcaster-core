@@ -40,6 +40,7 @@ use serde::ser::{Serialize, Serializer};
 use serde::{de, Deserialize, Deserializer};
 use std::fmt::Display;
 use std::str::FromStr;
+use strict_encoding::{StrictDecode, StrictEncode};
 use thiserror::Error;
 use tiny_keccak::{Hasher, Keccak};
 
@@ -104,6 +105,37 @@ pub enum Error {
     InvalidSignature,
 }
 
+/// The identifier of a trade. This is a wrapper around [`Uuid`] that can be transformed into a
+/// `SwapId`.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Display,
+    Serialize,
+    Deserialize,
+    StrictEncode,
+    StrictDecode,
+)]
+#[serde(transparent)]
+#[display(inner)]
+pub struct TradeId(pub Uuid);
+
+impl From<Uuid> for TradeId {
+    fn from(u: Uuid) -> Self {
+        TradeId(u)
+    }
+}
+
+impl From<uuid::Uuid> for TradeId {
+    fn from(u: uuid::Uuid) -> Self {
+        TradeId(u.into())
+    }
+}
+
 fixed_hash::construct_fixed_hash!(
     /// Identify a deal by its content, internally store the hash of the deal serialized with
     /// Farcaster consensus.
@@ -142,7 +174,7 @@ impl<'de> Deserialize<'de> for DealFingerprint {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct DealParameters<Amt, Bmt, Ti, F> {
     /// The deal unique identifier.
-    pub uuid: Uuid,
+    pub uuid: TradeId,
     /// Type of deal and network to use.
     pub network: Network,
     /// The chosen arbitrating blockchain.
@@ -241,18 +273,18 @@ impl<Amt, Bmt, Ti, F> DealParameters<Amt, Bmt, Ti, F> {
 
 impl<Amt, Bmt, Ti, F> DealParameters<Amt, Bmt, Ti, F> {
     /// Return the unique deal identifier. Same as [`Self::uuid()`].
-    pub fn id(&self) -> Uuid {
+    pub fn id(&self) -> TradeId {
         self.uuid()
     }
 
     /// Return the unique deal identifier.
-    pub fn uuid(&self) -> Uuid {
+    pub fn uuid(&self) -> TradeId {
         self.uuid
     }
 
     /// Reset deal's uuid with a new identifier.
     pub fn randomize_uuid(&mut self) {
-        self.uuid = Uuid::new();
+        self.uuid = TradeId(Uuid::new());
     }
 }
 
@@ -280,7 +312,7 @@ where
     F: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = self.uuid.consensus_encode(s)?;
+        let mut len = self.uuid.0.consensus_encode(s)?;
         len += self.network.consensus_encode(s)?;
         len += self.arbitrating_blockchain.consensus_encode(s)?;
         len += self.accordant_blockchain.consensus_encode(s)?;
@@ -314,7 +346,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(DealParameters {
-            uuid: Decodable::consensus_decode(d)?,
+            uuid: TradeId(Decodable::consensus_decode(d)?),
             network: Decodable::consensus_decode(d)?,
             arbitrating_blockchain: Decodable::consensus_decode(d)?,
             accordant_blockchain: Decodable::consensus_decode(d)?,
@@ -390,12 +422,12 @@ where
 
 impl<Amt, Bmt, Ti, F> Deal<Amt, Bmt, Ti, F> {
     /// Return the unique deal identifier. Same as [`Self::uuid()`].
-    pub fn id(&self) -> Uuid {
+    pub fn id(&self) -> TradeId {
         self.uuid()
     }
 
     /// Return the unique deal identifier.
-    pub fn uuid(&self) -> Uuid {
+    pub fn uuid(&self) -> TradeId {
         self.parameters.uuid()
     }
 

@@ -188,7 +188,7 @@ fn execute_offline_protocol() {
         .unwrap();
 
     let refund_proc_sig = RefundProcedureSignatures {
-        swap_id,
+        swap_id: swap_id.into(),
         cancel_sig,
         refund_adaptor_sig: refund_adaptor_sig.clone(),
     };

@@ -35,11 +35,11 @@ use crate::protocol::message::{
 };
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
 use crate::trade::Deal;
+use crate::swap::SwapId;
 use crate::transaction::{
     Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction,
     Witnessable,
 };
-use crate::Uuid;
 use crate::{Error, Res};
 
 pub mod message;
@@ -70,7 +70,7 @@ impl<Px> CoreArbitratingTransactions<Px> {
         cancel_sig: Sig,
     ) -> CoreArbitratingSetup<Px, Sig>
     where
-        U: Into<Uuid>,
+        U: Into<SwapId>,
     {
         CoreArbitratingSetup {
             swap_id: swap_id.into(),
@@ -265,7 +265,7 @@ where
     Sk: CanonicalBytes,
 {
     /// Generates protocol message that commits to Alice's parameters.
-    pub fn commit_alice<C: Clone + Eq, U: Into<Uuid>>(
+    pub fn commit_alice<C: Clone + Eq, U: Into<SwapId>>(
         &self,
         swap_id: U,
         wallet: &impl Commit<C>,
@@ -291,7 +291,7 @@ where
     }
 
     /// Create the reveal protocol message based on the set of parameters.
-    pub fn reveal_alice<U: Into<Uuid>>(
+    pub fn reveal_alice<U: Into<SwapId>>(
         self,
         swap_id: U,
     ) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
@@ -312,7 +312,7 @@ where
     }
 
     /// Generates protocol message that commits to Bob's parameters.
-    pub fn commit_bob<C: Clone + Eq, U: Into<Uuid>>(
+    pub fn commit_bob<C: Clone + Eq, U: Into<SwapId>>(
         &self,
         swap_id: U,
         wallet: &impl Commit<C>,
@@ -332,7 +332,7 @@ where
     }
 
     /// Create the reveal protocol message based on the set of parameters.
-    pub fn reveal_bob<U: Into<Uuid>>(
+    pub fn reveal_bob<U: Into<SwapId>>(
         self,
         swap_id: U,
     ) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
@@ -1423,7 +1423,7 @@ where
         Px: Clone + Fee<FeeUnit = F>,
         Pk: Copy,
         Ti: Copy,
-        U: Into<Uuid>,
+        U: Into<SwapId>,
     {
         // Extract the partial transaction from the core arbitrating protocol message, this
         // operation should not error if the message is well formed.

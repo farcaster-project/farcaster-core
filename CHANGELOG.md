@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Uuid` wrapper type against `uuid:Uuid` to identify trades and swaps, the wrapper implements strict encoding functionalities
+- `TradeId` and `SwapId` wrapping `Uuid`
 
 ### Changed
 

@@ -29,7 +29,7 @@ use crate::crypto::{
     RecoverSecret, SharedKeyId, Sign, TaggedElement, TaggedElements, TaggedExtraKeys,
     TaggedSharedKeys,
 };
-use crate::negotiation::PublicOffer;
+use crate::trade::PublicOffer;
 use crate::protocol::message::{
     BuyProcedureSignature, CommitAliceParameters, CommitBobParameters, CoreArbitratingSetup,
     RevealAliceParameters, RevealBobParameters,

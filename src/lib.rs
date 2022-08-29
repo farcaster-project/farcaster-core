@@ -82,7 +82,7 @@ pub mod blockchain;
 pub mod crypto;
 pub(crate) mod hash;
 pub mod monero;
-pub mod negotiation;
+pub mod trade;
 pub mod protocol;
 pub mod role;
 pub mod script;
@@ -107,9 +107,9 @@ pub enum Error {
     /// An arbitrating transaction error.
     #[error("Transaction error: {0}")]
     Transaction(#[from] transaction::Error),
-    /// A negotiation error.
-    #[error("Negotiation error: {0}")]
-    Negotiation(#[from] negotiation::Error),
+    /// A trade error.
+    #[error("Trade error: {0}")]
+    Trade(#[from] trade::Error),
 }
 
 /// Result of an high level computation such as in Alice and Bob roles executing the protocol,

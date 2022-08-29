@@ -28,7 +28,7 @@ use crate::crypto::{
 #[cfg(feature = "experimental")]
 use crate::crypto::{EncSign, RecoverSecret, Sign};
 use crate::monero::Monero;
-use crate::negotiation;
+use crate::trade;
 use crate::protocol;
 use crate::{blockchain::Blockchain, crypto::dleq::DLEQProof};
 
@@ -85,11 +85,11 @@ pub type Alice = protocol::Alice<bitcoin::Address, BitcoinSegwitV0, Monero>;
 pub type Bob = protocol::Bob<bitcoin::Address, BitcoinSegwitV0, Monero>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap offer.
-pub type Offer = negotiation::Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
+pub type Offer = trade::Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap public offer.
 pub type PublicOffer =
-    negotiation::PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
+    trade::PublicOffer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap arbitrating parameters.
 pub type ArbitratingParameters =

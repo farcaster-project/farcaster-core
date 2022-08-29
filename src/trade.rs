@@ -14,7 +14,7 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-//! Negotiation helpers and structures. Buyer and seller helpers to create offer and public offers
+//! Offer helpers and structures. Buyer and seller helpers to create offer and public offers
 //! allowing agreement on assets, quantities and parameters of a swap among maker and taker.
 //!
 //! ## Public Offer
@@ -52,7 +52,7 @@ use crate::blockchain::{Blockchain, FeeStrategy, Network};
 use crate::consensus::{self, serialize, serialize_hex, CanonicalBytes, Decodable, Encodable};
 use crate::hash::HashString;
 use crate::protocol::ArbitratingParameters;
-use crate::role::{SwapRole, TradeRole};
+use crate::role::{SwapRole, OfferRole};
 
 /// First six magic bytes of a public offer. Bytes are included inside the base58 encoded part.
 pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
@@ -94,7 +94,7 @@ impl Decodable for Version {
     }
 }
 
-/// Negotiation errors used when manipulating offers, public offers and its version.
+/// Offer errors used when manipulating offers, public offers and its version.
 #[derive(Error, Debug)]
 pub enum Error {
     /// The public offer version is not supported.
@@ -130,8 +130,8 @@ impl<'de> Deserialize<'de> for OfferFingerprint {
     }
 }
 
-/// An offer is created by a [`TradeRole::Maker`] before the start of his daemon, it references all
-/// the data needed to parametrize a trade and be validated from a [`TradeRole::Taker`]
+/// An offer is created by a [`OfferRole::Maker`] before the start of his daemon, it references all
+/// the data needed to parametrize a trade and be validated from a [`OfferRole::Taker`]
 /// perspective. The daemon start when the maker is ready to finalize his offer, transforming the
 /// offer into a [`PublicOffer`] which contains the data needed to a taker to connect to the
 /// maker's daemon.
@@ -236,10 +236,10 @@ impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F> {
     }
 
     /// Return the future swap role for the given trade role.
-    pub fn swap_role(&self, trade_role: &TradeRole) -> SwapRole {
+    pub fn swap_role(&self, trade_role: &OfferRole) -> SwapRole {
         match trade_role {
-            TradeRole::Maker => self.maker_role,
-            TradeRole::Taker => self.maker_role.other(),
+            OfferRole::Maker => self.maker_role,
+            OfferRole::Taker => self.maker_role.other(),
         }
     }
 }
@@ -334,7 +334,7 @@ where
 
 impl_strict_encoding!(Offer<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
 
-/// A public offer is shared across [`TradeRole::Maker`]'s prefered network to signal is willing of
+/// A public offer is shared across [`OfferRole::Maker`]'s prefered network to signal is willing of
 /// trading some assets at some conditions. The assets and condition are defined in the [`Offer`],
 /// maker peer connection information are contained in the public offer.
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -409,7 +409,7 @@ impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F> {
     }
 
     /// Return the future swap role for the given trade role.
-    pub fn swap_role(&self, trade_role: &TradeRole) -> SwapRole {
+    pub fn swap_role(&self, trade_role: &OfferRole) -> SwapRole {
         self.offer.swap_role(trade_role)
     }
 }

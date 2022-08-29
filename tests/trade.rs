@@ -20,7 +20,7 @@ use farcaster_core::blockchain::Blockchain;
 
 use farcaster_core::blockchain::{FeeStrategy, Network};
 use farcaster_core::consensus::{self, deserialize, serialize_hex};
-use farcaster_core::negotiation::{Offer, OfferFingerprint, PublicOffer};
+use farcaster_core::trade::{Offer, OfferFingerprint, PublicOffer};
 use farcaster_core::role::SwapRole;
 
 use bitcoin::Amount;

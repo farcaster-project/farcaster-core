@@ -27,7 +27,7 @@
 //! "Deal:" | base58(serialize(deal))
 //! ```
 //!
-//! The deals contains:
+//! The deal contains:
 //!
 //! - A version number, used for the version and potentially enabling features
 //! - The deal parameters, containing the asset types, amounts, timings, etc.
@@ -93,7 +93,7 @@ impl Decodable for Version {
     }
 }
 
-/// Errors used when manipulating deals parametes, deals and versions.
+/// Errors used when manipulating deals, deal parameters, and versions.
 #[derive(Error, Debug)]
 pub enum Error {
     /// The deal version is not supported.
@@ -105,7 +105,7 @@ pub enum Error {
 }
 
 fixed_hash::construct_fixed_hash!(
-    /// Identify a deal by it's content, internally store the hash of the deal serialized with
+    /// Identify a deal by its content, internally store the hash of the deal serialized with
     /// Farcaster consensus.
     pub struct DealFingerprint(32);
 );
@@ -129,7 +129,7 @@ impl<'de> Deserialize<'de> for DealFingerprint {
     }
 }
 
-/// Deal parameters is created by a [`TradeRole::Maker`] before the start of his daemon, it
+/// `DealParameters` is created by a [`TradeRole::Maker`] before the start of his daemon, it
 /// references all the data needed to parametrize a deal and be validated from a
 /// [`TradeRole::Taker`] perspective.  The daemon start when the maker is ready to finalize his
 /// deal, transforming the parameters into a [`Deal`] which contains the data needed to a taker to
@@ -261,7 +261,7 @@ where
     Self: Encodable,
 {
     /// Generate the [`DealFingerprint`] from the deal parameters. The fingerprint identifies the
-    /// content of a deal parameters (**without the uuid**) by taking the hash value of its
+    /// content of a deal's parameters (**without the uuid**) by taking the hash value of its
     /// serialization.
     pub fn fingerprint(&self) -> DealFingerprint {
         let mut keccak = Keccak::v256();

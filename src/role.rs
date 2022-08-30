@@ -26,14 +26,15 @@ use crate::blockchain::Network;
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, AccordantKeySet};
 
-/// Possible roles during the trade setup. Any trade role can transition into any swap role when
-/// trade setup is completed, the transition is described in the deal.
+/// Possible roles during the trade setup. Trade roles are orthogonal to swap roles:
+/// any trade role can transition into any swap role, but the the particular transition
+/// that will happen is agreed upon & set in the deal.
 #[derive(Display, Debug, Clone, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum TradeRole {
-    /// The maker role create the deal during the trade setup and waits for incoming connections.
+    /// The maker role creates the deal during the trade setup and waits for incoming connections.
     Maker,
-    /// The taker role parses deals and choose to connect to a maker node to start swapping.
+    /// The taker role parses deals and can choose to connect to a maker node to start swapping.
     Taker,
 }
 
@@ -80,7 +81,7 @@ impl FromStr for TradeRole {
     }
 }
 
-/// Possible roles during the swap phase. When trade setup is completed [`TradeRole`] will
+/// Possible roles during the swap phase. When the trade setup is completed [`TradeRole`] will
 /// transition into swap role according to the [`Deal`](crate::trade::Deal).
 #[derive(Display, Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]

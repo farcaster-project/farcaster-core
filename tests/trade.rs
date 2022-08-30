@@ -30,10 +30,10 @@ use uuid::uuid;
 use std::str::FromStr;
 
 #[test]
-fn create_trade() {
+fn create_deal_parameters() {
     let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000000000000000400070000000400080000000\
                10800090000000000000002";
-    let trade: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let deal: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         DealParameters {
             uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
             network: Network::Testnet,
@@ -47,16 +47,16 @@ fn create_trade() {
             maker_role: SwapRole::Bob,
         };
 
-    assert_eq!(hex, serialize_hex(&trade));
-    let strict_ser = strict_encoding::strict_serialize(&trade).unwrap();
+    assert_eq!(hex, serialize_hex(&deal));
+    let strict_ser = strict_encoding::strict_serialize(&deal).unwrap();
     assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
     let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         strict_encoding::strict_deserialize(&strict_ser).unwrap();
-    assert_eq!(&trade, &res);
+    assert_eq!(&deal, &res);
 }
 
 #[test]
-fn get_trade_fingerprint() {
+fn get_deal_parameters_fingerprint() {
     let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000\
                00000000000040007000000040008000000010800090000000000000002";
     let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
@@ -76,7 +76,7 @@ fn get_trade_fingerprint() {
 }
 
 #[test]
-fn get_trade_uuid() {
+fn get_deal_parameters_uuid() {
     let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000\
                00000000000040007000000040008000000010800090000000000000002";
     let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
@@ -85,12 +85,12 @@ fn get_trade_uuid() {
 }
 
 #[test]
-fn serialize_public_trade() {
+fn serialize_deal() {
     let hex = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
                00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                0000000000000000000000000000000000000000000000000000000260700";
-    let trade: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let deal: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         DealParameters {
             uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
             network: Network::Testnet,
@@ -114,18 +114,18 @@ fn serialize_public_trade() {
     .inner;
     let node_id = secp256k1::PublicKey::from_secret_key(&secp, &sk);
     let peer_address = InetSocketAddr::socket(ip, port);
-    let public_trade = trade.to_v1(node_id, peer_address);
+    let deal = deal.to_v1(node_id, peer_address);
 
-    assert_eq!(hex, serialize_hex(&public_trade));
-    let strict_ser = strict_encoding::strict_serialize(&public_trade).unwrap();
+    assert_eq!(hex, serialize_hex(&deal));
+    let strict_ser = strict_encoding::strict_serialize(&deal).unwrap();
     assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
     let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         strict_encoding::strict_deserialize(&strict_ser).unwrap();
-    assert_eq!(&public_trade, &res);
+    assert_eq!(&deal, &res);
 }
 
 #[test]
-fn get_public_trade_fingerprint() {
+fn get_deal_fingerprint() {
     let hex = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
                00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
@@ -149,7 +149,7 @@ fn get_public_trade_fingerprint() {
 }
 
 #[test]
-fn get_public_trade_uuid() {
+fn get_deal_uuid() {
     let hex = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
                00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
@@ -160,30 +160,30 @@ fn get_public_trade_uuid() {
 }
 
 #[test]
-fn check_public_trade_magic_bytes() {
+fn check_deal_magic_bytes() {
     let valid = "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
                  00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                  03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                  0000000000000000000000000000000000000000000000000000000260700";
-    let pub_trade: Result<
+    let deal: Result<
         Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
         consensus::Error,
     > = deserialize(&hex::decode(valid).unwrap()[..]);
-    assert!(pub_trade.is_ok());
+    assert!(deal.is_ok());
 
     let invalid = "47435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
                  00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                  03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                  0000000000000000000000000000000000000000000000000000000260700";
-    let pub_trade: Result<
+    let deal: Result<
         Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
         consensus::Error,
     > = deserialize(&hex::decode(invalid).unwrap()[..]);
-    assert!(pub_trade.is_err());
+    assert!(deal.is_err());
 }
 
 #[test]
-fn parse_public_trade() {
+fn parse_deal() {
     for hex in [
         "46435357415001004450e567b1106f429247bb680e5fe0c80200000080800000800800a08601000\
          00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\

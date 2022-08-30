@@ -423,7 +423,7 @@ where
     /// # Safety
     ///
     /// All the data passed to the function are considered trusted and does not require extra
-    /// validation. Thus we assume the public trade has been validated upfront.
+    /// validation. Thus we assume the deal has been validated upfront.
     ///
     pub fn generate_parameters<Kg, Amt, Bmt, Ti, F, Pk, Qk, Rk, Sk, Pr>(
         &self,
@@ -829,7 +829,7 @@ where
         let mut punish =
             <Ar::Punish>::initialize(&cancel, punish_lock, self.destination_address.clone())?;
 
-        // Set the fees according to the strategy in the trade and the local politic.
+        // Set the fees according to the strategy in the deal and the local politic.
         punish
             .as_partial_mut()
             .set_fee(fee_strategy, self.fee_politic)?;
@@ -872,7 +872,7 @@ where
     //
     //  * the transaction template is valid (transaction is well formed, contract and keys are used
     //  correctly)
-    //  * the target amount from the trade is correct (for the lock transaction)
+    //  * the target amount from the deal is correct (for the lock transaction)
     //  * the fee strategy validation passes
     //
     fn validate_core<Amt, Pk, Qk, Rk, Sk, Ti, F, Pr, Ms, Si, Px>(
@@ -914,7 +914,7 @@ where
 
         // Verify the lock transaction template.
         lock.verify_template(data_lock)?;
-        // The target amount is dictated from the public trade.
+        // The target amount is dictated from the deal.
         let target_amount = arb_params.arbitrating_amount;
         // Verify the target amount
         lock.verify_target_amount(target_amount)?;
@@ -1049,19 +1049,19 @@ impl<Addr, Ar, Ac> Bob<Addr, Ar, Ac>
 where
     Addr: Clone,
 {
-    /// Generate Bob's parameters for the protocol execution based on his seed and the public trade
-    /// agreed upon during the negotiation phase.
+    /// Generate Bob's parameters for the protocol execution based on his seed and the deal agreed
+    /// upon during the trade setup.
     ///
     /// # Safety
     ///
     /// All the data passed to the function are considered trusted and does not require extra
-    /// validation. The public trade is assumend to be validated by user upfront.
+    /// validation. The deal is assumend to be validated by user upfront.
     ///
     /// The parameters contain:
     ///
     ///  * The public keys used in the arbitrating and accordant blockchains
     ///  * The shared private keys (for reading opaque blockchains)
-    ///  * The timelock parameters from the public trade
+    ///  * The timelock parameters from the deal
     ///  * The target arbitrating address used by Bob
     ///
     pub fn generate_parameters<Amt, Bmt, Pk, Qk, Rk, Sk, Ti, F, Pr, Kg>(
@@ -1163,7 +1163,7 @@ where
     /// # Transaction Fee
     ///
     /// The fee on each transactions are set according to the [`FeeStrategy`] specified in the
-    /// public trade and the [`FeePriority`] in `self`.
+    /// deal and the [`FeePriority`] in `self`.
     ///
     /// [`FeeStrategy`]: crate::blockchain::FeeStrategy
     ///
@@ -1204,12 +1204,12 @@ where
             failure: DoubleKeys::new(alice_cancel, bob_cancel),
         };
 
-        // The target amount is dictated from the public trade.
+        // The target amount is dictated from the deal.
         let target_amount = arb_params.arbitrating_amount;
 
         // Initialize the lockable transaction based on the fundable structure. The lockable
         // transaction prepare the on-chain contract for a buy or a cancel. The amount of available
-        // assets is defined as the target by the public trade.
+        // assets is defined as the target by the deal.
         let lock = <Ar::Lock>::initialize(&funding, cancel_lock, target_amount)?;
 
         // Ensure that the transaction contains enough assets to pass the fee validation latter.
@@ -1235,7 +1235,7 @@ where
         // buy and moving them into a punisable on-chain contract.
         let mut cancel = <Ar::Cancel>::initialize(&lock, cancel_lock, punish_lock)?;
 
-        // Set the fees according to the strategy in the trade and the local politic.
+        // Set the fees according to the strategy in the deal and the local politic.
         cancel
             .as_partial_mut()
             .set_fee(fee_strategy, self.fee_politic)?;
@@ -1244,7 +1244,7 @@ where
         // the punishable lock to Bob's refund address.
         let mut refund = <Ar::Refund>::initialize(&cancel, self.refund_address.clone())?;
 
-        // Set the fees according to the strategy in the trade and the local politic.
+        // Set the fees according to the strategy in the deal and the local politic.
         refund
             .as_partial_mut()
             .set_fee(fee_strategy, self.fee_politic)?;
@@ -1388,7 +1388,7 @@ where
     /// # Execution
     ///
     ///  * Parse the [`Lockable`] partial transaction in [`CoreArbitratingTransactions`]
-    ///  * Generate the [`DataLock`] structure from Alice and Bob parameters and the public trade
+    ///  * Generate the [`DataLock`] structure from Alice and Bob parameters and the deal
     ///  * Retrieve Alice's adaptor public key from Alice's [`Parameters`]
     ///  * Retreive the buy public key from the paramters
     ///  * Generate the adaptor witness data and sign it
@@ -1447,7 +1447,7 @@ where
             alice_parameters.destination_address.clone(),
         )?;
 
-        // Set the fees according to the strategy in the trade and the local politic.
+        // Set the fees according to the strategy in the deal and the local politic.
         let fee_strategy = &arb_params.fee_strategy;
         buy.as_partial_mut()
             .set_fee(fee_strategy, self.fee_politic)?;

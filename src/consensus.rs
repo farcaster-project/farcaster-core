@@ -14,8 +14,8 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-//! Farcaster consensus encoding used to strictly encode and decode data such as public trades,
-//! bundles or other messages defined in the RFCs.
+//! Farcaster consensus encoding used to strictly encode and decode data such as a deal, a data
+//! structure exchanged among swap participants during the swap setup.
 //!
 //! Implementation on blockchain foreign types with [`CanonicalBytes`] must follow the strict
 //! consensus encoding from the blockchain itself, Farcaster core will then wrap the serialization

@@ -62,15 +62,14 @@ fn init() -> (Alice, Bob, Deal) {
     let refund = Address::from_str("bc1qesgvtyx9y6lax0x34napc2m7t5zdq6s7xxwpvk").unwrap();
     let bob = Bob::new(Btc::new(), Xmr, refund, fee_politic);
 
-    let pub_trade: Deal =
-        deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable public trade");
+    let deal: Deal = deserialize(&hex::decode(hex).unwrap()[..]).expect("Parsable deal");
 
-    (alice, bob, pub_trade)
+    (alice, bob, deal)
 }
 
 #[test]
 fn execute_offline_protocol() {
-    let (alice, bob, pub_trade) = init();
+    let (alice, bob, deal) = init();
 
     let commitment_engine = CommitmentEngine;
     let mut alice_key_manager = KeyManager::new(
@@ -97,14 +96,14 @@ fn execute_offline_protocol() {
     // Commit/Reveal round
     //
     let alice_params: Parameters = alice
-        .generate_parameters(&mut alice_key_manager, &pub_trade)
+        .generate_parameters(&mut alice_key_manager, &deal)
         .unwrap();
 
     let commit_alice_params = alice_params.commit_alice(swap_id, &commitment_engine);
     test_strict_ser!(commit_alice_params, CommitAliceParameters<KeccakCommitment>);
 
     let bob_params: Parameters = bob
-        .generate_parameters(&mut bob_key_manager, &pub_trade)
+        .generate_parameters(&mut bob_key_manager, &deal)
         .unwrap();
     let commit_bob_params = bob_params.commit_bob(swap_id, &commitment_engine);
     test_strict_ser!(commit_bob_params, CommitBobParameters<KeccakCommitment>);
@@ -154,7 +153,7 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             funding,
-            pub_trade.to_arbitrating_params(),
+            deal.to_arbitrating_params(),
         )
         .unwrap();
     let bob_cosign_cancel = bob
@@ -175,7 +174,7 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            pub_trade.to_arbitrating_params(),
+            deal.to_arbitrating_params(),
         )
         .unwrap();
     let cancel_sig = alice
@@ -184,7 +183,7 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            pub_trade.to_arbitrating_params(),
+            deal.to_arbitrating_params(),
         )
         .unwrap();
 
@@ -214,7 +213,7 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            pub_trade.to_arbitrating_params(),
+            deal.to_arbitrating_params(),
         )
         .unwrap();
     let signed_lock = bob
@@ -243,7 +242,7 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            pub_trade.to_arbitrating_params(),
+            deal.to_arbitrating_params(),
             &adaptor_buy,
         )
         .unwrap();
@@ -253,7 +252,7 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            pub_trade.to_arbitrating_params(),
+            deal.to_arbitrating_params(),
             &adaptor_buy,
         )
         .unwrap();
@@ -357,7 +356,7 @@ fn execute_offline_protocol() {
             &alice_params,
             &bob_params,
             &core,
-            pub_trade.to_arbitrating_params(),
+            deal.to_arbitrating_params(),
         )
         .unwrap();
 

@@ -169,7 +169,7 @@ pub trait Transactions {
 /// a fee strategy can be: fixed or range. When the fee strategy allows multiple possibilities, a
 /// [`FeePriority`] is used to determine what to apply.
 ///
-/// A fee strategy is included in an offer, so Alice and Bob can verify that transactions are valid
+/// A fee strategy is included in a deal, so Alice and Bob can verify that transactions are valid
 /// upon reception by the other participant.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum FeeStrategy<T> {

@@ -17,8 +17,8 @@
 //! Farcaster core library aims to implement in Rust the core principles described in Farcaster
 //! [RFCs](https://github.com/farcaster-project/RFCs):
 //!
-//! - Swap deals, data needed to start a swap with a counter-party
-//! - Swap roles and trade roles, who do what in the protocol
+//! - Swap deals: data needed to start a swap with a counter-party
+//! - Swap roles and trade roles: who does what in the protocol
 //! - Transaction templates implementing on-chain behaviours
 //! - Signature and cryptographic utilities
 //!   - ECDSA adaptor signatures

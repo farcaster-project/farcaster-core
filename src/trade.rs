@@ -14,24 +14,23 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-//! Negotiation helpers and structures. Buyer and seller helpers to create offer and public offers
-//! allowing agreement on assets, quantities and parameters of a swap among maker and taker.
+//! Trade structures. Buyer and seller use deals to communicate parameters of a swap.
 //!
-//! ## Public Offer
+//! ## Deals
 //!
-//! A public offer is shared across the network by a maker. It contains all the data regarding what
-//! the trade is about (assets, amounts, timings, etc.).
+//! A deal is shared across the network by a maker. It contains all the data regarding what the
+//! deal is about (assets, amounts, timings, etc.) and where to connect to start the swap.
 //!
-//! A public offer is formatted like (base58 is Monero base58):
+//! A deal is formatted as (base58 is Monero base58):
 //!
 //! ```text
-//! "Offer:" | base58(serialize(public_offer))
+//! "Deal:" | base58(serialize(deal))
 //! ```
 //!
-//! The public offer contains:
+//! The deal contains:
 //!
 //! - A version number, used for the version and potentially enabling features
-//! - The offer, containing the asset types, amounts, timings, etc.
+//! - The deal parameters, containing the asset types, amounts, timings, etc.
 //! - A node identifier, used to secure the communication with the other peer
 //! - A peer address, used to connect to the other peer
 
@@ -54,24 +53,24 @@ use crate::hash::HashString;
 use crate::protocol::ArbitratingParameters;
 use crate::role::{SwapRole, TradeRole};
 
-/// First six magic bytes of a public offer. Bytes are included inside the base58 encoded part.
-pub const OFFER_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
+/// First six magic bytes of a deal. Bytes are included inside the base58 encoded part.
+pub const DEAL_MAGIC_BYTES: &[u8; 6] = b"FCSWAP";
 
-/// Prefix for serialized public offer.
-pub const PUB_OFFER_PREFIX: &str = "Offer:";
+/// Prefix for serialized deal.
+pub const DEAL_PREFIX: &str = "Deal:";
 
-/// A public offer version containing the version and the activated features if any.
+/// A deal version containing the version and the activated features if any.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
 #[display("v{0}")]
 pub struct Version(u16);
 
 impl Version {
-    /// Create a new version 1 public offer.
+    /// Create a new version 1 deal.
     pub fn new_v1() -> Self {
         Self::new(1)
     }
 
-    /// Create a public offer from a raw version and feature `u16`.
+    /// Create a deal from a raw version and feature `u16`.
     pub fn new(version: u16) -> Self {
         Version(version)
     }
@@ -94,24 +93,24 @@ impl Decodable for Version {
     }
 }
 
-/// Negotiation errors used when manipulating offers, public offers and its version.
+/// Errors used when manipulating deals, deal parameters, and versions.
 #[derive(Error, Debug)]
 pub enum Error {
-    /// The public offer version is not supported.
+    /// The deal version is not supported.
     #[error("Unsupported version")]
     UnsupportedVersion,
-    /// The public offer signature does not pass the validation tests.
+    /// The deal signature does not pass the validation tests.
     #[error("Invalid signature")]
     InvalidSignature,
 }
 
 fixed_hash::construct_fixed_hash!(
-    /// Identify an offer by it's content, internally store the hash of the offer serialized with
+    /// Identify a deal by its content, internally store the hash of the deal serialized with
     /// Farcaster consensus.
-    pub struct OfferFingerprint(32);
+    pub struct DealFingerprint(32);
 );
 
-impl Serialize for OfferFingerprint {
+impl Serialize for DealFingerprint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -120,31 +119,31 @@ impl Serialize for OfferFingerprint {
     }
 }
 
-impl<'de> Deserialize<'de> for OfferFingerprint {
-    fn deserialize<D>(deserializer: D) -> Result<OfferFingerprint, D::Error>
+impl<'de> Deserialize<'de> for DealFingerprint {
+    fn deserialize<D>(deserializer: D) -> Result<DealFingerprint, D::Error>
     where
         D: Deserializer<'de>,
     {
-        OfferFingerprint::from_str(&deserializer.deserialize_string(HashString)?)
+        DealFingerprint::from_str(&deserializer.deserialize_string(HashString)?)
             .map_err(de::Error::custom)
     }
 }
 
-/// An offer is created by a [`TradeRole::Maker`] before the start of his daemon, it references all
-/// the data needed to parametrize a trade and be validated from a [`TradeRole::Taker`]
-/// perspective. The daemon start when the maker is ready to finalize his offer, transforming the
-/// offer into a [`PublicOffer`] which contains the data needed to a taker to connect to the
-/// maker's daemon.
+/// `DealParameters` is created by a [`TradeRole::Maker`] before the start of his daemon, it
+/// references all the data needed to parametrize a deal and be validated from a
+/// [`TradeRole::Taker`] perspective.  The daemon start when the maker is ready to finalize his
+/// deal, transforming the parameters into a [`Deal`] which contains the data needed to a taker to
+/// connect to the maker's daemon (address and identity).
 ///
 /// ## Serde implementation
 /// Amount types may have multiple serialization representation, e.g. btc and sat for bitcoin or
 /// xmr and pico for monero. Using [`Display`] and [`FromStr`] unifies the interface to
 /// de/serialize generic amounts.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct Offer<Amt, Bmt, Ti, F> {
-    /// The offer unique identifier.
+pub struct DealParameters<Amt, Bmt, Ti, F> {
+    /// The deal unique identifier.
     pub uuid: Uuid,
-    /// Type of offer and network to use.
+    /// Type of deal and network to use.
     pub network: Network,
     /// The chosen arbitrating blockchain.
     pub arbitrating_blockchain: Blockchain,
@@ -196,7 +195,7 @@ mod string {
     }
 }
 
-impl<Amt, Bmt, Ti, F> Display for Offer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> Display for DealParameters<Amt, Bmt, Ti, F>
 where
     Self: Encodable,
     Amt: Display,
@@ -220,16 +219,12 @@ where
     }
 }
 
-impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F> {
-    /// Transform the offer in a public offer of [`Version`] 1.
-    pub fn to_public_v1(
-        self,
-        node_id: PublicKey,
-        peer_address: InetSocketAddr,
-    ) -> PublicOffer<Amt, Bmt, Ti, F> {
-        PublicOffer {
+impl<Amt, Bmt, Ti, F> DealParameters<Amt, Bmt, Ti, F> {
+    /// Transform the deal parameters in a deal of [`Version`] 1.
+    pub fn to_v1(self, node_id: PublicKey, peer_address: InetSocketAddr) -> Deal<Amt, Bmt, Ti, F> {
+        Deal {
             version: Version::new_v1(),
-            offer: self,
+            parameters: self,
             node_id,
             peer_address,
         }
@@ -244,39 +239,40 @@ impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F> {
     }
 }
 
-impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F> {
-    /// Return the unique offer identifier. Same as [`Self::uuid()`].
+impl<Amt, Bmt, Ti, F> DealParameters<Amt, Bmt, Ti, F> {
+    /// Return the unique deal identifier. Same as [`Self::uuid()`].
     pub fn id(&self) -> Uuid {
         self.uuid()
     }
 
-    /// Return the unique offer identifier.
+    /// Return the unique deal identifier.
     pub fn uuid(&self) -> Uuid {
         self.uuid
     }
 
-    /// Reset offer's uuid with a new identifier.
+    /// Reset deal's uuid with a new identifier.
     pub fn randomize_uuid(&mut self) {
         self.uuid = Uuid::new_v4();
     }
 }
 
-impl<Amt, Bmt, Ti, F> Offer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> DealParameters<Amt, Bmt, Ti, F>
 where
     Self: Encodable,
 {
-    /// Generate the [`OfferFingerprint`] from the offer. The fingerprint identifies the content of
-    /// an offer (**without the uuid**) by taking the hash value of its serialization.
-    pub fn fingerprint(&self) -> OfferFingerprint {
+    /// Generate the [`DealFingerprint`] from the deal parameters. The fingerprint identifies the
+    /// content of a deal's parameters (**without the uuid**) by taking the hash value of its
+    /// serialization.
+    pub fn fingerprint(&self) -> DealFingerprint {
         let mut keccak = Keccak::v256();
         let mut out = [0u8; 32];
         keccak.update(&serialize(self)[16..]);
         keccak.finalize(&mut out);
-        OfferFingerprint(out)
+        DealFingerprint(out)
     }
 }
 
-impl<Amt, Bmt, Ti, F> Encodable for Offer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> Encodable for DealParameters<Amt, Bmt, Ti, F>
 where
     Amt: CanonicalBytes,
     Bmt: CanonicalBytes,
@@ -309,7 +305,7 @@ where
     }
 }
 
-impl<Amt, Bmt, Ti, F> Decodable for Offer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> Decodable for DealParameters<Amt, Bmt, Ti, F>
 where
     Amt: CanonicalBytes,
     Bmt: CanonicalBytes,
@@ -317,7 +313,7 @@ where
     F: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        Ok(Offer {
+        Ok(DealParameters {
             uuid: Uuid::from_bytes_le(Decodable::consensus_decode(d)?),
             network: Decodable::consensus_decode(d)?,
             arbitrating_blockchain: Decodable::consensus_decode(d)?,
@@ -332,21 +328,21 @@ where
     }
 }
 
-impl_strict_encoding!(Offer<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
+impl_strict_encoding!(DealParameters<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
 
-/// A public offer is shared across [`TradeRole::Maker`]'s prefered network to signal is willing of
-/// trading some assets at some conditions. The assets and condition are defined in the [`Offer`],
-/// maker peer connection information are contained in the public offer.
+/// A deal is shared across [`TradeRole::Maker`]'s prefered network to signal is willing of trading
+/// some assets at some conditions. The assets and condition are defined in the [`DealParameters`],
+/// maker peer connection information are contained in the deal.
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub struct PublicOffer<Amt, Bmt, Ti, F> {
-    /// The public offer version.
+pub struct Deal<Amt, Bmt, Ti, F> {
+    /// The deal version.
     pub version: Version,
-    /// The content of the offer.
+    /// The content of the deal.
     #[serde(bound(serialize = "Amt: Display, Bmt: Display, Ti: Serialize, F: Serialize"))]
     #[serde(bound(
         deserialize = "Amt: FromStr, Amt::Err: Display, Bmt: FromStr, Bmt::Err: Display, Ti: Deserialize<'de>, F: Deserialize<'de>"
     ))]
-    pub offer: Offer<Amt, Bmt, Ti, F>,
+    pub parameters: DealParameters<Amt, Bmt, Ti, F>,
     /// Node public key, used both as an ID and encryption key for per-session ECDH.
     pub node_id: PublicKey,
     /// Address of the listening daemon's peer. An internet socket address, which consists of an IP
@@ -354,7 +350,7 @@ pub struct PublicOffer<Amt, Bmt, Ti, F> {
     pub peer_address: InetSocketAddr,
 }
 
-impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> Deal<Amt, Bmt, Ti, F>
 where
     Amt: Copy,
     Ti: Copy,
@@ -362,70 +358,70 @@ where
 {
     pub fn to_arbitrating_params(&self) -> ArbitratingParameters<Amt, Ti, F> {
         ArbitratingParameters {
-            arbitrating_amount: self.offer.arbitrating_amount,
-            cancel_timelock: self.offer.cancel_timelock,
-            punish_timelock: self.offer.punish_timelock,
-            fee_strategy: self.offer.fee_strategy,
+            arbitrating_amount: self.parameters.arbitrating_amount,
+            cancel_timelock: self.parameters.cancel_timelock,
+            punish_timelock: self.parameters.punish_timelock,
+            fee_strategy: self.parameters.fee_strategy,
         }
     }
 }
 
-impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> Deal<Amt, Bmt, Ti, F>
 where
     Self: Encodable,
 {
-    /// Generate the public offer [`OfferFingerprint`]. Serialized the public offer (**without
-    /// uuid**) and return its keccak hash.
-    pub fn fingerprint(&self) -> OfferFingerprint {
+    /// Generate the deal [`DealFingerprint`]. Serialized the deal (**without uuid**) and return
+    /// its keccak hash.
+    pub fn fingerprint(&self) -> DealFingerprint {
         let mut keccak = Keccak::v256();
         let mut out = [0u8; 32];
         let ser = serialize(self);
         keccak.update(&ser[..8]);
         keccak.update(&ser[24..]);
         keccak.finalize(&mut out);
-        OfferFingerprint(out)
+        DealFingerprint(out)
     }
 
-    /// Returns the hex string representation of the consensus encoded public offer.
+    /// Returns the hex string representation of the consensus encoded deal.
     pub fn to_hex(&self) -> String {
         serialize_hex(self)
     }
 }
 
-impl<Amt, Bmt, Ti, F> PublicOffer<Amt, Bmt, Ti, F> {
-    /// Return the unique offer identifier. Same as [`Self::uuid()`].
+impl<Amt, Bmt, Ti, F> Deal<Amt, Bmt, Ti, F> {
+    /// Return the unique deal identifier. Same as [`Self::uuid()`].
     pub fn id(&self) -> Uuid {
         self.uuid()
     }
 
-    /// Return the unique offer identifier.
+    /// Return the unique deal identifier.
     pub fn uuid(&self) -> Uuid {
-        self.offer.uuid()
+        self.parameters.uuid()
     }
 
-    /// Reset offer's uuid with a new identifier.
+    /// Reset deal's uuid with a new identifier.
     pub fn randomize_uuid(&mut self) {
-        self.offer.randomize_uuid();
+        self.parameters.randomize_uuid();
     }
 
-    /// Return the future swap role for the given trade role.
+    /// Return the future swap role for the given deal role.
     pub fn swap_role(&self, trade_role: &TradeRole) -> SwapRole {
-        self.offer.swap_role(trade_role)
+        self.parameters.swap_role(trade_role)
     }
 }
 
-impl<Amt, Bmt, Ti, F> Display for PublicOffer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> Display for Deal<Amt, Bmt, Ti, F>
 where
     Self: Encodable,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let encoded = base58_monero::encode_check(consensus::serialize(self).as_ref())
             .expect("Encoding in base58 check works");
-        write!(f, "{}{}", PUB_OFFER_PREFIX, encoded)
+        write!(f, "{}{}", DEAL_PREFIX, encoded)
     }
 }
 
-impl<Amt, Bmt, Ti, F> FromStr for PublicOffer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> FromStr for Deal<Amt, Bmt, Ti, F>
 where
     Amt: CanonicalBytes,
     Bmt: CanonicalBytes,
@@ -435,16 +431,16 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if &s[..6] != PUB_OFFER_PREFIX {
+        if &s[..5] != DEAL_PREFIX {
             return Err(consensus::Error::IncorrectMagicBytes);
         }
-        let decoded = base58_monero::decode_check(&s[6..]).map_err(consensus::Error::new)?;
+        let decoded = base58_monero::decode_check(&s[5..]).map_err(consensus::Error::new)?;
         let mut res = std::io::Cursor::new(decoded);
         Decodable::consensus_decode(&mut res)
     }
 }
 
-impl<Amt, Bmt, Ti, F> Encodable for PublicOffer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> Encodable for Deal<Amt, Bmt, Ti, F>
 where
     Amt: CanonicalBytes,
     Bmt: CanonicalBytes,
@@ -452,9 +448,9 @@ where
     F: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let mut len = OFFER_MAGIC_BYTES.consensus_encode(s)?;
+        let mut len = DEAL_MAGIC_BYTES.consensus_encode(s)?;
         len += self.version.consensus_encode(s)?;
-        len += self.offer.consensus_encode(s)?;
+        len += self.parameters.consensus_encode(s)?;
         len += self.node_id.as_canonical_bytes().consensus_encode(s)?;
         len +=
             strict_encoding::StrictEncode::strict_encode(&self.peer_address, s).map_err(|_| {
@@ -467,7 +463,7 @@ where
     }
 }
 
-impl<Amt, Bmt, Ti, F> Decodable for PublicOffer<Amt, Bmt, Ti, F>
+impl<Amt, Bmt, Ti, F> Decodable for Deal<Amt, Bmt, Ti, F>
 where
     Amt: CanonicalBytes,
     Bmt: CanonicalBytes,
@@ -476,12 +472,12 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         let magic_bytes: [u8; 6] = Decodable::consensus_decode(d)?;
-        if magic_bytes != *OFFER_MAGIC_BYTES {
+        if magic_bytes != *DEAL_MAGIC_BYTES {
             return Err(consensus::Error::IncorrectMagicBytes);
         }
-        Ok(PublicOffer {
+        Ok(Deal {
             version: Decodable::consensus_decode(d)?,
-            offer: Decodable::consensus_decode(d)?,
+            parameters: Decodable::consensus_decode(d)?,
             node_id: PublicKey::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
             peer_address: strict_encoding::StrictDecode::strict_decode(d)
                 .map_err(consensus::Error::new)?,
@@ -489,7 +485,7 @@ where
     }
 }
 
-impl_strict_encoding!(PublicOffer<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
+impl_strict_encoding!(Deal<Amt, Bmt, Ti, F>, Amt: CanonicalBytes, Bmt: CanonicalBytes, Ti: CanonicalBytes, F: CanonicalBytes,);
 
 #[cfg(test)]
 mod tests {
@@ -506,7 +502,7 @@ mod tests {
     use secp256k1::PublicKey;
     use uuid::uuid;
 
-    const S: &str = "Offer:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD1111114A4TUWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoZeAW1q";
+    const S: &str = "Deal:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1LQM2fvVdFMNR4gmBqNCsR11111uMM4pF11111112Lvo11111TBALTh113GTvtvqfD1111114A4TUWxWeBc1WxwGBKaUssrb6pnijjhnb6RAs1HBr1CaX7o1a1111111111111111111111111111111111111111115T1WG8uDoZeAW1q";
 
     lazy_static::lazy_static! {
         pub static ref NODE_ID: PublicKey = {
@@ -524,8 +520,8 @@ mod tests {
             )
         };
 
-        pub static ref OFFER: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = {
-            Offer {
+        pub static ref DEAL_PARAMS: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = {
+            DealParameters {
                 uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
                 network: Network::Testnet,
                 arbitrating_blockchain: Blockchain::Bitcoin,
@@ -541,56 +537,54 @@ mod tests {
     }
 
     #[test]
-    fn parse_public_offer() {
-        let pub_offer =
-            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(S);
-        assert!(pub_offer.is_ok());
+    fn parse_deal() {
+        let deal = Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(S);
+        assert!(deal.is_ok());
 
-        let pub_offer = pub_offer.unwrap();
-        assert_eq!(pub_offer.version, Version::new_v1());
-        assert_eq!(pub_offer.offer, OFFER.clone());
-        assert_eq!(pub_offer.node_id, *NODE_ID);
-        assert_eq!(pub_offer.peer_address, *PEER_ADDRESS);
+        let deal = deal.unwrap();
+        assert_eq!(deal.version, Version::new_v1());
+        assert_eq!(deal.parameters, DEAL_PARAMS.clone());
+        assert_eq!(deal.node_id, *NODE_ID);
+        assert_eq!(deal.peer_address, *PEER_ADDRESS);
     }
 
     #[test]
-    fn parse_public_offer_fail_without_prefix() {
-        let pub_offer =
-            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(
-                &S[5..],
-            );
-        match pub_offer {
+    fn parse_deal_fail_without_prefix() {
+        let deal =
+            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(&S[5..]);
+        match deal {
             Err(consensus::Error::IncorrectMagicBytes) => (),
             _ => panic!("Should have return an error IncorrectMagicBytes"),
         }
     }
 
     #[test]
-    fn display_offer() {
-        assert_eq!(&format!("{}", *OFFER), "Uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nFingerprint: 0xd68b1483de11001050026ca012a2b440818dac23341384c60680f668b52697b0\nNetwork: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: 1 satoshi/vByte\nMaker swap role: Bob\n");
+    fn display_deal_params() {
+        assert_eq!(&format!("{}", *DEAL_PARAMS), "Uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nFingerprint: 0xd68b1483de11001050026ca012a2b440818dac23341384c60680f668b52697b0\nNetwork: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: 1 satoshi/vByte\nMaker swap role: Bob\n");
     }
 
     #[test]
-    fn display_public_offer() {
-        let pub_offer = OFFER.clone().to_public_v1(*NODE_ID, *PEER_ADDRESS);
-        assert_eq!(&format!("{}", pub_offer), S);
+    fn display_deal() {
+        let deal = DEAL_PARAMS.clone().to_v1(*NODE_ID, *PEER_ADDRESS);
+        assert_eq!(&format!("{}", deal), S);
     }
 
     #[test]
-    fn serialize_offer_in_yaml() {
-        let offer: Offer<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = Offer {
-            uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
-            network: Network::Testnet,
-            arbitrating_blockchain: Blockchain::Bitcoin,
-            accordant_blockchain: Blockchain::Monero,
-            arbitrating_amount: bitcoin::Amount::from_sat(5),
-            accordant_amount: monero::Amount::from_pico(6),
-            cancel_timelock: CSVTimelock::new(7),
-            punish_timelock: CSVTimelock::new(8),
-            fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
-            maker_role: SwapRole::Bob,
-        };
-        let s = serde_yaml::to_string(&offer).expect("Encode public offer in yaml");
+    fn serialize_deal_params_in_yaml() {
+        let deal_params: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+            DealParameters {
+                uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+                network: Network::Testnet,
+                arbitrating_blockchain: Blockchain::Bitcoin,
+                accordant_blockchain: Blockchain::Monero,
+                arbitrating_amount: bitcoin::Amount::from_sat(5),
+                accordant_amount: monero::Amount::from_pico(6),
+                cancel_timelock: CSVTimelock::new(7),
+                punish_timelock: CSVTimelock::new(8),
+                fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
+                maker_role: SwapRole::Bob,
+            };
+        let s = serde_yaml::to_string(&deal_params).expect("Encode deal in yaml");
         assert_eq!(
             "---\nuuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/vByte\nmaker_role: Bob\n",
             s
@@ -598,11 +592,11 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_offer_from_yaml() {
+    fn deserialize_deal_params_from_yaml() {
         let s = "---\nuuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/vByte\nmaker_role: Bob\n";
-        let offer = serde_yaml::from_str(&s).expect("Decode offer from yaml");
+        let deal_params = serde_yaml::from_str(&s).expect("Decode deal from yaml");
         assert_eq!(
-            Offer {
+            DealParameters {
                 uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
                 network: Network::Testnet,
                 arbitrating_blockchain: Blockchain::Bitcoin,
@@ -614,30 +608,30 @@ mod tests {
                 fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
                 maker_role: SwapRole::Bob,
             },
-            offer
+            deal_params
         );
     }
 
     #[test]
-    fn serialize_public_offer_in_yaml() {
-        let public_offer =
-            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Offer:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
-            .expect("Valid public offer");
-        let s = serde_yaml::to_string(&public_offer).expect("Encode public offer in yaml");
+    fn serialize_deal_in_yaml() {
+        let deal =
+            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Deal:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
+            .expect("Valid deal");
+        let s = serde_yaml::to_string(&deal).expect("Encode deal in yaml");
         assert_eq!(
-            "---\nversion: 1\noffer:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n",
+            "---\nversion: 1\nparameters:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n",
             s
         );
     }
 
     #[test]
-    fn deserialize_public_offer_from_yaml() {
-        let s = "---\nversion: 1\noffer:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n";
-        let public_offer = serde_yaml::from_str(&s).expect("Decode public offer from yaml");
+    fn deserialize_deal_from_yaml() {
+        let s = "---\nversion: 1\nparameters:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n";
+        let deal = serde_yaml::from_str(&s).expect("Decode deal from yaml");
         assert_eq!(
-            PublicOffer::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Offer:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
-                .expect("Valid public offer"),
-            public_offer
+            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Deal:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
+                .expect("Valid deal"),
+            deal
         );
     }
 }

@@ -344,9 +344,6 @@ impl Commit<KeccakCommitment> for CommitmentEngine {
 ///     }
 /// }
 /// ```
-///
-/// [`Arbitrating`]: crate::role::Arbitrating
-/// [`Accordant`]: crate::role::Accordant
 pub trait DeriveKeys {
     type PublicKey;
     type PrivateKey;

@@ -14,7 +14,7 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-//! Roles used to distinguish participants and blockchains during negotiation and swap phases.
+//! Roles used to distinguish participants and blockchains during trade setup and swap phase.
 //! Defines the trading roles and swap roles distributed among participants and blockchain roles
 //! implemented on Bitcoin, Monero, etc.
 
@@ -26,21 +26,20 @@ use crate::blockchain::Network;
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{self, AccordantKeySet};
 
-/// Possible roles during the negotiation phase. Any negotiation role can transition into any swap
-/// role when negotiation is completed, the transition is described in the public offer.
+/// Possible roles during the trade setup. Trade roles are orthogonal to swap roles:
+/// any trade role can transition into any swap role, but the the particular transition
+/// that will happen is agreed upon & set in the deal.
 #[derive(Display, Debug, Clone, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum TradeRole {
-    /// The maker role create the public offer during the negotiation phase and waits for incoming
-    /// connections.
+    /// The maker role creates the deal during the trade setup and waits for incoming connections.
     Maker,
-    /// The taker role parses public offers and choose to connect to a maker node to start
-    /// swapping.
+    /// The taker role parses deals and can choose to connect to a maker node to start swapping.
     Taker,
 }
 
 impl TradeRole {
-    /// Return the other role possible in the negotiation phase.
+    /// Return the other role possible in the trade setup.
     pub fn other(&self) -> Self {
         match self {
             Self::Maker => Self::Taker,
@@ -82,10 +81,8 @@ impl FromStr for TradeRole {
     }
 }
 
-/// Possible roles during the swap phase. When negotitation phase is completed [`TradeRole`] will
-/// transition into swap role according to the [`PublicOffer`].
-///
-/// [`PublicOffer`]: crate::negotiation::PublicOffer
+/// Possible roles during the swap phase. When the trade setup is completed [`TradeRole`] will
+/// transition into swap role according to the [`Deal`](crate::trade::Deal).
 #[derive(Display, Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[display(Debug)]
 pub enum SwapRole {

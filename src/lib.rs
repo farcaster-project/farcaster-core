@@ -17,8 +17,8 @@
 //! Farcaster core library aims to implement in Rust the core principles described in Farcaster
 //! [RFCs](https://github.com/farcaster-project/RFCs):
 //!
-//! - Swap offers, data needed to start a swap with a counter-party
-//! - Swap roles and trade roles, who do what in the protocol
+//! - Swap deals: data needed to start a swap with a counter-party
+//! - Swap roles and trade roles: who does what in the protocol
 //! - Transaction templates implementing on-chain behaviours
 //! - Signature and cryptographic utilities
 //!   - ECDSA adaptor signatures
@@ -82,11 +82,11 @@ pub mod blockchain;
 pub mod crypto;
 pub(crate) mod hash;
 pub mod monero;
-pub mod negotiation;
 pub mod protocol;
 pub mod role;
 pub mod script;
 pub mod swap;
+pub mod trade;
 pub mod transaction;
 
 /// A list of possible errors when performing a cross-chain atomic swap with the **Farcaster**
@@ -107,9 +107,9 @@ pub enum Error {
     /// An arbitrating transaction error.
     #[error("Transaction error: {0}")]
     Transaction(#[from] transaction::Error),
-    /// A negotiation error.
-    #[error("Negotiation error: {0}")]
-    Negotiation(#[from] negotiation::Error),
+    /// A trade error.
+    #[error("Trade error: {0}")]
+    Trade(#[from] trade::Error),
 }
 
 /// Result of an high level computation such as in Alice and Bob roles executing the protocol,

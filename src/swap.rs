@@ -22,13 +22,13 @@ use std::io;
 use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::consensus::{self, Decodable, Encodable};
-use crate::trade::TradeId;
+use crate::trade::DealId;
 use crate::Uuid;
 
 pub mod btcxmr;
 
 /// The identifier of a swap. This is a wrapper around [`Uuid`] that can be constructed from
-/// [`TradeId`].
+/// [`DealId`].
 #[derive(
     Debug,
     Clone,
@@ -58,8 +58,8 @@ impl From<uuid::Uuid> for SwapId {
     }
 }
 
-impl From<TradeId> for SwapId {
-    fn from(t: TradeId) -> Self {
+impl From<DealId> for SwapId {
+    fn from(t: DealId) -> Self {
         SwapId(t.0)
     }
 }

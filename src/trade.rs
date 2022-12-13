@@ -122,17 +122,17 @@ pub enum Error {
 )]
 #[serde(transparent)]
 #[display(inner)]
-pub struct TradeId(pub Uuid);
+pub struct DealId(pub Uuid);
 
-impl From<Uuid> for TradeId {
+impl From<Uuid> for DealId {
     fn from(u: Uuid) -> Self {
-        TradeId(u)
+        DealId(u)
     }
 }
 
-impl From<uuid::Uuid> for TradeId {
+impl From<uuid::Uuid> for DealId {
     fn from(u: uuid::Uuid) -> Self {
-        TradeId(u.into())
+        DealId(u.into())
     }
 }
 
@@ -174,7 +174,7 @@ impl<'de> Deserialize<'de> for DealFingerprint {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct DealParameters<Amt, Bmt, Ti, F> {
     /// The deal unique identifier.
-    pub uuid: TradeId,
+    pub uuid: DealId,
     /// Type of deal and network to use.
     pub network: Network,
     /// The chosen arbitrating blockchain.
@@ -273,18 +273,18 @@ impl<Amt, Bmt, Ti, F> DealParameters<Amt, Bmt, Ti, F> {
 
 impl<Amt, Bmt, Ti, F> DealParameters<Amt, Bmt, Ti, F> {
     /// Return the unique deal identifier. Same as [`Self::uuid()`].
-    pub fn id(&self) -> TradeId {
+    pub fn id(&self) -> DealId {
         self.uuid()
     }
 
     /// Return the unique deal identifier.
-    pub fn uuid(&self) -> TradeId {
+    pub fn uuid(&self) -> DealId {
         self.uuid
     }
 
     /// Reset deal's uuid with a new identifier.
     pub fn randomize_uuid(&mut self) {
-        self.uuid = TradeId(Uuid::new());
+        self.uuid = DealId(Uuid::new());
     }
 }
 
@@ -346,7 +346,7 @@ where
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(DealParameters {
-            uuid: TradeId(Decodable::consensus_decode(d)?),
+            uuid: DealId(Decodable::consensus_decode(d)?),
             network: Decodable::consensus_decode(d)?,
             arbitrating_blockchain: Decodable::consensus_decode(d)?,
             accordant_blockchain: Decodable::consensus_decode(d)?,
@@ -422,12 +422,12 @@ where
 
 impl<Amt, Bmt, Ti, F> Deal<Amt, Bmt, Ti, F> {
     /// Return the unique deal identifier. Same as [`Self::uuid()`].
-    pub fn id(&self) -> TradeId {
+    pub fn id(&self) -> DealId {
         self.uuid()
     }
 
     /// Return the unique deal identifier.
-    pub fn uuid(&self) -> TradeId {
+    pub fn uuid(&self) -> DealId {
         self.parameters.uuid()
     }
 

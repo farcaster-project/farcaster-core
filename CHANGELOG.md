@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Uuid` wrapper type against `uuid:Uuid` to identify trades and swaps, the wrapper implements strict encoding functionalities by @h4sh3d ([#297](https://github.com/farcaster-project/farcaster-core/pull/297))
-- New `TradeId` and `SwapId` types wrapping generic `Uuid` by @h4sh3d ([#297](https://github.com/farcaster-project/farcaster-core/pull/297))
+- New `DealId` and `SwapId` types wrapping generic `Uuid` by @h4sh3d ([#297](https://github.com/farcaster-project/farcaster-core/pull/297))
 
 ### Changed
 

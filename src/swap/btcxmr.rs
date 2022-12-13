@@ -235,7 +235,7 @@ impl KeyManager {
         key_id: impl Derivation,
     ) -> Result<DerivationPath, crypto::Error> {
         let path = blockchain.derivation_path()?;
-        let path = path.extend(&[self.swap_index]);
+        let path = path.extend([self.swap_index]);
         Ok(path.extend(&key_id.derivation_path()?))
     }
 

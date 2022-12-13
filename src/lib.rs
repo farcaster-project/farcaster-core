@@ -72,6 +72,12 @@ extern crate serde;
 #[macro_use]
 extern crate clap;
 
+use std::io;
+use std::str::FromStr;
+
+use crate::consensus::{Decodable, Encodable};
+
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[macro_use]
@@ -115,3 +121,96 @@ pub enum Error {
 /// Result of an high level computation such as in Alice and Bob roles executing the protocol,
 /// wraps the crate level [`enum@Error`] type.
 pub type Res<T> = Result<T, Error>;
+
+/// A unique identifier used to identify trades and swaps.
+///
+/// This is a wrapper against `uuid::Uuid` with `StrictEncode` and `StrictDecode` implementation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
+#[display(inner)]
+pub struct Uuid(uuid::Uuid);
+
+impl Uuid {
+    /// Creates a new uuid for trades and swaps.
+    pub fn new() -> Self {
+        Self(uuid::Uuid::new_v4())
+    }
+
+    /// Creates a new random uuid, same as `Self::new()`.
+    pub fn random() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Uuid {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<uuid::Uuid> for Uuid {
+    fn from(u: uuid::Uuid) -> Self {
+        Self(u)
+    }
+}
+
+impl FromStr for Uuid {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(uuid::Uuid::from_str(s)?))
+    }
+}
+
+impl AsRef<uuid::Uuid> for Uuid {
+    fn as_ref(&self) -> &uuid::Uuid {
+        &self.0
+    }
+}
+
+impl Encodable for Uuid {
+    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
+        self.0.to_bytes_le().consensus_encode(s)
+    }
+}
+
+impl Decodable for Uuid {
+    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        Ok(Self(uuid::Uuid::from_bytes_le(
+            Decodable::consensus_decode(d)?,
+        )))
+    }
+}
+
+impl strict_encoding::StrictEncode for Uuid {
+    fn strict_encode<E: io::Write>(&self, mut e: E) -> Result<usize, strict_encoding::Error> {
+        self.as_ref().to_bytes_le().strict_encode(&mut e)
+    }
+}
+
+impl strict_encoding::StrictDecode for Uuid {
+    fn strict_decode<D: io::Read>(mut d: D) -> Result<Self, strict_encoding::Error> {
+        Ok(Self(uuid::Uuid::from_bytes_le(<[u8; 16]>::strict_decode(
+            &mut d,
+        )?)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Uuid;
+    use uuid::uuid;
+
+    #[test]
+    fn serialize_swapid_in_yaml() {
+        let id: Uuid = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into();
+        let s = serde_yaml::to_string(&id).expect("Encode swap id in yaml");
+        assert_eq!("---\n67e55044-10b1-426f-9247-bb680e5fe0c8\n", s);
+    }
+
+    #[test]
+    fn deserialize_swapid_from_yaml() {
+        let s = "---\n67e55044-10b1-426f-9247-bb680e5fe0c8\n";
+        let id: Uuid = serde_yaml::from_str(&s).expect("Decode uuid from yaml");
+        assert_eq!(id, uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),);
+    }
+}

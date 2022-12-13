@@ -35,7 +35,7 @@ fn create_deal_parameters() {
                10800090000000000000002";
     let deal: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         DealParameters {
-            uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+            uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
             network: Network::Testnet,
             arbitrating_blockchain: Blockchain::Bitcoin,
             accordant_blockchain: Blockchain::Monero,
@@ -81,7 +81,10 @@ fn get_deal_parameters_uuid() {
                00000000000040007000000040008000000010800090000000000000002";
     let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
-    assert_eq!(uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"), res.uuid());
+    assert_eq!(
+        res.uuid(),
+        uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
+    );
 }
 
 #[test]
@@ -92,7 +95,7 @@ fn serialize_deal() {
                0000000000000000000000000000000000000000000000000000000260700";
     let deal: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         DealParameters {
-            uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+            uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
             network: Network::Testnet,
             arbitrating_blockchain: Blockchain::Bitcoin,
             accordant_blockchain: Blockchain::Monero,
@@ -156,7 +159,10 @@ fn get_deal_uuid() {
                0000000000000000000000000000000000000000000000000000000260700";
     let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
-    assert_eq!(uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"), res.uuid());
+    assert_eq!(
+        res.uuid(),
+        uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
+    );
 }
 
 #[test]

@@ -18,35 +18,49 @@
 //! and its concrete instances of swaps.
 
 use std::io;
-use std::str::FromStr;
+
+use strict_encoding::{StrictDecode, StrictEncode};
 
 use crate::consensus::{self, Decodable, Encodable};
-use crate::hash::HashString;
-
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use crate::trade::DealId;
+use crate::Uuid;
 
 pub mod btcxmr;
 
-fixed_hash::construct_fixed_hash!(
-    /// A unique swap identifier represented as an 32 bytes hash.
-    pub struct SwapId(32);
-);
+/// The identifier of a swap. This is a wrapper around [`Uuid`] that can be constructed from
+/// [`DealId`].
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Display,
+    Serialize,
+    Deserialize,
+    StrictEncode,
+    StrictDecode,
+)]
+#[serde(transparent)]
+#[display(inner)]
+pub struct SwapId(pub Uuid);
 
-impl Serialize for SwapId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(format!("{:#x}", self).as_ref())
+impl From<Uuid> for SwapId {
+    fn from(u: Uuid) -> Self {
+        SwapId(u)
     }
 }
 
-impl<'de> Deserialize<'de> for SwapId {
-    fn deserialize<D>(deserializer: D) -> Result<SwapId, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        SwapId::from_str(&deserializer.deserialize_string(HashString)?).map_err(de::Error::custom)
+impl From<uuid::Uuid> for SwapId {
+    fn from(u: uuid::Uuid) -> Self {
+        SwapId(u.into())
+    }
+}
+
+impl From<DealId> for SwapId {
+    fn from(t: DealId) -> Self {
+        SwapId(t.0)
     }
 }
 
@@ -58,37 +72,6 @@ impl Encodable for SwapId {
 
 impl Decodable for SwapId {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let bytes: [u8; 32] = Decodable::consensus_decode(d)?;
-        Ok(Self::from_slice(&bytes))
-    }
-}
-
-impl_strict_encoding!(SwapId);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn serialize_swapid_in_yaml() {
-        let swap_id =
-            SwapId::from_str("0x1baf1b36075de25a0f8e914b36759cac6f5d825622f8ccee597d87d4850c0d38")
-                .expect("Valid hex string");
-        let s = serde_yaml::to_string(&swap_id).expect("Encode swap id in yaml");
-        assert_eq!(
-            "---\n\"0x1baf1b36075de25a0f8e914b36759cac6f5d825622f8ccee597d87d4850c0d38\"\n",
-            s
-        );
-    }
-
-    #[test]
-    fn deserialize_swapid_from_yaml() {
-        let s = "---\n\"0x1baf1b36075de25a0f8e914b36759cac6f5d825622f8ccee597d87d4850c0d38\"\n";
-        let swap_id = serde_yaml::from_str(&s).expect("Decode swap id from yaml");
-        assert_eq!(
-            SwapId::from_str("0x1baf1b36075de25a0f8e914b36759cac6f5d825622f8ccee597d87d4850c0d38")
-                .expect("Valid hex string"),
-            swap_id
-        );
+        Ok(Self(Decodable::consensus_decode(d)?))
     }
 }

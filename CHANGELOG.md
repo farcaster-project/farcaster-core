@@ -9,19 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Uuid` wrapper type against `uuid:Uuid` to identify trades and swaps, the wrapper implements strict encoding functionalities
-- `TradeId` and `SwapId` wrapping `Uuid`
+- `Uuid` wrapper type against `uuid:Uuid` to identify trades and swaps, the wrapper implements strict encoding functionalities by @h4sh3d ([#297](https://github.com/farcaster-project/farcaster-core/pull/297))
+- New `TradeId` and `SwapId` types wrapping generic `Uuid` by @h4sh3d ([#297](https://github.com/farcaster-project/farcaster-core/pull/297))
 
 ### Changed
 
-- Module `negotiation` is renamed as the `trade` module
-- `Offer` and `PublicOffer` are renamed `DealParameters` and `Deal`, these structs are used to initialized a swap during the trade setup and should be the outcome of a proper negotiation phase currently out-of-scope for this library
-- Deal `uuid` type is switched to a wrapper type
+- Module `negotiation` is renamed as the `trade` module by @h4sh3d and @Lederstrumpf ([#296](https://github.com/farcaster-project/farcaster-core/pull/296))
+- `Offer` and `PublicOffer` are renamed `DealParameters` and `Deal`, these structs are used to initialized a swap during the trade setup and should be the outcome of a proper negotiation phase currently out-of-scope for this library by @h4sh3d and @Lederstrumpf ([#296](https://github.com/farcaster-project/farcaster-core/pull/296))
+- Deal `uuid` type is switched to a wrapper type by @h4sh3d ([#297](https://github.com/farcaster-project/farcaster-core/pull/297))
 
 ### Removed
 
-- `SwapId` is removed and use the new `Uuid` wrapper type
-- `lightning_encoding` is removed for the protocol messages
+- `SwapId` is removed and use the new `Uuid` wrapper type by @h4sh3d ([#297](https://github.com/farcaster-project/farcaster-core/pull/297))
+- `lightning_encoding` is removed for the protocol messages by @h4sh3d ([#298](https://github.com/farcaster-project/farcaster-core/pull/298))
 
 ## [0.5.1] - 2022-08-15
 

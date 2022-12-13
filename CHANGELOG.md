@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2022-12-13
+
 ### Added
 
 - `Uuid` wrapper type against `uuid:Uuid` to identify trades and swaps, the wrapper implements strict encoding functionalities by @h4sh3d ([#297](https://github.com/farcaster-project/farcaster-core/pull/297))
@@ -167,7 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages exchanged between farcaster-node's microservices
 - Tasks and blockchain events used by syncers
 
-[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/farcaster-project/farcaster-core/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.3...v0.4.4

@@ -34,8 +34,8 @@ use crate::protocol::message::{
     RevealAliceParameters, RevealBobParameters,
 };
 use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
-use crate::trade::Deal;
 use crate::swap::SwapId;
+use crate::trade::Deal;
 use crate::transaction::{
     Buyable, Cancelable, Chainable, Fundable, Lockable, Punishable, Refundable, Transaction,
     Witnessable,

@@ -141,6 +141,12 @@ impl Uuid {
     }
 }
 
+impl Default for Uuid {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl From<uuid::Uuid> for Uuid {
     fn from(u: uuid::Uuid) -> Self {
         Self(u)

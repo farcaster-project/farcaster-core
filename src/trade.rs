@@ -136,6 +136,14 @@ impl From<uuid::Uuid> for DealId {
     }
 }
 
+impl FromStr for DealId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Uuid::from_str(s)?))
+    }
+}
+
 fixed_hash::construct_fixed_hash!(
     /// Identify a deal by its content, internally store the hash of the deal serialized with
     /// Farcaster consensus.

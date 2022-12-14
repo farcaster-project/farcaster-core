@@ -18,6 +18,7 @@
 //! and its concrete instances of swaps.
 
 use std::io;
+use std::str::FromStr;
 
 use strict_encoding::{StrictDecode, StrictEncode};
 
@@ -61,6 +62,14 @@ impl From<uuid::Uuid> for SwapId {
 impl From<DealId> for SwapId {
     fn from(t: DealId) -> Self {
         SwapId(t.0)
+    }
+}
+
+impl FromStr for SwapId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Uuid::from_str(s)?))
     }
 }
 

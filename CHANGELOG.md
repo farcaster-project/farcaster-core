@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implement `FromStr` for `DealId` and `SwapId` by @TheCharlatan ([#307](https://github.com/farcaster-project/farcaster-core/pull/307/files)])
+
 ## [0.6.0] - 2022-12-13
 
 ### Added

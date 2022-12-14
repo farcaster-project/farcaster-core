@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2022-12-14
+
 ### Added
 
 - Implement `FromStr` for `DealId` and `SwapId` by @TheCharlatan ([#307](https://github.com/farcaster-project/farcaster-core/pull/307/files)])
@@ -174,7 +176,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages exchanged between farcaster-node's microservices
 - Tasks and blockchain events used by syncers
 
-[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/farcaster-project/farcaster-core/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.4.4...v0.5.0

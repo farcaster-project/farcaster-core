@@ -36,6 +36,8 @@ pub mod btcxmr;
     Copy,
     PartialEq,
     Eq,
+    PartialOrd,
+    Ord,
     Hash,
     Display,
     Serialize,

@@ -113,6 +113,8 @@ pub enum Error {
     Copy,
     PartialEq,
     Eq,
+    PartialOrd,
+    Ord,
     Hash,
     Display,
     Serialize,

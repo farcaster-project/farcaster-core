@@ -125,7 +125,9 @@ pub type Res<T> = Result<T, Error>;
 /// A unique identifier used to identify trades and swaps.
 ///
 /// This is a wrapper against `uuid::Uuid` with `StrictEncode` and `StrictDecode` implementation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, Serialize, Deserialize,
+)]
 #[display(inner)]
 pub struct Uuid(uuid::Uuid);
 

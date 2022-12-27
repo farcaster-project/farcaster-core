@@ -17,7 +17,7 @@
 //! Concrete implementation of a swap between Bitcoin as the arbitrating blockchain and Monero as the
 //! accordant blockchain.
 
-use crate::bitcoin::{fee::SatPerVByte, timelock::CSVTimelock, BitcoinSegwitV0};
+use crate::bitcoin::{fee::SatPerKvB, timelock::CSVTimelock, BitcoinSegwitV0};
 use crate::consensus::{self, Decodable, Encodable};
 use crate::crypto::{
     self,
@@ -74,7 +74,7 @@ pub type Parameters = protocol::Parameters<
     monero::PrivateKey,
     bitcoin::Address,
     CSVTimelock,
-    SatPerVByte,
+    SatPerKvB,
     DLEQProof,
 >;
 
@@ -86,14 +86,14 @@ pub type Bob = protocol::Bob<bitcoin::Address, BitcoinSegwitV0, Monero>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap trade.
 pub type DealParameters =
-    trade::DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
+    trade::DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap public trade.
-pub type Deal = trade::Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>;
+pub type Deal = trade::Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap arbitrating parameters.
 pub type ArbitratingParameters =
-    protocol::ArbitratingParameters<bitcoin::Amount, CSVTimelock, SatPerVByte>;
+    protocol::ArbitratingParameters<bitcoin::Amount, CSVTimelock, SatPerKvB>;
 
 /// Fully defined type for Bitcoin-Monero atomic swap arbitrating set of transaction.
 pub type CoreArbitratingTransactions =

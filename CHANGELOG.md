@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Fee strategy `range` support is now under the new crate feature `fee_range` and disable by default ([#314](https://github.com/farcaster-project/farcaster-core/pull/314))
+- Change Bitcoin fee unit from `sat/vB` to `sat/kvB` ([#315](https://github.com/farcaster-project/farcaster-core/pull/315))
 
 ### Fixed
 

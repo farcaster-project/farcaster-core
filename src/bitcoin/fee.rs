@@ -186,18 +186,21 @@ impl Fee for PartiallySignedTransaction {
         // times four. For transactions with a witness, this is the non-witness
         // consensus-serialized size multiplied by three plus the with-witness consensus-serialized
         // size.
-        let weight = self.unsigned_tx.weight() as u64;
+        let weight = self.unsigned_tx.weight() as f64;
 
         // Compute the fee amount to set in total
-        let fee_amount = match strategy {
-            FeeStrategy::Fixed(sat_per_vbyte) => sat_per_vbyte.as_native_unit().checked_mul(weight),
+        let fee_rate = match strategy {
+            FeeStrategy::Fixed(sat_per_kvb) => sat_per_kvb
+                .as_native_unit()
+                .to_float_in(Denomination::Satoshi),
             #[cfg(feature = "fee_range")]
             FeeStrategy::Range { min_inc, max_inc } => match politic {
-                FeePriority::Low => min_inc.as_native_unit().checked_mul(weight),
-                FeePriority::High => max_inc.as_native_unit().checked_mul(weight),
+                FeePriority::Low => min_inc.as_native_unit().to_float_in(Denomination::Satoshi),
+                FeePriority::High => max_inc.as_native_unit().to_float_in(Denomination::Satoshi),
             },
-        }
-        .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
+        };
+        let fee_amount = fee_rate / 1000f64 * weight;
+        let fee_amount = Amount::from_sat(fee_amount.round() as u64);
 
         // Apply the fee on the first output
         self.unsigned_tx.output[0].value = input_sum
@@ -224,13 +227,13 @@ impl Fee for PartiallySignedTransaction {
             .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
         let weight = self.unsigned_tx.weight() as u64;
 
-        let effective_sat_per_vbyte = SatPerKvB::from_sat(
-            weight
+        let effective_sat_per_kvb = SatPerKvB::from_sat(
+            (weight * 1000)
                 .checked_div(fee)
                 .ok_or(FeeStrategyError::AmountOfFeeTooLow)?,
         );
 
-        Ok(strategy.check(&effective_sat_per_vbyte))
+        Ok(strategy.check(&effective_sat_per_kvb))
     }
 }
 

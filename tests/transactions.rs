@@ -83,7 +83,7 @@ macro_rules! setup_txs {
             failure: DoubleKeys::new(pubkey_a1, pubkey_b1),
         };
 
-        let fee = FeeStrategy::Fixed(SatPerKvB::from_sat(1));
+        let fee = FeeStrategy::Fixed(SatPerKvB::from_sat(1000));
         let politic = FeePriority::Low;
 
         let mut lock = LockTx::initialize(&funding, datalock.clone(), target_amount).unwrap();

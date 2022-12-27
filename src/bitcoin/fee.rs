@@ -159,6 +159,7 @@ impl Fee for PartiallySignedTransaction {
     type Amount = Amount;
 
     /// Calculates and sets the fees on the given transaction and return the fees set
+    #[allow(unused_variables)]
     fn set_fee(
         &mut self,
         strategy: &FeeStrategy<SatPerVByte>,
@@ -185,6 +186,7 @@ impl Fee for PartiallySignedTransaction {
         // Compute the fee amount to set in total
         let fee_amount = match strategy {
             FeeStrategy::Fixed(sat_per_vbyte) => sat_per_vbyte.as_native_unit().checked_mul(weight),
+            #[cfg(feature = "fee_range")]
             FeeStrategy::Range { min_inc, max_inc } => match politic {
                 FeePriority::Low => min_inc.as_native_unit().checked_mul(weight),
                 FeePriority::High => max_inc.as_native_unit().checked_mul(weight),

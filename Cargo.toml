@@ -26,6 +26,7 @@ rpc = []
 experimental = ["ecdsa_fun", "secp256kfun", "rand", "sha2", "rand_chacha", "bincode"]
 taproot = []
 nightly = []
+fee_range = []
 
 default = ["experimental", "taproot"]
 

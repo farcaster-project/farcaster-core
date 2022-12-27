@@ -473,6 +473,9 @@ where
     type Err = consensus::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() < 6 {
+            return Err(consensus::Error::UnknownType);
+        }
         if &s[..5] != DEAL_PREFIX {
             return Err(consensus::Error::IncorrectMagicBytes);
         }
@@ -576,6 +579,16 @@ mod tests {
                 maker_role: SwapRole::Bob,
             }
         };
+    }
+
+    #[test]
+    fn parse_invalid_deal() {
+        for deal in ["", "D", "Deal", "Deal:", "Deal:a", "Deal:aa"] {
+            assert!(
+                Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(deal)
+                    .is_err()
+            );
+        }
     }
 
     #[test]

@@ -83,7 +83,7 @@ macro_rules! setup_txs {
             failure: DoubleKeys::new(pubkey_a1, pubkey_b1),
         };
 
-        let fee = FeeStrategy::Fixed(SatPerKvB::from_sat(1000));
+        let fee = FeeStrategy::Fixed(SatPerKvB::from_sat(1500));
         let politic = FeePriority::Low;
 
         let mut lock = LockTx::initialize(&funding, datalock.clone(), target_amount).unwrap();
@@ -102,6 +102,7 @@ macro_rules! setup_txs {
 
         // Set the fees according to the given strategy
         cancel.as_partial_mut().set_fee(&fee, politic).unwrap();
+        assert!(cancel.as_partial_mut().validate_fee(&fee).unwrap());
 
         //
         // Create refund tx
@@ -111,6 +112,7 @@ macro_rules! setup_txs {
 
         // Set the fees according to the given strategy
         refund.as_partial_mut().set_fee(&fee, politic).unwrap();
+        assert!(refund.as_partial_mut().validate_fee(&fee).unwrap());
 
         lock.verify_template(datalock.clone()).unwrap();
         cancel
@@ -166,6 +168,7 @@ macro_rules! setup_txs {
 
         // Set the fees according to the given strategy
         buy.as_partial_mut().set_fee(&fee, politic).unwrap();
+        assert!(buy.as_partial_mut().validate_fee(&fee).unwrap());
 
         buy.verify_template(new_address.clone()).unwrap();
 
@@ -203,6 +206,7 @@ macro_rules! setup_txs {
 
         // Set the fees according to the given strategy
         punish.as_partial_mut().set_fee(&fee, politic).unwrap();
+        assert!(punish.as_partial_mut().validate_fee(&fee).unwrap());
 
         //
         // Sign punish

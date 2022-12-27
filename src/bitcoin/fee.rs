@@ -34,6 +34,7 @@
 //! ```
 
 use bitcoin::blockdata::transaction::TxOut;
+use bitcoin::blockdata::witness::Witness;
 use bitcoin::util::amount::Denomination;
 use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::Amount;
@@ -178,17 +179,13 @@ impl Fee for PartiallySignedTransaction {
 
         let input_sum = get_available_input_sat(self)?;
 
-        // FIXME This does not account for witnesses
-        // currently the fees are wrong
-        // Get the transaction weight
-        //
-        // For transactions with an empty witness, this is simply the consensus-serialized size
-        // times four. For transactions with a witness, this is the non-witness
-        // consensus-serialized size multiplied by three plus the with-witness consensus-serialized
-        // size.
-        let weight = self.unsigned_tx.weight() as f64;
+        // simulate witness data
+        self.unsigned_tx.input[0].witness =
+            Witness::from_vec(vec![vec![0; 71], vec![0; 72], vec![0; 70]]);
+        let vsize = self.unsigned_tx.vsize() as f64;
+        // remove witness
+        self.unsigned_tx.input[0].witness = Witness::new();
 
-        // Compute the fee amount to set in total
         let fee_rate = match strategy {
             FeeStrategy::Fixed(sat_per_kvb) => sat_per_kvb
                 .as_native_unit()
@@ -199,7 +196,7 @@ impl Fee for PartiallySignedTransaction {
                 FeePriority::High => max_inc.as_native_unit().to_float_in(Denomination::Satoshi),
             },
         };
-        let fee_amount = fee_rate / 1000f64 * weight;
+        let fee_amount = fee_rate / 1000f64 * vsize;
         let fee_amount = Amount::from_sat(fee_amount.round() as u64);
 
         // Apply the fee on the first output
@@ -222,18 +219,26 @@ impl Fee for PartiallySignedTransaction {
 
         let input_sum = get_available_input_sat(self)?.as_sat();
         let output_sum = self.unsigned_tx.output[0].value;
-        let fee = input_sum
+        let effective_fee = input_sum
             .checked_sub(output_sum)
             .ok_or(FeeStrategyError::AmountOfFeeTooHigh)?;
-        let weight = self.unsigned_tx.weight() as u64;
 
-        let effective_sat_per_kvb = SatPerKvB::from_sat(
-            (weight * 1000)
-                .checked_div(fee)
-                .ok_or(FeeStrategyError::AmountOfFeeTooLow)?,
-        );
+        // simulate witness data
+        let mut tx = self.unsigned_tx.clone();
+        tx.input[0].witness = Witness::from_vec(vec![vec![0; 71], vec![0; 72], vec![0; 70]]);
+        let vsize = tx.vsize() as f64;
 
-        Ok(strategy.check(&effective_sat_per_kvb))
+        match strategy {
+            FeeStrategy::Fixed(sat_per_kvb) => {
+                let fee_rate = sat_per_kvb
+                    .as_native_unit()
+                    .to_float_in(Denomination::Satoshi);
+                let fee_amount = fee_rate / 1000f64 * vsize;
+                Ok(effective_fee == fee_amount.round() as u64)
+            }
+            #[cfg(feature = "fee_range")]
+            FeeStrategy::Range { min_inc, max_inc } => todo!(),
+        }
     }
 }
 

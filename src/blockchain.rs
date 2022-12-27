@@ -522,7 +522,7 @@ impl_strict_encoding!(Network);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitcoin::fee::SatPerVByte;
+    use crate::bitcoin::fee::SatPerKvB;
 
     #[test]
     fn parse_fee_politic() {
@@ -590,38 +590,35 @@ mod tests {
 
     #[test]
     fn fee_strategy_display() {
-        let strategy = FeeStrategy::Fixed(SatPerVByte::from_sat(100));
-        assert_eq!(&format!("{}", strategy), "100 satoshi/vByte");
+        let strategy = FeeStrategy::Fixed(SatPerKvB::from_sat(100));
+        assert_eq!(&format!("{}", strategy), "100 satoshi/kvB");
         #[cfg(feature = "fee_range")]
         {
             let strategy = FeeStrategy::Range {
-                min_inc: SatPerVByte::from_sat(50),
-                max_inc: SatPerVByte::from_sat(150),
+                min_inc: SatPerKvB::from_sat(50),
+                max_inc: SatPerKvB::from_sat(150),
             };
-            assert_eq!(
-                &format!("{}", strategy),
-                "50 satoshi/vByte-150 satoshi/vByte"
-            )
+            assert_eq!(&format!("{}", strategy), "50 satoshi/kvB-150 satoshi/kvB")
         }
     }
 
     #[test]
     fn fee_strategy_parse() {
         let strings = [
-            "100 satoshi/vByte",
+            "100 satoshi/kvB",
             #[cfg(feature = "fee_range")]
-            "50 satoshi/vByte-150 satoshi/vByte",
+            "50 satoshi/kvB-150 satoshi/kvB",
         ];
         let res = [
-            FeeStrategy::Fixed(SatPerVByte::from_sat(100)),
+            FeeStrategy::Fixed(SatPerKvB::from_sat(100)),
             #[cfg(feature = "fee_range")]
             FeeStrategy::Range {
-                min_inc: SatPerVByte::from_sat(50),
-                max_inc: SatPerVByte::from_sat(150),
+                min_inc: SatPerKvB::from_sat(50),
+                max_inc: SatPerKvB::from_sat(150),
             },
         ];
         for (s, r) in strings.iter().zip(res) {
-            let strategy = FeeStrategy::<SatPerVByte>::from_str(s);
+            let strategy = FeeStrategy::<SatPerKvB>::from_str(s);
             assert!(strategy.is_ok());
             assert_eq!(strategy.unwrap(), r);
         }
@@ -630,16 +627,16 @@ mod tests {
     #[test]
     fn fee_strategy_to_str_from_str() {
         let strats = [
-            FeeStrategy::Fixed(SatPerVByte::from_sat(1)),
+            FeeStrategy::Fixed(SatPerKvB::from_sat(1)),
             #[cfg(feature = "fee_range")]
             FeeStrategy::Range {
-                min_inc: SatPerVByte::from_sat(1),
-                max_inc: SatPerVByte::from_sat(7),
+                min_inc: SatPerKvB::from_sat(1),
+                max_inc: SatPerKvB::from_sat(7),
             },
         ];
         for strat in strats.iter() {
             assert_eq!(
-                FeeStrategy::<SatPerVByte>::from_str(&strat.to_string()).unwrap(),
+                FeeStrategy::<SatPerKvB>::from_str(&strat.to_string()).unwrap(),
                 *strat
             )
         }
@@ -649,12 +646,12 @@ mod tests {
     #[cfg(feature = "fee_range")]
     fn fee_strategy_check_range() {
         let strategy = FeeStrategy::Range {
-            min_inc: SatPerVByte::from_sat(50),
-            max_inc: SatPerVByte::from_sat(150),
+            min_inc: SatPerKvB::from_sat(50),
+            max_inc: SatPerKvB::from_sat(150),
         };
-        assert!(!strategy.check(&SatPerVByte::from_sat(49)));
-        assert!(strategy.check(&SatPerVByte::from_sat(50)));
-        assert!(strategy.check(&SatPerVByte::from_sat(150)));
-        assert!(!strategy.check(&SatPerVByte::from_sat(151)));
+        assert!(!strategy.check(&SatPerKvB::from_sat(49)));
+        assert!(strategy.check(&SatPerKvB::from_sat(50)));
+        assert!(strategy.check(&SatPerKvB::from_sat(150)));
+        assert!(!strategy.check(&SatPerKvB::from_sat(151)));
     }
 }

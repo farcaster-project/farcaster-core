@@ -538,7 +538,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        bitcoin::{fee::SatPerVByte, timelock::CSVTimelock},
+        bitcoin::{fee::SatPerKvB, timelock::CSVTimelock},
         blockchain::Blockchain,
         consensus,
         role::SwapRole,
@@ -565,7 +565,7 @@ mod tests {
             )
         };
 
-        pub static ref DEAL_PARAMS: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> = {
+        pub static ref DEAL_PARAMS: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> = {
             DealParameters {
                 uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
                 network: Network::Testnet,
@@ -575,7 +575,7 @@ mod tests {
                 accordant_amount: monero::Amount::from_pico(10000),
                 cancel_timelock: CSVTimelock::new(4),
                 punish_timelock: CSVTimelock::new(6),
-                fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(1)),
+                fee_strategy: FeeStrategy::Fixed(SatPerKvB::from_sat(1)),
                 maker_role: SwapRole::Bob,
             }
         };
@@ -585,7 +585,7 @@ mod tests {
     fn parse_invalid_deal() {
         for deal in ["", "D", "Deal", "Deal:", "Deal:a", "Deal:aa"] {
             assert!(
-                Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(deal)
+                Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>::from_str(deal)
                     .is_err()
             );
         }
@@ -593,7 +593,7 @@ mod tests {
 
     #[test]
     fn parse_deal() {
-        let deal = Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(S);
+        let deal = Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>::from_str(S);
         assert!(deal.is_ok());
 
         let deal = deal.unwrap();
@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn parse_deal_fail_without_prefix() {
         let deal =
-            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str(&S[5..]);
+            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>::from_str(&S[5..]);
         match deal {
             Err(consensus::Error::IncorrectMagicBytes) => (),
             _ => panic!("Should have return an error IncorrectMagicBytes"),
@@ -615,7 +615,7 @@ mod tests {
 
     #[test]
     fn display_deal_params() {
-        assert_eq!(&format!("{}", *DEAL_PARAMS), "Uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nFingerprint: 0xd68b1483de11001050026ca012a2b440818dac23341384c60680f668b52697b0\nNetwork: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: 1 satoshi/vByte\nMaker swap role: Bob\n");
+        assert_eq!(&format!("{}", *DEAL_PARAMS), "Uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nFingerprint: 0xd68b1483de11001050026ca012a2b440818dac23341384c60680f668b52697b0\nNetwork: Testnet\nBlockchain: Bitcoin\n- amount: 0.00001350 BTC\nBlockchain: Monero\n- amount: 0.000000010000 XMR\nTimelocks\n- cancel: 4 blocks\n- punish: 6 blocks\nFee strategy: 1 satoshi/kvB\nMaker swap role: Bob\n");
     }
 
     #[test]
@@ -626,7 +626,7 @@ mod tests {
 
     #[test]
     fn serialize_deal_params_in_yaml() {
-        let deal_params: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+        let deal_params: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
             DealParameters {
                 uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
                 network: Network::Testnet,
@@ -636,19 +636,19 @@ mod tests {
                 accordant_amount: monero::Amount::from_pico(6),
                 cancel_timelock: CSVTimelock::new(7),
                 punish_timelock: CSVTimelock::new(8),
-                fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
+                fee_strategy: FeeStrategy::Fixed(SatPerKvB::from_sat(9)),
                 maker_role: SwapRole::Bob,
             };
         let s = serde_yaml::to_string(&deal_params).expect("Encode deal in yaml");
         assert_eq!(
-            "---\nuuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/vByte\nmaker_role: Bob\n",
+            "---\nuuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/kvB\nmaker_role: Bob\n",
             s
         );
     }
 
     #[test]
     fn deserialize_deal_params_from_yaml() {
-        let s = "---\nuuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/vByte\nmaker_role: Bob\n";
+        let s = "---\nuuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\nnetwork: Testnet\narbitrating_blockchain: Bitcoin\naccordant_blockchain: Monero\narbitrating_amount: 0.00000005 BTC\naccordant_amount: 0.000000000006 XMR\ncancel_timelock: 7\npunish_timelock: 8\nfee_strategy:\n  Fixed: 9 satoshi/kvB\nmaker_role: Bob\n";
         let deal_params = serde_yaml::from_str(&s).expect("Decode deal from yaml");
         assert_eq!(
             DealParameters {
@@ -660,7 +660,7 @@ mod tests {
                 accordant_amount: monero::Amount::from_pico(6),
                 cancel_timelock: CSVTimelock::new(7),
                 punish_timelock: CSVTimelock::new(8),
-                fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
+                fee_strategy: FeeStrategy::Fixed(SatPerKvB::from_sat(9)),
                 maker_role: SwapRole::Bob,
             },
             deal_params
@@ -670,21 +670,21 @@ mod tests {
     #[test]
     fn serialize_deal_in_yaml() {
         let deal =
-            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Deal:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
+            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>::from_str("Deal:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
             .expect("Valid deal");
         let s = serde_yaml::to_string(&deal).expect("Encode deal in yaml");
         assert_eq!(
-            "---\nversion: 1\nparameters:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n",
+            "---\nversion: 1\nparameters:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/kvB\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n",
             s
         );
     }
 
     #[test]
     fn deserialize_deal_from_yaml() {
-        let s = "---\nversion: 1\nparameters:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/vByte\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n";
+        let s = "---\nversion: 1\nparameters:\n  uuid: 67e55044-10b1-426f-9247-bb680e5fe0c8\n  network: Local\n  arbitrating_blockchain: Bitcoin\n  accordant_blockchain: Monero\n  arbitrating_amount: 0.00001350 BTC\n  accordant_amount: 1000000.001000000000 XMR\n  cancel_timelock: 4\n  punish_timelock: 6\n  fee_strategy:\n    Fixed: 1 satoshi/kvB\n  maker_role: Bob\nnode_id: 02e77b779cdc2c713823f7a19147a67e4209c74d77e2cb5045bce0584a6be064d4\npeer_address:\n  IPv4: \"127.0.0.1:9735\"\n";
         let deal = serde_yaml::from_str(&s).expect("Decode deal from yaml");
         assert_eq!(
-            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>::from_str("Deal:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
+            Deal::<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>::from_str("Deal:Cke4ftrP5A7CRkYdGNd87TRU6sUP1kBKM1W723UjzEWsNR4gmBqNCsR11111uMFubBevJ2E5fp6ZR11111TBALTh113GTvtvqfD1111114A4TTfifktDH7QZD71vpdfo6EVo2ds7KviHz7vYbLZDkgsMNb11111111111111111111111111111111111111111AfZ113XRBuL3QS1m")
                 .expect("Valid deal"),
             deal
         );

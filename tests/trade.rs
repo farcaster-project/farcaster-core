@@ -14,7 +14,7 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-use farcaster_core::bitcoin::fee::SatPerVByte;
+use farcaster_core::bitcoin::fee::SatPerKvB;
 use farcaster_core::bitcoin::timelock::CSVTimelock;
 use farcaster_core::blockchain::Blockchain;
 
@@ -33,7 +33,7 @@ use std::str::FromStr;
 fn create_deal_parameters() {
     let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000000000000000400070000000400080000000\
                10800090000000000000002";
-    let deal: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let deal: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         DealParameters {
             uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
             network: Network::Testnet,
@@ -43,14 +43,14 @@ fn create_deal_parameters() {
             accordant_amount: monero::Amount::from_pico(6),
             cancel_timelock: CSVTimelock::new(7),
             punish_timelock: CSVTimelock::new(8),
-            fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(9)),
+            fee_strategy: FeeStrategy::Fixed(SatPerKvB::from_sat(9)),
             maker_role: SwapRole::Bob,
         };
 
     assert_eq!(hex, serialize_hex(&deal));
     let strict_ser = strict_encoding::strict_serialize(&deal).unwrap();
     assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
-    let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         strict_encoding::strict_deserialize(&strict_ser).unwrap();
     assert_eq!(&deal, &res);
 }
@@ -59,7 +59,7 @@ fn create_deal_parameters() {
 fn get_deal_parameters_fingerprint() {
     let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000\
                00000000000040007000000040008000000010800090000000000000002";
-    let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
     let id = DealFingerprint::from_str(
         "f79b29ccb233b37cea3aa35b94c5ece25c58a8098afc18f046810a3c04591599",
@@ -69,7 +69,7 @@ fn get_deal_parameters_fingerprint() {
     // other uuid
     let hex = "4351e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000\
                00000000000040007000000040008000000010800090000000000000002";
-    let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
     // same fingerprint
     assert_eq!(id, res.fingerprint());
@@ -79,7 +79,7 @@ fn get_deal_parameters_fingerprint() {
 fn get_deal_parameters_uuid() {
     let hex = "4450e567b1106f429247bb680e5fe0c802000000808000008008000500000000000000080006000\
                00000000000040007000000040008000000010800090000000000000002";
-    let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let res: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
     assert_eq!(
         res.uuid(),
@@ -93,7 +93,7 @@ fn serialize_deal() {
                00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                0000000000000000000000000000000000000000000000000000000260700";
-    let deal: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let deal: DealParameters<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         DealParameters {
             uuid: uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8").into(),
             network: Network::Testnet,
@@ -103,7 +103,7 @@ fn serialize_deal() {
             accordant_amount: monero::Amount::from_pico(200),
             cancel_timelock: CSVTimelock::new(10),
             punish_timelock: CSVTimelock::new(10),
-            fee_strategy: FeeStrategy::Fixed(SatPerVByte::from_sat(20)),
+            fee_strategy: FeeStrategy::Fixed(SatPerKvB::from_sat(20)),
             maker_role: SwapRole::Bob,
         };
     let ip = FromStr::from_str("0.0.0.0").unwrap();
@@ -122,7 +122,7 @@ fn serialize_deal() {
     assert_eq!(hex, serialize_hex(&deal));
     let strict_ser = strict_encoding::strict_serialize(&deal).unwrap();
     assert_eq!(&hex::decode(hex).unwrap(), &strict_ser);
-    let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         strict_encoding::strict_deserialize(&strict_ser).unwrap();
     assert_eq!(&deal, &res);
 }
@@ -133,7 +133,7 @@ fn get_deal_fingerprint() {
                00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                0000000000000000000000000000000000000000000000000000000260700";
-    let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
     let id = DealFingerprint::from_str(
         "3a466a0a0cff7bf800808653460076549621d07db78e697b9dfaebaba0ab8b33",
@@ -145,7 +145,7 @@ fn get_deal_fingerprint() {
                00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                0000000000000000000000000000000000000000000000000000000260700";
-    let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
     // same fingerprint
     assert_eq!(id, res.fingerprint());
@@ -157,7 +157,7 @@ fn get_deal_uuid() {
                00000000800c80000000000000004000a00000004000a0000000108001400000000000000022100\
                03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                0000000000000000000000000000000000000000000000000000000260700";
-    let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte> =
+    let res: Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB> =
         strict_encoding::strict_deserialize(&hex::decode(hex).unwrap()).unwrap();
     assert_eq!(
         res.uuid(),
@@ -172,7 +172,7 @@ fn check_deal_magic_bytes() {
                  03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                  0000000000000000000000000000000000000000000000000000000260700";
     let deal: Result<
-        Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
+        Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>,
         consensus::Error,
     > = deserialize(&hex::decode(valid).unwrap()[..]);
     assert!(deal.is_ok());
@@ -182,7 +182,7 @@ fn check_deal_magic_bytes() {
                  03b31a0a70343bb46f3db3768296ac5027f9873921b37f852860c690063ff9e4c90000000000000\
                  0000000000000000000000000000000000000000000000000000000260700";
     let deal: Result<
-        Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>,
+        Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>,
         consensus::Error,
     > = deserialize(&hex::decode(invalid).unwrap()[..]);
     assert!(deal.is_err());
@@ -199,7 +199,7 @@ fn parse_deal() {
     .iter_mut()
     {
         let bytes = hex::decode(hex).expect("hex");
-        let res: Result<Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerVByte>, _> =
+        let res: Result<Deal<bitcoin::Amount, monero::Amount, CSVTimelock, SatPerKvB>, _> =
             strict_encoding::strict_deserialize(&bytes);
         assert!(res.is_ok());
     }

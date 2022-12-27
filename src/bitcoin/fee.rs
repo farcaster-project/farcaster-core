@@ -22,12 +22,12 @@
 //! use farcaster_core::bitcoin::fee::SatPerKvB;
 //!
 //!# fn main() -> Result<(), farcaster_core::consensus::Error> {
-//! // Parse a Bitcoin amount suffixed with '/vByte'
+//! // Parse a Bitcoin amount suffixed with '/kvB'
 //! let rate = "100 satoshi/kvB".parse::<SatPerKvB>()?;
 //! // ...also work with any other valid Bitcoin denomination
 //! let rate = "0.000001 BTC/kvB".parse::<SatPerKvB>()?;
 //!
-//! // Always displayed as 'statoshi/vByte'
+//! // Always displayed as 'statoshi/kvB'
 //! assert_eq!("100 satoshi/kvB", format!("{}", rate));
 //!# Ok(())
 //!# }

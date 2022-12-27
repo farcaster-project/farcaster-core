@@ -21,9 +21,9 @@ jobs:
         ]
         include:
         - rust: stable
-          features: default
+          features: default,fee_range
         - rust: nightly
-          features: default,nightly
+          features: default,fee_range,nightly
 
     runs-on: ubuntu-latest
 

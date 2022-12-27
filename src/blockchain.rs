@@ -176,6 +176,8 @@ pub enum FeeStrategy<T> {
     /// A fixed strategy with the exact amount to set.
     Fixed(T),
     /// A range with a minimum and maximum (inclusive) possible fees.
+    #[cfg(feature = "fee_range")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "fee_range")))]
     Range { min_inc: T, max_inc: T },
 }
 
@@ -187,6 +189,7 @@ where
         match self {
             Self::Fixed(fee_strat) => value == fee_strat,
             // Check in range including min and max bounds
+            #[cfg(feature = "fee_range")]
             Self::Range { min_inc, max_inc } => value >= min_inc && value <= max_inc,
         }
     }
@@ -198,6 +201,7 @@ where
 {
     type Err = consensus::Error;
 
+    #[allow(unused_mut)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts: Vec<&str> = s.split('-').collect();
         match parts.len() {
@@ -205,6 +209,7 @@ where
                 Ok(x) => Ok(Self::Fixed(x)),
                 Err(_) => Err(consensus::Error::ParseFailed("Failed parsing FeeStrategy")),
             },
+            #[cfg(feature = "fee_range")]
             2 => {
                 let max_inc = parts
                     .pop()
@@ -230,6 +235,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FeeStrategy::Fixed(t) => write!(f, "{}", t),
+            #[cfg(feature = "fee_range")]
             FeeStrategy::Range { min_inc, max_inc } => {
                 write!(f, "{}-{}", min_inc, max_inc)
             }
@@ -247,6 +253,7 @@ where
                 0x01u8.consensus_encode(writer)?;
                 Ok(t.as_canonical_bytes().consensus_encode(writer)? + 1)
             }
+            #[cfg(feature = "fee_range")]
             FeeStrategy::Range { min_inc, max_inc } => {
                 let mut len = 0x02u8.consensus_encode(writer)?;
                 len += min_inc.as_canonical_bytes().consensus_encode(writer)?;
@@ -265,6 +272,7 @@ where
             0x01u8 => Ok(FeeStrategy::Fixed(T::from_canonical_bytes(
                 unwrap_vec_ref!(d).as_ref(),
             )?)),
+            #[cfg(feature = "fee_range")]
             0x02u8 => {
                 let min_inc = T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
                 let max_inc = T::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?;
@@ -584,21 +592,29 @@ mod tests {
     fn fee_strategy_display() {
         let strategy = FeeStrategy::Fixed(SatPerVByte::from_sat(100));
         assert_eq!(&format!("{}", strategy), "100 satoshi/vByte");
-        let strategy = FeeStrategy::Range {
-            min_inc: SatPerVByte::from_sat(50),
-            max_inc: SatPerVByte::from_sat(150),
-        };
-        assert_eq!(
-            &format!("{}", strategy),
-            "50 satoshi/vByte-150 satoshi/vByte"
-        )
+        #[cfg(feature = "fee_range")]
+        {
+            let strategy = FeeStrategy::Range {
+                min_inc: SatPerVByte::from_sat(50),
+                max_inc: SatPerVByte::from_sat(150),
+            };
+            assert_eq!(
+                &format!("{}", strategy),
+                "50 satoshi/vByte-150 satoshi/vByte"
+            )
+        }
     }
 
     #[test]
     fn fee_strategy_parse() {
-        let strings = ["100 satoshi/vByte", "50 satoshi/vByte-150 satoshi/vByte"];
+        let strings = [
+            "100 satoshi/vByte",
+            #[cfg(feature = "fee_range")]
+            "50 satoshi/vByte-150 satoshi/vByte",
+        ];
         let res = [
             FeeStrategy::Fixed(SatPerVByte::from_sat(100)),
+            #[cfg(feature = "fee_range")]
             FeeStrategy::Range {
                 min_inc: SatPerVByte::from_sat(50),
                 max_inc: SatPerVByte::from_sat(150),
@@ -615,6 +631,7 @@ mod tests {
     fn fee_strategy_to_str_from_str() {
         let strats = [
             FeeStrategy::Fixed(SatPerVByte::from_sat(1)),
+            #[cfg(feature = "fee_range")]
             FeeStrategy::Range {
                 min_inc: SatPerVByte::from_sat(1),
                 max_inc: SatPerVByte::from_sat(7),
@@ -629,6 +646,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "fee_range")]
     fn fee_strategy_check_range() {
         let strategy = FeeStrategy::Range {
             min_inc: SatPerVByte::from_sat(50),

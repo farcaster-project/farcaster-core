@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Derive strict encoding for `Alice` (segwit v0), `Bob` (segwit v0), and `KeyManager` by @TheCharlatan ([#318](https://github.com/farcaster-project/farcaster-core/pull/318))
+
 ### Changed
 
 - Fee strategy `range` support is now under the new crate feature `fee_range` and disable by default ([#314](https://github.com/farcaster-project/farcaster-core/pull/314))

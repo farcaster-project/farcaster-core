@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Check input lenght when parsing deals from strings by @h4sh3d ([#313](https://github.com/farcaster-project/farcaster-core/pull/313)])
-- Add estiamted witness when computing transaction fee by @h4sh3d ([#317](https://github.com/farcaster-project/farcaster-core/pull/317))
+- Add estimated witness when computing transaction fee by @h4sh3d ([#317](https://github.com/farcaster-project/farcaster-core/pull/317))
 
 ## [0.6.1] - 2022-12-14
 

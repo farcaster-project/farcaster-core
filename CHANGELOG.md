@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Derive strict encoding for FundingTx (segwit v0) by @TheCharlatan
+  ([#320](https://github.com/farcaster-project/farcaster-core/pull/320/files))
+
 ## [0.6.2] - 2022-12-28
 
 ### Added

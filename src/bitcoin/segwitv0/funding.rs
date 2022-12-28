@@ -148,3 +148,5 @@ impl Decodable for Funding {
         })
     }
 }
+
+impl_strict_encoding!(Funding);

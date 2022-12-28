@@ -159,6 +159,15 @@ fn get_available_input_sat(tx: &PartiallySignedTransaction) -> Result<Amount, Fe
     ))
 }
 
+fn upper_bound_simulated_witness() -> Witness {
+    // Simulate 2 signatures for Alice and Bob, and a script
+    //   buy/cancel script is 70 bytes
+    //   refund/punish script is 111 bytes plus a true/false opcode
+    //
+    // We simulate the biggest of the two scripts
+    Witness::from_vec(vec![vec![0; 71], vec![0; 71], vec![0], vec![0; 111]])
+}
+
 impl Fee for PartiallySignedTransaction {
     type FeeUnit = SatPerKvB;
 
@@ -180,8 +189,7 @@ impl Fee for PartiallySignedTransaction {
         let input_sum = get_available_input_sat(self)?;
 
         // simulate witness data
-        self.unsigned_tx.input[0].witness =
-            Witness::from_vec(vec![vec![0; 71], vec![0; 72], vec![0; 70]]);
+        self.unsigned_tx.input[0].witness = upper_bound_simulated_witness();
         let vsize = self.unsigned_tx.vsize() as f64;
         // remove witness
         self.unsigned_tx.input[0].witness = Witness::new();
@@ -225,7 +233,7 @@ impl Fee for PartiallySignedTransaction {
 
         // simulate witness data
         let mut tx = self.unsigned_tx.clone();
-        tx.input[0].witness = Witness::from_vec(vec![vec![0; 71], vec![0; 72], vec![0; 70]]);
+        tx.input[0].witness = upper_bound_simulated_witness();
         let vsize = tx.vsize() as f64;
 
         match strategy {

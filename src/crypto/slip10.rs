@@ -45,6 +45,8 @@ pub use bitcoin::util::bip32::ChainCode;
 pub use bitcoin::util::bip32::Fingerprint;
 pub use bitcoin::util::bip32::{ChildNumber, DerivationPath};
 
+use crate::consensus::{self, Decodable, Encodable};
+
 /// Possible errors when deriving keys as described in SLIP-10.
 #[derive(Error, Debug)]
 pub enum Error {
@@ -71,6 +73,44 @@ pub struct Ed25519ExtSecretKey {
     pub secret_key: [u8; 32],
     /// The 32-bytes entropy extention called chain code.
     pub chain_code: ChainCode,
+}
+
+impl Encodable for Ed25519ExtSecretKey {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        let mut len = self.depth.consensus_encode(writer)?;
+        len += self
+            .parent_fingerprint
+            .into_bytes()
+            .to_vec()
+            .consensus_encode(writer)?;
+        len += Into::<u32>::into(self.child_number).consensus_encode(writer)?;
+        len += self.secret_key.consensus_encode(writer)?;
+        len += self
+            .chain_code
+            .into_bytes()
+            .to_vec()
+            .consensus_encode(writer)?;
+        Ok(len)
+    }
+}
+
+impl Decodable for Ed25519ExtSecretKey {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let depth = u8::consensus_decode(d)?;
+        let parent_fingerprint = Fingerprint::try_from(Vec::<u8>::consensus_decode(d)?.as_slice())
+            .map_err(consensus::Error::new)?;
+        let child_number = ChildNumber::from(u32::consensus_decode(d)?);
+        let secret_key = <[u8; 32]>::consensus_decode(d)?;
+        let chain_code = ChainCode::try_from(Vec::<u8>::consensus_decode(d)?.as_slice())
+            .map_err(consensus::Error::new)?;
+        Ok(Ed25519ExtSecretKey {
+            depth,
+            parent_fingerprint,
+            child_number,
+            secret_key,
+            chain_code,
+        })
+    }
 }
 
 impl Ed25519ExtSecretKey {
@@ -186,6 +226,45 @@ pub struct Secp256k1ExtSecretKey {
     pub secret_key: secp256k1::SecretKey,
     /// The 32-bytes entropy extention called chain code.
     pub chain_code: ChainCode,
+}
+
+impl Encodable for Secp256k1ExtSecretKey {
+    fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+        let mut len = self.depth.consensus_encode(writer)?;
+        len += self
+            .parent_fingerprint
+            .into_bytes()
+            .to_vec()
+            .consensus_encode(writer)?;
+        len += Into::<u32>::into(self.child_number).consensus_encode(writer)?;
+        len += self.secret_key.secret_bytes().consensus_encode(writer)?;
+        len += self
+            .chain_code
+            .into_bytes()
+            .to_vec()
+            .consensus_encode(writer)?;
+        Ok(len)
+    }
+}
+
+impl Decodable for Secp256k1ExtSecretKey {
+    fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
+        let depth = u8::consensus_decode(d)?;
+        let parent_fingerprint = Fingerprint::try_from(Vec::<u8>::consensus_decode(d)?.as_slice())
+            .map_err(consensus::Error::new)?;
+        let child_number = ChildNumber::from(u32::consensus_decode(d)?);
+        let secret_key = secp256k1::SecretKey::from_slice(&<[u8; 32]>::consensus_decode(d)?)
+            .map_err(consensus::Error::new)?;
+        let chain_code = ChainCode::try_from(Vec::<u8>::consensus_decode(d)?.as_slice())
+            .map_err(consensus::Error::new)?;
+        Ok(Secp256k1ExtSecretKey {
+            depth,
+            parent_fingerprint,
+            child_number,
+            secret_key,
+            chain_code,
+        })
+    }
 }
 
 impl Secp256k1ExtSecretKey {

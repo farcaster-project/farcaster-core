@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement `From<trade::DealId>` and `From<swap::SwapId>` for `Uuid` by @h4sh3d ([#323](https://github.com/farcaster-project/farcaster-core/pull/323))
 
+### Changed
+
+- Don't persist master secret key in `KeyManager` and derive account level keys on initialization by @TheCharlatan ([#322](https://github.com/farcaster-project/farcaster-core/pull/322))
+
 ## [0.6.3] - 2022-12-28
 
 ### Added

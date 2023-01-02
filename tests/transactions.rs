@@ -79,8 +79,8 @@ macro_rules! setup_txs {
 
         let datalock = DataLock {
             timelock: timelock::CSVTimelock::new(10),
-            success: DoubleKeys::new(pubkey_a1, pubkey_b1),
-            failure: DoubleKeys::new(pubkey_a1, pubkey_b1),
+            success: SwapRoleKeys::new(pubkey_a1, pubkey_b1),
+            failure: SwapRoleKeys::new(pubkey_a1, pubkey_b1),
         };
 
         let fee = FeeStrategy::Fixed(SatPerKvB::from_sat(1500));
@@ -93,7 +93,7 @@ macro_rules! setup_txs {
         //
         let datapunishablelock = DataPunishableLock {
             timelock: timelock::CSVTimelock::new(10),
-            success: DoubleKeys::new(pubkey_a1, pubkey_b1),
+            success: SwapRoleKeys::new(pubkey_a1, pubkey_b1),
             failure: pubkey_a1,
         };
 

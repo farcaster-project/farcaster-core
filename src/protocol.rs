@@ -33,7 +33,7 @@ use crate::protocol::message::{
     BuyProcedureSignature, CommitAliceParameters, CommitBobParameters, CoreArbitratingSetup,
     RevealAliceParameters, RevealBobParameters,
 };
-use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
+use crate::script::{DataLock, DataPunishableLock, ScriptPath, SwapRoleKeys};
 use crate::swap::SwapId;
 use crate::trade::Deal;
 use crate::transaction::{
@@ -917,8 +917,8 @@ where
         // arbitrating blockchain.
         let data_lock = DataLock {
             timelock: arb_params.cancel_timelock,
-            success: DoubleKeys::new(alice_buy, bob_buy),
-            failure: DoubleKeys::new(alice_cancel, bob_cancel),
+            success: SwapRoleKeys::new(alice_buy, bob_buy),
+            failure: SwapRoleKeys::new(alice_cancel, bob_cancel),
         };
 
         // Verify the lock transaction template.
@@ -944,7 +944,7 @@ where
         // arbitrating blockchain.
         let punish_lock = DataPunishableLock {
             timelock: arb_params.punish_timelock,
-            success: DoubleKeys::new(alice_refund, bob_refund),
+            success: SwapRoleKeys::new(alice_refund, bob_refund),
             failure: alice_punish,
         };
 
@@ -1209,8 +1209,8 @@ where
         // arbitrating blockchain.
         let cancel_lock = DataLock {
             timelock: arb_params.cancel_timelock,
-            success: DoubleKeys::new(alice_buy, bob_buy),
-            failure: DoubleKeys::new(alice_cancel, bob_cancel),
+            success: SwapRoleKeys::new(alice_buy, bob_buy),
+            failure: SwapRoleKeys::new(alice_cancel, bob_cancel),
         };
 
         // The target amount is dictated from the deal.
@@ -1236,7 +1236,7 @@ where
         // arbitrating blockchain.
         let punish_lock = DataPunishableLock {
             timelock: arb_params.punish_timelock,
-            success: DoubleKeys::new(alice_refund, bob_refund),
+            success: SwapRoleKeys::new(alice_refund, bob_refund),
             failure: alice_punish,
         };
 
@@ -1444,8 +1444,8 @@ where
         // arbitrating blockchain.
         let cancel_lock = DataLock {
             timelock: arb_params.cancel_timelock,
-            success: DoubleKeys::new(alice_buy, bob_buy),
-            failure: DoubleKeys::new(alice_cancel, bob_cancel),
+            success: SwapRoleKeys::new(alice_buy, bob_buy),
+            failure: SwapRoleKeys::new(alice_cancel, bob_cancel),
         };
 
         // Initialize the buy transaction based on the lock and the data lock. The buy transaction

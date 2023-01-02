@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Don't persist master secret key in `KeyManager` and derive account level keys on initialization by @TheCharlatan ([#322](https://github.com/farcaster-project/farcaster-core/pull/322))
+- Rename `DoubleKeys` into `SwapRoleKeys` by @h4sh3d ([#324](https://github.com/farcaster-project/farcaster-core/pull/324))
 
 ## [0.6.3] - 2022-12-28
 

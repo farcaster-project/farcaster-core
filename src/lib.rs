@@ -155,6 +155,18 @@ impl From<uuid::Uuid> for Uuid {
     }
 }
 
+impl From<trade::DealId> for Uuid {
+    fn from(id: trade::DealId) -> Self {
+        id.0
+    }
+}
+
+impl From<swap::SwapId> for Uuid {
+    fn from(id: swap::SwapId) -> Self {
+        id.0
+    }
+}
+
 impl FromStr for Uuid {
     type Err = uuid::Error;
 

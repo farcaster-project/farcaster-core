@@ -294,7 +294,7 @@ where
     pub fn reveal_alice<U: Into<SwapId>>(
         self,
         swap_id: U,
-    ) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
+    ) -> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr, Pr> {
         RevealAliceParameters {
             swap_id: swap_id.into(),
             buy: self.buy,
@@ -308,6 +308,7 @@ where
             extra_accordant_keys: self.extra_accordant_keys,
             accordant_shared_keys: self.accordant_shared_keys,
             address: self.destination_address,
+            proof: self.proof.expect("Generated parameters contains proof"),
         }
     }
 
@@ -335,7 +336,7 @@ where
     pub fn reveal_bob<U: Into<SwapId>>(
         self,
         swap_id: U,
-    ) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
+    ) -> RevealBobParameters<Pk, Qk, Rk, Sk, Addr, Pr> {
         RevealBobParameters {
             swap_id: swap_id.into(),
             buy: self.buy,
@@ -348,6 +349,7 @@ where
             extra_accordant_keys: self.extra_accordant_keys,
             accordant_shared_keys: self.accordant_shared_keys,
             address: self.destination_address,
+            proof: self.proof.expect("Generated parameters contains proof"),
         }
     }
 }

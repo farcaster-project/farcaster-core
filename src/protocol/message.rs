@@ -59,17 +59,16 @@ impl<C> CommitAliceParameters<C>
 where
     C: Eq + Clone + CanonicalBytes,
 {
-    pub fn verify_with_reveal<Pk, Qk, Rk, Sk, Addr>(
+    pub fn verify_with_reveal<Pk, Qk, Rk, Sk, Addr, Pr>(
         &self,
         wallet: &impl Commit<C>,
-        reveal: RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>,
+        reveal: RevealAliceParameters<Pk, Qk, Rk, Sk, Addr, Pr>,
     ) -> Result<(), Error>
     where
         Pk: CanonicalBytes,
         Qk: CanonicalBytes,
         Rk: CanonicalBytes,
         Sk: CanonicalBytes,
-        Addr: CanonicalBytes,
     {
         wallet.validate(reveal.buy.as_canonical_bytes(), self.buy.clone())?;
         wallet.validate(reveal.cancel.as_canonical_bytes(), self.cancel.clone())?;
@@ -181,17 +180,16 @@ impl<C> CommitBobParameters<C>
 where
     C: Eq + Clone + CanonicalBytes,
 {
-    pub fn verify_with_reveal<Pk, Qk, Rk, Sk, Addr>(
+    pub fn verify_with_reveal<Pk, Qk, Rk, Sk, Addr, Pr>(
         &self,
         wallet: &impl Commit<C>,
-        reveal: RevealBobParameters<Pk, Qk, Rk, Sk, Addr>,
+        reveal: RevealBobParameters<Pk, Qk, Rk, Sk, Addr, Pr>,
     ) -> Result<(), Error>
     where
         Pk: CanonicalBytes,
         Qk: CanonicalBytes,
         Rk: CanonicalBytes,
         Sk: CanonicalBytes,
-        Addr: CanonicalBytes,
     {
         wallet.validate(reveal.buy.as_canonical_bytes(), self.buy.clone())?;
         wallet.validate(reveal.cancel.as_canonical_bytes(), self.cancel.clone())?;
@@ -270,66 +268,17 @@ where
 
 impl_strict_encoding!(CommitBobParameters<C>, C: CanonicalBytes);
 
-/// Reveals the zero-knowledge proof for the discrete logarithm across curves.
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RevealProof<Pr> {
-    /// The swap identifier related to this message.
-    pub swap_id: SwapId,
-    /// Reveal the cross-group discrete logarithm zero-knowledge proof.
-    pub proof: Pr,
-}
-
-impl<Pr> fmt::Debug for RevealProof<Pr> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RevealProof")
-            .field("swap_id", &self.swap_id)
-            .field("proof", &"..")
-            .finish()
-    }
-}
-
-impl<Pr> fmt::Display for RevealProof<Pr>
-where
-    Pr: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "RevealProof {{ swap_id: {}, proof: .. }}", self.swap_id)
-    }
-}
-
-impl<Pr> Encodable for RevealProof<Pr>
-where
-    Pr: CanonicalBytes,
-{
-    fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
-        let len = self.swap_id.consensus_encode(s)?;
-        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
-    }
-}
-
-impl<Pr> Decodable for RevealProof<Pr>
-where
-    Pr: CanonicalBytes,
-{
-    fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        Ok(Self {
-            swap_id: Decodable::consensus_decode(d)?,
-            proof: Pr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
-        })
-    }
-}
-
-impl_strict_encoding!(RevealProof<Pr>, Pr: CanonicalBytes);
-
-/// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message.
+/// Reveals the parameters commited by the [`CommitAliceParameters`] protocol message and the
+/// zero-knowledge proof for the discrete logarithm across curves.
 ///
 /// - `Addr` the arbitrating address type
 /// - `Pk` the arbitrating Public Key type
 /// - `Rk` the arbitrating Shared Secret Key type
 /// - `Qk` the accordant Public Key type
 /// - `Sk` the accordant Shared Secret Key type
+/// - `Pr` the zero-knowledge proof type
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
+pub struct RevealAliceParameters<Pk, Qk, Rk, Sk, Addr, Pr> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// Reveal the buy public key.
@@ -354,10 +303,12 @@ pub struct RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Sk>>,
     /// Reveal the destination address.
     pub address: Addr,
+    /// The zero-knowledge proof.
+    pub proof: Pr,
 }
 
-impl<Pk, Qk, Rk, Sk, Addr> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
-    pub fn into_parameters<Ti, F, Pr>(self) -> Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
+impl<Pk, Qk, Rk, Sk, Addr, Pr> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr, Pr> {
+    pub fn into_parameters<Ti, F>(self) -> Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
         Parameters {
             buy: self.buy,
             cancel: self.cancel,
@@ -369,7 +320,7 @@ impl<Pk, Qk, Rk, Sk, Addr> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
             spend: self.spend,
             extra_accordant_keys: self.extra_accordant_keys,
             accordant_shared_keys: self.accordant_shared_keys,
-            proof: None,
+            proof: Some(self.proof),
             destination_address: self.address,
             cancel_timelock: None,
             punish_timelock: None,
@@ -378,26 +329,28 @@ impl<Pk, Qk, Rk, Sk, Addr> RevealAliceParameters<Pk, Qk, Rk, Sk, Addr> {
     }
 }
 
-impl<Pk, Qk, Rk, Sk, Addr> fmt::Display for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>
+impl<Pk, Qk, Rk, Sk, Addr, Pr> fmt::Display for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr, Pr>
 where
     Pk: fmt::Debug,
     Qk: fmt::Debug,
     Rk: fmt::Debug,
     Sk: fmt::Debug,
     Addr: fmt::Debug,
+    Pr: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl<Pk, Qk, Rk, Sk, Addr> Encodable for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>
+impl<Pk, Qk, Rk, Sk, Addr, Pr> Encodable for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr, Pr>
 where
     Pk: CanonicalBytes,
     Qk: CanonicalBytes,
     Rk: CanonicalBytes,
     Sk: CanonicalBytes,
     Addr: CanonicalBytes,
+    Pr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
         let mut len = self.swap_id.consensus_encode(s)?;
@@ -408,21 +361,22 @@ where
         len += self.adaptor.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_arbitrating_keys.consensus_encode(s)?;
         len += self.arbitrating_shared_keys.consensus_encode(s)?;
-        // this can go?
         len += self.spend.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_accordant_keys.consensus_encode(s)?;
         len += self.accordant_shared_keys.consensus_encode(s)?;
-        Ok(len + self.address.as_canonical_bytes().consensus_encode(s)?)
+        len += self.address.as_canonical_bytes().consensus_encode(s)?;
+        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
     }
 }
 
-impl<Pk, Qk, Rk, Sk, Addr> Decodable for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>
+impl<Pk, Qk, Rk, Sk, Addr, Pr> Decodable for RevealAliceParameters<Pk, Qk, Rk, Sk, Addr, Pr>
 where
     Pk: CanonicalBytes,
     Qk: CanonicalBytes,
     Rk: CanonicalBytes,
     Sk: CanonicalBytes,
     Addr: CanonicalBytes,
+    Pr: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
@@ -438,21 +392,24 @@ where
             extra_accordant_keys: Decodable::consensus_decode(d)?,
             accordant_shared_keys: Decodable::consensus_decode(d)?,
             address: Addr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            proof: Pr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
 
-impl_strict_encoding!(RevealAliceParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes);
+impl_strict_encoding!(RevealAliceParameters<Pk, Qk, Rk, Sk, Addr, Pr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes, Pr: CanonicalBytes);
 
-/// Reveals the parameters commited by the [`CommitBobParameters`] protocol message.
+/// Reveals the parameters commited by the [`CommitBobParameters`] protocol message and the
+/// zero-knowledge proof for the discrete logarithm across curves.
 ///
 /// - `Addr` the arbitrating address type
 /// - `Pk` the arbitrating Public Key type
 /// - `Rk` the arbitrating Shared Secret Key type
 /// - `Qk` the accordant Public Key type
 /// - `Sk` the accordant Shared Secret Key type
+/// - `Pr` the zero-knowledge proof type
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
+pub struct RevealBobParameters<Pk, Qk, Rk, Sk, Addr, Pr> {
     /// The swap identifier related to this message.
     pub swap_id: SwapId,
     /// Reveal the buy public key.
@@ -475,10 +432,12 @@ pub struct RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
     pub accordant_shared_keys: Vec<TaggedElement<SharedKeyId, Sk>>,
     /// The refund Bitcoin address.
     pub address: Addr,
+    /// The zero-knowledge proof.
+    pub proof: Pr,
 }
 
-impl<Pk, Qk, Rk, Sk, Addr> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
-    pub fn into_parameters<Ti, F, Pr>(self) -> Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
+impl<Pk, Qk, Rk, Sk, Addr, Pr> RevealBobParameters<Pk, Qk, Rk, Sk, Addr, Pr> {
+    pub fn into_parameters<Ti, F>(self) -> Parameters<Pk, Qk, Rk, Sk, Addr, Ti, F, Pr> {
         Parameters {
             buy: self.buy,
             cancel: self.cancel,
@@ -490,7 +449,7 @@ impl<Pk, Qk, Rk, Sk, Addr> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
             spend: self.spend,
             extra_accordant_keys: self.extra_accordant_keys,
             accordant_shared_keys: self.accordant_shared_keys,
-            proof: None,
+            proof: Some(self.proof),
             destination_address: self.address,
             cancel_timelock: None,
             punish_timelock: None,
@@ -499,26 +458,28 @@ impl<Pk, Qk, Rk, Sk, Addr> RevealBobParameters<Pk, Qk, Rk, Sk, Addr> {
     }
 }
 
-impl<Pk, Qk, Rk, Sk, Addr> fmt::Display for RevealBobParameters<Pk, Qk, Rk, Sk, Addr>
+impl<Pk, Qk, Rk, Sk, Addr, Pr> fmt::Display for RevealBobParameters<Pk, Qk, Rk, Sk, Addr, Pr>
 where
     Pk: fmt::Debug,
     Qk: fmt::Debug,
     Rk: fmt::Debug,
     Sk: fmt::Debug,
     Addr: fmt::Debug,
+    Pr: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl<Pk, Qk, Rk, Sk, Addr> Encodable for RevealBobParameters<Pk, Qk, Rk, Sk, Addr>
+impl<Pk, Qk, Rk, Sk, Addr, Pr> Encodable for RevealBobParameters<Pk, Qk, Rk, Sk, Addr, Pr>
 where
     Pk: CanonicalBytes,
     Qk: CanonicalBytes,
     Rk: CanonicalBytes,
     Sk: CanonicalBytes,
     Addr: CanonicalBytes,
+    Pr: CanonicalBytes,
 {
     fn consensus_encode<W: io::Write>(&self, s: &mut W) -> Result<usize, io::Error> {
         let mut len = self.swap_id.consensus_encode(s)?;
@@ -531,17 +492,19 @@ where
         len += self.spend.as_canonical_bytes().consensus_encode(s)?;
         len += self.extra_accordant_keys.consensus_encode(s)?;
         len += self.accordant_shared_keys.consensus_encode(s)?;
-        Ok(len + self.address.as_canonical_bytes().consensus_encode(s)?)
+        len += self.address.as_canonical_bytes().consensus_encode(s)?;
+        Ok(len + self.proof.as_canonical_bytes().consensus_encode(s)?)
     }
 }
 
-impl<Pk, Qk, Rk, Sk, Addr> Decodable for RevealBobParameters<Pk, Qk, Rk, Sk, Addr>
+impl<Pk, Qk, Rk, Sk, Addr, Pr> Decodable for RevealBobParameters<Pk, Qk, Rk, Sk, Addr, Pr>
 where
     Pk: CanonicalBytes,
     Qk: CanonicalBytes,
     Rk: CanonicalBytes,
     Sk: CanonicalBytes,
     Addr: CanonicalBytes,
+    Pr: CanonicalBytes,
 {
     fn consensus_decode<D: io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
         Ok(Self {
@@ -556,11 +519,12 @@ where
             extra_accordant_keys: Decodable::consensus_decode(d)?,
             accordant_shared_keys: Decodable::consensus_decode(d)?,
             address: Addr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
+            proof: Pr::from_canonical_bytes(unwrap_vec_ref!(d).as_ref())?,
         })
     }
 }
 
-impl_strict_encoding!(RevealBobParameters<Pk, Qk, Rk, Sk, Addr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes);
+impl_strict_encoding!(RevealBobParameters<Pk, Qk, Rk, Sk, Addr, Pr>, Pk: CanonicalBytes, Qk: CanonicalBytes, Rk: CanonicalBytes, Sk: CanonicalBytes, Addr: CanonicalBytes, Pr: CanonicalBytes);
 
 /// Sends the [`Lockable`], [`Cancelable`] and [`Refundable`] arbritrating transactions from
 /// [`SwapRole::Bob`] to [`SwapRole::Alice`], as well as Bob's signature for the [`Cancelable`]

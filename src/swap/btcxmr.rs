@@ -190,14 +190,12 @@ impl Derivation for SharedKeyId {
 /// handling [`GenerateKey`], [`GenerateSharedKey`] and [`Sign`].
 #[derive(Clone, Debug)]
 pub struct KeyManager {
-    /// The master 32-bytes seed used to derive all the keys for all the swaps.
-    master_seed: [u8; 32],
     /// The swap identifier used in the derivation.
     swap_index: ChildNumber,
-    /// The master secp256k1 seed.
-    bitcoin_master_key: Secp256k1ExtSecretKey,
-    /// The master ed25519 seed.
-    monero_master_key: Ed25519ExtSecretKey,
+    /// The secp256k1 account key as derived from swap_index.
+    bitcoin_account_key: Secp256k1ExtSecretKey,
+    /// The ed25519 account key as derived from swap_index.
+    monero_account_key: Ed25519ExtSecretKey,
     /// A list of already derived keys for secp256k1 by derivation path.
     bitcoin_derivations: HashMap<DerivationPath, SecretKey>,
     /// A list of already derived monero keys for ed25519 by derivation path.
@@ -206,22 +204,22 @@ pub struct KeyManager {
 
 impl Encodable for KeyManager {
     fn consensus_encode<W: std::io::Write>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
-        let mut len = self.master_seed.consensus_encode(writer)?;
-        len += Into::<u32>::into(self.swap_index).consensus_encode(writer)?;
-        // TODO: don't add derivations, but test that key manager encoding is correct modulo cached derivations
+        let mut len = Into::<u32>::into(self.swap_index).consensus_encode(writer)?;
+        len += self.bitcoin_account_key.consensus_encode(writer)?;
+        len += self.monero_account_key.consensus_encode(writer)?;
         Ok(len)
     }
 }
 
 impl Decodable for KeyManager {
     fn consensus_decode<D: std::io::Read>(d: &mut D) -> Result<Self, consensus::Error> {
-        let master_seed = Decodable::consensus_decode(d)?;
         let swap_index: u32 = Decodable::consensus_decode(d)?;
+        let bitcoin_account_key = Secp256k1ExtSecretKey::consensus_decode(d)?;
+        let monero_account_key = Ed25519ExtSecretKey::consensus_decode(d)?;
         Ok(KeyManager {
-            master_seed,
             swap_index: ChildNumber::from(swap_index),
-            bitcoin_master_key: Secp256k1ExtSecretKey::new_master(master_seed.as_ref()),
-            monero_master_key: Ed25519ExtSecretKey::new_master(master_seed.as_ref()),
+            bitcoin_account_key,
+            monero_account_key,
             bitcoin_derivations: HashMap::new(),
             monero_derivations: HashMap::new(),
         })
@@ -231,16 +229,14 @@ impl Decodable for KeyManager {
 impl_strict_encoding!(KeyManager);
 
 impl KeyManager {
-    /// Generate the derivation path of a key, computed as:
-    /// `m/44'/{blockchain}'/{swap_index}'/{key_type}'/{key_idx}'`.
-    pub fn get_derivation_path(
-        &self,
+    /// Generate the derivation path of an account key, computed as:
+    /// `m/44'/{blockchain}'/{swap_index}'`.
+    pub fn get_account_derivation_path(
         blockchain: Blockchain,
-        key_id: impl Derivation,
+        swap_index: ChildNumber,
     ) -> Result<DerivationPath, crypto::Error> {
         let path = blockchain.derivation_path()?;
-        let path = path.extend([self.swap_index]);
-        Ok(path.extend(&key_id.derivation_path()?))
+        Ok(path.extend([swap_index]))
     }
 
     /// Try to retreive the secret key internally if already generated, if the key is not found
@@ -249,7 +245,7 @@ impl KeyManager {
         &mut self,
         key_id: impl Derivation,
     ) -> Result<SecretKey, crypto::Error> {
-        let path = self.get_derivation_path(Blockchain::Bitcoin, key_id)?;
+        let path = key_id.derivation_path()?;
         self.bitcoin_derivations
             .get(&path)
             // Option<Result<SecretKey, _>>
@@ -258,7 +254,7 @@ impl KeyManager {
             // None => || { ... } => Result<SecretKey, crypto::Error>
             .unwrap_or_else(|| {
                 let secp = Secp256k1::new();
-                match self.bitcoin_master_key.derive_priv(&secp, &path) {
+                match self.bitcoin_account_key.derive_priv(&secp, &path) {
                     Ok(key) => {
                         self.bitcoin_derivations.insert(path, key.secret_key);
                         Ok(key.secret_key)
@@ -274,7 +270,7 @@ impl KeyManager {
         &mut self,
         key_id: impl Derivation,
     ) -> Result<monero::PrivateKey, crypto::Error> {
-        let path = self.get_derivation_path(Blockchain::Monero, key_id)?;
+        let path = key_id.derivation_path()?;
         self.monero_derivations
             .get(&path)
             // Option<Result<PrivateKey, _>>
@@ -283,7 +279,7 @@ impl KeyManager {
             // None => || { ... } => Result<PrivateKey, crypto::Error>
             .unwrap_or_else(|| {
                 let key_seed = self
-                    .monero_master_key
+                    .monero_account_key
                     .derive_priv(&path)
                     .expect("Path does not contain non-hardened derivation")
                     .secret_key;
@@ -308,11 +304,17 @@ impl KeyManager {
     /// Create a new key manager with the provided master seed, returns an error if the swap index is
     /// not within `[0, 2^31 - 1]`.
     pub fn new(seed: [u8; 32], swap_index: u32) -> Result<Self, crypto::Error> {
+        let swap_index = ChildNumber::from_hardened_idx(swap_index).map_err(crypto::Error::new)?;
+        let secp = Secp256k1::new();
         Ok(Self {
-            master_seed: seed,
-            swap_index: ChildNumber::from_hardened_idx(swap_index).map_err(crypto::Error::new)?,
-            bitcoin_master_key: Secp256k1ExtSecretKey::new_master(seed.as_ref()),
-            monero_master_key: Ed25519ExtSecretKey::new_master(seed.as_ref()),
+            swap_index,
+            bitcoin_account_key: Secp256k1ExtSecretKey::new_master(seed.as_ref()).derive_priv(
+                &secp,
+                &Self::get_account_derivation_path(Blockchain::Bitcoin, swap_index)?,
+            )?,
+            monero_account_key: Ed25519ExtSecretKey::new_master(seed.as_ref()).derive_priv(
+                &Self::get_account_derivation_path(Blockchain::Monero, swap_index)?,
+            )?,
             bitcoin_derivations: HashMap::new(),
             monero_derivations: HashMap::new(),
         })
@@ -564,4 +566,46 @@ fn test_keymanager_consensus_encoding() {
     let mut encoder = Vec::new();
     key_manager.consensus_encode(&mut encoder).unwrap();
     KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
+}
+
+#[test]
+fn test_keymanager_restore_index() {
+    let key_manager = KeyManager::new([0; 32], 42).unwrap();
+    let mut encoder = Vec::new();
+    key_manager.consensus_encode(&mut encoder).unwrap();
+    let restore = KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
+    assert_eq!(
+        restore.swap_index,
+        ChildNumber::from_hardened_idx(42).unwrap()
+    );
+}
+
+#[test]
+fn test_keymanager_restore_bitcoin_key() {
+    let mut key_manager = KeyManager::new([0; 32], 1).unwrap();
+    let orig_key = key_manager
+        .get_or_derive_bitcoin_key(ArbitratingKeyId::Lock)
+        .unwrap();
+    let mut encoder = Vec::new();
+    key_manager.consensus_encode(&mut encoder).unwrap();
+    let mut restore = KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
+    let restored_key = restore
+        .get_or_derive_bitcoin_key(ArbitratingKeyId::Lock)
+        .unwrap();
+    assert_eq!(orig_key, restored_key);
+}
+
+#[test]
+fn test_keymanager_restore_monero_key() {
+    let mut key_manager = KeyManager::new([0; 32], 1).unwrap();
+    let orig_key = key_manager
+        .get_or_derive_monero_key(AccordantKeyId::Spend)
+        .unwrap();
+    let mut encoder = Vec::new();
+    key_manager.consensus_encode(&mut encoder).unwrap();
+    let mut restore = KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
+    let restored_key = restore
+        .get_or_derive_monero_key(AccordantKeyId::Spend)
+        .unwrap();
+    assert_eq!(orig_key, restored_key);
 }

@@ -409,7 +409,7 @@ where
 }
 
 impl<Addr, Ar, Ac> Alice<Addr, Ar, Ac> {
-    /// Create a new role for Alice with the local parameters.
+    /// Create a new role for Alice with her local parameters.
     pub fn new(
         arbitrating: Ar,
         accordant: Ac,
@@ -429,11 +429,11 @@ impl<Addr, Ar, Ac> Alice<Addr, Ar, Ac>
 where
     Addr: Clone,
 {
-    /// Generate Alice's parameters for the protocol execution based on the key generator.
+    /// Generate Alice's parameters for the protocol execution based on a key generator.
     ///
     /// # Safety
     ///
-    /// All the data passed to the function are considered trusted and does not require extra
+    /// All data passed to the function are considered trusted and does not require extra
     /// validation. Thus we assume the deal has been validated upfront.
     ///
     pub fn generate_parameters<Kg, Amt, Bmt, Ti, F, Pk, Qk, Rk, Sk, Pr>(
@@ -501,38 +501,37 @@ where
         })
     }
 
-    /// Generates the witness on the refund transaction and encrypt it.
+    /// Generates the witness on the refund transaction and encrypts it.
     ///
     /// # Safety
     ///
-    /// Bob's parameter are created and validated with the protocol messages that commit and reveal
-    /// the values.
+    /// Bob's parameters (i.e. counter-party parameters) are created and validated with the
+    /// protocol messages that commit and reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
     ///
     /// [`CoreArbitratingTransactions`] protocol message is created by Bob and requries extra
-    /// validation.
+    /// validation. **This validation is performed in this function!**
     ///
     /// _Previously verified data_:
-    ///  * `bob_parameters`: Bob's parameters
+    ///  * `bob_parameters`: Bob's parameters (i.e. counter-party parameters)
     ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `wallet`: Alice's arbitrating seed
-    ///  * `alice_parameters`: Alice's parameters
+    ///  * `wallet`: Alice's own wallet, used to perform cryptographic operations
+    ///  * `alice_parameters`: Alice's own parameters
     ///
     /// _Verified data_:
     ///  * `core`: Core arbitrating transactions
     ///
     /// # Execution
     ///
-    ///  * Parse the refund partial transaction in core arbitrating set
-    ///  * Validate the [`Lockable`], [`Cancelable`], [`Refundable`] partial transactions in
-    ///  [`CoreArbitratingTransactions`]
-    ///  * Retrieve Bob's adaptor public key from [`Parameters`]
-    ///  * Retrieve Alice's refund public key from [`Parameters`]
-    ///  * Generate the witness data and adaptor sign it
+    ///  * Parse and validate the [`Lockable`], [`Cancelable`], [`Refundable`] partial transactions
+    ///  in [`CoreArbitratingTransactions`]
+    ///  * Retrieve Bob's(counter-party) adaptor public key from Bob's [`Parameters`]
+    ///  * Retrieve Alice's own refund public key from Alice's [`Parameters`]
+    ///  * Generate the witness data and adaptor-sign(encrypt) it
     ///
     /// Returns the adaptor(encrypted) signature.
     ///
@@ -566,30 +565,29 @@ where
             .map_err(Into::into)
     }
 
-    /// Generates the witness on the cancel transaction and sign it.
+    /// Generates the witness on the cancel transaction and signs it.
     ///
     /// # Safety
     ///
     /// [`CoreArbitratingTransactions`] protocol message is created by Bob and requries extra
-    /// validation.
+    /// validation. **This validation is performed in this function!**
     ///
     /// _Previously verified data_:
-    ///  * `bob_parameters`: Bob's parameters
+    ///  * `bob_parameters`: Bob's parameters (i.e. counter-party parameters)
     ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `wallet`: Alice's arbitrating seed
-    ///  * `alice_parameters`: Alice's parameters
+    ///  * `wallet`: Alice's own wallet, used to perform cryptographic operations
+    ///  * `alice_parameters`: Alice's own parameters
     ///
     /// _Verified data_:
     ///  * `core`: Core arbitrating transactions
     ///
     /// # Execution
     ///
-    ///  * Parse the [`Cancelable`] partial transaction in [`CoreArbitratingTransactions`]
-    ///  * Validate the [`Lockable`], [`Cancelable`], [`Refundable`] partial transactions in
-    ///  [`CoreArbitratingTransactions`]
-    ///  * Retreive Alice's cancel public key from the parameters
+    ///  * Parse and validate the [`Lockable`], [`Cancelable`], [`Refundable`] partial transactions
+    ///  in [`CoreArbitratingTransactions`]
+    ///  * Retreive Alice's cancel public key from her own parameters
     ///  * Generate the witness data and sign it
     ///
     /// Returns the witness signature.
@@ -622,34 +620,38 @@ where
             .map_err(Into::into)
     }
 
-    /// Validates the adaptor buy witness with based on the parameters and the buy arbitrating
+    /// Validates the adaptor buy witness based on Alice & Bob parameters and the buy arbitrating
     /// transactions.
     ///
     /// # Safety
     ///
-    /// Bob's [`Parameters`] are created and validated with the protocol messages that commit and
-    /// reveal the values.
+    /// Bob's parameters (i.e. counter-party parameters) are created and validated with the
+    /// protocol messages that commit and reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
     ///
+    /// [`CoreArbitratingTransactions`] protocol message is created by Bob and requries extra
+    /// validation. **This validation is performed in this function!**
+    ///
     /// _Previously verified data_:
-    ///  * `bob_parameters`: Bob's parameters
+    ///  * `bob_parameters`: Bob's parameters (i.e. counter-party parameters)
     ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `wallet`: Alice's arbitrating seed
-    ///  * `alice_parameters`: Alice's parameters
+    ///  * `wallet`: Alice's own wallet, used to perform cryptographic operations
+    ///  * `alice_parameters`: Alice's own parameters
     ///
     /// _Verified data_:
     ///  * `core`: Core arbitrating transactions
-    ///  * `adaptor_buy`: The adaptor witness to verify
+    ///  * `adaptor_buy`: The adaptor witness this function verifies
     ///
     /// # Execution
     ///
-    ///  * Parse the [`Buyable`] partial transaction in [`BuyProcedureSignature`]
-    ///  * Verify the adaptor witness in [`BuyProcedureSignature`] with the public keys from the
-    ///  parameters
+    ///  * Parse and verify the [`Buyable`] partial transaction and the adaptor witness in
+    ///  [`BuyProcedureSignature`] with the public keys from the parameters
+    ///
+    /// Return `Ok(())` if all tests succeed.
     ///
     pub fn validate_adaptor_buy<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
         &self,
@@ -699,8 +701,8 @@ where
         Ok(())
     }
 
-    /// Sign the arbitrating buy transaction and adapt the counter-party adaptor witness with the
-    /// private adaptor key.
+    /// Sign the arbitrating buy transaction and adapt(encrypt) the counter-party adaptor witness
+    /// with the private adaptor key.
     ///
     /// # Safety
     ///
@@ -717,8 +719,8 @@ where
     ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `wallet`: Alice's arbitrating and accordant seeds
-    ///  * `alice_parameters`: Alice's parameters
+    ///  * `wallet`: Alice's own wallet, used to perform cryptographic operations
+    ///  * `alice_parameters`: Alice's own parameters
     ///  * `bob_parameters`: Bob's parameters
     ///
     /// _Verified data_:
@@ -730,7 +732,7 @@ where
     ///  * Retreive the buy public key from the paramters
     ///  * Generate the buy witness data and sign it
     ///  * Retreive the adaptor public key from the parameters
-    ///  * Adapt the signature
+    ///  * Adapt(encrypt) the signature
     ///
     /// Returns the signatures inside a [`TxSignatures`].
     ///
@@ -802,8 +804,8 @@ where
     ///  * `arb_params`: The core arbitrating parameter used in verification
     ///
     /// _Trusted data_:
-    ///  * `wallet`: Alice's arbitrating seed
-    ///  * `alice_parameters`: Alice's parameters
+    ///  * `wallet`: Alice's own wallet, used to perform cryptographic operations
+    ///  * `alice_parameters`: Alice's own parameters
     ///
     /// Returns the signatures inside [`FullySignedPunish`].
     ///
@@ -1060,20 +1062,12 @@ impl<Addr, Ar, Ac> Bob<Addr, Ar, Ac>
 where
     Addr: Clone,
 {
-    /// Generate Bob's parameters for the protocol execution based on his seed and the deal agreed
-    /// upon during the trade setup.
+    /// Generate Bob’s parameters for the protocol execution based on a key generator.
     ///
     /// # Safety
     ///
     /// All the data passed to the function are considered trusted and does not require extra
     /// validation. The deal is assumend to be validated by user upfront.
-    ///
-    /// The parameters contain:
-    ///
-    ///  * The public keys used in the arbitrating and accordant blockchains
-    ///  * The shared private keys (for reading opaque blockchains)
-    ///  * The timelock parameters from the deal
-    ///  * The target arbitrating address used by Bob
     ///
     pub fn generate_parameters<Amt, Bmt, Pk, Qk, Rk, Sk, Ti, F, Pr, Kg>(
         &self,
@@ -1145,8 +1139,8 @@ where
     ///
     /// # Safety
     ///
-    /// Alice's [`Parameters`] are created and validated with the protocol messages that commit and
-    /// reveal the values.
+    /// Alice's [`Parameters`] (i.e. counter-party parameters) are created and validated with the
+    /// protocol messages that commit and reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
@@ -1156,8 +1150,8 @@ where
     ///  * `arb_params`: The core arbitrating parameter used in verification
     ///
     /// _Trusted data_:
-    ///  * `bob_parameters`: Bob's parameters
-    ///  * `funding`: Funding transaction
+    ///  * `bob_parameters`: Bob's own parameters
+    ///  * `funding`: Bob's own funding transaction
     ///
     /// # Execution
     ///
@@ -1173,8 +1167,8 @@ where
     ///
     /// # Transaction Fee
     ///
-    /// The fee on each transactions are set according to the [`FeeStrategy`] specified in the
-    /// deal and the [`FeePriority`] in `self`.
+    /// The fee on each transactions are set according to the [`FeeStrategy`] specified in the deal
+    /// and the [`FeePriority`] in `self`.
     ///
     /// [`FeeStrategy`]: crate::blockchain::FeeStrategy
     ///
@@ -1314,8 +1308,8 @@ where
     ///
     /// # Safety
     ///
-    /// Alice's [`Parameters`] are created and validated with the protocol messages that commit and
-    /// reveal the values.
+    /// Alice's [`Parameters`] (i.e. counter-party parameters) are created and validated with the
+    /// protocol messages that commit and reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
@@ -1327,7 +1321,7 @@ where
     ///  * `alice_parameters`: Alice's parameters
     ///
     /// _Trusted data_:
-    ///  * `bob_parameters`: Bob's parameters
+    ///  * `bob_parameters`: Bob's own parameters
     ///  * `core`: Core arbitrating transactions
     ///
     /// _Verified data_:
@@ -1337,6 +1331,8 @@ where
     ///
     ///  * Parse the [`Refundable`] partial transaction in [`CoreArbitratingTransactions`]
     ///  * Verify the adaptor witness with the public keys from the parameters
+    ///
+    /// Return `Ok(())` if all tests succeed.
     ///
     pub fn validate_adaptor_refund<Amt, Px, Pk, Qk, Rk, Sk, Ti, F, Pr, S, Ms, Si, EncSig>(
         &self,
@@ -1378,8 +1374,8 @@ where
     ///
     /// This function **MUST NOT** be run if the accordant assets are not confirmed on-chain.
     ///
-    /// Alice's [`Parameters`] are created and validated with the protocol messages that commit
-    /// and reveal the values.
+    /// Alice's [`Parameters`] (i.e. counter-party parameters) are created and validated with the
+    /// protocol messages that commit and reveal the values.
     ///
     /// **This function assumes that the commit/reveal scheme has been validated and assumes that
     /// all cryptographic proof needed for securing the system have passed the validation.**
@@ -1392,8 +1388,8 @@ where
     ///  * `arb_params`: The parameters used to verify core
     ///
     /// _Trusted data_:
-    ///  * `wallet`: Bob's arbitrating seed
-    ///  * `bob_parameters`: Bob's parameters
+    ///  * `wallet`: Bob's own wallet, used to perform cryptographic operations
+    ///  * `bob_parameters`: Bob's own parameters
     ///  * `core`: Core arbitrating transactions
     ///
     /// # Execution

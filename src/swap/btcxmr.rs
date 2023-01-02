@@ -205,7 +205,6 @@ impl Encodable for KeyManager {
         let mut len = Into::<u32>::into(self.swap_index).consensus_encode(writer)?;
         len += self.bitcoin_account_key.consensus_encode(writer)?;
         len += self.monero_account_key.consensus_encode(writer)?;
-        // TODO: don't add derivations, but test that key manager encoding is correct modulo cached derivations
         Ok(len)
     }
 }
@@ -563,4 +562,46 @@ fn test_keymanager_consensus_encoding() {
     let mut encoder = Vec::new();
     key_manager.consensus_encode(&mut encoder).unwrap();
     KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
+}
+
+#[test]
+fn test_keymanager_restore_index() {
+    let key_manager = KeyManager::new([0; 32], 42).unwrap();
+    let mut encoder = Vec::new();
+    key_manager.consensus_encode(&mut encoder).unwrap();
+    let restore = KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
+    assert_eq!(
+        restore.swap_index,
+        ChildNumber::from_hardened_idx(42).unwrap()
+    );
+}
+
+#[test]
+fn test_keymanager_restore_bitcoin_key() {
+    let mut key_manager = KeyManager::new([0; 32], 1).unwrap();
+    let orig_key = key_manager
+        .get_or_derive_bitcoin_key(ArbitratingKeyId::Lock)
+        .unwrap();
+    let mut encoder = Vec::new();
+    key_manager.consensus_encode(&mut encoder).unwrap();
+    let mut restore = KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
+    let restored_key = restore
+        .get_or_derive_bitcoin_key(ArbitratingKeyId::Lock)
+        .unwrap();
+    assert_eq!(orig_key, restored_key);
+}
+
+#[test]
+fn test_keymanager_restore_monero_key() {
+    let mut key_manager = KeyManager::new([0; 32], 1).unwrap();
+    let orig_key = key_manager
+        .get_or_derive_monero_key(AccordantKeyId::Spend)
+        .unwrap();
+    let mut encoder = Vec::new();
+    key_manager.consensus_encode(&mut encoder).unwrap();
+    let mut restore = KeyManager::consensus_decode(&mut std::io::Cursor::new(encoder)).unwrap();
+    let restored_key = restore
+        .get_or_derive_monero_key(AccordantKeyId::Spend)
+        .unwrap();
+    assert_eq!(orig_key, restored_key);
 }

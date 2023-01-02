@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.4] - 2023-01-02
+
 ### Added
 
 - Implement `From<trade::DealId>` and `From<swap::SwapId>` for `Uuid` by @h4sh3d ([#323](https://github.com/farcaster-project/farcaster-core/pull/323))
@@ -212,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages exchanged between farcaster-node's microservices
 - Tasks and blockchain events used by syncers
 
-[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.0...v0.6.1

@@ -16,6 +16,7 @@
 
 use farcaster_core::bitcoin::segwitv0::{BuyTx, CancelTx, FundingTx, LockTx, PunishTx, RefundTx};
 use farcaster_core::bitcoin::BitcoinSegwitV0 as Btc;
+use farcaster_core::crypto::dleq::DLEQProof;
 use farcaster_core::monero::Monero as Xmr;
 use farcaster_core::swap::btcxmr::KeyManager;
 
@@ -110,9 +111,9 @@ fn execute_offline_protocol() {
 
     // Reveal
     let reveal_alice_params = alice_params.clone().reveal_alice(swap_id);
-    test_strict_ser!(reveal_alice_params, RevealAliceParameters<BPub, MPub, BPriv, MPriv, Address>);
+    test_strict_ser!(reveal_alice_params, RevealAliceParameters<BPub, MPub, BPriv, MPriv, Address, DLEQProof>);
     let reveal_bob_params = bob_params.clone().reveal_bob(swap_id);
-    test_strict_ser!(reveal_bob_params, RevealBobParameters<BPub, MPub, BPriv, MPriv, Address>);
+    test_strict_ser!(reveal_bob_params, RevealBobParameters<BPub, MPub, BPriv, MPriv, Address, DLEQProof>);
 
     assert!(commit_alice_params
         .verify_with_reveal(&commitment_engine, reveal_alice_params.clone())

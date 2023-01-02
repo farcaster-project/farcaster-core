@@ -44,6 +44,7 @@ pub type RevealAliceParameters = message::RevealAliceParameters<
     SecretKey,
     monero::PrivateKey,
     Address,
+    DLEQProof,
 >;
 pub type RevealBobParameters = message::RevealBobParameters<
     PublicKey,
@@ -51,6 +52,5 @@ pub type RevealBobParameters = message::RevealBobParameters<
     SecretKey,
     monero::PrivateKey,
     Address,
+    DLEQProof,
 >;
-
-pub type RevealProof = message::RevealProof<DLEQProof>;

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implement `From<trade::DealId>` and `From<swap::SwapId>` for `Uuid` by @h4sh3d ([#323](https://github.com/farcaster-project/farcaster-core/pull/323))
+
 ## [0.6.3] - 2022-12-28
 
 ### Added

@@ -32,7 +32,7 @@ use crate::blockchain::Transactions;
 use crate::consensus::{self, CanonicalBytes};
 use crate::crypto::{DeriveKeys, SharedKeyId};
 use crate::role::SwapRole;
-use crate::script::{DataLock, DataPunishableLock, DoubleKeys, ScriptPath};
+use crate::script::{DataLock, DataPunishableLock, ScriptPath, SwapRoleKeys};
 
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Builder, Instruction, Script};
@@ -106,7 +106,7 @@ pub struct CoopLock {
 impl CoopLock {
     pub fn script(data: DataLock<CSVTimelock, PublicKey>) -> Script {
         let DataLock {
-            success: DoubleKeys { alice, bob },
+            success: SwapRoleKeys { alice, bob },
             ..
         } = data;
         Builder::new()
@@ -198,7 +198,7 @@ impl PunishLock {
     pub fn script(data: DataPunishableLock<CSVTimelock, PublicKey>) -> Script {
         let DataPunishableLock {
             timelock,
-            success: DoubleKeys { alice, bob },
+            success: SwapRoleKeys { alice, bob },
             failure,
         } = data;
         Builder::new()

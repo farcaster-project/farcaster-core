@@ -80,9 +80,11 @@ pub type Parameters = protocol::Parameters<
 
 /// Fully defined type for Bitcoin-Monero atomic swap Alice protocol role.
 pub type Alice = protocol::Alice<bitcoin::Address, BitcoinSegwitV0, Monero>;
+impl_strict_encoding!(Alice);
 
 /// Fully defined type for Bitcoin-Monero atomic swap Bob protocol role.
 pub type Bob = protocol::Bob<bitcoin::Address, BitcoinSegwitV0, Monero>;
+impl_strict_encoding!(Bob);
 
 /// Fully defined type for Bitcoin-Monero atomic swap trade.
 pub type DealParameters =
@@ -223,6 +225,8 @@ impl Decodable for KeyManager {
         })
     }
 }
+
+impl_strict_encoding!(KeyManager);
 
 impl KeyManager {
     /// Generate the derivation path of an account key, computed as:

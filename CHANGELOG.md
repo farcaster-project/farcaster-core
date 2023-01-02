@@ -7,14 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implement `From<trade::DealId>` and `From<swap::SwapId>` for `Uuid` by @h4sh3d ([#323](https://github.com/farcaster-project/farcaster-core/pull/323))
+
+## [0.6.3] - 2022-12-28
+
+### Added
+
+- Derive strict encoding for FundingTx (segwit v0) by @TheCharlatan ([#320](https://github.com/farcaster-project/farcaster-core/pull/320/files))
+
+## [0.6.2] - 2022-12-28
+
+### Added
+
+- Derive strict encoding for `Alice` (segwit v0), `Bob` (segwit v0), and `KeyManager` by @TheCharlatan ([#318](https://github.com/farcaster-project/farcaster-core/pull/318))
+
 ### Changed
 
-- Fee strategy `range` support is now under the new crate feature `fee_range` and disable by default ([#314](https://github.com/farcaster-project/farcaster-core/pull/314))
-- Change Bitcoin fee unit from `sat/vB` to `sat/kvB` ([#315](https://github.com/farcaster-project/farcaster-core/pull/315))
+- Fee strategy `range` support is now under the new crate feature `fee_range` and disable by default by @h4sh3d ([#314](https://github.com/farcaster-project/farcaster-core/pull/314))
+- Change Bitcoin fee unit from `sat/vB` to `sat/kvB` by @h4sh3d ([#315](https://github.com/farcaster-project/farcaster-core/pull/315))
 
 ### Fixed
 
 - Check input lenght when parsing deals from strings by @h4sh3d ([#313](https://github.com/farcaster-project/farcaster-core/pull/313)])
+- Add estimated witness when computing transaction fee by @h4sh3d ([#317](https://github.com/farcaster-project/farcaster-core/pull/317))
 
 ## [0.6.1] - 2022-12-14
 
@@ -185,7 +202,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages exchanged between farcaster-node's microservices
 - Tasks and blockchain events used by syncers
 
-[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.2...v0.6.3
+[0.6.2]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/farcaster-project/farcaster-core/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/farcaster-project/farcaster-core/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/farcaster-project/farcaster-core/compare/v0.5.0...v0.5.1

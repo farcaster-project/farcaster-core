@@ -26,7 +26,7 @@ jobs:
         override: true
 
     - name: Rust cache
-      uses: Swatinem/rust-cache@v2.2.0
+      uses: Swatinem/rust-cache@v2.2.1
 
     - name: Run Rustfmt
       uses: actions-rs/cargo@v1
@@ -49,7 +49,7 @@ jobs:
         override: true
 
     - name: Rust cache
-      uses: Swatinem/rust-cache@v2.2.0
+      uses: Swatinem/rust-cache@v2.2.1
 
     - name: Run Clippy
       uses: actions-rs/cargo@v1
